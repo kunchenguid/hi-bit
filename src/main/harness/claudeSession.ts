@@ -47,7 +47,6 @@ type PendingTurn = {
 
 export class ClaudeSession {
   private readonly child: ChildProcess;
-  private readonly options: ClaudeSessionOptions;
   private alive = true;
   private stdoutBuf = "";
   private stderrBuf = "";
@@ -56,7 +55,6 @@ export class ClaudeSession {
   private spawnError: Error | null = null;
 
   constructor(options: ClaudeSessionOptions) {
-    this.options = options;
     this.child = options.spawn(options.binary, options.args, { cwd: options.cwd });
     this.wireProcess();
   }

@@ -14,7 +14,7 @@ export class ClaudeSessionRegistry<T extends Closable> {
 
   getOrCreate(key: string, factory: () => T): T {
     const existing = this.sessions.get(key);
-    if (existing && existing.isAlive()) return existing;
+    if (existing?.isAlive()) return existing;
     if (existing) this.sessions.delete(key);
     const created = factory();
     this.sessions.set(key, created);
@@ -22,8 +22,7 @@ export class ClaudeSessionRegistry<T extends Closable> {
   }
 
   has(key: string): boolean {
-    const existing = this.sessions.get(key);
-    return existing !== undefined && existing.isAlive();
+    return this.sessions.get(key)?.isAlive() ?? false;
   }
 
   closeProfile(profileId: string): void {
