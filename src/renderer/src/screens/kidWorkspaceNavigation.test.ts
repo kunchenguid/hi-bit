@@ -7,127 +7,67 @@ import {
 } from "./kidWorkspaceNavigation";
 
 describe("reduceKidWorkspace", () => {
-  it("initial state is chat/chat", () => {
-    expect(INITIAL_KID_WORKSPACE_STATE).toEqual({ view: "chat", kidView: "chat" });
+  it("initial state is main", () => {
+    expect(INITIAL_KID_WORKSPACE_STATE).toEqual({ view: "main" });
   });
 
-  it("open-editor moves view and kidView to editor", () => {
-    const next = reduceKidWorkspace(INITIAL_KID_WORKSPACE_STATE, { kind: "open-editor" });
-    expect(next).toEqual({ view: "editor", kidView: "editor" });
-  });
-
-  it("back-to-chat resets both view and kidView to chat", () => {
-    const editorState: KidWorkspaceState = { view: "editor", kidView: "editor" };
-    expect(reduceKidWorkspace(editorState, { kind: "back-to-chat" })).toEqual({
-      view: "chat",
-      kidView: "chat",
-    });
-  });
-
-  it("open-picker flips view to picker without touching kidView", () => {
-    const fromEditor: KidWorkspaceState = { view: "editor", kidView: "editor" };
-    expect(reduceKidWorkspace(fromEditor, { kind: "open-picker" })).toEqual({
+  it("open-picker flips view to picker", () => {
+    expect(reduceKidWorkspace(INITIAL_KID_WORKSPACE_STATE, { kind: "open-picker" })).toEqual({
       view: "picker",
-      kidView: "editor",
-    });
-    const fromChat: KidWorkspaceState = { view: "chat", kidView: "chat" };
-    expect(reduceKidWorkspace(fromChat, { kind: "open-picker" })).toEqual({
-      view: "picker",
-      kidView: "chat",
     });
   });
 
-  it("picker-cancel returns view to the kidView it came from", () => {
-    const fromEditor: KidWorkspaceState = { view: "picker", kidView: "editor" };
-    expect(reduceKidWorkspace(fromEditor, { kind: "picker-cancel" })).toEqual({
-      view: "editor",
-      kidView: "editor",
+  it("picker-cancel returns to main", () => {
+    const fromPicker: KidWorkspaceState = { view: "picker" };
+    expect(reduceKidWorkspace(fromPicker, { kind: "picker-cancel" })).toEqual({ view: "main" });
+  });
+
+  it("picker-picked returns to main", () => {
+    const fromPicker: KidWorkspaceState = { view: "picker" };
+    expect(reduceKidWorkspace(fromPicker, { kind: "picker-picked" })).toEqual({ view: "main" });
+  });
+
+  it("open-projects flips view to projects", () => {
+    expect(reduceKidWorkspace(INITIAL_KID_WORKSPACE_STATE, { kind: "open-projects" })).toEqual({
+      view: "projects",
     });
   });
 
-  it("picker-picked returns view to the kidView it came from", () => {
-    const fromChat: KidWorkspaceState = { view: "picker", kidView: "chat" };
-    expect(reduceKidWorkspace(fromChat, { kind: "picker-picked" })).toEqual({
-      view: "chat",
-      kidView: "chat",
-    });
-    const fromEditor: KidWorkspaceState = { view: "picker", kidView: "editor" };
-    expect(reduceKidWorkspace(fromEditor, { kind: "picker-picked" })).toEqual({
-      view: "editor",
-      kidView: "editor",
+  it("projects-cancel returns to main", () => {
+    const fromProjects: KidWorkspaceState = { view: "projects" };
+    expect(reduceKidWorkspace(fromProjects, { kind: "projects-cancel" })).toEqual({ view: "main" });
+  });
+
+  it("projects-opened returns to main (workspace renders the editor when a dream is active)", () => {
+    const fromProjects: KidWorkspaceState = { view: "projects" };
+    expect(reduceKidWorkspace(fromProjects, { kind: "projects-opened" })).toEqual({
+      view: "main",
     });
   });
 
   it("enter-parent-mode flips view to parent-gate", () => {
-    const fromEditor: KidWorkspaceState = { view: "editor", kidView: "editor" };
-    expect(reduceKidWorkspace(fromEditor, { kind: "enter-parent-mode" })).toEqual({
-      view: "parent-gate",
-      kidView: "editor",
-    });
+    expect(
+      reduceKidWorkspace(INITIAL_KID_WORKSPACE_STATE, { kind: "enter-parent-mode" }),
+    ).toEqual({ view: "parent-gate" });
   });
 
-  it("parent-unlock flips view to parent and preserves kidView", () => {
-    const fromGate: KidWorkspaceState = { view: "parent-gate", kidView: "editor" };
-    expect(reduceKidWorkspace(fromGate, { kind: "parent-unlock" })).toEqual({
-      view: "parent",
-      kidView: "editor",
-    });
+  it("parent-unlock flips view to parent", () => {
+    const fromGate: KidWorkspaceState = { view: "parent-gate" };
+    expect(reduceKidWorkspace(fromGate, { kind: "parent-unlock" })).toEqual({ view: "parent" });
   });
 
-  it("parent-cancel returns view to the kidView", () => {
-    const fromGate: KidWorkspaceState = { view: "parent-gate", kidView: "chat" };
-    expect(reduceKidWorkspace(fromGate, { kind: "parent-cancel" })).toEqual({
-      view: "chat",
-      kidView: "chat",
-    });
+  it("parent-cancel returns to main", () => {
+    const fromGate: KidWorkspaceState = { view: "parent-gate" };
+    expect(reduceKidWorkspace(fromGate, { kind: "parent-cancel" })).toEqual({ view: "main" });
   });
 
-  it("lock returns from parent view to the kidView", () => {
-    const fromParent: KidWorkspaceState = { view: "parent", kidView: "editor" };
-    expect(reduceKidWorkspace(fromParent, { kind: "lock" })).toEqual({
-      view: "editor",
-      kidView: "editor",
-    });
-  });
-
-  it("open-projects flips view to projects without touching kidView", () => {
-    const fromChat: KidWorkspaceState = { view: "chat", kidView: "chat" };
-    expect(reduceKidWorkspace(fromChat, { kind: "open-projects" })).toEqual({
-      view: "projects",
-      kidView: "chat",
-    });
-    const fromEditor: KidWorkspaceState = { view: "editor", kidView: "editor" };
-    expect(reduceKidWorkspace(fromEditor, { kind: "open-projects" })).toEqual({
-      view: "projects",
-      kidView: "editor",
-    });
-  });
-
-  it("projects-cancel returns view to the kidView it came from", () => {
-    const fromEditor: KidWorkspaceState = { view: "projects", kidView: "editor" };
-    expect(reduceKidWorkspace(fromEditor, { kind: "projects-cancel" })).toEqual({
-      view: "editor",
-      kidView: "editor",
-    });
-    const fromChat: KidWorkspaceState = { view: "projects", kidView: "chat" };
-    expect(reduceKidWorkspace(fromChat, { kind: "projects-cancel" })).toEqual({
-      view: "chat",
-      kidView: "chat",
-    });
-  });
-
-  it("projects-opened routes to the editor and pins kidView to editor", () => {
-    const fromProjects: KidWorkspaceState = { view: "projects", kidView: "chat" };
-    expect(reduceKidWorkspace(fromProjects, { kind: "projects-opened" })).toEqual({
-      view: "editor",
-      kidView: "editor",
-    });
+  it("lock returns from parent view to main", () => {
+    const fromParent: KidWorkspaceState = { view: "parent" };
+    expect(reduceKidWorkspace(fromParent, { kind: "lock" })).toEqual({ view: "main" });
   });
 
   it("parent-unlock is the sole event that reaches view:parent (single-gate contract)", () => {
     const allEvents: KidWorkspaceEvent[] = [
-      { kind: "open-editor" },
-      { kind: "back-to-chat" },
       { kind: "open-picker" },
       { kind: "picker-cancel" },
       { kind: "picker-picked" },
@@ -140,16 +80,11 @@ describe("reduceKidWorkspace", () => {
       { kind: "lock" },
     ];
     const startStates: KidWorkspaceState[] = [
-      { view: "chat", kidView: "chat" },
-      { view: "editor", kidView: "editor" },
-      { view: "picker", kidView: "chat" },
-      { view: "picker", kidView: "editor" },
-      { view: "projects", kidView: "chat" },
-      { view: "projects", kidView: "editor" },
-      { view: "parent-gate", kidView: "chat" },
-      { view: "parent-gate", kidView: "editor" },
-      { view: "parent", kidView: "chat" },
-      { view: "parent", kidView: "editor" },
+      { view: "main" },
+      { view: "picker" },
+      { view: "projects" },
+      { view: "parent-gate" },
+      { view: "parent" },
     ];
     const entries: { kind: KidWorkspaceEvent["kind"]; from: KidWorkspaceState["view"] }[] = [];
     for (const start of startStates) {

@@ -31,6 +31,7 @@ type Props = {
   onEnterParentMode?: () => void;
   onSwitchDream?: () => void;
   onOpenProjects?: () => void;
+  docked?: boolean;
 };
 
 export function KidChat({
@@ -39,6 +40,7 @@ export function KidChat({
   onEnterParentMode,
   onSwitchDream,
   onOpenProjects,
+  docked = false,
 }: Props): JSX.Element {
   const messages = useChatStore((s) => s.messages);
   const status = useChatStore((s) => s.status);
@@ -205,14 +207,23 @@ export function KidChat({
     await retry(profile.id);
   }
 
+  const Shell = docked ? "section" : "main";
+  const shellClass = `hb-chat-shell${docked ? " hb-chat-shell-docked" : ""}`;
+
   return (
-    <main className="hb-chat-shell">
+    <Shell className={shellClass}>
       <header className="hb-chat-header">
         <div className="hb-chat-heading">
           <div className="t-pixel hb-gate-kicker">Bit</div>
           <h1 className="hb-chat-title">
-            {profile.name} and Bit
-            {dream ? <span className="hb-chat-dream"> - {dream.title_kid}</span> : null}
+            {docked ? (
+              "Bit"
+            ) : (
+              <>
+                {profile.name} and Bit
+                {dream ? <span className="hb-chat-dream"> - {dream.title_kid}</span> : null}
+              </>
+            )}
           </h1>
           {skillsSummary ? (
             <span className="hb-chat-skills t-pixel">
@@ -226,7 +237,9 @@ export function KidChat({
                 <span className="hb-chat-nextup-label">{nextUp.label}:</span>{" "}
                 <span className="hb-chat-nextup-text">{nextUp.text}</span>
               </p>
-              {nextUp.subtext ? <p className="hb-chat-nextup-why">{nextUp.subtext}</p> : null}
+              {nextUp.subtext && !docked ? (
+                <p className="hb-chat-nextup-why">{nextUp.subtext}</p>
+              ) : null}
             </div>
           ) : null}
           {sessionLearned && sessionLearned.count > learnedDismissedCount ? (
@@ -302,7 +315,7 @@ export function KidChat({
               </button>
             ) : null}
           </div>
-          {onOpenEditor ? (
+          {onOpenEditor && !docked ? (
             <button type="button" className="hb-btn hb-btn-primary" onClick={onOpenEditor}>
               Open editor
             </button>
@@ -331,7 +344,11 @@ export function KidChat({
           }
           const isLastError = idx === messages.length - 1 && m.role === "bit" && m.kind === "error";
           const showEditorCta =
-            m.role === "bit" && m.kind !== "error" && !!onOpenEditor && messageHasEditorCue(m.text);
+            !docked &&
+            m.role === "bit" &&
+            m.kind !== "error" &&
+            !!onOpenEditor &&
+            messageHasEditorCue(m.text);
           return (
             <div
               key={m.id}
@@ -459,6 +476,6 @@ export function KidChat({
           </div>
         </section>
       ) : null}
-    </main>
+    </Shell>
   );
 }

@@ -22,11 +22,17 @@ const EMPTY_PREVIEW = "<!doctype html><html><body></body></html>";
 
 type Props = {
   profile: Profile;
-  onBackToChat: () => void;
+  onBackToChat?: () => void;
   onEnterParentMode?: () => void;
+  docked?: boolean;
 };
 
-export function CodeEditor({ profile, onBackToChat, onEnterParentMode }: Props): JSX.Element {
+export function CodeEditor({
+  profile,
+  onBackToChat,
+  onEnterParentMode,
+  docked = false,
+}: Props): JSX.Element {
   const status = useProjectsStore((s) => s.status);
   const buffers = useProjectsStore((s) => s.buffers);
   const activeFileName = useProjectsStore((s) => s.activeFileName);
@@ -186,8 +192,11 @@ export function CodeEditor({ profile, onBackToChat, onEnterParentMode }: Props):
     didAutoPreviewRef.current = true;
   }, [status, buffers]);
 
+  const Shell = docked ? "section" : "main";
+  const shellClass = `hb-editor-shell${docked ? " hb-editor-shell-docked" : ""}`;
+
   return (
-    <main className="hb-editor-shell">
+    <Shell className={shellClass}>
       <header className="hb-editor-header">
         <div className="hb-editor-heading">
           <div className="t-pixel hb-gate-kicker">Build</div>
@@ -197,10 +206,12 @@ export function CodeEditor({ profile, onBackToChat, onEnterParentMode }: Props):
           </h1>
         </div>
         <div className="hb-chat-header-actions">
-          <button type="button" className="hb-btn hb-btn-ghost" onClick={onBackToChat}>
-            Chat with Bit
-          </button>
-          {onEnterParentMode ? (
+          {onBackToChat && !docked ? (
+            <button type="button" className="hb-btn hb-btn-ghost" onClick={onBackToChat}>
+              Chat with Bit
+            </button>
+          ) : null}
+          {onEnterParentMode && !docked ? (
             <button
               type="button"
               className="hb-btn hb-btn-ghost hb-btn-parent"
@@ -220,7 +231,7 @@ export function CodeEditor({ profile, onBackToChat, onEnterParentMode }: Props):
       ) : null}
 
       {status === "ready" ? (
-        <div className="hb-editor-body">
+        <div className={`hb-editor-body${docked ? " hb-editor-body-stacked" : ""}`}>
           <section className="hb-editor-pane">
             <div className="hb-editor-tabs" role="tablist" aria-label="Project files">
               {buffers.length === 0 ? (
@@ -371,6 +382,7 @@ export function CodeEditor({ profile, onBackToChat, onEnterParentMode }: Props):
               </p>
             ) : null}
             <iframe
+              key={srcdoc}
               className="hb-editor-iframe"
               title="Live preview"
               sandbox="allow-scripts"
@@ -379,6 +391,6 @@ export function CodeEditor({ profile, onBackToChat, onEnterParentMode }: Props):
           </section>
         </div>
       ) : null}
-    </main>
+    </Shell>
   );
 }

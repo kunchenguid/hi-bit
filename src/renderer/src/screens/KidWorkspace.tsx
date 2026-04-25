@@ -1,7 +1,7 @@
 import type { Profile } from "@shared/profile";
 import { type JSX, useReducer } from "react";
-import { CodeEditor } from "./CodeEditor";
 import { DreamPicker } from "./DreamPicker";
+import { KidBuildWorkspace } from "./KidBuildWorkspace";
 import { KidChat } from "./KidChat";
 import { KidProjects } from "./KidProjects";
 import {
@@ -55,12 +55,13 @@ export function KidWorkspace({ profile }: Props): JSX.Element {
     );
   }
 
-  if (state.view === "editor") {
+  if (profile.currentDreamId) {
     return (
-      <CodeEditor
+      <KidBuildWorkspace
         profile={profile}
-        onBackToChat={() => dispatch({ kind: "back-to-chat" })}
         onEnterParentMode={() => dispatch({ kind: "enter-parent-mode" })}
+        onSwitchDream={() => dispatch({ kind: "open-picker" })}
+        onOpenProjects={() => dispatch({ kind: "open-projects" })}
       />
     );
   }
@@ -68,7 +69,6 @@ export function KidWorkspace({ profile }: Props): JSX.Element {
   return (
     <KidChat
       profile={profile}
-      onOpenEditor={() => dispatch({ kind: "open-editor" })}
       onEnterParentMode={() => dispatch({ kind: "enter-parent-mode" })}
       onSwitchDream={() => dispatch({ kind: "open-picker" })}
       onOpenProjects={() => dispatch({ kind: "open-projects" })}

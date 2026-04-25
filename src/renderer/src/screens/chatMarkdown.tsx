@@ -290,21 +290,23 @@ export function CodeBlock({ text, practice = false }: CodeBlockProps): JSX.Eleme
         practice ? "hb-chat-md-codeblock hb-chat-md-codeblock-practice" : "hb-chat-md-codeblock"
       }
     >
+      <div className="hb-chat-md-codeblock-bar">
+        {practice ? (
+          <span className="hb-chat-md-practice-tag">Type it</span>
+        ) : (
+          <button
+            type="button"
+            className="hb-chat-md-copy"
+            onClick={handleCopy}
+            aria-label={copied ? "Copied" : "Copy code"}
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        )}
+      </div>
       <pre className="hb-chat-md-pre">
         <code>{text}</code>
       </pre>
-      {practice ? (
-        <span className="hb-chat-md-practice-tag">Type it</span>
-      ) : (
-        <button
-          type="button"
-          className="hb-chat-md-copy"
-          onClick={handleCopy}
-          aria-label={copied ? "Copied" : "Copy code"}
-        >
-          {copied ? "Copied!" : "Copy"}
-        </button>
-      )}
     </div>
   );
 }
