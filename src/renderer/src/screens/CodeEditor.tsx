@@ -385,7 +385,7 @@ export function CodeEditor({
               key={srcdoc}
               className="hb-editor-iframe"
               title="Live preview"
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-modals"
               srcDoc={srcdoc}
             />
           </section>
