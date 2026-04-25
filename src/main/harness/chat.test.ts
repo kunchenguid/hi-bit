@@ -11,6 +11,7 @@ import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
 import { sendKidMessage, sendParentMessage } from "./chat";
+import { claudeOkStreamJson } from "./claudeStreamJsonFixture";
 import type { HarnessSpawnFn } from "./run";
 
 type FakeChild = EventEmitter & {
@@ -72,7 +73,7 @@ describe("sendKidMessage", () => {
     const profile = await makeAda();
     const spawn = spawnEmitting([
       (c) => {
-        c.stdout?.emit("data", "hi ada");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "hi ada" }));
         c.emit("close", 0, null);
       },
     ]);
@@ -104,7 +105,7 @@ describe("sendKidMessage", () => {
       spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "ok");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;
@@ -139,7 +140,7 @@ describe("sendKidMessage", () => {
       spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "ok");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;
@@ -174,7 +175,7 @@ describe("sendKidMessage", () => {
       spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "ok");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;
@@ -212,7 +213,7 @@ describe("sendKidMessage", () => {
 
     const spawn = spawnEmitting([
       (c) => {
-        c.stdout?.emit("data", "ok");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
         c.emit("close", 0, null);
       },
     ]);
@@ -317,7 +318,7 @@ describe("sendKidMessage", () => {
       bins.push(bin);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "fine");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "fine" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;
@@ -360,7 +361,7 @@ describe("sendParentMessage", () => {
       spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "ok");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;
@@ -388,7 +389,7 @@ describe("sendParentMessage", () => {
       spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "parent summary");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "parent summary" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;
@@ -432,7 +433,7 @@ describe("sendParentMessage", () => {
       spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "ok");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;
@@ -468,7 +469,7 @@ describe("sendParentMessage", () => {
       spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
-        c.stdout?.emit("data", "ok");
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
         c.emit("close", 0, null);
       });
       return c as unknown as ReturnType<HarnessSpawnFn>;

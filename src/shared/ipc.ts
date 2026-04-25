@@ -6,8 +6,14 @@ import type { KnowledgeGraphValidation } from "./knowledgeGraph";
 import type { Profile, ProfileInput, ProfileSettingsInput } from "./profile";
 import type { KnowledgePointStatus, Progress } from "./progress";
 import type { ProjectFile, ProjectFileChange } from "./project";
-import type { HarnessInvocationLogEntry } from "./sessionLog";
+import type { HarnessInvocationLogEntry, SessionRole } from "./sessionLog";
 import type { TranscriptEvent } from "./transcript";
+
+export type BitDeltaEvent = {
+  role: SessionRole;
+  profileId: string;
+  text: string;
+};
 
 export type Platform =
   | "darwin"
@@ -52,6 +58,7 @@ export type HiBitApi = {
   updateProfileSettings: (profileId: string, settings: ProfileSettingsInput) => Promise<Profile>;
   sendKidMessage: (profileId: string, prompt: string) => Promise<SendMessageResult>;
   sendParentMessage: (profileId: string, prompt: string) => Promise<SendMessageResult>;
+  onBitDelta: (handler: (event: BitDeltaEvent) => void) => () => void;
   listProjectSlugs: (profileId: string) => Promise<string[]>;
   listProjectFiles: (profileId: string, slug: string) => Promise<string[]>;
   readProjectFile: (profileId: string, slug: string, filename: string) => Promise<ProjectFile>;

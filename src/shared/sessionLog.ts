@@ -13,4 +13,6 @@ export type HarnessInvocationLogEntry = {
   signal: string | null;
   tokensInput?: number;
   tokensOutput?: number;
+  cacheCreationInputTokens?: number;
+  cacheReadInputTokens?: number;
 };

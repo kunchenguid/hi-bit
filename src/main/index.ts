@@ -17,6 +17,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { loadDreams } from "./graph/dreams";
 import { loadKnowledgeGraph } from "./graph/load";
 import { sendKidMessage, sendParentMessage } from "./harness/chat";
+import type { ClaudeSession } from "./harness/claudeSession";
+import { ClaudeSessionRegistry } from "./harness/claudeSessionRegistry";
 import { detectHarnesses } from "./harness/detect";
 import { loadOrInitConfig, writeConfig } from "./storage/config";
 import { deleteFlag, loadFlags, writeFlag } from "./storage/flags";
@@ -162,6 +164,8 @@ export function projectFileChangeChannel(id: number): string {
 
 function registerIpc(layout: HiBitLayout): void {
   const projectWatchers = createProjectWatcherRegistry();
+  const claudeRegistry = new ClaudeSessionRegistry<ClaudeSession>();
+  app.on("before-quit", () => claudeRegistry.closeAll());
   ipcMain.handle("hibit:get-app-info", (): AppInfo => {
     return {
       version: app.getVersion(),
@@ -177,9 +181,10 @@ function registerIpc(layout: HiBitLayout): void {
     createProfile(layout, input),
   );
 
-  ipcMain.handle("hibit:delete-profile", (_event, profileId: string) =>
-    deleteProfile(layout, profileId),
-  );
+  ipcMain.handle("hibit:delete-profile", (_event, profileId: string) => {
+    claudeRegistry.closeProfile(profileId);
+    return deleteProfile(layout, profileId);
+  });
 
   ipcMain.handle(
     "hibit:export-profile",
@@ -275,7 +280,7 @@ function registerIpc(layout: HiBitLayout): void {
 
   ipcMain.handle(
     "hibit:send-kid-message",
-    async (_event, profileId: string, prompt: string): Promise<SendMessageResult> => {
+    async (event, profileId: string, prompt: string): Promise<SendMessageResult> => {
       const config = await loadOrInitConfig(layout);
       const detection = await detectHarnesses();
       const result = await sendKidMessage({
@@ -285,6 +290,12 @@ function registerIpc(layout: HiBitLayout): void {
         profileId,
         prompt,
         spawn: nodeSpawn,
+        claudeRegistry,
+        onDelta: (text) => {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send("hibit:bit-delta", { role: "kid", profileId, text });
+          }
+        },
       });
       await syncSessionSummariesToStateMd(layout, profileId);
       await syncCurrentSessionToStateMd(layout, profileId, "kid");
@@ -294,7 +305,7 @@ function registerIpc(layout: HiBitLayout): void {
 
   ipcMain.handle(
     "hibit:send-parent-message",
-    async (_event, profileId: string, prompt: string): Promise<SendMessageResult> => {
+    async (event, profileId: string, prompt: string): Promise<SendMessageResult> => {
       const config = await loadOrInitConfig(layout);
       const detection = await detectHarnesses();
       const result = await sendParentMessage({
@@ -304,6 +315,12 @@ function registerIpc(layout: HiBitLayout): void {
         profileId,
         prompt,
         spawn: nodeSpawn,
+        claudeRegistry,
+        onDelta: (text) => {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send("hibit:bit-delta", { role: "parent", profileId, text });
+          }
+        },
       });
       await syncParentDirectivesToStateMd(layout, profileId);
       await syncSessionSummariesToStateMd(layout, profileId);

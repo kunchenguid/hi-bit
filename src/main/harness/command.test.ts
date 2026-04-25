@@ -10,7 +10,7 @@ const base = {
 
 describe("buildHarnessCommand", () => {
   describe("claude", () => {
-    it("builds a start command with isolation flags and --session-id", () => {
+    it("builds a start command with isolation flags, --effort low, stream-json output, and --session-id", () => {
       const cmd = buildHarnessCommand({ ...base, harness: "claude", mode: "start" });
       expect(cmd.bin).toBe("/usr/local/bin/fake");
       expect(cmd.args).toEqual([
@@ -18,6 +18,11 @@ describe("buildHarnessCommand", () => {
         "",
         "--strict-mcp-config",
         "--disable-slash-commands",
+        "--effort",
+        "low",
+        "--output-format",
+        "stream-json",
+        "--verbose",
         "-p",
         "hello bit",
         "--session-id",
@@ -26,13 +31,18 @@ describe("buildHarnessCommand", () => {
       expect(cmd.cwd).toBe("/tmp/profile");
     });
 
-    it("builds a resume command with isolation flags and --resume", () => {
+    it("builds a resume command with isolation flags, --effort low, stream-json output, and --resume", () => {
       const cmd = buildHarnessCommand({ ...base, harness: "claude", mode: "resume" });
       expect(cmd.args).toEqual([
         "--setting-sources",
         "",
         "--strict-mcp-config",
         "--disable-slash-commands",
+        "--effort",
+        "low",
+        "--output-format",
+        "stream-json",
+        "--verbose",
         "--resume",
         "sess-123",
         "-p",
@@ -42,20 +52,22 @@ describe("buildHarnessCommand", () => {
   });
 
   describe("codex", () => {
-    it("builds a start command that runs exec non-interactively with isolation flags", () => {
+    it("builds a start command with isolation flags and reasoning effort 'low'", () => {
       const cmd = buildHarnessCommand({ ...base, harness: "codex", mode: "start" });
       expect(cmd.args).toEqual([
         "exec",
         "--ignore-user-config",
         "--ignore-rules",
         "--skip-git-repo-check",
+        "-c",
+        'model_reasoning_effort="low"',
         "--session-id",
         "sess-123",
         "hello bit",
       ]);
     });
 
-    it("builds a resume command using 'codex exec resume' (not the interactive 'codex resume')", () => {
+    it("builds a resume command using 'codex exec resume' with reasoning effort 'low'", () => {
       const cmd = buildHarnessCommand({ ...base, harness: "codex", mode: "resume" });
       expect(cmd.args).toEqual([
         "exec",
@@ -63,6 +75,8 @@ describe("buildHarnessCommand", () => {
         "--ignore-user-config",
         "--ignore-rules",
         "--skip-git-repo-check",
+        "-c",
+        'model_reasoning_effort="low"',
         "sess-123",
         "hello bit",
       ]);

@@ -4,6 +4,7 @@ import type { DreamValidation } from "@shared/dreams";
 import type { ParentFlag } from "@shared/flag";
 import type {
   AppInfo,
+  BitDeltaEvent,
   HiBitApi,
   OpenProjectFolderResult,
   ProjectFileSubscription,
@@ -40,6 +41,13 @@ const api: HiBitApi = {
     ipcRenderer.invoke("hibit:send-kid-message", profileId, prompt),
   sendParentMessage: (profileId: string, prompt: string): Promise<SendMessageResult> =>
     ipcRenderer.invoke("hibit:send-parent-message", profileId, prompt),
+  onBitDelta: (handler: (event: BitDeltaEvent) => void): (() => void) => {
+    const listener = (_e: unknown, payload: BitDeltaEvent) => handler(payload);
+    ipcRenderer.on("hibit:bit-delta", listener);
+    return () => {
+      ipcRenderer.off("hibit:bit-delta", listener);
+    };
+  },
   listProjectSlugs: (profileId: string): Promise<string[]> =>
     ipcRenderer.invoke("hibit:list-project-slugs", profileId),
   listProjectFiles: (profileId: string, slug: string): Promise<string[]> =>

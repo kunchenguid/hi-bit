@@ -44,6 +44,7 @@ export function KidChat({
 }: Props): JSX.Element {
   const messages = useChatStore((s) => s.messages);
   const status = useChatStore((s) => s.status);
+  const streamingText = useChatStore((s) => s.streamingText);
   const send = useChatStore((s) => s.send);
   const retry = useChatStore((s) => s.retry);
   const hydrate = useChatStore((s) => s.hydrate);
@@ -51,6 +52,7 @@ export function KidChat({
   const hydratedSessionId = useChatStore((s) => s.hydratedSessionId);
   const greetingForSessionId = useChatStore((s) => s.greetingForSessionId);
   const seedKidGreeting = useChatStore((s) => s.seedKidGreeting);
+  const appendStreamingDelta = useChatStore((s) => s.appendStreamingDelta);
   const library = useGraphStore((s) => s.library);
   const graph = useGraphStore((s) => s.graph);
   const graphStatus = useGraphStore((s) => s.status);
@@ -73,6 +75,15 @@ export function KidChat({
       void loadGraph();
     }
   }, [graphStatus, loadGraph]);
+
+  useEffect(() => {
+    const unsubscribe = window.hibit.onBitDelta((event) => {
+      if (event.role === "kid" && event.profileId === profile.id) {
+        appendStreamingDelta(event.text);
+      }
+    });
+    return unsubscribe;
+  }, [profile.id, appendStreamingDelta]);
 
   const kidSessionId = profile.sessions.kid;
   useEffect(() => {
@@ -126,11 +137,13 @@ export function KidChat({
   useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    // Track both lastMessageId and status so thinking-bubble render also scrolls.
+    // Track lastMessageId, status, and streamingText so the thinking/streaming
+    // bubble keeps scrolling into view as deltas arrive.
     void lastMessageId;
     void status;
+    void streamingText;
     el.scrollTop = el.scrollHeight;
-  }, [lastMessageId, status]);
+  }, [lastMessageId, status, streamingText]);
 
   const dream = useMemo<Dream | null>(() => {
     if (!library || !profile.currentDreamId) return null;
@@ -386,14 +399,18 @@ export function KidChat({
         {status === "sending" ? (
           <div className="hb-chat-msg hb-chat-bit hb-chat-msg-pending">
             <div className="hb-chat-msg-role t-pixel">Bit</div>
-            <div className="hb-chat-msg-body hb-chat-thinking">
-              <span className="hb-chat-thinking-label">Bit is thinking</span>
-              <span className="hb-chat-thinking-dots" aria-hidden="true">
-                <span className="hb-chat-thinking-dot" />
-                <span className="hb-chat-thinking-dot" />
-                <span className="hb-chat-thinking-dot" />
-              </span>
-            </div>
+            {streamingText && streamingText.length > 0 ? (
+              <div className="hb-chat-msg-body hb-chat-streaming">{streamingText}</div>
+            ) : (
+              <div className="hb-chat-msg-body hb-chat-thinking">
+                <span className="hb-chat-thinking-label">Bit is thinking</span>
+                <span className="hb-chat-thinking-dots" aria-hidden="true">
+                  <span className="hb-chat-thinking-dot" />
+                  <span className="hb-chat-thinking-dot" />
+                  <span className="hb-chat-thinking-dot" />
+                </span>
+              </div>
+            )}
           </div>
         ) : null}
       </div>

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, bootstrapProfileDirs, profilePathsFor } from "../storage/layout";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
+import { claudeOkStreamJson } from "./claudeStreamJsonFixture";
 import type { HarnessSpawnFn } from "./run";
 import { executeHarnessTurn } from "./turn";
 
@@ -59,7 +60,16 @@ describe("executeHarnessTurn", () => {
   it("writes user then assistant transcript events and a session-log entry on success", async () => {
     const child = makeFakeChild();
     const spawn = spawnThat(child, (c) => {
-      c.stdout?.emit("data", "hello back");
+      c.stdout?.emit(
+        "data",
+        claudeOkStreamJson({
+          result: "hello back",
+          inputTokens: 12,
+          outputTokens: 4,
+          cacheCreationInputTokens: 100,
+          cacheReadInputTokens: 5000,
+        }),
+      );
       c.emit("close", 0, null);
     });
 
@@ -78,6 +88,7 @@ describe("executeHarnessTurn", () => {
 
     expect(result.run.exitCode).toBe(0);
     expect(result.durationMs).toBe(1500);
+    expect(result.text).toBe("hello back");
 
     const events = await readTranscript(paths, "sess-kid");
     expect(events).toEqual([
@@ -108,6 +119,10 @@ describe("executeHarnessTurn", () => {
         durationMs: 1500,
         exitCode: 0,
         signal: null,
+        tokensInput: 12,
+        tokensOutput: 4,
+        cacheCreationInputTokens: 100,
+        cacheReadInputTokens: 5000,
       },
     ]);
   });
@@ -140,6 +155,8 @@ describe("executeHarnessTurn", () => {
         "--ignore-user-config",
         "--ignore-rules",
         "--skip-git-repo-check",
+        "-c",
+        'model_reasoning_effort="low"',
         "sess-parent",
         "summarize today",
       ],

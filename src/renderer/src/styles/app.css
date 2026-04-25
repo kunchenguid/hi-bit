@@ -1453,6 +1453,22 @@ body {
   align-items: baseline;
   gap: 6px;
 }
+.hb-chat-streaming {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.hb-chat-streaming::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  animation: hb-chat-streaming-cursor 1s steps(2) infinite;
+  opacity: 0.5;
+}
+@keyframes hb-chat-streaming-cursor {
+  50% {
+    opacity: 0;
+  }
+}
 .hb-chat-thinking-dots {
   display: inline-flex;
   align-items: center;

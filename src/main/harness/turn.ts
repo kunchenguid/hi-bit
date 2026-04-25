@@ -4,6 +4,7 @@ import type { TranscriptEvent } from "@shared/transcript";
 import type { ProfilePaths } from "../storage/layout";
 import { appendSessionLogEntry } from "../storage/sessionLog";
 import { appendTranscriptEvent } from "../storage/transcript";
+import { type ParsedClaudeStream, parseClaudeStreamJson } from "./claudeStreamJson";
 import { buildHarnessCommand, type HarnessInvocationMode } from "./command";
 import {
   type HarnessRunEvent,
@@ -32,6 +33,8 @@ export type HarnessTurnResult = {
   run: HarnessRunResult;
   durationMs: number;
   logEntry: HarnessInvocationLogEntry;
+  text: string;
+  errorMessage: string | null;
 };
 
 export async function executeHarnessTurn(
@@ -91,7 +94,12 @@ export async function executeHarnessTurn(
 
   const endMs = now();
   const endedAt = new Date(endMs).toISOString();
-  const success = run.exitCode === 0 && run.signal === null;
+  const exitedCleanly = run.exitCode === 0 && run.signal === null;
+
+  const parsed = opts.harness === "claude" ? parseClaudeStreamJson(run.stdout) : null;
+  const success = exitedCleanly && (parsed === null || !parsed.isError);
+  const assistantText = parsed ? parsed.text : run.stdout;
+  const parseError = parsed?.errorMessage ?? null;
 
   const outEvent: TranscriptEvent = success
     ? {
@@ -99,7 +107,7 @@ export async function executeHarnessTurn(
         role: opts.role,
         sessionId: opts.sessionId,
         kind: "assistant_message",
-        text: run.stdout,
+        text: assistantText,
       }
     : {
         timestamp: endedAt,
@@ -107,6 +115,7 @@ export async function executeHarnessTurn(
         sessionId: opts.sessionId,
         kind: "error",
         text:
+          parseError ||
           run.stderr ||
           `harness exited with code=${run.exitCode ?? "null"} signal=${run.signal ?? "null"}`,
       };
@@ -121,8 +130,25 @@ export async function executeHarnessTurn(
     durationMs: endMs - startMs,
     exitCode: run.exitCode,
     signal: run.signal,
+    ...usageFields(parsed),
   };
   await appendSessionLogEntry(opts.paths, logEntry);
 
-  return { run, durationMs: endMs - startMs, logEntry };
+  return {
+    run,
+    durationMs: endMs - startMs,
+    logEntry,
+    text: assistantText,
+    errorMessage: success ? null : (parseError ?? null),
+  };
+}
+
+function usageFields(parsed: ParsedClaudeStream | null): Partial<HarnessInvocationLogEntry> {
+  if (!parsed?.usage) return {};
+  return {
+    tokensInput: parsed.usage.inputTokens,
+    tokensOutput: parsed.usage.outputTokens,
+    cacheCreationInputTokens: parsed.usage.cacheCreationInputTokens,
+    cacheReadInputTokens: parsed.usage.cacheReadInputTokens,
+  };
 }

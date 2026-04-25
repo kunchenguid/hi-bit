@@ -28,10 +28,12 @@ export type ChatStore = {
   hydrateError: string | null;
   hydratedSessionId: string | null;
   greetingForSessionId: string | null;
+  streamingText: string | null;
   hydrate: (profileId: string, sessionId: string) => Promise<void>;
   send: (profileId: string, prompt: string) => Promise<SendMessageResult | null>;
   retry: (profileId: string) => Promise<SendMessageResult | null>;
   seedKidGreeting: (sessionId: string, text: string) => void;
+  appendStreamingDelta: (text: string) => void;
   reset: () => void;
 };
 
@@ -56,6 +58,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   hydrateError: null,
   hydratedSessionId: null,
   greetingForSessionId: null,
+  streamingText: null,
+
+  appendStreamingDelta: (text) => set((s) => ({ streamingText: (s.streamingText ?? "") + text })),
 
   hydrate: async (profileId, sessionId) => {
     set({ hydrateStatus: "loading", hydrateError: null });
@@ -109,6 +114,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messages: [...s.messages, kidMessage],
       status: "sending",
       error: null,
+      streamingText: null,
     }));
 
     try {
@@ -125,6 +131,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messages: [...s.messages, reply],
         status: "idle",
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
+        streamingText: null,
       }));
       return result;
     } catch (err) {
@@ -142,6 +149,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ],
         status: "idle",
         error: message,
+        streamingText: null,
       }));
       return null;
     }
@@ -160,6 +168,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messages: s.messages.slice(0, -1),
       status: "sending",
       error: null,
+      streamingText: null,
     }));
 
     try {
@@ -176,6 +185,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messages: [...s.messages, reply],
         status: "idle",
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
+        streamingText: null,
       }));
       return result;
     } catch (err) {
@@ -193,6 +203,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ],
         status: "idle",
         error: message,
+        streamingText: null,
       }));
       return null;
     }
@@ -207,6 +218,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       hydrateError: null,
       hydratedSessionId: null,
       greetingForSessionId: null,
+      streamingText: null,
     });
   },
 }));

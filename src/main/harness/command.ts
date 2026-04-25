@@ -39,6 +39,10 @@ const CLAUDE_ISOLATION_FLAGS = [
 
 const CODEX_ISOLATION_FLAGS = ["--ignore-user-config", "--ignore-rules", "--skip-git-repo-check"];
 
+const CLAUDE_EFFORT_FLAGS = ["--effort", "low"];
+const CLAUDE_OUTPUT_FLAGS = ["--output-format", "stream-json", "--verbose"];
+const CODEX_EFFORT_FLAGS = ["-c", 'model_reasoning_effort="low"'];
+
 function argsFor(
   harness: HarnessId,
   mode: HarnessInvocationMode,
@@ -48,12 +52,35 @@ function argsFor(
   switch (harness) {
     case "claude":
       return mode === "start"
-        ? [...CLAUDE_ISOLATION_FLAGS, "-p", prompt, "--session-id", sessionId]
-        : [...CLAUDE_ISOLATION_FLAGS, "--resume", sessionId, "-p", prompt];
+        ? [
+            ...CLAUDE_ISOLATION_FLAGS,
+            ...CLAUDE_EFFORT_FLAGS,
+            ...CLAUDE_OUTPUT_FLAGS,
+            "-p",
+            prompt,
+            "--session-id",
+            sessionId,
+          ]
+        : [
+            ...CLAUDE_ISOLATION_FLAGS,
+            ...CLAUDE_EFFORT_FLAGS,
+            ...CLAUDE_OUTPUT_FLAGS,
+            "--resume",
+            sessionId,
+            "-p",
+            prompt,
+          ];
     case "codex":
       return mode === "start"
-        ? ["exec", ...CODEX_ISOLATION_FLAGS, "--session-id", sessionId, prompt]
-        : ["exec", "resume", ...CODEX_ISOLATION_FLAGS, sessionId, prompt];
+        ? [
+            "exec",
+            ...CODEX_ISOLATION_FLAGS,
+            ...CODEX_EFFORT_FLAGS,
+            "--session-id",
+            sessionId,
+            prompt,
+          ]
+        : ["exec", "resume", ...CODEX_ISOLATION_FLAGS, ...CODEX_EFFORT_FLAGS, sessionId, prompt];
     case "opencode":
       return ["run", "--pure", "--session", sessionId, prompt];
   }
