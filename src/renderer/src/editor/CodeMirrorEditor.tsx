@@ -4,10 +4,15 @@ import { javascript } from "@codemirror/lang-javascript";
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
-import { type JSX, useEffect, useRef } from "react";
+import { type JSX, type Ref, useEffect, useImperativeHandle, useRef } from "react";
 import { detectEditorLanguage, type EditorLanguage } from "./fileLanguage";
 
+export type CodeMirrorHandle = {
+  insertText: (text: string) => void;
+};
+
 type Props = {
+  ref?: Ref<CodeMirrorHandle>;
   filename: string;
   value: string;
   onChange: (next: string) => void;
@@ -30,6 +35,7 @@ function languageExtensionFor(lang: EditorLanguage | null): Extension | null {
 }
 
 export function CodeMirrorEditor({
+  ref,
   filename,
   value,
   onChange,
@@ -42,6 +48,23 @@ export function CodeMirrorEditor({
   const onChangeRef = useRef(onChange);
   const onSaveRef = useRef(onSave);
   const initialValueRef = useRef(value);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertText(text: string): void {
+        const view = viewRef.current;
+        if (!view) return;
+        const sel = view.state.selection.main;
+        view.dispatch({
+          changes: { from: sel.from, to: sel.to, insert: text },
+          selection: { anchor: sel.from + text.length },
+        });
+        view.focus();
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -86,6 +109,12 @@ export function CodeMirrorEditor({
         },
         "&.cm-focused": {
           outline: "none",
+        },
+        ".cm-selectionBackground, ::selection": {
+          background: "color-mix(in oklch, var(--brand) 35%, transparent)",
+        },
+        "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+          background: "color-mix(in oklch, var(--brand) 35%, transparent)",
         },
       }),
     ];

@@ -1,5 +1,5 @@
 import type { Profile } from "@shared/profile";
-import type { JSX } from "react";
+import { type JSX, useState } from "react";
 import { CodeEditor } from "./CodeEditor";
 import { KidChat } from "./KidChat";
 
@@ -16,6 +16,20 @@ export function KidBuildWorkspace({
   onSwitchDream,
   onOpenProjects,
 }: Props): JSX.Element {
+  const [editorRevealed, setEditorRevealed] = useState(false);
+
+  if (!editorRevealed) {
+    return (
+      <KidChat
+        profile={profile}
+        onEnterParentMode={onEnterParentMode}
+        onSwitchDream={onSwitchDream}
+        onOpenProjects={onOpenProjects}
+        onOpenEditor={() => setEditorRevealed(true)}
+      />
+    );
+  }
+
   return (
     <main className="hb-build-shell">
       <section className="hb-build-editor" aria-label="Code workspace">

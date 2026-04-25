@@ -1337,9 +1337,6 @@ body {
   white-space: pre;
 }
 .hb-chat-shell-docked .hb-chat-md-pre {
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-x: hidden;
   font-size: 12px;
 }
 .hb-chat-md-pre code {
@@ -1722,9 +1719,8 @@ body {
 .hb-editor-cm .cm-cursor {
   border-left-color: var(--brand);
 }
-.hb-editor-cm .cm-selectionBackground,
 .hb-editor-cm .cm-content ::selection {
-  background: var(--brand-wash);
+  background: color-mix(in oklch, var(--brand) 35%, transparent);
 }
 .hb-editor-cm .cm-content {
   caret-color: var(--brand);
@@ -1780,7 +1776,7 @@ body {
 /* ---------- Build workspace (chat docked alongside editor) ---------- */
 .hb-build-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  grid-template-columns: minmax(0, 1fr) minmax(500px, 640px);
   gap: var(--s-2);
   height: 100dvh;
   padding: var(--s-3);
@@ -1863,7 +1859,7 @@ body {
 
 @media (max-width: 1100px) {
   .hb-build-shell {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 500px;
   }
 }
 

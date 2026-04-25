@@ -456,7 +456,10 @@ void app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  // In dev, closing the window should also tear down `npm run dev` so the
+  // Vite server doesn't keep running headless. In production, keep the
+  // macOS convention of staying alive in the dock.
+  if (isDev || process.platform !== "darwin") {
     app.quit();
   }
 });

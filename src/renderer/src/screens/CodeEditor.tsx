@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { CodeMirrorEditor } from "../editor/CodeMirrorEditor";
+import { CodeMirrorEditor, type CodeMirrorHandle } from "../editor/CodeMirrorEditor";
 import { buildPreviewSrcdoc } from "../preview/buildPreview";
 import { useGraphStore } from "../state/graphStore";
 import { useProjectsStore } from "../state/projectsStore";
@@ -55,10 +55,12 @@ export function CodeEditor({
   const didAutoPreviewRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [openFolderError, setOpenFolderError] = useState<string | null>(null);
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const [newFileStatus, setNewFileStatus] = useState<NewFileStatus>("closed");
   const [newFileName, setNewFileName] = useState("");
   const [newFileError, setNewFileError] = useState<string | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const editorRef = useRef<CodeMirrorHandle | null>(null);
 
   useEffect(() => {
     if (graphStatus === "idle") void loadGraph();
@@ -120,6 +122,21 @@ export function CodeEditor({
     const result = await openFolder();
     if (!result.ok) {
       setOpenFolderError(result.error);
+    }
+  }
+
+  async function handlePaste(): Promise<void> {
+    setPasteError(null);
+    if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") {
+      setPasteError("Your browser is blocking paste. Use Cmd+V or Ctrl+V instead.");
+      return;
+    }
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.length === 0) return;
+      editorRef.current?.insertText(text);
+    } catch {
+      setPasteError("Couldn't read what you copied. Click in the code first, then try again.");
     }
   }
 
@@ -324,6 +341,7 @@ export function CodeEditor({
             {activeBuffer ? (
               <CodeMirrorEditor
                 key={activeBuffer.name}
+                ref={editorRef}
                 filename={activeBuffer.name}
                 value={activeBuffer.content}
                 onChange={(next) => updateBuffer(activeBuffer.name, next)}
@@ -355,6 +373,16 @@ export function CodeEditor({
                 type="button"
                 className="hb-btn hb-btn-ghost"
                 onClick={() => {
+                  void handlePaste();
+                }}
+                disabled={!activeBuffer}
+              >
+                Paste
+              </button>
+              <button
+                type="button"
+                className="hb-btn hb-btn-ghost"
+                onClick={() => {
                   void handleOpenFolder();
                 }}
               >
@@ -371,6 +399,7 @@ export function CodeEditor({
             </div>
 
             {saveError ? <p className="hb-form-err">{saveError}</p> : null}
+            {pasteError ? <p className="hb-form-err">{pasteError}</p> : null}
             {openFolderError ? <p className="hb-form-err">{openFolderError}</p> : null}
           </section>
 
