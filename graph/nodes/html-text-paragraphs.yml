@@ -1,0 +1,12 @@
+id: html-text-paragraphs
+title_parent: Paragraphs
+title_kid: regular text
+why_kid: this is how you put real sentences on your page, not just titles.
+area: html
+prereqs: [html-doc-shell]
+introduces: [paragraph-tag, block-text]
+mastery_signals:
+  saw_it: Bit added a p tag in the kid's page and called out that the words show up as regular text.
+  did_with_help: Kid wrote one or more p tags with Bit reminding them of the open and close tag pair.
+  did_unprompted: Kid used a p tag for body text on a new section without Bit suggesting it.
+  explained_it: Kid described p as "the tag for regular writing," or that the text inside a p shows up as a block of text on the page.

@@ -1,0 +1,12 @@
+id: css-hover
+title_parent: hover pseudo-class
+title_kid: making things react when you point at them
+why_kid: this is how you make buttons and pictures feel alive when someone points at them - it's the little hint that tells you something is clickable.
+area: css
+prereqs: [css-colors]
+introduces: [pseudo-class, hover-state, pointer-interaction]
+mastery_signals:
+  saw_it: Bit added a :hover rule to a button or a card on the kid's page and had them move the mouse over it to see the color change on its own.
+  did_with_help: Kid wrote a selector:hover rule with Bit reminding them of the colon and that the rule only runs while the pointer is over the element.
+  did_unprompted: Kid added a hover effect to a new clickable element on their own, without Bit suggesting the interaction.
+  explained_it: Kid said that :hover is a rule that runs only when the mouse is on top of an element, and that the styles go away when the mouse leaves.

@@ -1,0 +1,12 @@
+id: html-div-span
+title_parent: Generic containers
+title_kid: invisible boxes that hold other things
+why_kid: you wrap things in these so you can move them around, color them as a group, or line them up neatly.
+area: html
+prereqs: [html-text-paragraphs]
+introduces: [div-tag, span-tag, container-element, inline-vs-block]
+mastery_signals:
+  saw_it: Bit wrapped part of the kid's page in a div and pointed out that the div itself does not change the way things look until it gets styled.
+  did_with_help: Kid added a div around a group of elements while Bit reminded them of the open and close tag pair.
+  did_unprompted: Kid used a div to group elements together on a new section without Bit asking for one.
+  explained_it: Kid described a div as an invisible box that holds other things so you can style or move them together.

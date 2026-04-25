@@ -1,0 +1,12 @@
+id: dom-set-attribute
+title_parent: setAttribute and direct property writes
+title_kid: changing image sources, links, and other attributes
+why_kid: this is how a click can swap one picture for another, or change where a button takes you - so the page can feel different without rewriting the HTML.
+area: dom
+prereqs: [dom-query-selector, html-images]
+introduces: [set-attribute, attribute-write, src-swap, href-swap]
+mastery_signals:
+  saw_it: Bit grabbed an image or link in the kid's code and changed its src or href by writing to the property (or calling setAttribute), and the kid saw the page load a new image or point to a new link.
+  did_with_help: Kid wrote a line that changed an attribute like src, href, or alt on an element under Bit's guidance to swap what the element points at.
+  did_unprompted: Kid changed an attribute like src or href on an element from code when they wanted to swap an image or link, without Bit proposing setAttribute or a property write.
+  explained_it: Kid described an attribute as the extra info attached to an element (like which picture an image shows) and said that code can change that info to make the element point at something different.

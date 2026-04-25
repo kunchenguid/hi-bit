@@ -1,0 +1,12 @@
+id: css-display-block-inline
+title_parent: Block vs inline display
+title_kid: why some things stack and some don't
+why_kid: some pieces of your page take up a whole row, and some sit next to each other on the same line. knowing how to switch between those two behaviors is how you get pages to lay out the way you pictured.
+area: css
+prereqs: [css-box-model]
+introduces: [display-block, display-inline, display-inline-block]
+mastery_signals:
+  saw_it: Bit switched an element's display between block and inline on the kid's page and pointed out how the layout changed from stacked to side by side (or the other way).
+  did_with_help: Kid changed an element's display value with Bit walking them through when each value makes sense.
+  did_unprompted: Kid reached for display block or inline on a new element on their own to fix a layout that was not stacking the way they wanted.
+  explained_it: Kid said that block elements take up a whole row while inline elements sit next to each other, and could point to one of each on their page.

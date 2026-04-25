@@ -1,0 +1,25 @@
+id: to-do-list
+title_parent: To do list
+title_kid: a to do list where you type things and they show up
+summary_kid: a page with a typing box and an add button, and each thing you type becomes a new line in your list
+emoji: "✅"
+categories: [utility]
+interest_tags: [lists, organizing, homework, planning]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-labels
+  - html-inputs-text
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-input-value
+  - dom-create-append
+  - events-click
+  - js-arrays
+  - js-array-push
+  - state-array-in-dom
+style_hints:
+  - the title of the list
+  - the label on the typing box
+  - the add button label

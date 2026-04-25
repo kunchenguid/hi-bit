@@ -1,0 +1,12 @@
+id: dom-text-content
+title_parent: textContent
+title_kid: changing the words inside an element
+why_kid: this lets your code swap out the words on the page, so a title or a score can change without you reloading.
+area: dom
+prereqs: [dom-query-selector]
+introduces: [text-content, dom-write, dynamic-text]
+mastery_signals:
+  saw_it: Bit grabbed an element and changed its textContent in the kid's code, and the kid saw the words on the page change when the code ran.
+  did_with_help: Kid wrote a line that set textContent on an element under Bit's guidance to swap the words shown on the page.
+  did_unprompted: Kid used textContent to change what an element said when they wanted to update the page from code, without Bit proposing it.
+  explained_it: Kid described textContent as the words inside an element, and said that setting it from code replaces what is shown on the page.

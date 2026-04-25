@@ -1,0 +1,12 @@
+id: canvas-collision-rect
+title_parent: Rect-vs-rect collision
+title_kid: two shapes running into each other
+why_kid: this is how a game knows your character grabbed a coin, hit a wall, or got tagged - without it, things just slide right through each other.
+area: canvas
+prereqs: [canvas-collision-bounds]
+introduces: [aabb, overlap-check, intersection]
+mastery_signals:
+  saw_it: Bit wrote an if check that compares two rectangles using their x, y, width, and height to decide when they overlap, and walked the kid through each side-by-side comparison.
+  did_with_help: Kid wrote a rect-vs-rect overlap check using x, y, width, and height on both shapes under Bit's step-by-step guidance.
+  did_unprompted: Kid added a rect-vs-rect collision check to their project to detect when two shapes hit each other, without Bit suggesting the comparison.
+  explained_it: Kid explained that two rectangles overlap when the right edge of one is past the left edge of the other and the bottom of one is past the top of the other, on both axes at once.

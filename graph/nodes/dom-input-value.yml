@@ -1,0 +1,12 @@
+id: dom-input-value
+title_parent: Reading .value from an input
+title_kid: getting what the kid typed
+why_kid: this is how your code grabs whatever someone typed into a box, so you can use their words on the page.
+area: dom
+prereqs: [dom-query-selector, html-inputs-text]
+introduces: [input-value, form-read, user-input-capture]
+mastery_signals:
+  saw_it: Bit grabbed an input element in the kid's code and read its .value property, and the kid saw the code print back whatever they had typed into the box.
+  did_with_help: Kid wrote code that read an input's .value and used that text somewhere (like printing it or putting it on the page) under Bit's guidance.
+  did_unprompted: Kid reached for input.value when they wanted to use what the user typed, without Bit suggesting where the typed text came from.
+  explained_it: Kid described .value as the text sitting inside an input box and said that reading it from code is how they get whatever the person typed.

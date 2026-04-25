@@ -1,0 +1,29 @@
+id: trading-cards
+title_parent: Trading cards
+title_kid: a trading card collection page you design yourself
+summary_kid: a page that shows a row of trading cards you made up - each card has a name, a power, and its own color, and they all come from a list you typed at the top of your code
+emoji: "🎴"
+categories: [creative, utility]
+interest_tags: [collections, cards, characters, design, games]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-div-span
+  - css-attach
+  - css-colors
+  - css-background
+  - css-border-radius
+  - css-flex-basics
+  - js-attach
+  - dom-query-selector
+  - dom-create-append
+  - dom-text-content
+  - js-arrays
+  - js-objects
+  - js-for-of
+  - state-array-in-dom
+style_hints:
+  - what kind of cards (heroes, pets, pokemon-style, snack monsters...)
+  - how many cards to show
+  - the name, power, and color for each card
+  - the card shape and border style

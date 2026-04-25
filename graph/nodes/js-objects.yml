@@ -1,0 +1,12 @@
+id: js-objects
+title_parent: Object literals and property access
+title_kid: labeled collections of stuff
+why_kid: when you have a bunch of related things (like a character's name, age, and color) you can bundle them together with labels so your code stays tidy and you can grab the piece you need.
+area: js
+prereqs: [js-variables-let-const]
+introduces: [object-literal, property-access, dot-notation, key-value]
+mastery_signals:
+  saw_it: Bit built a small object with a couple of labeled properties in the kid's code, read one property back with dot notation, and pointed out how the label tells you what each value means.
+  did_with_help: Kid built an object with a few labeled properties and read one of them back using dot notation, with Bit reminding them that each property needs a name and a value.
+  did_unprompted: Kid reached for an object on their own to group a few related values under labels (like name and age), without Bit suggesting the shape.
+  explained_it: Kid said that an object is a bundle of labeled values, and that you get one of the values back by writing the object's name, a dot, and the label.

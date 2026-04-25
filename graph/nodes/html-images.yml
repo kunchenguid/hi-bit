@@ -1,0 +1,12 @@
+id: html-images
+title_parent: Image tags with src and alt
+title_kid: pictures
+why_kid: a page with pictures is way more fun to look at than one with only words.
+area: html
+prereqs: [html-doc-shell]
+introduces: [img-tag, src-attribute, alt-attribute, self-closing-tag]
+mastery_signals:
+  saw_it: Bit added an img tag with a src to the kid's page and pointed out the picture showing up in the preview.
+  did_with_help: Kid wrote an img tag with src and alt while Bit reminded them it does not have a closing tag.
+  did_unprompted: Kid reached for an img tag to add a picture to their page without Bit suggesting one.
+  explained_it: Kid described img as the picture tag and said src is where the picture comes from while alt is the words that describe it.

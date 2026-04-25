@@ -1,0 +1,12 @@
+id: html-links
+title_parent: Anchor tags
+title_kid: clickable links to other pages
+why_kid: links are how your page can send a visitor somewhere else on the web.
+area: html
+prereqs: [html-text-paragraphs]
+introduces: [a-tag, href-attribute, external-link]
+mastery_signals:
+  saw_it: Bit added an a tag with an href to the kid's page and pointed out the clickable link in the preview.
+  did_with_help: Kid wrote an a tag with href and label text while Bit reminded them of the attribute shape.
+  did_unprompted: Kid added a link to somewhere else on their page without Bit asking for one.
+  explained_it: Kid described an a tag as the thing that makes text clickable and said href is where the link goes when you click it.

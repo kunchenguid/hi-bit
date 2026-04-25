@@ -1,0 +1,12 @@
+id: css-opacity
+title_parent: opacity
+title_kid: making things see-through
+why_kid: this lets you fade things in and out, layer pictures like ghosts on top of each other, or dim a button that isn't ready yet.
+area: css
+prereqs: [css-colors]
+introduces: [opacity, alpha-value, fade]
+mastery_signals:
+  saw_it: Bit set opacity on an element on the kid's page to something less than 1 and showed the kid how you could see what was behind it.
+  did_with_help: Kid set opacity on an element with Bit reminding them that 1 is fully visible, 0 is invisible, and values in between are see-through.
+  did_unprompted: Kid reached for opacity on a new element on their own to fade it back or layer it over something else, without Bit suggesting it.
+  explained_it: Kid said that opacity controls how see-through an element is, with 1 meaning solid and 0 meaning invisible.

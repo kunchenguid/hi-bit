@@ -1,0 +1,12 @@
+id: css-border-radius
+title_parent: Rounded corners
+title_kid: making boxes not so square
+why_kid: rounded corners make a button or a card look softer and friendlier than a sharp square.
+area: css
+prereqs: [css-box-model]
+introduces: [border-radius, rounded-corners, pill-shape]
+mastery_signals:
+  saw_it: Bit added border-radius to a button or a container on the kid's page and showed how the corners stopped being sharp.
+  did_with_help: Kid set border-radius on an element with Bit reminding them that the value is a length and that big enough values make a full circle or pill.
+  did_unprompted: Kid added border-radius to a new element on their own when they wanted softer corners, without Bit suggesting it.
+  explained_it: Kid said that border-radius rounds off the corners of an element, and that a bigger value means more rounded.

@@ -1,0 +1,20 @@
+id: click-counter
+title_parent: Click counter
+title_kid: a page with a button that counts your clicks
+summary_kid: a page with one big button, and every time you click it, the number on the page goes up
+emoji: "🔢"
+categories: [arcade, utility]
+interest_tags: [games, numbers, buttons]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - state-counter
+style_hints:
+  - what the button says
+  - what the counter label says
+  - what happens at a special number (like 10 or 100)

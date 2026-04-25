@@ -1,0 +1,12 @@
+id: css-selectors-class-id
+title_parent: Class and id selectors
+title_kid: styling just one thing or one group
+why_kid: this lets you pick exactly which thing on the page gets a color or size, instead of styling every one.
+area: css
+prereqs: [css-selectors-element, html-id-class]
+introduces: [class-selector, id-selector, dot-prefix, hash-prefix]
+mastery_signals:
+  saw_it: Bit added a class to an element and wrote a .class-name rule, or targeted a specific element by its id with a #id rule, and showed that only the matching thing changed.
+  did_with_help: Kid wrote a class selector or an id selector under Bit's guidance, and matched it to an element on their page.
+  did_unprompted: Kid reached for a class when they wanted to style a few elements the same way (not every one) without Bit suggesting it.
+  explained_it: Kid said that a dot means class and a hash means id, and that class can be used on many elements while id is for one.

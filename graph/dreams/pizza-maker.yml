@@ -1,0 +1,24 @@
+id: pizza-maker
+title_parent: Pizza maker
+title_kid: a pizza maker where you check toppings and your pizza updates
+summary_kid: a page with a list of topping checkboxes, and as you check or uncheck them a sentence shows what is on your pizza right now
+emoji: "🍕"
+categories: [creative, utility]
+interest_tags: [food, cooking, pizza, choices, building]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-div-span
+  - html-labels
+  - html-inputs-checkbox-radio
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-change
+  - js-arrays
+  - js-strings
+  - js-template-literals
+style_hints:
+  - what toppings show up as choices
+  - the colors of the page and the pizza description
+  - what the empty-pizza message says when nothing is checked

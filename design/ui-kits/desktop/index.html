@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hi-Bit · Desktop UI Kit</title>
+<link rel="stylesheet" href="../../tokens/colors_and_type.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="Sidebar.jsx"></script>
+<script type="text/babel" src="HomeScreen.jsx"></script>
+<script type="text/babel" src="TutorScreen.jsx"></script>
+<script type="text/babel" src="EditorScreen.jsx"></script>
+<script type="text/babel" src="XpToast.jsx"></script>
+
+<script type="text/babel">
+const { useState, useCallback } = React;
+
+const App = () => {
+  const [route, setRoute] = useState('home');
+  const [xp, setXp] = useState(340);
+  const xpMax = 500;
+  const [toasts, setToasts] = useState([]);
+  const [streak] = useState(7);
+
+  const awardXp = useCallback((n) => {
+    setXp(x => Math.min(x + n, xpMax));
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, amount: n }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 1800);
+  }, []);
+
+  let main;
+  if (route === 'home') main = <HomeScreen onOpenLesson={() => setRoute('tutor')} onOpenTutor={() => setRoute('tutor')} />;
+  else if (route === 'tutor') main = <TutorScreen onAwardXp={awardXp} />;
+  else if (route === 'editor') main = <EditorScreen onAwardXp={awardXp} />;
+  else if (route === 'lessons') main = <HomeScreen onOpenLesson={() => setRoute('tutor')} onOpenTutor={() => setRoute('tutor')} />;
+  else main = (
+    <div className="hb-screen">
+      <h1>Trophies</h1>
+      <p style={{color:'var(--ink-64)', marginTop: 8}}>7-day streak. 3 badges earned. Keep it up.</p>
+    </div>
+  );
+
+  return (
+    <div className="hb-app" data-screen-label="01 Home">
+      <Sidebar active={route} onNav={setRoute} level={4} xp={xp} xpMax={xpMax} streak={streak} />
+      <main className="hb-main">{main}</main>
+      {toasts.map(t => <XpToast key={t.id} id={t.id} amount={t.amount} />)}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

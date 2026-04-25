@@ -1,0 +1,12 @@
+id: html-text-headings
+title_parent: Headings h1-h6
+title_kid: big titles and small titles
+why_kid: titles tell a visitor what your page is about before they read anything else.
+area: html
+prereqs: [html-doc-shell]
+introduces: [heading-tag, heading-hierarchy]
+mastery_signals:
+  saw_it: Bit added an h1 to the kid's page and named it as the biggest title.
+  did_with_help: Kid wrote an h1 and an h2 with Bit pointing out which goes where.
+  did_unprompted: Kid reached for a heading tag on a new page or section without Bit suggesting it.
+  explained_it: Kid described h1 as the biggest title and h2-h6 as smaller sub-titles, or equivalent in their words.

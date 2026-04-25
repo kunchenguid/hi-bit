@@ -1,0 +1,12 @@
+id: js-comments
+title_parent: Line and block comments
+title_kid: writing notes next to your code
+why_kid: this is how you leave little reminders for yourself in your code so future-you remembers what tricky bits do - the computer just skips right over them.
+area: js
+prereqs: [js-attach]
+introduces: [line-comment, block-comment, code-notes]
+mastery_signals:
+  saw_it: Bit added a double-slash line comment (and a slash-star block comment) in the kid's code and ran the page to show that the words in the comments did nothing, they were just notes.
+  did_with_help: Kid wrote a line or block comment in their code with Bit reminding them which characters start each kind and that the computer skips everything inside a comment.
+  did_unprompted: Kid reached for a comment on their own to remind themselves what a tricky line was for, without Bit suggesting they write a note.
+  explained_it: Kid said that comments are notes the computer ignores, and that double-slash marks a line comment while slash-star and star-slash wrap a block comment across several lines.

@@ -1,0 +1,12 @@
+id: html-labels
+title_parent: Form labels
+title_kid: telling inputs what they are
+why_kid: this tells a visitor what each box is for, like name or age, so they don't have to guess what to type.
+area: html
+prereqs: [html-inputs-text]
+introduces: [label-tag, for-attribute, input-id-pairing]
+mastery_signals:
+  saw_it: Bit added a label tag next to the kid's input and pointed out how clicking the label focuses the input.
+  did_with_help: Kid wrote a label and paired it with an input while Bit reminded them that the label's for attribute matches the input's id.
+  did_unprompted: Kid added a label next to an input on a new section of their page without Bit asking for one.
+  explained_it: Kid described a label as the words that tell a visitor what an input is for and said the label's for attribute should match the input's id so they are connected.

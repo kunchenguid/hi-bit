@@ -1,0 +1,12 @@
+id: js-for-of
+title_parent: for...of over arrays
+title_kid: going through every item in a list
+why_kid: this lets you do the same thing to every item in a list (like print a hello for every name) without writing the same line over and over.
+area: js
+prereqs: [js-for-loop, js-arrays]
+introduces: [for-of, iteration, loop-variable]
+mastery_signals:
+  saw_it: Bit demonstrated a for...of loop over an array in the kid's code and called out the loop variable as the current item on each pass.
+  did_with_help: Kid wrote a for...of loop over an array with Bit filling the body, and the kid understood that the loop variable holds one item at a time.
+  did_unprompted: Kid reached for a for...of loop on their own when they needed to process every item in a list, without Bit suggesting a loop.
+  explained_it: Kid said that a for...of loop runs its body once per item in the list and that the loop variable is the current item on that pass.

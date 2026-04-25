@@ -1,0 +1,18 @@
+id: about-me
+title_parent: About me page
+title_kid: a page all about you
+summary_kid: a page that tells the world who you are, with your name, a photo spot, and what you like
+emoji: "🪞"
+categories: [personal]
+interest_tags: [self, family, school, friends]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-images
+  - html-links
+style_hints:
+  - your name (or a made-up one)
+  - a photo or emoji that feels like you
+  - three things you like
+  - a link to something you think is cool

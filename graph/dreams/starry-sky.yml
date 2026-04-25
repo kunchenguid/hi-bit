@@ -1,0 +1,27 @@
+id: starry-sky
+title_parent: Starry sky
+title_kid: a night sky with stars that twinkle
+summary_kid: a page with a canvas that looks like a night sky, with a bunch of little stars drawn as circles at random spots that twinkle by growing and shrinking, and a title like starry night written right on top of the sky
+emoji: "🌟"
+categories: [art, creative]
+interest_tags: [stars, night, space, animation, drawing]
+requires:
+  - html-doc-shell
+  - run-and-preview
+  - js-attach
+  - dom-query-selector
+  - canvas-setup
+  - canvas-fillrect
+  - canvas-clear
+  - canvas-circle
+  - canvas-text
+  - animation-raf
+  - project-game-loop
+  - js-arrays
+  - js-for-of
+  - js-math-random
+style_hints:
+  - how many stars fill the sky
+  - the color of the sky and the stars
+  - how fast the stars twinkle
+  - what the title on the sky says

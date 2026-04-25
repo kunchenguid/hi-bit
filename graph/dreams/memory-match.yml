@@ -1,0 +1,33 @@
+id: memory-match
+title_parent: Memory match
+title_kid: a card matching game where you flip two cards at a time
+summary_kid: a page with a grid of face-down cards, and you flip two at a time to see if they match, and matched pairs stay up
+emoji: "🧠"
+categories: [arcade]
+interest_tags: [games, memory, cards, matching]
+requires:
+  - html-doc-shell
+  - html-div-span
+  - css-attach
+  - css-selectors-class-id
+  - css-colors
+  - css-background
+  - css-box-model
+  - css-border-radius
+  - css-grid-basics
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - dom-class-toggle
+  - dom-create-append
+  - events-click
+  - timers-settimeout
+  - js-arrays
+  - js-array-length
+  - js-math-random
+  - js-if-else
+  - state-counter
+style_hints:
+  - what is on the face of the cards
+  - how many pairs are in the game
+  - what the page says when you match them all

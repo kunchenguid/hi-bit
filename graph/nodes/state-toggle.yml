@@ -1,0 +1,12 @@
+id: state-toggle
+title_parent: Boolean state flip
+title_kid: keeping track of an on-off thing
+why_kid: lots of stuff in a page has two sides, like light on or off, dark mode or bright mode, menu open or closed. keeping the current side in a variable lets one button flip between them each time you click.
+area: interactivity
+prereqs: [dom-class-toggle, events-click]
+introduces: [boolean-state, state-flip, toggle-pattern]
+mastery_signals:
+  saw_it: Bit wrote a boolean variable and a click handler that flips it with the not operator and toggles a class on an element based on the new value, and showed the kid how each click switches the look.
+  did_with_help: Kid wired a boolean variable and a click handler under Bit's step-by-step guidance so that clicking a button flips the value and toggles a class on an element.
+  did_unprompted: Kid reached for a boolean variable and a click handler when they wanted an on-off switch in their project, without Bit suggesting the toggle pattern.
+  explained_it: Kid explained that the variable remembers whether the thing is on or off between clicks and that flipping it with the not operator lets the handler switch between the two states.

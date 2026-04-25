@@ -1,0 +1,12 @@
+id: js-function-return
+title_parent: return
+title_kid: getting an answer back from a function
+why_kid: sometimes you want a function to figure something out and hand the answer back, like a calculator. return is how the function gives you its result so the rest of your code can use it.
+area: js
+prereqs: [js-function-params]
+introduces: [return-statement, function-output]
+mastery_signals:
+  saw_it: Bit added a return statement to a function in the kid's code, saved the returned value into a variable on the outside, and showed the kid how the function's answer came back to the caller.
+  did_with_help: Kid added a return inside a function and used the returned value from the caller with Bit reminding them that without return, the function's answer is lost.
+  did_unprompted: Kid reached for return on their own when a function computed a value that the rest of the code needed to use, without Bit suggesting it.
+  explained_it: Kid said that return sends a value back out of the function to whoever called it, and that without return the function does its work but does not give an answer back.

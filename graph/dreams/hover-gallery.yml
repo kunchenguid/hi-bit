@@ -1,0 +1,22 @@
+id: hover-gallery
+title_parent: Hover gallery
+title_kid: a gallery of pictures that grow when you point at them
+summary_kid: a page with a row of pictures, and when you put your mouse on one it gets bigger and stands out
+emoji: "🖼️"
+categories: [art, creative]
+interest_tags: [pictures, photos, art, animation]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-images
+  - html-div-span
+  - css-attach
+  - css-selectors-class-id
+  - css-flex-basics
+  - css-hover
+  - css-transitions
+  - css-transforms
+style_hints:
+  - the gallery title
+  - how many pictures are in the row
+  - how much the picture grows on hover

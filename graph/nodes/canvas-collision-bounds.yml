@@ -1,0 +1,12 @@
+id: canvas-collision-bounds
+title_parent: Checking if a shape hit the edge
+title_kid: stopping at the walls
+why_kid: without this, your shape can drift right off the canvas and disappear; this is how you make it stop or bounce when it hits an edge.
+area: canvas
+prereqs: [canvas-keyboard-move, js-if-else]
+introduces: [bounds-check, clamp, edge-collision]
+mastery_signals:
+  saw_it: Bit added if checks after the position update that snapped x and y back when they went past 0 or past canvas.width and canvas.height, and called out that this stops the shape at the wall.
+  did_with_help: Kid stopped their shape at the edges of the canvas by adding if checks that clamp x and y to the canvas bounds under Bit's step-by-step guidance.
+  did_unprompted: Kid added bounds checks to a new moving shape in their project to keep it on screen, without Bit suggesting the pattern.
+  explained_it: Kid explained that after updating position, an if check compares x and y against 0 and the canvas width and height, and resets them when they cross the edge so the shape stays inside.

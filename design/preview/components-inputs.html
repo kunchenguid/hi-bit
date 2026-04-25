@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; background: var(--paper); width:660px; box-sizing:border-box; display:flex; flex-direction: column; gap: 12px; }
+  .field { display:flex; flex-direction:column; gap: 6px; }
+  .label { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: var(--ink); }
+  .input {
+    font-family: var(--font-ui);
+    font-size: 15px;
+    padding: 10px 12px;
+    background: var(--paper-3);
+    border: 1px solid var(--ink-24);
+    border-radius: var(--r-lg);
+    color: var(--ink);
+    outline: none;
+  }
+  .input.focus { border-color: #6C5CE7; box-shadow: 0 0 0 3px rgba(108,92,231,0.3); }
+  .input.error { border-color: #F26A4B; box-shadow: 0 0 0 3px rgba(242,106,75,0.25); }
+  .hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-64); }
+  .err { color: #F26A4B; }
+</style>
+</head>
+<body>
+  <div class="field">
+    <label class="label">Your name</label>
+    <input class="input" value="Ada">
+    <span class="hint">We call you this in lessons.</span>
+  </div>
+  <div class="field">
+    <label class="label">Age</label>
+    <input class="input focus" value="10">
+  </div>
+  <div class="field">
+    <label class="label">Email (parent)</label>
+    <input class="input error" value="not-an-email">
+    <span class="hint err">That doesn't look like an email.</span>
+  </div>
+</body>
+</html>

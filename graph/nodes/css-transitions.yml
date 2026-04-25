@@ -1,0 +1,12 @@
+id: css-transitions
+title_parent: transition property
+title_kid: smooth changes instead of sudden ones
+why_kid: this is what makes color changes and movements feel gentle instead of jumpy - it's the secret behind every button that smoothly fades when you hover over it.
+area: css
+prereqs: [css-hover]
+introduces: [transition, duration, easing-function]
+mastery_signals:
+  saw_it: Bit added a transition to a button on the kid's page so that the hover color change faded in over a fraction of a second instead of snapping, and pointed to the difference.
+  did_with_help: Kid added a transition property to an element with Bit reminding them which property to transition and how long it should take.
+  did_unprompted: Kid reached for transition on a new element on their own when they wanted a change to feel smooth instead of sudden.
+  explained_it: Kid said that a transition makes a style change happen over time instead of instantly, and that you say which property and how long.

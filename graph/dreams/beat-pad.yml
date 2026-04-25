@@ -1,0 +1,27 @@
+id: beat-pad
+title_parent: Beat pad
+title_kid: four drum pads you play with the keyboard
+summary_kid: a page with four colored pads that flash and count up when you press the A, S, D, and F keys, like a little drum kit for your browser
+emoji: "🥁"
+categories: [arcade, art]
+interest_tags: [music, rhythm, drums, beats, keyboard]
+requires:
+  - html-doc-shell
+  - html-div-span
+  - css-attach
+  - css-selectors-class-id
+  - css-colors
+  - css-box-model
+  - css-border-radius
+  - css-transitions
+  - js-attach
+  - dom-query-selector
+  - dom-class-toggle
+  - dom-text-content
+  - events-keydown
+  - timers-settimeout
+  - state-counter
+style_hints:
+  - the four pad colors and how they flash when pressed
+  - what letter or symbol shows on each pad
+  - how long each pad stays lit up

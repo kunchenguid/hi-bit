@@ -1,0 +1,12 @@
+id: timers-setinterval
+title_parent: setInterval and clearInterval
+title_kid: doing something over and over on a timer
+why_kid: this lets your page tick on its own - a clock counting up, lights flashing, or a stopwatch ticking - until you tell it to stop.
+area: interactivity
+prereqs: [events-click, js-functions-define]
+introduces: [interval-timer, clear-interval, periodic-callback]
+mastery_signals:
+  saw_it: Bit wrote a setInterval call that runs a function every so many milliseconds and a clearInterval call that stops the timer, and showed the kid how the page updates on a regular beat until it is stopped.
+  did_with_help: Kid started a repeating timer with setInterval under Bit's step-by-step guidance and stopped it with clearInterval using the id returned by setInterval.
+  did_unprompted: Kid reached for setInterval when they wanted something in their project to happen repeatedly, and remembered to save the id so they could stop it later, without Bit suggesting the pattern.
+  explained_it: Kid explained that setInterval takes a function and a number of milliseconds and runs the function on a regular beat until clearInterval is called with the id that setInterval returned.

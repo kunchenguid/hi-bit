@@ -1,0 +1,33 @@
+id: photo-scrapbook
+title_parent: Photo scrapbook
+title_kid: a scrapbook wall where you stick photos wherever you want
+summary_kid: a page with a scrapbook area and a box where you paste a picture link. every time you click stick it, that picture shows up in the scrapbook at a random spot, a little see-through like an old photo left out in the sun
+emoji: "📷"
+categories: [creative, personal]
+interest_tags: [scrapbook, photos, memories, collage, design]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-div-span
+  - html-images
+  - html-inputs-text
+  - html-labels
+  - html-buttons
+  - css-attach
+  - css-background
+  - css-width-height
+  - css-position-absolute
+  - css-opacity
+  - js-attach
+  - dom-query-selector
+  - dom-create-append
+  - dom-set-attribute
+  - dom-input-value
+  - events-click
+  - js-math-random
+style_hints:
+  - the scrapbook background color or paper look
+  - how big each photo is
+  - how see-through the photos are
+  - what the stick it button says
+  - the title at the top of the scrapbook

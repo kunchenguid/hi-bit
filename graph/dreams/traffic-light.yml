@@ -1,0 +1,26 @@
+id: traffic-light
+title_parent: Traffic light
+title_kid: a traffic light that changes colors by itself
+summary_kid: a page with a traffic light shape that turns red, then yellow, then green, all by itself on a timer
+emoji: "🚦"
+categories: [utility, art]
+interest_tags: [cars, traffic, colors, timers]
+requires:
+  - html-doc-shell
+  - html-div-span
+  - css-attach
+  - css-selectors-class-id
+  - css-colors
+  - css-background
+  - css-box-model
+  - css-border-radius
+  - css-width-height
+  - css-flex-basics
+  - js-attach
+  - dom-query-selector
+  - dom-class-toggle
+  - timers-setinterval
+style_hints:
+  - how long each light stays on
+  - the shape of the light frame
+  - the exact shade of red, yellow, and green

@@ -1,0 +1,12 @@
+id: html-doc-shell
+title_parent: HTML document shell
+title_kid: the frame that holds your page
+why_kid: every page on the web needs this outside wrapper before anything else can show up.
+area: html
+prereqs: []
+introduces: [doctype, html-root, head, body, page-title]
+mastery_signals:
+  saw_it: Bit wrote the first index.html with <!doctype html>, <html>, <head>, <title>, <body>, and named each part in plain language.
+  did_with_help: Kid typed or filled in the missing parts of a document shell with Bit walking them through each tag.
+  did_unprompted: Kid started a new page or project by writing the shell first, without Bit asking for it.
+  explained_it: Kid described the shell as "the outside of the page" (or their own words) and could point to where words on the page go versus where the title goes.

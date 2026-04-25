@@ -1,0 +1,12 @@
+id: html-comments
+title_parent: HTML comments
+title_kid: notes that don't show up on the page
+why_kid: you can leave little reminders for yourself right in the code, and nobody else sees them.
+area: html
+prereqs: [html-doc-shell]
+introduces: [comment-syntax, hidden-notes]
+mastery_signals:
+  saw_it: Bit left an HTML comment in the kid's file and showed them that the comment text does not appear in the preview.
+  did_with_help: Kid wrote their own HTML comment with Bit reminding them of the <!-- ... --> shape.
+  did_unprompted: Kid wrote a comment to leave a note for themselves or to temporarily hide markup, without Bit suggesting it.
+  explained_it: Kid described an HTML comment as "a note that only shows in the code, not on the page," or the equivalent.

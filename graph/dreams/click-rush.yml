@@ -1,0 +1,26 @@
+id: click-rush
+title_parent: Click rush
+title_kid: a 10 second game where you mash a button as fast as you can
+summary_kid: a page with a big button, a score, and a start button. when you hit start, a 10 second timer begins and every click on the big button adds 1 to your score. a reset button brings the score back to 0 so you can play again
+emoji: "⏱️"
+categories: [arcade]
+interest_tags: [games, speed, numbers, buttons]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-div-span
+  - html-buttons
+  - css-attach
+  - css-colors
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - state-counter
+  - timers-settimeout
+  - project-score
+  - project-reset
+style_hints:
+  - what the big button says (tap! smash! go!)
+  - what color the page turns when time is up
+  - what the page says next to your final score

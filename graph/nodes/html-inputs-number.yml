@@ -1,0 +1,12 @@
+id: html-inputs-number
+title_parent: Number input
+title_kid: a place where the kid types a number
+why_kid: when your page needs a number (like age, score, or how many), a number input only lets visitors type digits, so you don't have to worry about someone sneaking letters in where a number should go.
+area: html
+prereqs: [html-inputs-text]
+introduces: [number-input, input-type-number]
+mastery_signals:
+  saw_it: Bit added an input of type number to the kid's page and pointed out that the browser only accepts numbers there.
+  did_with_help: Kid wrote an input with type number while Bit reminded them to change the type attribute from text to number.
+  did_unprompted: Kid reached for a number input when their page needed a number from a visitor, without Bit suggesting it.
+  explained_it: Kid described type number as the input that only accepts numbers and stops the visitor from typing letters.

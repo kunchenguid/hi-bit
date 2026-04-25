@@ -1,0 +1,12 @@
+id: css-transforms
+title_parent: transform translate, rotate, scale
+title_kid: moving, turning, and sizing things
+why_kid: this is how you slide, spin, or shrink anything on your page without rewriting it - super useful for animations, hover effects, and game characters.
+area: css
+prereqs: [css-transitions]
+introduces: [transform, translate, rotate, scale]
+mastery_signals:
+  saw_it: Bit used transform on an element on the kid's page to translate it, rotate it, or scale it, and combined it with a transition so the change looked smooth.
+  did_with_help: Kid applied a transform function (translate, rotate, or scale) on an element with Bit reminding them of the syntax and that it does not push the other elements around.
+  did_unprompted: Kid reached for transform on a new element on their own to make it move, spin, or grow without Bit suggesting it.
+  explained_it: Kid said that transform can move, turn, or resize an element visually, and that it is a good partner with transition to make the change smooth.

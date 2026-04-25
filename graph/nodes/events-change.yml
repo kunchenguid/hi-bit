@@ -1,0 +1,12 @@
+id: events-change
+title_parent: change event on form controls
+title_kid: reacting when something is chosen
+why_kid: this is how a checkbox can flip on a sound, or picking a color can change the whole page - the page reacts the moment you make a choice.
+area: dom
+prereqs: [events-click, html-inputs-checkbox-radio]
+introduces: [change-event, form-control-event, checked-state]
+mastery_signals:
+  saw_it: Bit attached a change listener to a checkbox or radio in the kid's code and showed the kid how the handler runs once, when the kid picks something, and how to read whether the box is checked.
+  did_with_help: Kid added a change listener to a checkbox or radio under Bit's guidance and made the page react when the kid chose a different option.
+  did_unprompted: Kid reached for a change listener on a form control when they wanted the page to react to a pick, without Bit proposing the event.
+  explained_it: Kid explained that a change handler runs when the kid picks a different option on a checkbox, radio, or dropdown, and that it is different from an input event because change fires once per pick instead of on every keystroke.

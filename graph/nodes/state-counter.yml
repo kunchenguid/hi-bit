@@ -1,0 +1,12 @@
+id: state-counter
+title_parent: Counter state in a variable
+title_kid: keeping track of a number that changes
+why_kid: this is how a click counter or a score can remember how many times something has happened.
+area: interactivity
+prereqs: [dom-text-content, events-click]
+introduces: [state-variable, state-update, counter-pattern]
+mastery_signals:
+  saw_it: Bit wrote a let variable that starts at zero and a click handler that adds one to it and updates the on-page text, and showed the kid how the displayed number goes up each click.
+  did_with_help: Kid wired a number variable and a click handler under Bit's step-by-step guidance so that clicking a button increases the number and the page shows the new value.
+  did_unprompted: Kid reached for a let variable and a click handler when they wanted to count something in their project, without Bit suggesting the counter pattern.
+  explained_it: Kid explained that the variable remembers the number between clicks and that the handler both updates the variable and writes the new value into the page.

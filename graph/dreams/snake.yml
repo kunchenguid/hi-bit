@@ -1,0 +1,27 @@
+id: snake
+title_parent: Snake
+title_kid: a snake that grows when it eats and loses if it hits itself
+summary_kid: a page with a canvas where a little snake moves with the arrow keys, grows longer every time it eats a dot, and you lose if it runs into itself or the wall
+emoji: "🐍"
+categories: [arcade]
+interest_tags: [games, snake, keyboard, canvas]
+requires:
+  - html-doc-shell
+  - run-and-preview
+  - js-attach
+  - dom-query-selector
+  - canvas-setup
+  - canvas-fillrect
+  - canvas-clear
+  - canvas-keyboard-move
+  - canvas-collision-bounds
+  - timers-setinterval
+  - js-arrays
+  - js-array-push
+  - js-array-length
+  - js-math-random
+  - state-counter
+style_hints:
+  - the color of the snake and the food
+  - how fast the snake moves
+  - what the page says when the game is over

@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding: 24px; background: var(--paper); width:660px; box-sizing:border-box; }
+  .row { display:flex; align-items: center; justify-content: space-around; gap: 24px; }
+  .pixel-block { background: var(--paper-3); border: 1px solid var(--ink-12); border-radius: var(--r-lg); padding: 20px; text-align: center; box-shadow: var(--shadow-pixel-sm); }
+  .pixel-block .val { font-family: var(--font-pixel); font-size: 24px; color: var(--ink); letter-spacing: 0.02em; }
+  .pixel-block .lbl { font-family: var(--font-mono); font-size: 11px; color: var(--ink-64); margin-top: 8px; }
+  .badge { background: #FFC244; border: 2px solid #1A1626; padding: 8px 14px; font-family: var(--font-pixel); font-size: 12px; color: #1A1626; box-shadow: 0 3px 0 0 #1A1626; display: inline-block; }
+  .badge.magenta { background: #E84C88; color: #FFFDF5; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="pixel-block">
+      <div class="val">+15 XP</div>
+      <div class="lbl">stat display</div>
+    </div>
+    <div class="pixel-block">
+      <div class="val" style="color:#F26A4B">🔥 7</div>
+      <div class="lbl">streak counter</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span class="badge">BUG HUNTER</span>
+      <span class="badge magenta">STREAK MASTER</span>
+    </div>
+  </div>
+</body>
+</html>

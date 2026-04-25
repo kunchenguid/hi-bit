@@ -1,0 +1,12 @@
+id: css-flex-basics
+title_parent: Flexbox (row, gap, justify, align)
+title_kid: lining things up
+why_kid: this is how you stop everything from stacking and instead line buttons or pictures up neatly in a row.
+area: css
+prereqs: [css-display-block-inline]
+introduces: [display-flex, flex-direction, gap, justify-content, align-items]
+mastery_signals:
+  saw_it: Bit turned a container on the kid's page into a flex row, added a gap, and used justify-content or align-items to line things up, pointing at each child as it moved.
+  did_with_help: Kid set display flex on a container and added gap plus one of justify-content or align-items with Bit reminding them what each property does.
+  did_unprompted: Kid reached for flex on a new container on their own to line up a group of elements, without Bit suggesting the layout tool.
+  explained_it: Kid said that display flex makes a container line up its children in a row (or column), and that gap is the space between them.

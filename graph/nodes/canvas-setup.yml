@@ -1,0 +1,12 @@
+id: canvas-setup
+title_parent: canvas element and 2D context
+title_kid: making a drawing surface
+why_kid: this is the blank patch on your page where you can paint shapes, colors, and pictures with code.
+area: canvas
+prereqs: [html-doc-shell, js-attach]
+introduces: [canvas-element, drawing-context, pixel-grid]
+mastery_signals:
+  saw_it: Bit added a canvas element to the kid's HTML, grabbed the 2D context in JavaScript with getContext, and explained that the context is the thing drawings happen on.
+  did_with_help: Kid added a canvas element with width and height and grabbed its 2D context under Bit's step-by-step guidance.
+  did_unprompted: Kid reached for a canvas element and its 2D context when they wanted to draw shapes, without Bit suggesting the setup.
+  explained_it: Kid explained that the canvas is a blank drawing surface in the page and that the 2D context is the object they call drawing functions on.

@@ -1,0 +1,20 @@
+id: style-card
+title_parent: Styled card
+title_kid: a card with your own colors and fonts
+summary_kid: a card page with a background color, a nice font, and rounded corners that you pick
+emoji: "💳"
+categories: [art, creative]
+interest_tags: [design, colors, fonts, art]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - css-attach
+  - css-colors
+  - css-background
+  - css-border-radius
+style_hints:
+  - the background color
+  - the text color
+  - how rounded the corners are
+  - what the card says

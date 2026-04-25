@@ -1,0 +1,12 @@
+id: dom-change-style
+title_parent: element.style.property
+title_kid: changing how something looks from code
+why_kid: this is how your code can change colors, sizes, and positions on the fly - so a click can repaint a button or make a box grow.
+area: dom
+prereqs: [dom-query-selector, css-colors]
+introduces: [inline-style, style-property, dom-style-write]
+mastery_signals:
+  saw_it: Bit grabbed an element and set a style property like element.style.backgroundColor on it in the kid's code, and the kid saw the element change color when the code ran.
+  did_with_help: Kid set a style property on an element from code under Bit's guidance to change its color, size, or another visible property.
+  did_unprompted: Kid changed an element's style from code when they wanted to update how it looked, without Bit suggesting the style property route.
+  explained_it: Kid described element.style as the way to change CSS on one specific element from code, and noted that the name of the style property is how they pick which thing to change.

@@ -1,0 +1,12 @@
+id: canvas-keyboard-move
+title_parent: Updating position from keys and redrawing
+title_kid: moving a shape with the arrow keys
+why_kid: this is the moment your project becomes a real game - it's how you steer a character (or shape) around the screen with the arrow keys.
+area: canvas
+prereqs: [canvas-clear, events-keydown, state-counter]
+introduces: [position-variables, redraw, input-driven-update]
+mastery_signals:
+  saw_it: Bit wired arrow keys to change x and y position variables and redrew the shape by clearing the canvas and filling a rectangle at the new position, and walked the kid through each step.
+  did_with_help: Kid moved a shape with the arrow keys by updating x and y variables inside a keydown handler and redrawing the canvas under Bit's step-by-step guidance.
+  did_unprompted: Kid made a shape they can drive with the keyboard in their own project by updating position variables and redrawing, without Bit suggesting the pattern.
+  explained_it: Kid explained that the position is stored in variables, the keydown handler changes those variables, and the canvas is cleared and redrawn so the shape looks like it moved.

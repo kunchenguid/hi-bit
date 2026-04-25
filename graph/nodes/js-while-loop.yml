@@ -1,0 +1,12 @@
+id: js-while-loop
+title_parent: while loop
+title_kid: doing something until you say stop
+why_kid: this is how you keep the computer doing something until a condition flips - useful when you don't know up front how many tries it'll take.
+area: js
+prereqs: [js-for-loop]
+introduces: [while-loop, loop-condition]
+mastery_signals:
+  saw_it: Bit wrote a while loop in the kid's code that kept going until a condition flipped to false, and pointed out how something inside the body has to change or the loop runs forever.
+  did_with_help: Kid wrote a while loop with a condition and a body that eventually flipped the condition to false, with Bit reminding them to update something inside the body.
+  did_unprompted: Kid reached for a while loop on their own when the number of repeats was not known up front (only the stop condition was), without Bit suggesting the shape.
+  explained_it: Kid said that a while loop keeps running its body as long as its condition is true, and that if nothing inside the body changes the condition, the loop will never stop.

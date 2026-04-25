@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding: 32px; background: var(--paper); width:660px; box-sizing:border-box; }
+  .row { display:flex; gap: 24px; justify-content: space-around; align-items: center; }
+  .box { background: var(--paper-3); width: 120px; height: 80px; border-radius: var(--r-lg); border: 1px solid var(--ink-12); display:flex; align-items:center; justify-content: center; font-family: var(--font-pixel); font-size: 10px; color: var(--ink); }
+  .pixel { box-shadow: 0 3px 0 0 #1A1626; }
+  .soft { box-shadow: 0 4px 16px -4px rgba(26, 22, 38, 0.18); }
+  .glow { box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.4); }
+  .lbl { font-family: var(--font-mono); font-size: 11px; color: var(--ink-64); text-align: center; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div>
+      <div class="box pixel">PIXEL</div>
+      <div class="lbl">shadow-pixel</div>
+    </div>
+    <div>
+      <div class="box soft">SOFT</div>
+      <div class="lbl">shadow-soft</div>
+    </div>
+    <div>
+      <div class="box glow">GLOW</div>
+      <div class="lbl">shadow-glow</div>
+    </div>
+  </div>
+</body>
+</html>

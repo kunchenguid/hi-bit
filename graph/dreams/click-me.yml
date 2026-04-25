@@ -1,0 +1,15 @@
+id: click-me
+title_parent: Click-me page
+title_kid: a page with buttons to click
+summary_kid: a page with a big title and a few buttons on it that you can name whatever you want
+emoji: "👉"
+categories: [creative, arcade]
+interest_tags: [games, silly, buttons]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-buttons
+style_hints:
+  - the page title
+  - the label on each button
+  - how many buttons to add

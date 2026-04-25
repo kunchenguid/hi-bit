@@ -1,0 +1,12 @@
+id: css-text-font
+title_parent: font-family, font-size, font-weight
+title_kid: how your text looks
+why_kid: the same words can feel totally different depending on the font - silly, fancy, scary, big, tiny - and this is how you pick the feel for your page.
+area: css
+prereqs: [css-selectors-element]
+introduces: [font-family, font-size, font-weight, typography]
+mastery_signals:
+  saw_it: Bit changed the font family, size, or weight of text on the kid's page and pointed out how each property changed a different thing.
+  did_with_help: Kid set font-family, font-size, or font-weight on an element with Bit reminding them of the property names and value formats.
+  did_unprompted: Kid styled the text on a new element with at least one font property on their own, without Bit suggesting which property to reach for.
+  explained_it: Kid named at least one of font-family, font-size, or font-weight and said what that property changes about the text.

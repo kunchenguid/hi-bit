@@ -1,0 +1,12 @@
+id: js-array-push
+title_parent: Array push
+title_kid: adding to a list
+why_kid: this is how a list grows as your program runs - like adding a new high score, a new player, or a new dot every time someone clicks.
+area: js
+prereqs: [js-arrays]
+introduces: [array-push, mutation]
+mastery_signals:
+  saw_it: Bit called push on an array in the kid's code to add a new item to the end, then printed the array to show the kid that it is one item longer now.
+  did_with_help: Kid called push on an array to add a new value with Bit reminding them that push puts the new item at the end and that the array itself changes.
+  did_unprompted: Kid reached for push on their own to grow a list as their program ran, without Bit suggesting how to add a new item.
+  explained_it: Kid said that push adds a value to the end of an array and that after pushing, the array is longer by one.

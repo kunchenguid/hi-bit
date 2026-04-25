@@ -1,0 +1,12 @@
+id: js-comparison
+title_parent: Comparison operators (triple equals, not equal, less than, greater than)
+title_kid: comparing two things
+why_kid: this is how your code asks "is this bigger?" or "are these the same?" so it can decide what to do next - the heart of any game rule or check.
+area: js
+prereqs: [js-numbers]
+introduces: [strict-equality, inequality, less-than, greater-than]
+mastery_signals:
+  saw_it: Bit wrote a comparison like a triple equals or a less than between two values in the kid's code, logged the result, and showed the kid that a comparison always comes back as true or false.
+  did_with_help: Kid wrote a comparison between two values using one of triple equals, not equal, less than, or greater than, with Bit reminding them that the answer is always true or false.
+  did_unprompted: Kid reached for a comparison on their own to check whether one value matched or was bigger than another, without Bit suggesting the operator.
+  explained_it: Kid said that a comparison asks a yes or no question about two values, and named at least two of the operators (triple equals, not equal, less than, greater than) with what they do.

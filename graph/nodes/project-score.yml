@@ -1,0 +1,12 @@
+id: project-score
+title_parent: Tracking and displaying a score
+title_kid: keeping score
+why_kid: a score makes a game feel like a game. you need somewhere to remember the current points in your code, and somewhere on the page to show that number so the player can see how well they are doing.
+area: interactivity
+prereqs: [state-counter, dom-text-content]
+introduces: [score-state, score-display, increment-score]
+mastery_signals:
+  saw_it: Bit added a score variable to the kid's project and wired it so the on-page text updates whenever the score changes, and showed the kid how the displayed number tracks the variable.
+  did_with_help: Kid added a score variable and the text-update line under Bit's step-by-step guidance so that scoring events bump the number on the page.
+  did_unprompted: Kid reached for a score variable plus a text-update when they wanted to keep score in their project, without Bit suggesting the pattern.
+  explained_it: Kid explained that the score lives in a variable, that scoring events change the variable, and that the page has to be updated to show the new value.

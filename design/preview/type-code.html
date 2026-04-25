@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding: 24px; background: var(--paper); width:660px; box-sizing:border-box; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: var(--paper-3); border: 1px solid var(--ink-12); border-radius: var(--r-lg); padding: 16px; box-shadow: var(--shadow-pixel-sm); }
+  .name { font-family: var(--font-mono); font-size: 11px; color: var(--ink-64); margin-bottom: 10px; }
+  pre { margin: 0; font-family: var(--font-mono); font-size: 13px; color: var(--ink); background: var(--paper); padding: 10px; border-radius: var(--r-md); border: 1px solid var(--ink-12); overflow: hidden; }
+  .kw { color: #6C5CE7; }
+  .str { color: #7BD86E; }
+  .num { color: #F26A4B; }
+  .com { color: var(--ink-3); }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="card">
+      <div class="name">// font-mono · Fira Code</div>
+      <pre><span class="kw">const</span> price = <span class="num">42</span>;
+<span class="com">// a friendly number</span>
+button.textContent = <span class="str">"Buy"</span>;</pre>
+    </div>
+    <div class="card" style="background:#1A1626;border-color:#3a3450">
+      <div class="name" style="color:#9890B5">// dark syntax</div>
+      <pre style="background:#0E0D1C;border-color:#2a2540;color:#EDE6FF"><span class="kw" style="color:#9B8CFF">const</span> price = <span class="num" style="color:#FFC244">42</span>;
+<span class="com" style="color:#9890B5">// a friendly number</span>
+button.textContent = <span class="str" style="color:#7BD86E">"Buy"</span>;</pre>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+id: stopwatch
+title_parent: Stopwatch
+title_kid: a stopwatch that counts up when you press start
+summary_kid: a page with a timer number, and when you press start it counts up every second until you press stop
+emoji: "⏰"
+categories: [utility]
+interest_tags: [time, numbers, sports, counting]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - state-counter
+  - timers-setinterval
+style_hints:
+  - the start button label
+  - the stop button label
+  - whether there is a reset button

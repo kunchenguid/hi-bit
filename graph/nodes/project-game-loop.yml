@@ -1,0 +1,12 @@
+id: project-game-loop
+title_parent: Update-then-render loop
+title_kid: the heartbeat of a game
+why_kid: games need to keep going on their own, over and over, every moment. the loop is what makes that happen - first figure out where everything is, then draw it, then do it again forever.
+area: canvas
+prereqs: [animation-raf, canvas-clear, state-counter]
+introduces: [tick, update-phase, render-phase, frame]
+mastery_signals:
+  saw_it: Bit structured the kid's first animated canvas project into update and render calls and named the phases.
+  did_with_help: Kid added a new thing to update and a new thing to render with Bit's guidance.
+  did_unprompted: Kid added a new piece of game state and remembered to both update it and render it, without Bit pointing out the two phases.
+  explained_it: Kid described the loop as first figure out where everything is, then draw it, or equivalent in their words.

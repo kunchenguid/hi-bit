@@ -1,0 +1,12 @@
+id: events-input
+title_parent: input event on text fields
+title_kid: reacting as the kid types
+why_kid: this lets your page react the moment you type a letter, so things can change while you're still typing instead of waiting until you finish.
+area: dom
+prereqs: [events-click, dom-input-value]
+introduces: [input-event, live-update, text-field-event]
+mastery_signals:
+  saw_it: Bit attached an input listener to a text field in the kid's code and showed the kid how the handler runs every time a character is typed, reading the new value off the element.
+  did_with_help: Kid added an input listener to a text field under Bit's guidance and updated something else on the page from the typed value as they typed.
+  did_unprompted: Kid reached for an input listener on a text field when they wanted the page to react as the kid typed, without Bit proposing the event.
+  explained_it: Kid explained that an input handler is a function that runs every time the kid changes the text in the field, and that reading the field's value inside the handler gives them what the kid just typed.

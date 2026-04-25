@@ -1,0 +1,24 @@
+id: family-page
+title_parent: Family page
+title_kid: a page about your family with a card for each person
+summary_kid: a page with a card for every person in your family, and each card has their name, their picture, and something you like about them
+emoji: "👨‍👩‍👧"
+categories: [personal, creative]
+interest_tags: [family, relatives, people, photos]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-images
+  - html-div-span
+  - css-attach
+  - css-selectors-class-id
+  - css-colors
+  - css-text-font
+  - css-box-model
+  - css-border-radius
+  - css-flex-basics
+style_hints:
+  - which relatives are on the page
+  - the style of each card
+  - the color palette of the page

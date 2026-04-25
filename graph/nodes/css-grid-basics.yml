@@ -1,0 +1,12 @@
+id: css-grid-basics
+title_parent: Grid (columns, rows, gap)
+title_kid: laying things out in a grid
+why_kid: this is how you build a tic-tac-toe board, a photo gallery, or a deck of cards that all line up in neat rows and columns automatically.
+area: css
+prereqs: [css-flex-basics]
+introduces: [display-grid, grid-template-columns, grid-template-rows, grid-gap]
+mastery_signals:
+  saw_it: Bit turned a container on the kid's page into a grid with a few columns and a gap, and showed the children snapping into the cells.
+  did_with_help: Kid set display grid on a container and wrote grid-template-columns plus a gap with Bit reminding them of the column syntax.
+  did_unprompted: Kid reached for a grid on a new container on their own when they wanted rows and columns, without Bit suggesting it.
+  explained_it: Kid said that display grid lets you arrange children in rows and columns, and that grid-template-columns sets how many columns and how wide they are.

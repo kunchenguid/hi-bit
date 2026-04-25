@@ -1,0 +1,22 @@
+id: sticky-note
+title_parent: Sticky note
+title_kid: a sticky note that remembers what you typed
+summary_kid: a page with a big note you can type into, and when you open the page again later your words are still there
+emoji: "📝"
+categories: [personal, utility]
+interest_tags: [writing, notes, journal, memory, secrets]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-labels
+  - html-inputs-text
+  - js-attach
+  - dom-query-selector
+  - dom-input-value
+  - events-input
+  - js-strings
+  - storage-localstorage
+style_hints:
+  - what the note is called
+  - what the label above the typing box says
+  - the colors of the note

@@ -1,0 +1,21 @@
+id: color-changer
+title_parent: Color changer
+title_kid: a page that changes color when you click
+summary_kid: a page with a button, and every click paints the page a new color you chose
+emoji: "🎨"
+categories: [art, creative]
+interest_tags: [colors, art, buttons, rainbow]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-buttons
+  - css-attach
+  - css-colors
+  - js-attach
+  - dom-query-selector
+  - dom-change-style
+  - events-click
+style_hints:
+  - the list of colors to cycle through
+  - the button label
+  - whether the text color changes too

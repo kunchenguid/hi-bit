@@ -1,0 +1,12 @@
+id: html-inputs-text
+title_parent: Text input
+title_kid: a place where the kid types
+why_kid: inputs are how a visitor types something into your page, like their name or a guess.
+area: html
+prereqs: [html-doc-shell]
+introduces: [input-tag, type-attribute, text-input]
+mastery_signals:
+  saw_it: Bit added an input of type text to the kid's page and pointed out the typing box in the preview.
+  did_with_help: Kid wrote an input tag with type text while Bit reminded them that input has no closing tag.
+  did_unprompted: Kid added a text input when their page needed to collect something from a visitor, without Bit asking.
+  explained_it: Kid described an input as a box where someone can type and said type text means they can type any words.

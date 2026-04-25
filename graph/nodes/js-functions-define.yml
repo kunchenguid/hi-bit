@@ -1,0 +1,12 @@
+id: js-functions-define
+title_parent: Function declarations
+title_kid: teaching the computer a new trick
+why_kid: this is how you teach the computer a new move once and then use it again and again just by saying its name - it saves you from copying the same lines over and over.
+area: js
+prereqs: [js-if-else]
+introduces: [function-declaration, function-body, reusable-code]
+mastery_signals:
+  saw_it: Bit declared a function in the kid's code, called it a couple of times, and pointed out that the body is the trick and the name is how the kid tells the computer to do it.
+  did_with_help: Kid declared a function with a name and a body and then called it from another line with Bit reminding them that calling the function by name is what makes the body run.
+  did_unprompted: Kid reached for a function on their own when they noticed the same few lines were about to be written more than once, without Bit suggesting the refactor.
+  explained_it: Kid said that a function has a name, a body of code, and runs only when something calls it, and that giving a chunk of work a name lets them use it again without rewriting it.

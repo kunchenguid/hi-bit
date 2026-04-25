@@ -1,0 +1,15 @@
+id: hello-card
+title_parent: Hello card
+title_kid: a hello card page
+summary_kid: a page that says hi to someone you pick, with a big title and a little note
+emoji: "👋"
+categories: [creative, personal]
+interest_tags: [writing, friends, family, holidays]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+style_hints:
+  - who the card is for
+  - greeting words
+  - a little message under the greeting

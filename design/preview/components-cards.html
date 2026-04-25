@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; background: var(--paper); width:660px; box-sizing:border-box; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* Base card — one flat paper background, one ink pixel-drop. No border. */
+  .card {
+    background: var(--paper-3);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 0 0 var(--ink);
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+
+  /* Active: same 2px ink drop as every other card, plus an inner
+     subject-tinted underline INSIDE the card. One color per edge. */
+  .card.active {
+    box-shadow: 0 2px 0 0 var(--ink);
+    position: relative;
+  }
+  .card.active::after {
+    content: "";
+    position: absolute;
+    left: 16px; right: 16px; bottom: 10px;
+    height: 2px;
+    background: var(--subject-js);
+    border-radius: 2px;
+  }
+
+  /* Subject-washed card uses its wash background; border still absent. */
+  .card.css-wash { background: var(--subject-css-wash); }
+
+  /* Completed card: same card, a small check bumped to the corner. */
+  .card.done .meta { color: var(--subject-math); }
+
+  img.sprite { width: 40px; height: 40px; image-rendering: pixelated; flex-shrink: 0; }
+  .body { flex: 1; min-width: 0; }
+  .title { font-weight: 600; font-size: 15px; color: var(--ink); margin: 0 0 4px; }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-64); }
+
+  /* Progress bar — a single inset row in ink neutral, no per-card color variety. */
+  .prog { height: 6px; background: var(--ink-08); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+  .prog > span { display:block; height:100%; background: var(--ink-40); }
+
+  /* XP pill — one consistent token across all cards, ink-on-paper. */
+  .xp {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 2px 8px;
+    background: var(--ink);
+    color: var(--paper-3);
+    border-radius: 999px;
+    font-family: var(--font-pixel);
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
+
+  .check {
+    margin-left: auto;
+    color: var(--subject-math);
+    image-rendering: pixelated;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <!-- Active: single subject-cyan ring, no competing ink shadow -->
+    <div class="card active">
+      <img src="../assets/sticker-js.svg" class="sprite">
+      <div class="body">
+        <div class="title">Buttons that count</div>
+        <div class="meta">JavaScript · 3 of 8</div>
+        <div class="prog"><span style="width:38%"></span></div>
+        <span class="xp">+120 XP</span>
+      </div>
+    </div>
+
+    <!-- Subject-washed: wash background only. No border, no ring. -->
+    <div class="card css-wash">
+      <img src="../assets/sticker-css.svg" class="sprite">
+      <div class="body">
+        <div class="title">Paint the page</div>
+        <div class="meta">CSS · Not started</div>
+        <span class="xp">+80 XP</span>
+      </div>
+    </div>
+
+    <!-- Completed: one card with a corner check. No color change. -->
+    <div class="card done">
+      <img src="../assets/sticker-html.svg" class="sprite">
+      <div class="body">
+        <div class="title">First web page</div>
+        <div class="meta">HTML · Complete</div>
+        <span class="xp">+100 XP</span>
+      </div>
+      <svg class="check" width="20" height="20"><use href="../assets/icons.svg#i-check"/></svg>
+    </div>
+
+    <!-- Default: plain card, consistent with all others. -->
+    <div class="card">
+      <img src="../assets/sticker-art.svg" class="sprite">
+      <div class="body">
+        <div class="title">Drawing with code</div>
+        <div class="meta">Art · Not started</div>
+        <span class="xp">+150 XP</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

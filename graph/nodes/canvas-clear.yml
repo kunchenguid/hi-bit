@@ -1,0 +1,12 @@
+id: canvas-clear
+title_parent: clearRect
+title_kid: wiping the canvas
+why_kid: this erases the canvas so you can redraw a fresh frame - the trick that makes things look like they're moving in a game.
+area: canvas
+prereqs: [canvas-fillrect]
+introduces: [clear-rect, erase, full-canvas-clear]
+mastery_signals:
+  saw_it: Bit wiped the canvas by calling clearRect with 0, 0, canvas.width, and canvas.height, and explained that this erases the whole drawing.
+  did_with_help: Kid cleared the canvas by calling clearRect across the full width and height under Bit's step-by-step guidance.
+  did_unprompted: Kid cleared the canvas before redrawing in their own code, without Bit suggesting the erase step.
+  explained_it: Kid explained that clearRect erases the given rectangular area of the canvas, and that using 0, 0, canvas.width, canvas.height wipes the whole drawing so the next frame starts fresh.

@@ -1,0 +1,12 @@
+id: css-background
+title_parent: background-color and background-image
+title_kid: backgrounds
+why_kid: you fill the space behind your words and pictures with a color or an image, so the page isn't plain white.
+area: css
+prereqs: [css-colors]
+introduces: [background-color, background-image, url-function]
+mastery_signals:
+  saw_it: Bit set a background-color on the body or a container, and optionally a background-image with url(...), and showed the kid what changed.
+  did_with_help: Kid set a background-color (or background-image) on an element while Bit reminded them of the property name and the url() wrapper for images.
+  did_unprompted: Kid gave a new container a background on their own, without Bit asking for one.
+  explained_it: Kid described background-color as the color behind the content of an element, and background-image as putting a picture back there instead.

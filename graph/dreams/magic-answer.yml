@@ -1,0 +1,23 @@
+id: magic-answer
+title_parent: Magic answer ball
+title_kid: a page that gives you a magic answer to any question
+summary_kid: a page where you press a button and a silly yes or no or maybe answer pops up from your list
+emoji: "🎱"
+categories: [arcade, creative]
+interest_tags: [games, questions, magic, chance]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - js-arrays
+  - js-array-length
+  - js-math-random
+style_hints:
+  - the list of possible answers
+  - the button label
+  - the text above the answer area

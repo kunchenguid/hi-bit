@@ -1,0 +1,12 @@
+id: css-width-height
+title_parent: Sizing elements
+title_kid: making things bigger or smaller
+why_kid: this is how you decide how big a button, picture, or box is on your page, instead of letting the browser pick a size for you.
+area: css
+prereqs: [css-box-model]
+introduces: [width, height, pixel-unit, percent-unit]
+mastery_signals:
+  saw_it: Bit set a width and a height on a box on the kid's page and showed how the element changed size, naming px and % as two ways to say how big.
+  did_with_help: Kid set width or height on an element with Bit reminding them of the units (px or %) and what each means.
+  did_unprompted: Kid gave a new element a width or a height on their own to make it fit how they wanted, without Bit suggesting a size.
+  explained_it: Kid said that width is how wide and height is how tall, and that px is a fixed size while % is a share of the parent.

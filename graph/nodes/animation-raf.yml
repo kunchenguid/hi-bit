@@ -1,0 +1,12 @@
+id: animation-raf
+title_parent: requestAnimationFrame loop
+title_kid: drawing a new frame as fast as the screen updates
+why_kid: this is how games and smooth animations work - the page redraws itself many times a second so things look like they're really moving.
+area: interactivity
+prereqs: [timers-setinterval]
+introduces: [animation-frame, render-loop, raf-callback]
+mastery_signals:
+  saw_it: Bit wrote a function that does one update-then-render step and calls requestAnimationFrame with itself at the end, and showed the kid how the function keeps running on every screen frame.
+  did_with_help: Kid set up a requestAnimationFrame loop under Bit's step-by-step guidance by writing a step function that updates the state, draws the scene, and asks for the next frame at the end.
+  did_unprompted: Kid reached for a requestAnimationFrame loop when they wanted smooth animation in their project, without Bit suggesting the pattern.
+  explained_it: Kid explained that requestAnimationFrame asks the browser to run the given function once on the next screen frame, and that calling it again at the end of the function creates a loop that updates in sync with the display.

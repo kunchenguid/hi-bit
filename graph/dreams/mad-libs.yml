@@ -1,0 +1,33 @@
+id: mad-libs
+title_parent: Mad libs
+title_kid: a fill-in-the-blanks story where you pick every silly word
+summary_kid: a page with a few text boxes for things like a name, an animal, a place, and a silly verb. when you hit tell the story, your words get dropped into a template story and the finished story shows up on the page
+emoji: "📖"
+categories: [creative, arcade]
+interest_tags: [writing, stories, silly, words, games]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-div-span
+  - html-labels
+  - html-inputs-text
+  - html-buttons
+  - css-attach
+  - css-colors
+  - js-attach
+  - dom-query-selector
+  - dom-input-value
+  - dom-text-content
+  - events-click
+  - js-strings
+  - js-template-literals
+  - js-functions-define
+  - js-function-params
+  - js-function-return
+style_hints:
+  - the topic of the story (school, space, pets, food fight...)
+  - which blanks to ask for (name, animal, place, verb, adjective)
+  - the label above each text box
+  - what the tell the story button says
+  - the color of the finished story box

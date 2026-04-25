@@ -1,0 +1,12 @@
+id: js-for-loop
+title_parent: for loop
+title_kid: doing something a bunch of times
+why_kid: this is how you make the computer do the same thing a bunch of times without copy-pasting - perfect for drawing rows, counting, and lining up lots of stuff.
+area: js
+prereqs: [js-if-else, js-array-length]
+introduces: [for-loop, loop-counter, iteration]
+mastery_signals:
+  saw_it: Bit wrote a for loop in the kid's code that counted from zero up to a number, logging each step so the kid could see the counter variable climbing one iteration at a time.
+  did_with_help: Kid wrote a for loop that ran a body a fixed number of times with Bit reminding them of the three pieces in the loop header (start, keep-going check, and step).
+  did_unprompted: Kid reached for a for loop on their own when the same work needed to happen several times in a row, without Bit suggesting the loop.
+  explained_it: Kid said that a for loop runs its body over and over while the check in the middle is true, and that the third piece (like i plus plus) is what moves the loop forward each time.

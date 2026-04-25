@@ -1,0 +1,16 @@
+id: favorite-things
+title_parent: Favorite things list
+title_kid: a page with your favorite things
+summary_kid: a page that lists the things you love most, with a picture for each one
+emoji: "⭐"
+categories: [personal, creative]
+interest_tags: [hobbies, food, music, collecting]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-lists
+  - html-images
+style_hints:
+  - the category (foods, games, animals, songs, anything)
+  - the items on the list
+  - a picture or emoji for each item

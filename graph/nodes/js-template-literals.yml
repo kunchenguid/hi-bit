@@ -1,0 +1,12 @@
+id: js-template-literals
+title_parent: Backtick template strings
+title_kid: sticking values into text
+why_kid: this is the easy way to drop a name or score right into the middle of a sentence, like "hi Eddie, your score is 7", without gluing pieces together with plus signs.
+area: js
+prereqs: [js-strings]
+introduces: [backtick, template-literal, interpolation]
+mastery_signals:
+  saw_it: Bit wrote a backtick string in the kid's code with a dollar-brace slot inside it, then ran the page so the kid could see a variable's value drop into the middle of the sentence.
+  did_with_help: Kid wrote a backtick string with a dollar-brace slot that used a variable, with Bit reminding them that backticks are not regular quotes and that the slot goes between the curly braces.
+  did_unprompted: Kid reached for a backtick template on their own when building a sentence out of a variable and some fixed text, without Bit suggesting the cleaner form over plus-concatenation.
+  explained_it: Kid said that a backtick string lets them drop a value into the middle of their text using dollar and curly braces, so they do not have to glue pieces together with plus.

@@ -1,0 +1,25 @@
+id: reaction-timer
+title_parent: Reaction timer
+title_kid: a game that times how fast you can click when the signal turns green
+summary_kid: a page where you wait for the box to turn green, then click as fast as you can to see your reaction time
+emoji: "⚡"
+categories: [arcade]
+interest_tags: [games, speed, reflex, numbers]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-div-span
+  - html-buttons
+  - css-attach
+  - css-colors
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - dom-change-style
+  - events-click
+  - timers-settimeout
+  - state-counter
+style_hints:
+  - the waiting color and the go color
+  - the start button label
+  - what the page says when you win

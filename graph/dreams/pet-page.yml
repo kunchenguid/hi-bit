@@ -1,0 +1,16 @@
+id: pet-page
+title_parent: Pet page
+title_kid: a page about a pet
+summary_kid: a page about a real pet or a made-up one, with a name, a photo spot, and a few things about them
+emoji: "🐶"
+categories: [personal, creative]
+interest_tags: [animals, pets, family]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-comments
+style_hints:
+  - the pet's name
+  - the pet's type (dog, cat, dragon, whatever)
+  - a few fun facts to list

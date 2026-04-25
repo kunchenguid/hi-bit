@@ -1,0 +1,12 @@
+id: js-math-random
+title_parent: Math.random and Math.floor
+title_kid: picking a random number
+why_kid: this is what makes a dice roll, a card flip, or a guessing game come out different each time.
+area: js
+prereqs: [js-numbers]
+introduces: [math-random, math-floor, randomness]
+mastery_signals:
+  saw_it: Bit called Math.random in the kid's code, combined it with Math.floor and a multiplier to get a whole random number in a range, and ran the page several times so the kid could see the value change.
+  did_with_help: Kid used Math.random with Math.floor to pick a whole random number in a range with Bit reminding them that Math.random gives a decimal from zero up to (but not including) one, and that Math.floor rounds down.
+  did_unprompted: Kid reached for Math.random and Math.floor on their own when they needed a random pick (like a surprise color or a dice roll), without Bit suggesting the pair.
+  explained_it: Kid said that Math.random gives a random decimal and that Math.floor rounds down, and explained how multiplying and flooring together turns that into a whole number in a range they choose.

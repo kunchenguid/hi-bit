@@ -1,0 +1,12 @@
+id: css-box-model
+title_parent: Padding, margin, border
+title_kid: space around and inside things
+why_kid: this gives your page room to breathe so things stop looking cramped and squished together.
+area: css
+prereqs: [css-selectors-class-id]
+introduces: [padding, margin, border, box-model]
+mastery_signals:
+  saw_it: Bit added padding and margin to an element on the kid's page, and drew a border around it, naming the inside space, the outside space, and the edge.
+  did_with_help: Kid set padding, margin, or border on an element with Bit reminding them which one is inside space, which is outside space, and which is the edge.
+  did_unprompted: Kid added padding or margin to a new element on their own to make it less cramped or give it some breathing room, without Bit suggesting it.
+  explained_it: Kid said that padding is inside the edge, margin is outside the edge, and border is the edge itself.

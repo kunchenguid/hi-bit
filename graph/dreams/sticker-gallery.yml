@@ -1,0 +1,21 @@
+id: sticker-gallery
+title_parent: Sticker gallery
+title_kid: a page full of stickers you can show off
+summary_kid: a row of sticker cards you designed, each with its own color, and they spin or tilt when you hover
+emoji: "✨"
+categories: [art, creative]
+interest_tags: [stickers, art, design, collecting]
+requires:
+  - html-doc-shell
+  - html-div-span
+  - css-attach
+  - css-colors
+  - css-background
+  - css-flex-basics
+  - css-transforms
+  - css-hover
+style_hints:
+  - how many stickers
+  - each sticker color
+  - the shape or emoji on each sticker
+  - whether they spin or tilt on hover

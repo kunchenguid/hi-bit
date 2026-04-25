@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body {
+    padding: 20px;
+    background: var(--paper);
+    width: 660px;
+    box-sizing: border-box;
+  }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .swatch {
+    flex: 1;
+    min-width: 120px;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--ink-12);
+    overflow: hidden;
+    box-shadow: var(--shadow-pixel-sm);
+  }
+  .chip {
+    height: 64px;
+    display: flex;
+    align-items: flex-end;
+    padding: 8px 10px;
+    color: var(--ink);
+    font-family: var(--font-pixel);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .chip.dark { color: #FFFDF5; }
+  .meta {
+    background: var(--paper-3);
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-64);
+    border-top: 1px solid var(--ink-12);
+  }
+  .meta b { color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="swatch">
+      <div class="chip dark" style="background:#F26A4B">HTML</div>
+      <div class="meta"><b>--subject-html</b><br>#F26A4B</div>
+    </div>
+    <div class="swatch">
+      <div class="chip dark" style="background:#2EC4F1">CSS</div>
+      <div class="meta"><b>--subject-css</b><br>#2EC4F1</div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:#FFC244">JS</div>
+      <div class="meta"><b>--subject-js</b><br>#FFC244</div>
+    </div>
+    <div class="swatch">
+      <div class="chip dark" style="background:#E84C88">ART</div>
+      <div class="meta"><b>--subject-art</b><br>#E84C88</div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:#7BD86E">MATH</div>
+      <div class="meta"><b>--subject-math</b><br>#7BD86E</div>
+    </div>
+  </div>
+</body>
+</html>

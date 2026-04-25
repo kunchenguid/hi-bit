@@ -1,0 +1,12 @@
+id: js-numbers
+title_parent: Numbers and arithmetic
+title_kid: math in code
+why_kid: almost every game or counter needs math - adding points, counting clicks, making things bigger - and this is how the computer does the math for you.
+area: js
+prereqs: [js-variables-let-const]
+introduces: [number-literal, arithmetic, plus-minus-times-divide]
+mastery_signals:
+  saw_it: Bit wrote a few number values in the kid's code, combined them with plus, minus, times, and divide, and showed the kid the computed result printed back.
+  did_with_help: Kid wrote a number expression using at least one of plus, minus, times, or divide with Bit reminding them which symbol does which operation.
+  did_unprompted: Kid used a math expression on their own to compute a value they needed, without Bit first writing the math for them.
+  explained_it: Kid said that numbers in code work like numbers in math class, and named at least two of the symbols (plus, minus, times, divide) with what they do.

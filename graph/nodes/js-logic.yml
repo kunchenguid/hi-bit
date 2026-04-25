@@ -1,0 +1,12 @@
+id: js-logic
+title_parent: Logical operators (and, or, not)
+title_kid: combining yes and no
+why_kid: real choices usually have more than one condition (like only if it is raining and you have a coat), so and, or, and not let you stick yes-or-no answers together to make the check you actually want.
+area: js
+prereqs: [js-booleans, js-comparison]
+introduces: [logical-and, logical-or, logical-not]
+mastery_signals:
+  saw_it: Bit combined two comparisons with a logical and (or or), and flipped a boolean with a logical not in the kid's code, printing each result so the kid could see how the pieces combined.
+  did_with_help: Kid combined two conditions using logical and or logical or (or flipped one with logical not) with Bit reminding them what each operator does to the two true or false inputs.
+  did_unprompted: Kid reached for logical and, or, or not on their own when a check needed two conditions together (or needed to be flipped), without Bit suggesting the combine.
+  explained_it: Kid said that and is true only when both sides are true, that or is true when either side is true, and that not flips true into false and false into true.

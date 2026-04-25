@@ -1,0 +1,12 @@
+id: events-keydown
+title_parent: addEventListener for keydown events
+title_kid: making things happen when you press a key
+why_kid: this is how arrow keys can move your character or the spacebar can make something jump - basically, this is how keyboard games work.
+area: dom
+prereqs: [events-click]
+introduces: [keydown-event, key-property, keyboard-input, event-object]
+mastery_signals:
+  saw_it: Bit attached a keydown listener on window or document in the kid's code and showed the kid how event.key tells them which key the kid just pressed.
+  did_with_help: Kid added a keydown listener under Bit's guidance and used event.key to react to a specific key like ArrowRight or the space bar.
+  did_unprompted: Kid reached for a keydown listener when they wanted the page to react to the keyboard, without Bit proposing the listener.
+  explained_it: Kid explained that a keydown handler is a function that runs every time the kid presses a key, and that event.key is how the code knows which key was pressed.

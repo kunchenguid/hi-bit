@@ -1,0 +1,23 @@
+id: flashcards
+title_parent: Flashcards
+title_kid: flashcards you can click through one at a time
+summary_kid: a page that shows one flashcard at a time, and every time you press next the card flips to the next one
+emoji: "🃏"
+categories: [utility]
+interest_tags: [learning, studying, school, quizzes]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-div-span
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - js-arrays
+  - js-array-length
+  - state-counter
+style_hints:
+  - the topic of the flashcards
+  - what the next button says
+  - what the page says when you reach the last card

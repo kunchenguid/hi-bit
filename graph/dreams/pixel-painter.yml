@@ -1,0 +1,24 @@
+id: pixel-painter
+title_parent: Pixel painter
+title_kid: a grid of squares you paint by clicking
+summary_kid: a page with a grid of little squares, and every square you click gets painted in your chosen color
+emoji: "🟪"
+categories: [art, creative]
+interest_tags: [art, drawing, pixels, colors]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-div-span
+  - css-attach
+  - css-selectors-class-id
+  - css-flex-basics
+  - js-attach
+  - dom-query-selector
+  - dom-create-append
+  - dom-change-style
+  - events-click
+  - js-for-loop
+style_hints:
+  - how big the grid is
+  - the paint color
+  - the background color of empty squares

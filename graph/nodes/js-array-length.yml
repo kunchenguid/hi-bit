@@ -1,0 +1,12 @@
+id: js-array-length
+title_parent: Array length
+title_kid: how long your list is
+why_kid: your code can count how many things are in a list, so it knows when to stop or whether the list is empty.
+area: js
+prereqs: [js-arrays]
+introduces: [array-length]
+mastery_signals:
+  saw_it: Bit read the length of an array in the kid's code and printed it, pointing out that the number is how many items are in the list, not the index of the last one.
+  did_with_help: Kid used dot length on an array to read its size with Bit reminding them that length is the count of items, so the last index is length minus one.
+  did_unprompted: Kid reached for dot length on their own to check how long an array was, without Bit suggesting they ask the array for its size.
+  explained_it: Kid said that dot length on an array tells you how many items are in it, and pointed out that the last item is at length minus one because counting starts at zero.

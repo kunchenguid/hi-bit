@@ -1,0 +1,27 @@
+# Operating system / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Dependency trees (add these preemptively for the frontend app that will land here)
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+.next/
+out/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Env + secrets
+.env
+.env.local
+.env.*.local
+
+# Agent scratch
+uploads/
+*_PROBLEMS.md

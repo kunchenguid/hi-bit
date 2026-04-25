@@ -1,0 +1,21 @@
+id: bouncing-ball
+title_parent: Bouncing ball
+title_kid: a ball that bounces around the screen
+summary_kid: a page with a canvas, and a little ball that zooms around and bounces off the walls by itself
+emoji: "⚽"
+categories: [arcade, art]
+interest_tags: [games, animation, physics, motion]
+requires:
+  - html-doc-shell
+  - run-and-preview
+  - js-attach
+  - dom-query-selector
+  - canvas-setup
+  - canvas-fillrect
+  - canvas-clear
+  - animation-raf
+  - canvas-collision-bounds
+style_hints:
+  - the ball color
+  - how fast the ball moves
+  - the background color of the canvas

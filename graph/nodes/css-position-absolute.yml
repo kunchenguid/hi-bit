@@ -1,0 +1,12 @@
+id: css-position-absolute
+title_parent: position absolute with top and left
+title_kid: putting something exactly where you want
+why_kid: most of the time the page decides where things go, but sometimes you want a sticker pinned to a corner or a label stuck right on top of a picture - this is how.
+area: css
+prereqs: [css-width-height]
+introduces: [position-absolute, top-left-offset, positioned-parent]
+mastery_signals:
+  saw_it: Bit gave a container position relative and a child position absolute with top and left values, and showed the kid the child snapping to the exact spot inside the parent.
+  did_with_help: Kid set position absolute on an element and used top or left to move it into place with Bit reminding them that a positioned parent is what the offsets are measured from.
+  did_unprompted: Kid reached for position absolute on a new element on their own when they wanted to pin something to a specific corner or spot, without Bit suggesting it.
+  explained_it: Kid said that position absolute takes an element out of the normal flow and lets you place it using top and left, and that it is measured from the nearest positioned ancestor.

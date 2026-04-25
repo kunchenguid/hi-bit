@@ -1,0 +1,12 @@
+id: dom-create-append
+title_parent: createElement and appendChild
+title_kid: making a brand new thing and adding it to the page
+why_kid: this is how your code grows the page on its own - adding a new card, dot, or item without you having to type more HTML.
+area: dom
+prereqs: [dom-query-selector]
+introduces: [create-element, append-child, dom-insert, dynamic-element]
+mastery_signals:
+  saw_it: Bit used document.createElement and appendChild in the kid's code to build a new element and add it to the page, and the kid saw the new thing appear without reloading.
+  did_with_help: Kid wrote code that made a new element with createElement and added it to the page with appendChild under Bit's guidance.
+  did_unprompted: Kid reached for createElement and appendChild when they wanted to add a new thing to the page from code, without Bit proposing the create-then-append route.
+  explained_it: Kid described createElement as making a new element that is not yet on the page and appendChild as putting that new element inside another one so it shows up.

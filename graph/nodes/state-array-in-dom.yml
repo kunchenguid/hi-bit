@@ -1,0 +1,12 @@
+id: state-array-in-dom
+title_parent: Rendering an array to the DOM
+title_kid: showing a list on the page
+why_kid: this turns a list inside your code (like apple, banana, cherry) into a list of things you can actually see on the page.
+area: interactivity
+prereqs: [js-for-of, dom-create-append]
+introduces: [list-render, array-to-dom, render-pattern]
+mastery_signals:
+  saw_it: Bit wrote a for-of loop that walks an array and creates a new element for each item and appends it to a parent on the page, and showed the kid the rendered list in the preview.
+  did_with_help: Kid rendered an array to the page under Bit's step-by-step guidance by looping over the items, creating an element per item, and appending each one to a container element.
+  did_unprompted: Kid reached for a for-of loop plus create-and-append when they wanted to show a list of things from an array in their project, without Bit suggesting the pattern.
+  explained_it: Kid explained that the loop runs the create-and-append code once per item in the array, so the page ends up with one element per array entry.

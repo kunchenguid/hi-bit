@@ -1,0 +1,12 @@
+id: dom-class-toggle
+title_parent: classList.add, remove, and toggle
+title_kid: turning a style on and off
+why_kid: this is how a single click can flip a whole look on or off - dark mode, glow on, big mode - without rewriting all your CSS.
+area: dom
+prereqs: [dom-change-style, css-selectors-class-id]
+introduces: [class-list, add-class, remove-class, toggle-class]
+mastery_signals:
+  saw_it: Bit used classList.add, classList.remove, or classList.toggle on an element in the kid's code and showed the kid how a CSS class attached or detached changes how the element looks.
+  did_with_help: Kid called classList.toggle (or add/remove) on an element under Bit's guidance to flip a CSS class on and off.
+  did_unprompted: Kid reached for classList.toggle or classList.add when they wanted to swap styles on an element, without Bit proposing the class route.
+  explained_it: Kid described classList as the list of CSS classes on an element and said that adding, removing, or toggling a class is how they turn a set of styles on and off.

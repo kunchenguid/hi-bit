@@ -1,0 +1,26 @@
+id: typing-game
+title_parent: Typing game
+title_kid: a game where you type words as fast as you can
+summary_kid: a page that shows a word, and you type the same word in a box as fast as you can, and you get a point every time you match
+emoji: "⌨️"
+categories: [arcade, utility]
+interest_tags: [games, typing, words, speed]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-labels
+  - html-inputs-text
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - dom-input-value
+  - events-input
+  - js-arrays
+  - js-array-length
+  - js-math-random
+  - js-if-else
+  - state-counter
+style_hints:
+  - the list of words to type
+  - the color when you match a word
+  - what the score label says

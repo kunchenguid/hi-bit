@@ -1,0 +1,18 @@
+id: birthday-card
+title_parent: Birthday card
+title_kid: a birthday card page
+summary_kid: a colorful page that wishes someone happy birthday, with a big message and a picture
+emoji: "🎂"
+categories: [creative, personal]
+interest_tags: [family, friends, holidays, party]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-images
+  - html-div-span
+style_hints:
+  - whose birthday it is
+  - the big message at the top
+  - a picture or emoji for the card
+  - a short note at the bottom

@@ -1,0 +1,12 @@
+id: storage-localstorage
+title_parent: localStorage setItem and getItem
+title_kid: saving something so it is still there after you close the page
+why_kid: normally everything your page remembers disappears when you close the tab. localStorage is like a tiny notebook in the browser that can hold a value until the next time the page opens, so scores and settings can stick around.
+area: interactivity
+prereqs: [js-variables-let-const, js-strings]
+introduces: [local-storage, persistence, set-item, get-item]
+mastery_signals:
+  saw_it: Bit wrote localStorage.setItem and localStorage.getItem calls in the kid's code and showed the kid how a value saved in one run is still there after a reload.
+  did_with_help: Kid saved a string value with localStorage.setItem and read it back on load with localStorage.getItem under Bit's step-by-step guidance, and saw the page pick up where it left off after a reload.
+  did_unprompted: Kid reached for localStorage when they wanted something in their project to stick around across reloads, without Bit suggesting the pattern.
+  explained_it: Kid explained that localStorage holds string values by name on the kid's computer so the page can write a value one time and read the same value back even after closing and reopening the page.

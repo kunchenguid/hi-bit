@@ -1,0 +1,12 @@
+id: css-colors
+title_parent: Colors (named and hex)
+title_kid: picking colors
+why_kid: you decide what color the words, the buttons, and the page background should be, instead of plain black on white.
+area: css
+prereqs: [css-selectors-element]
+introduces: [color-property, named-color, hex-color]
+mastery_signals:
+  saw_it: Bit changed the color of text on the kid's page using a named color and then a hex value, and named the two ways side by side.
+  did_with_help: Kid set a color on an element using a named color or a hex value with Bit reminding them of the property name.
+  did_unprompted: Kid picked a color for a new element on their own, reaching for either a named color or a hex value, without Bit offering one.
+  explained_it: Kid said that color is the word for text color, and could name at least one named color and describe hex as "a code that stands for a color."

@@ -1,0 +1,12 @@
+id: js-strings
+title_parent: Strings and concatenation
+title_kid: writing text in code
+why_kid: this is how your code holds onto words - names, messages, scores - so it can show them on the page or change them later.
+area: js
+prereqs: [js-variables-let-const]
+introduces: [string-literal, string-concatenation, quotes]
+mastery_signals:
+  saw_it: Bit wrote a string value in the kid's code using quotes, then joined two strings together with a plus sign and showed the kid the combined text in the output.
+  did_with_help: Kid wrote a string value inside quotes and joined it to another string with Bit reminding them that strings need quotes and that plus between strings sticks them together.
+  did_unprompted: Kid reached for a string and string concatenation on their own to build a message, without Bit suggesting how to glue the pieces together.
+  explained_it: Kid said that a string is text between quotes and that plus between two strings sticks them end to end into one longer string.

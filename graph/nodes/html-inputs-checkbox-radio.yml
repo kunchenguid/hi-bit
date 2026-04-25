@@ -1,0 +1,12 @@
+id: html-inputs-checkbox-radio
+title_parent: Checkbox and radio inputs
+title_kid: boxes you can check
+why_kid: sometimes you want a visitor to pick yes or no, or pick one choice out of a few. checkboxes and radios give them little boxes and circles they can click instead of having to type an answer.
+area: html
+prereqs: [html-inputs-text]
+introduces: [checkbox-input, radio-input, name-attribute, radio-group]
+mastery_signals:
+  saw_it: Bit added a checkbox and a set of radio inputs to the kid's page and pointed out the boxes and circles in the preview.
+  did_with_help: Kid wrote a checkbox input while Bit reminded them to change the type attribute, and added a radio group while Bit explained that radios with the same name belong together.
+  did_unprompted: Kid reached for a checkbox or radio input when their page needed a yes/no or a pick-one, without Bit asking.
+  explained_it: Kid described a checkbox as something you can check or uncheck, a radio as one-pick-out-of-a-group, and said radios in the same group share a name.

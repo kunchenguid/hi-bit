@@ -1,0 +1,12 @@
+id: css-attach
+title_parent: Attaching CSS (style tag and external sheet)
+title_kid: where styles live
+why_kid: this is the spot on your page where colors, fonts, and sizes for everything else go.
+area: css
+prereqs: [html-doc-shell]
+introduces: [style-tag, link-rel-stylesheet, external-css, css-vs-html]
+mastery_signals:
+  saw_it: Bit added a style block (or a linked stylesheet) to the kid's page and showed that the words inside it change how the page looks, not what the page says.
+  did_with_help: Kid added a style tag or a link to an external stylesheet under Bit's guidance, and wrote a first rule together.
+  did_unprompted: Kid started a new page and attached a place for styles on their own before asking how to change colors or sizes.
+  explained_it: Kid described CSS as the rules that decide how things look, and pointed out where those rules live in their page.

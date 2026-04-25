@@ -1,0 +1,464 @@
+import type { Dream } from "@shared/dreams";
+import type { Profile } from "@shared/profile";
+import {
+  type FormEvent,
+  type JSX,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { canRetryLastKidMessage, useChatStore } from "../state/chatStore";
+import { useGraphStore } from "../state/graphStore";
+import { useProfileStore } from "../state/profileStore";
+import { useProgressStore } from "../state/progressStore";
+import { ChatMarkdown } from "./chatMarkdown";
+import { describeKidDreamProgress } from "./kidDreamProgress";
+import { messageHasEditorCue } from "./kidEditorCue";
+import { buildKidGreetingText } from "./kidGreeting";
+import { describeKidNextUp } from "./kidNextUp";
+import { buildKidSessionLearned, computeDoneKpIds } from "./kidSessionLearned";
+import { buildKidSkillChecklist } from "./kidSkillChecklist";
+import { describeKidSkillsSummary } from "./kidSkillsSummary";
+import { buildKidWrapUpSummary } from "./kidWrapUp";
+import { computeMasterySummary } from "./parent/masterySummary";
+import { chooseNextSuggestion } from "./parent/nextKpSuggestion";
+
+type Props = {
+  profile: Profile;
+  onOpenEditor?: () => void;
+  onEnterParentMode?: () => void;
+  onSwitchDream?: () => void;
+  onOpenProjects?: () => void;
+};
+
+export function KidChat({
+  profile,
+  onOpenEditor,
+  onEnterParentMode,
+  onSwitchDream,
+  onOpenProjects,
+}: Props): JSX.Element {
+  const messages = useChatStore((s) => s.messages);
+  const status = useChatStore((s) => s.status);
+  const send = useChatStore((s) => s.send);
+  const retry = useChatStore((s) => s.retry);
+  const hydrate = useChatStore((s) => s.hydrate);
+  const hydrateStatus = useChatStore((s) => s.hydrateStatus);
+  const hydratedSessionId = useChatStore((s) => s.hydratedSessionId);
+  const greetingForSessionId = useChatStore((s) => s.greetingForSessionId);
+  const seedKidGreeting = useChatStore((s) => s.seedKidGreeting);
+  const library = useGraphStore((s) => s.library);
+  const graph = useGraphStore((s) => s.graph);
+  const graphStatus = useGraphStore((s) => s.status);
+  const loadGraph = useGraphStore((s) => s.load);
+  const progress = useProgressStore((s) => s.progress);
+  const progressProfileId = useProgressStore((s) => s.profileId);
+  const loadProgress = useProgressStore((s) => s.load);
+  const selectProfile = useProfileStore((s) => s.selectProfile);
+
+  const [input, setInput] = useState("");
+  const [wrapUpOpen, setWrapUpOpen] = useState(false);
+  const [sessionStartDone, setSessionStartDone] = useState<ReadonlySet<string> | null>(null);
+  const [learnedDismissedCount, setLearnedDismissedCount] = useState(0);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const prevStatusRef = useRef(status);
+
+  useEffect(() => {
+    if (graphStatus === "idle") {
+      void loadGraph();
+    }
+  }, [graphStatus, loadGraph]);
+
+  const kidSessionId = profile.sessions.kid;
+  useEffect(() => {
+    if (hydratedSessionId === kidSessionId) return;
+    void hydrate(profile.id, kidSessionId);
+  }, [profile.id, kidSessionId, hydratedSessionId, hydrate]);
+
+  useEffect(() => {
+    if (progressProfileId !== profile.id) void loadProgress(profile.id);
+  }, [profile.id, progressProfileId, loadProgress]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on profile change
+  useEffect(() => {
+    setSessionStartDone(null);
+    setLearnedDismissedCount(0);
+  }, [profile.id]);
+
+  useEffect(() => {
+    if (sessionStartDone !== null) return;
+    if (!progress || !graph) return;
+    if (progressProfileId !== profile.id) return;
+    setSessionStartDone(computeDoneKpIds(graph, progress));
+  }, [graph, progress, progressProfileId, profile.id, sessionStartDone]);
+
+  const skillsSummary = useMemo(() => {
+    const summary = computeMasterySummary(graph, progress);
+    return describeKidSkillsSummary(summary);
+  }, [graph, progress]);
+
+  const nextSuggestion = useMemo(() => {
+    if (!progress) return null;
+    return chooseNextSuggestion({
+      graph,
+      library,
+      currentDreamId: profile.currentDreamId ?? null,
+      progress,
+    });
+  }, [graph, library, profile.currentDreamId, progress]);
+
+  const nextUp = useMemo(() => describeKidNextUp(nextSuggestion), [nextSuggestion]);
+  const nextUpKpId = nextSuggestion?.kind === "next-kp" ? nextSuggestion.kp.id : null;
+
+  useEffect(() => {
+    if (prevStatusRef.current === "sending" && status !== "sending") {
+      inputRef.current?.focus();
+    }
+    prevStatusRef.current = status;
+  }, [status]);
+
+  const lastMessageId = messages[messages.length - 1]?.id ?? null;
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    // Track both lastMessageId and status so thinking-bubble render also scrolls.
+    void lastMessageId;
+    void status;
+    el.scrollTop = el.scrollHeight;
+  }, [lastMessageId, status]);
+
+  const dream = useMemo<Dream | null>(() => {
+    if (!library || !profile.currentDreamId) return null;
+    return library.byId[profile.currentDreamId] ?? null;
+  }, [library, profile.currentDreamId]);
+
+  const dreamProgress = useMemo(
+    () => describeKidDreamProgress(dream, graph, progress),
+    [dream, graph, progress],
+  );
+
+  const skillChecklist = useMemo(
+    () => buildKidSkillChecklist(dream, graph, progress, nextUpKpId),
+    [dream, graph, progress, nextUpKpId],
+  );
+
+  const sessionLearned = useMemo(
+    () => buildKidSessionLearned(graph, progress, sessionStartDone),
+    [graph, progress, sessionStartDone],
+  );
+
+  const kidMessageCount = useMemo(
+    () => messages.filter((m) => m.role === "kid" && m.kind === "text").length,
+    [messages],
+  );
+
+  const wrapUpSummary = useMemo(
+    () =>
+      buildKidWrapUpSummary({
+        profileName: profile.name,
+        kidMessageCount,
+        doneSkillCount: skillChecklist?.doneCount ?? 0,
+      }),
+    [profile.name, kidMessageCount, skillChecklist],
+  );
+
+  useEffect(() => {
+    if (hydrateStatus !== "ready") return;
+    if (hydratedSessionId !== kidSessionId) return;
+    if (messages.length > 0) return;
+    if (greetingForSessionId === kidSessionId) return;
+    if (!dream) return;
+    const greeting = buildKidGreetingText({
+      profileName: profile.name,
+      dreamTitleKid: dream.title_kid,
+      nextUpText: nextUp?.text ?? null,
+    });
+    seedKidGreeting(kidSessionId, greeting);
+  }, [
+    hydrateStatus,
+    hydratedSessionId,
+    kidSessionId,
+    messages.length,
+    greetingForSessionId,
+    dream,
+    nextUp,
+    profile.name,
+    seedKidGreeting,
+  ]);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    const trimmed = input.trim();
+    if (trimmed.length === 0 || status === "sending") return;
+    setInput("");
+    await send(profile.id, trimmed);
+  }
+
+  const disabled = status === "sending" || input.trim().length === 0;
+  const canRetry = status !== "sending" && canRetryLastKidMessage(messages);
+
+  async function handleRetry(): Promise<void> {
+    if (!canRetry) return;
+    await retry(profile.id);
+  }
+
+  return (
+    <main className="hb-chat-shell">
+      <header className="hb-chat-header">
+        <div className="hb-chat-heading">
+          <div className="t-pixel hb-gate-kicker">Bit</div>
+          <h1 className="hb-chat-title">
+            {profile.name} and Bit
+            {dream ? <span className="hb-chat-dream"> - {dream.title_kid}</span> : null}
+          </h1>
+          {skillsSummary ? (
+            <span className="hb-chat-skills t-pixel">
+              <span className="hb-chat-skills-kicker">{skillsSummary.kicker}</span>
+              <span className="hb-chat-skills-text">{skillsSummary.text}</span>
+            </span>
+          ) : null}
+          {nextUp ? (
+            <div className="hb-chat-nextup-group">
+              <p className="hb-chat-nextup">
+                <span className="hb-chat-nextup-label">{nextUp.label}:</span>{" "}
+                <span className="hb-chat-nextup-text">{nextUp.text}</span>
+              </p>
+              {nextUp.subtext ? <p className="hb-chat-nextup-why">{nextUp.subtext}</p> : null}
+            </div>
+          ) : null}
+          {sessionLearned && sessionLearned.count > learnedDismissedCount ? (
+            <div className="hb-chat-session-learned" role="status" aria-live="polite">
+              <span className="hb-chat-session-learned-emoji" aria-hidden="true">
+                🎉
+              </span>
+              <span className="hb-chat-session-learned-text">{sessionLearned.text}</span>
+              <button
+                type="button"
+                className="hb-chat-session-learned-dismiss"
+                onClick={() => setLearnedDismissedCount(sessionLearned.count)}
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
+          {skillChecklist ? (
+            <details className="hb-chat-skill-checklist">
+              <summary className="hb-chat-skill-checklist-summary">
+                <span className="hb-chat-skill-checklist-kicker t-pixel">Your skills</span>
+                <span className="hb-chat-skill-checklist-count">{skillChecklist.summary}</span>
+              </summary>
+              <ul className="hb-chat-skill-list">
+                {skillChecklist.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className={`hb-chat-skill-item hb-chat-skill-item-${item.status}`}
+                  >
+                    <span className="hb-chat-skill-icon" aria-hidden="true">
+                      {item.status === "done" ? "✓" : item.status === "next" ? "→" : "○"}
+                    </span>
+                    <span className="hb-chat-skill-label">{item.titleKid}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : dreamProgress ? (
+            <span className="hb-chat-dream-progress t-pixel">
+              <span className="hb-chat-dream-progress-kicker">{dreamProgress.kicker}</span>
+              <span className="hb-chat-dream-progress-text">{dreamProgress.text}</span>
+            </span>
+          ) : null}
+        </div>
+        <div className="hb-chat-header-actions">
+          <div className="hb-chat-header-chrome">
+            {onSwitchDream ? (
+              <button
+                type="button"
+                className="hb-btn hb-btn-ghost hb-btn-sm"
+                onClick={onSwitchDream}
+              >
+                Switch dream
+              </button>
+            ) : null}
+            {onOpenProjects ? (
+              <button
+                type="button"
+                className="hb-btn hb-btn-ghost hb-btn-sm"
+                onClick={onOpenProjects}
+              >
+                My projects
+              </button>
+            ) : null}
+            {onEnterParentMode ? (
+              <button
+                type="button"
+                className="hb-btn hb-btn-ghost hb-btn-sm hb-btn-parent"
+                onClick={onEnterParentMode}
+              >
+                For grown-ups
+              </button>
+            ) : null}
+          </div>
+          {onOpenEditor ? (
+            <button type="button" className="hb-btn hb-btn-primary" onClick={onOpenEditor}>
+              Open editor
+            </button>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="hb-chat-messages" ref={listRef}>
+        {hydrateStatus === "loading" && messages.length === 0 ? (
+          <p className="hb-chat-empty">Loading your last chat with Bit...</p>
+        ) : null}
+        {hydrateStatus !== "loading" && messages.length === 0 ? (
+          <p className="hb-chat-empty">
+            Say hi to Bit when you're ready. Bit will greet you and tell you the first move.
+          </p>
+        ) : null}
+        {messages.map((m, idx) => {
+          if (m.role === "system" && m.kind === "divider") {
+            return (
+              <div key={m.id} className="hb-chat-divider">
+                <span className="hb-chat-divider-line" aria-hidden="true" />
+                <span className="hb-chat-divider-text">{m.text}</span>
+                <span className="hb-chat-divider-line" aria-hidden="true" />
+              </div>
+            );
+          }
+          const isLastError = idx === messages.length - 1 && m.role === "bit" && m.kind === "error";
+          const showEditorCta =
+            m.role === "bit" && m.kind !== "error" && !!onOpenEditor && messageHasEditorCue(m.text);
+          return (
+            <div
+              key={m.id}
+              className={`hb-chat-msg hb-chat-${m.role}${
+                m.kind === "error" ? " hb-chat-msg-error" : ""
+              }`}
+            >
+              <div className="hb-chat-msg-role t-pixel">
+                {m.role === "kid" ? profile.name : "Bit"}
+              </div>
+              <div className="hb-chat-msg-body">
+                {m.role === "bit" && m.kind !== "error" ? <ChatMarkdown text={m.text} /> : m.text}
+              </div>
+              {showEditorCta ? (
+                <button
+                  type="button"
+                  className="hb-btn hb-btn-primary hb-chat-editor-cta"
+                  onClick={onOpenEditor}
+                >
+                  Open the editor
+                </button>
+              ) : null}
+              {isLastError && canRetry ? (
+                <button
+                  type="button"
+                  className="hb-btn hb-btn-ghost hb-chat-retry"
+                  onClick={handleRetry}
+                >
+                  Try again
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+        {status === "sending" ? (
+          <div className="hb-chat-msg hb-chat-bit hb-chat-msg-pending">
+            <div className="hb-chat-msg-role t-pixel">Bit</div>
+            <div className="hb-chat-msg-body hb-chat-thinking">
+              <span className="hb-chat-thinking-label">Bit is thinking</span>
+              <span className="hb-chat-thinking-dots" aria-hidden="true">
+                <span className="hb-chat-thinking-dot" />
+                <span className="hb-chat-thinking-dot" />
+                <span className="hb-chat-thinking-dot" />
+              </span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <form className="hb-chat-input-row" onSubmit={handleSubmit}>
+        <input
+          ref={inputRef}
+          className="hb-input hb-chat-input"
+          type="text"
+          placeholder="type to Bit..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={status === "sending"}
+          // biome-ignore lint/a11y/noAutofocus: primary input on kid home screen
+          autoFocus
+        />
+        <button type="submit" className="hb-btn hb-btn-primary" disabled={disabled}>
+          {status === "sending" ? (
+            "Sending..."
+          ) : (
+            <>
+              <svg
+                className="hb-chat-send-icon"
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+              >
+                <path
+                  d="M3.4 20.6L21 12 3.4 3.4 3 10l12 2-12 2z"
+                  fill="currentColor"
+                  stroke="currentColor"
+                  strokeWidth="0.5"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Send
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          className="hb-btn hb-btn-ghost hb-btn-sm hb-chat-done"
+          onClick={() => setWrapUpOpen(true)}
+          disabled={status === "sending"}
+        >
+          I'm done for now
+        </button>
+      </form>
+
+      {wrapUpOpen ? (
+        <section
+          className="hb-chat-wrapup"
+          aria-label="Done for today"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div className="hb-chat-wrapup-card">
+            <h2 className="hb-chat-wrapup-title">{wrapUpSummary.title}</h2>
+            <p className="hb-chat-wrapup-subtitle">{wrapUpSummary.subtitle}</p>
+            <div className="hb-chat-wrapup-actions">
+              <button
+                type="button"
+                className="hb-btn hb-btn-ghost"
+                onClick={() => setWrapUpOpen(false)}
+              >
+                Keep going
+              </button>
+              <button
+                type="button"
+                className="hb-btn hb-btn-primary"
+                onClick={() => {
+                  setWrapUpOpen(false);
+                  selectProfile(null);
+                }}
+              >
+                Back to profiles
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+    </main>
+  );
+}

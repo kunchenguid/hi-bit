@@ -1,0 +1,23 @@
+id: name-badge
+title_parent: Name badge maker
+title_kid: a name badge you can type into
+summary_kid: a page with a little box to type your name, and the big badge on the page changes as you type
+emoji: "🏷️"
+categories: [utility, creative]
+interest_tags: [school, events, names, labels]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-inputs-text
+  - html-labels
+  - css-attach
+  - css-colors
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-input
+  - dom-input-value
+style_hints:
+  - the badge background color
+  - the badge title (like Hello my name is)
+  - the font style

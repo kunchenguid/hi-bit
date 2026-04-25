@@ -1,0 +1,12 @@
+id: canvas-circle
+title_parent: beginPath, arc, and fill
+title_kid: drawing a circle
+why_kid: rectangles are great, but most fun things you draw - faces, planets, pizza, ball-shaped game characters - need round shapes too.
+area: canvas
+prereqs: [canvas-fillrect]
+introduces: [begin-path, arc, path-fill, radius]
+mastery_signals:
+  saw_it: Bit drew a circle on the kid's canvas by calling beginPath, then arc with the center, radius, and a full turn, then fill, and named the three steps.
+  did_with_help: Kid drew a circle by calling beginPath, arc with a center x, center y, and radius, and then fill under Bit's step-by-step guidance.
+  did_unprompted: Kid drew a new circle in their canvas project using the beginPath, arc, fill sequence, without Bit suggesting the pattern.
+  explained_it: Kid explained that beginPath starts a new shape, arc traces a circle at the given center and radius, and fill paints the inside using the current fillStyle.

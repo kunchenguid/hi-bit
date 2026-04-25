@@ -1,0 +1,12 @@
+id: js-variables-let-const
+title_parent: let and const
+title_kid: giving things names so you can use them later
+why_kid: this is how you give numbers, words, and other values their own names so you don't have to keep retyping them - it's the building block of almost every program you'll write.
+area: js
+prereqs: [js-console-log]
+introduces: [variable-declaration, let, const, assignment]
+mastery_signals:
+  saw_it: Bit declared a variable with let or const in the kid's code, gave it a value, and used the name a few lines later so the kid could see the name standing in for the value.
+  did_with_help: Kid declared a variable with let or const and used it in a later line with Bit reminding them when to reach for const (it never changes) and when for let (it might change).
+  did_unprompted: Kid introduced a variable on their own when a value was about to be used more than once, without Bit suggesting they give it a name first.
+  explained_it: Kid said that let and const give a value a name so they can use that name later, and that const is for names whose value never changes.

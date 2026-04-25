@@ -1,0 +1,17 @@
+id: story-page
+title_parent: Story page
+title_kid: a page that tells a short story
+summary_kid: a page with a story you wrote, with a title, a few paragraphs, and a list of characters
+emoji: "📚"
+categories: [creative]
+interest_tags: [writing, stories, reading]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-lists
+style_hints:
+  - the story title
+  - who the story is about
+  - the opening sentence
+  - how the story ends

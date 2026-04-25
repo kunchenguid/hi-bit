@@ -1,0 +1,25 @@
+id: quiz
+title_parent: Quiz
+title_kid: a quiz with buttons for your answers and a score at the end
+summary_kid: a page that asks you one question at a time with a few answer buttons, and at the end it shows how many you got right
+emoji: "❓"
+categories: [utility, arcade]
+interest_tags: [games, questions, learning, school]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-div-span
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - js-arrays
+  - js-array-length
+  - js-if-else
+  - state-counter
+style_hints:
+  - the topic of the quiz
+  - the style of the answer buttons
+  - what the final score page says

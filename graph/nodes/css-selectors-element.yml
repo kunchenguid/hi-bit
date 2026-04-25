@@ -1,0 +1,12 @@
+id: css-selectors-element
+title_parent: Element selectors
+title_kid: styling every paragraph on the page
+why_kid: instead of styling each paragraph or button one by one, you can write one rule that changes every paragraph (or every button, or every heading) at once, which saves you from repeating yourself over and over.
+area: css
+prereqs: [css-attach, html-text-paragraphs]
+introduces: [element-selector, declaration-block, property-value-pair]
+mastery_signals:
+  saw_it: Bit wrote a rule like p { ... } in the kid's stylesheet and pointed out that every paragraph on the page changed at once.
+  did_with_help: Kid wrote an element selector and one declaration inside it while Bit reminded them of the curly braces and semicolon.
+  did_unprompted: Kid used an element selector on their own to style every instance of a tag they added, without Bit suggesting a rule.
+  explained_it: Kid described an element selector as the name of a tag followed by rules, and said it changes every matching element on the page.

@@ -1,0 +1,12 @@
+id: html-id-class
+title_parent: id and class attributes
+title_kid: names and categories for your elements
+why_kid: giving things names lets you find one exact piece of your page later or grab a whole group of things at once to style them or change them.
+area: html
+prereqs: [html-div-span]
+introduces: [id-attribute, class-attribute, element-identifier, element-group]
+mastery_signals:
+  saw_it: Bit added an id to one element and a class to a group of elements on the kid's page and pointed out how each attribute is a way to find those elements later.
+  did_with_help: Kid added an id and a class to some of their elements while Bit reminded them that id is for one specific thing and class is for a group.
+  did_unprompted: Kid added an id or class to an element when they wanted to style or grab it, without Bit suggesting it.
+  explained_it: Kid described id as a unique name for one element and class as a tag they can put on many elements that all go together.

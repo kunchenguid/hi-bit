@@ -1,0 +1,12 @@
+id: js-booleans
+title_parent: true and false
+title_kid: yes and no in code
+why_kid: computers use true and false to remember simple yes-or-no facts, like is the door open or is the game over, so your code can act differently depending on the answer.
+area: js
+prereqs: [js-variables-let-const]
+introduces: [boolean, truthy-value, falsy-value]
+mastery_signals:
+  saw_it: Bit assigned true or false to a variable in the kid's code and pointed out that these two values are how the computer keeps track of yes and no answers.
+  did_with_help: Kid assigned true or false to a variable with Bit reminding them that true and false are not strings and do not need quotes.
+  did_unprompted: Kid reached for a true or false value on their own to represent an on or off (or yes or no) idea in their project, without Bit suggesting the type.
+  explained_it: Kid said that true and false are the two values the computer uses for yes and no, and that they are different from the words "true" and "false" in quotes.

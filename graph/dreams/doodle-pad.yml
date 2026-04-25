@@ -1,0 +1,19 @@
+id: doodle-pad
+title_parent: Doodle pad
+title_kid: a drawing pad you can paint on
+summary_kid: a page with a canvas where a little colored square follows your clicks so you can doodle
+emoji: "✏️"
+categories: [art, creative]
+interest_tags: [drawing, art, painting, doodles]
+requires:
+  - html-doc-shell
+  - run-and-preview
+  - js-attach
+  - dom-query-selector
+  - events-click
+  - canvas-setup
+  - canvas-fillrect
+style_hints:
+  - the paint color
+  - the size of each dot
+  - the background color of the canvas

@@ -1,0 +1,27 @@
+id: rock-paper-scissors
+title_parent: Rock paper scissors
+title_kid: a page where you play rock paper scissors against the computer
+summary_kid: a page with three buttons - rock, paper, and scissors - where you press one and the computer picks one too, and the page shows who won
+emoji: "✊"
+categories: [arcade]
+interest_tags: [games, rps, hands, versus, chance]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - js-arrays
+  - js-array-length
+  - js-math-random
+  - js-strings
+  - js-comparison
+  - js-if-else
+  - state-counter
+style_hints:
+  - the rock, paper, and scissors button labels (emoji or words)
+  - what the page says when you win, lose, or tie
+  - whether you keep a running score of wins and losses

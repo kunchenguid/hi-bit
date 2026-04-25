@@ -1,0 +1,12 @@
+id: project-reset
+title_parent: Reset to initial state
+title_kid: starting over without reloading
+why_kid: after a game ends or the kid wants a do-over, they shouldn't have to refresh the whole page. a reset button puts everything back to the start so they can play again right away.
+area: interactivity
+prereqs: [state-counter, events-click]
+introduces: [reset-handler, initial-state, reset-button]
+mastery_signals:
+  saw_it: Bit added a reset button with a click handler that sets every piece of state back to its starting value and updates the page, and showed the kid how the project returns to its initial look.
+  did_with_help: Kid added a reset button and a handler that restores the starting values under Bit's step-by-step guidance, so clicking reset returns the project to where it began.
+  did_unprompted: Kid reached for a reset button plus a handler that restores the starting values when they wanted to start over in their project, without Bit suggesting the pattern.
+  explained_it: Kid explained that reset means writing the starting values back into every state variable and then updating the page so the project looks the way it did at the start.

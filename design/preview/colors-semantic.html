@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../tokens/colors_and_type.css">
+<style>
+  body { margin:0; padding: 20px; background: var(--paper); width:660px; box-sizing:border-box; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .swatch { border-radius: var(--r-lg); overflow:hidden; border:1px solid var(--ink-12);}
+  .chip { height: 56px; display:flex; align-items:flex-end; padding: 8px 10px; color: #1A1626; font-family: var(--font-pixel); font-size: 9px; text-transform: uppercase; }
+  .meta { background: var(--paper-3); padding: 6px 10px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-64); border-top:1px solid var(--ink-12);}
+  .meta b { color: var(--ink); font-weight: 500; }
+  .brand { background: #6C5CE7; color: #FFFDF5 !important; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="swatch">
+      <div class="chip brand">BRAND</div>
+      <div class="meta"><b>--brand</b><br>#6C5CE7</div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:#7BD86E">SUCCESS</div>
+      <div class="meta"><b>--success</b><br>#7BD86E</div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:#FFC244">WARNING</div>
+      <div class="meta"><b>--warning</b><br>#FFC244</div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:#F26A4B;color:#FFFDF5">DANGER</div>
+      <div class="meta"><b>--danger</b><br>#F26A4B</div>
+    </div>
+  </div>
+</body>
+</html>

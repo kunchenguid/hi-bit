@@ -1,0 +1,12 @@
+id: timers-settimeout
+title_parent: setTimeout
+title_kid: doing something later
+why_kid: this lets you say "wait two seconds, then do this" - perfect for surprises, reveals, or a "good job!" message that pops up after a click.
+area: interactivity
+prereqs: [events-click, js-functions-define]
+introduces: [delayed-callback, timeout-timer, schedule-once]
+mastery_signals:
+  saw_it: Bit wrote a setTimeout call that runs a function after a delay in milliseconds and showed the kid how the scheduled code runs once after the wait rather than right away.
+  did_with_help: Kid scheduled a one-shot delayed function with setTimeout under Bit's step-by-step guidance and saw it run once after the delay.
+  did_unprompted: Kid reached for setTimeout when they wanted something in their project to happen after a delay, without Bit suggesting the pattern.
+  explained_it: Kid explained that setTimeout takes a function and a number of milliseconds, waits that long, and then runs the function exactly once.

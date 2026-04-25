@@ -1,0 +1,12 @@
+id: html-lists
+title_parent: Ordered and unordered lists
+title_kid: lists of things
+why_kid: lists let you show a bunch of items stacked neatly, one under the other.
+area: html
+prereqs: [html-text-paragraphs]
+introduces: [ul-tag, ol-tag, li-tag, list-item]
+mastery_signals:
+  saw_it: Bit added a ul with a few li items to the kid's page and pointed out that each li becomes a bullet point.
+  did_with_help: Kid wrote a list with Bit reminding them that the items go inside li tags and everything wraps in ul or ol.
+  did_unprompted: Kid reached for a ul or ol when the thing they were building was a list, without Bit suggesting one.
+  explained_it: Kid described the difference between ul as bullets and ol as numbers, and said that li is one item in the list.

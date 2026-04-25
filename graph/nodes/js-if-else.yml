@@ -1,0 +1,12 @@
+id: js-if-else
+title_parent: if, else if, else
+title_kid: doing different things depending on what's true
+why_kid: this lets your code make a choice, like show a smiley if they win and a sad face if they lose.
+area: js
+prereqs: [js-logic]
+introduces: [if-statement, else-branch, else-if]
+mastery_signals:
+  saw_it: Bit wrote an if block with an else branch in the kid's code and showed the kid that only one of the two bodies ran depending on whether the condition was true or false.
+  did_with_help: Kid wrote an if block (and optionally an else or else if branch) with Bit reminding them that the condition goes in parentheses and that only the matching body runs.
+  did_unprompted: Kid reached for an if or if-else on their own when their code needed to do different things in different cases, without Bit suggesting the branch.
+  explained_it: Kid said that an if block runs its body only when its condition is true, and that else runs when the condition is false (and else if adds another condition to check).

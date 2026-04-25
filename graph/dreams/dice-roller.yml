@@ -1,0 +1,21 @@
+id: dice-roller
+title_parent: Dice roller
+title_kid: a page that rolls a dice when you click
+summary_kid: a page with a big dice number that changes to a new 1 to 6 roll every time you press the button
+emoji: "🎲"
+categories: [arcade, utility]
+interest_tags: [games, numbers, chance, dice]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - events-click
+  - js-numbers
+  - js-math-random
+style_hints:
+  - the roll button label
+  - how many sides the dice has
+  - what the page says when you roll a special number

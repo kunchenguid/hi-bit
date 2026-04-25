@@ -1,0 +1,12 @@
+id: dom-query-selector
+title_parent: document.querySelector and getElementById
+title_kid: grabbing something on the page
+why_kid: before your code can change a button or some words, it has to find them on the page first.
+area: dom
+prereqs: [js-variables-let-const, html-id-class]
+introduces: [query-selector, get-element-by-id, element-reference, dom-lookup]
+mastery_signals:
+  saw_it: Bit used document.querySelector or getElementById in the kid's code to grab an element on the page and saved it into a variable so the kid could see the element being picked out.
+  did_with_help: Kid grabbed an element from the page with document.querySelector or getElementById under Bit's guidance, matching the id or class they had put on the element.
+  did_unprompted: Kid reached for document.querySelector or getElementById on their own when they needed to do something to an element already on the page.
+  explained_it: Kid described the selector as a way to find one of the things they made in their HTML so their code could work with it.

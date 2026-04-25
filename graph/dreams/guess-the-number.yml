@@ -1,0 +1,28 @@
+id: guess-the-number
+title_parent: Guess the number
+title_kid: a page where you try to guess the computer's secret number
+summary_kid: a page where the computer picks a secret number between 1 and 100, and you type guesses into a box - each time the page tells you higher or lower until you get it right
+emoji: "🎯"
+categories: [arcade, utility]
+interest_tags: [games, numbers, guessing, logic, chance]
+requires:
+  - html-doc-shell
+  - html-text-headings
+  - html-text-paragraphs
+  - html-inputs-number
+  - html-labels
+  - html-buttons
+  - js-attach
+  - dom-query-selector
+  - dom-text-content
+  - dom-input-value
+  - events-click
+  - js-numbers
+  - js-math-random
+  - js-comparison
+  - js-if-else
+  - state-counter
+style_hints:
+  - the range of the secret number (1 to 100, 1 to 20, etc)
+  - what the page says for higher, lower, and correct guesses
+  - whether you count and show how many guesses it took

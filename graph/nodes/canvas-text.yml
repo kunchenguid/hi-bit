@@ -1,0 +1,12 @@
+id: canvas-text
+title_parent: fillText and font setting
+title_kid: drawing words on the canvas
+why_kid: this is how you put a score, a title, or a "you win!" message right inside your drawing instead of in some other box on the page.
+area: canvas
+prereqs: [canvas-fillrect]
+introduces: [fill-text, font-property, text-position]
+mastery_signals:
+  saw_it: Bit drew text on the kid's canvas by setting ctx.font, setting fillStyle, and calling fillText with the text, x, and y, and explained what each piece controls.
+  did_with_help: Kid drew text on the canvas by setting font and fillStyle and calling fillText with the words and position under Bit's guidance.
+  did_unprompted: Kid drew new text on their canvas to label something, without Bit suggesting the font or fillText call.
+  explained_it: Kid explained that ctx.font chooses the size and font family, fillStyle chooses the color, and fillText draws the given words at the given x, y position on the canvas.

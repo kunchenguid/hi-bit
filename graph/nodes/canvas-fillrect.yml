@@ -1,0 +1,12 @@
+id: canvas-fillrect
+title_parent: fillRect and fillStyle
+title_kid: drawing a rectangle
+why_kid: this is how you put your first colored shape on the canvas - rectangles are the building blocks of pixel art and game characters.
+area: canvas
+prereqs: [canvas-setup, css-colors]
+introduces: [fill-style, fill-rect, pixel-coordinates]
+mastery_signals:
+  saw_it: Bit drew a colored rectangle on the kid's canvas by setting fillStyle and calling fillRect, and pointed out the x, y, width, and height arguments.
+  did_with_help: Kid drew a rectangle by setting fillStyle and calling fillRect with x, y, width, and height under Bit's guidance.
+  did_unprompted: Kid drew a new rectangle in their canvas project by setting fillStyle and calling fillRect, without Bit suggesting the pair of calls.
+  explained_it: Kid explained that fillStyle chooses the color and fillRect draws a filled rectangle at the given x, y position with the given width and height in pixels.

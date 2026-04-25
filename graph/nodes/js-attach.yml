@@ -1,0 +1,12 @@
+id: js-attach
+title_parent: Attaching JS (script tag)
+title_kid: where code lives
+why_kid: this is the spot on your page where you tell the computer what to do when someone clicks or types something.
+area: js
+prereqs: [html-doc-shell]
+introduces: [script-tag, inline-script, external-script]
+mastery_signals:
+  saw_it: Bit added a script tag to the kid's page with one line of JavaScript inside it and ran the page so the kid could see the code do something that plain HTML could not.
+  did_with_help: Kid added a script tag (or linked an external script file) to their page under Bit's guidance and saw their first line of code run.
+  did_unprompted: Kid started a new page and attached a script tag on their own before asking how to make the page do something interactive.
+  explained_it: Kid described JavaScript as code that can make the page do things, and pointed out where that code lives in their page.

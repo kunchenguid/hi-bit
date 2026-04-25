@@ -1,0 +1,12 @@
+id: js-function-params
+title_parent: Parameters and arguments
+title_kid: giving your trick different inputs
+why_kid: without inputs, a function always does the exact same thing. with inputs, the same function can work on different stuff each time you call it, so you don't have to write almost-the-same code over and over.
+area: js
+prereqs: [js-functions-define]
+introduces: [parameters, arguments, function-inputs]
+mastery_signals:
+  saw_it: Bit added a parameter to a function in the kid's code and called the function twice with different arguments, showing the kid how the same function did slightly different work each time.
+  did_with_help: Kid added one or more parameters to a function and called it with different arguments, with Bit reminding them that the parameter is the name inside the function and the argument is the value they pass in.
+  did_unprompted: Kid reached for a parameter on their own when a function needed to work on different values, without Bit suggesting the parameter.
+  explained_it: Kid said that parameters are the named slots a function expects, and that arguments are the actual values you give the function when you call it.
