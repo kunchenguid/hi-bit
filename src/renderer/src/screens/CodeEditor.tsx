@@ -11,8 +11,10 @@ import {
 } from "react";
 import { CodeMirrorEditor, type CodeMirrorHandle } from "../editor/CodeMirrorEditor";
 import { buildPreviewSrcdoc } from "../preview/buildPreview";
+import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
 import { useProjectsStore } from "../state/projectsStore";
+import { buildSavedFilePrompt } from "../state/saveReaction";
 import { validateNewFilename } from "./newFileValidation";
 import { computeNextTabIndex } from "./tablistNavigation";
 
@@ -45,6 +47,7 @@ export function CodeEditor({
   const subscribe = useProjectsStore((s) => s.subscribe);
   const unsubscribe = useProjectsStore((s) => s.unsubscribe);
   const openFolder = useProjectsStore((s) => s.openFolder);
+  const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
 
   const library = useGraphStore((s) => s.library);
   const graphStatus = useGraphStore((s) => s.status);
@@ -95,8 +98,12 @@ export function CodeEditor({
     if (!activeBuffer) return;
     setSaveError(null);
     try {
-      await save(activeBuffer.name);
+      const saved = await save(activeBuffer.name);
       rebuildPreview();
+      void sendSystemPrompt(profile.id, {
+        label: `Saved ${saved.filename}`,
+        prompt: buildSavedFilePrompt(saved),
+      });
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Could not save the file.");
     }

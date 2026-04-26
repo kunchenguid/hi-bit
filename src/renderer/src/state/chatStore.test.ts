@@ -46,6 +46,27 @@ describe("useChatStore", () => {
     expect(state.messages[1]).toMatchObject({ role: "bit", text: "hi Ada!", kind: "text" });
   });
 
+  it("sendSystemPrompt prompts Bit without showing the prompt as a kid message", async () => {
+    const sendKidMessage = vi
+      .fn()
+      .mockResolvedValue({ ok: true, text: "Nice. Add a color next.", durationMs: 5 });
+    mockHiBit({ sendKidMessage });
+
+    await useChatStore.getState().sendSystemPrompt("ada", {
+      prompt: "The kid saved index.html. Diff: +<button>Go</button>",
+      label: "Saved index.html",
+    });
+
+    expect(sendKidMessage).toHaveBeenCalledWith(
+      "ada",
+      "The kid saved index.html. Diff: +<button>Go</button>",
+    );
+    expect(useChatStore.getState().messages.map((m) => [m.role, m.kind, m.text])).toEqual([
+      ["system", "divider", "Saved index.html"],
+      ["bit", "text", "Nice. Add a color next."],
+    ]);
+  });
+
   it("shows a kid-friendly error bubble and records the raw error on ok=false", async () => {
     const result: SendMessageResult = { ok: false, error: "boom", durationMs: 50 };
     mockHiBit({ sendKidMessage: vi.fn().mockResolvedValue(result) });

@@ -146,7 +146,7 @@ describe("useProjectsStore", () => {
     expect(bufferDirty(state, "index.html")).toBe(true);
   });
 
-  it("save writes the current buffer to disk and clears the dirty flag", async () => {
+  it("save writes the current buffer to disk, clears the dirty flag, and returns the saved diff", async () => {
     const writeProjectFile = vi.fn().mockResolvedValue(undefined);
     mockHiBit({
       listProjectFiles: vi.fn().mockResolvedValue(["index.html"]),
@@ -156,9 +156,16 @@ describe("useProjectsStore", () => {
     await useProjectsStore.getState().load("ada", "snake");
     useProjectsStore.getState().updateBuffer("index.html", "<p>v2</p>");
 
-    await useProjectsStore.getState().save("index.html");
+    const saved = await useProjectsStore.getState().save("index.html");
 
     expect(writeProjectFile).toHaveBeenCalledWith("ada", "snake", "index.html", "<p>v2</p>");
+    expect(saved).toEqual({
+      profileId: "ada",
+      slug: "snake",
+      filename: "index.html",
+      before: "<p>v1</p>",
+      after: "<p>v2</p>",
+    });
     const state = useProjectsStore.getState();
     const buffer = state.buffers[0];
     expect(buffer?.savedContent).toBe("<p>v2</p>");

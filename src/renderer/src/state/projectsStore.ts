@@ -1,6 +1,7 @@
 import type { OpenProjectFolderResult } from "@shared/ipc";
 import type { ProjectFile, ProjectFileChange } from "@shared/project";
 import { create } from "zustand";
+import type { SavedProjectFile } from "./saveReaction";
 
 export type ProjectsStatus = "idle" | "loading" | "ready" | "error";
 
@@ -26,7 +27,7 @@ export type ProjectsStore = {
   load: (profileId: string, slug: string) => Promise<void>;
   setActiveFile: (name: string) => void;
   updateBuffer: (name: string, content: string) => void;
-  save: (name: string) => Promise<void>;
+  save: (name: string) => Promise<SavedProjectFile>;
   createFile: (name: string, content: string) => Promise<void>;
   subscribe: () => Promise<void>;
   unsubscribe: () => Promise<void>;
@@ -109,6 +110,13 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
     set((s) => ({
       buffers: s.buffers.map((b) => (b.name === name ? { ...b, savedContent: b.content } : b)),
     }));
+    return {
+      profileId,
+      slug,
+      filename: name,
+      before: buffer.savedContent,
+      after: buffer.content,
+    };
   },
 
   createFile: async (name, content) => {

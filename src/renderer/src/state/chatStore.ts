@@ -31,6 +31,10 @@ export type ChatStore = {
   streamingText: string | null;
   hydrate: (profileId: string, sessionId: string) => Promise<void>;
   send: (profileId: string, prompt: string) => Promise<SendMessageResult | null>;
+  sendSystemPrompt: (
+    profileId: string,
+    message: { prompt: string; label: string },
+  ) => Promise<SendMessageResult | null>;
   retry: (profileId: string) => Promise<SendMessageResult | null>;
   seedKidGreeting: (sessionId: string, text: string) => void;
   appendStreamingDelta: (text: string) => void;
@@ -149,6 +153,63 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ],
         status: "idle",
         error: message,
+        streamingText: null,
+      }));
+      return null;
+    }
+  },
+
+  sendSystemPrompt: async (profileId, message) => {
+    const trimmed = message.prompt.trim();
+    if (trimmed.length === 0) return null;
+    if (get().status === "sending") return null;
+
+    const divider: ChatMessage = {
+      id: messageId(),
+      role: "system",
+      kind: "divider",
+      text: message.label,
+      timestamp: new Date().toISOString(),
+    };
+    set((s) => ({
+      messages: [...s.messages, divider],
+      status: "sending",
+      error: null,
+      streamingText: null,
+    }));
+
+    try {
+      const result = await window.hibit.sendKidMessage(profileId, trimmed);
+      const blank = result.ok && isBlankAssistantText(result.text);
+      const reply: ChatMessage = {
+        id: messageId(),
+        role: "bit",
+        kind: result.ok && !blank ? "text" : "error",
+        text: result.ok ? (blank ? KID_EMPTY_REPLY : result.text) : KID_FRIENDLY_ERROR,
+        timestamp: new Date().toISOString(),
+      };
+      set((s) => ({
+        messages: [...s.messages, reply],
+        status: "idle",
+        error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
+        streamingText: null,
+      }));
+      return result;
+    } catch (err) {
+      const messageText = err instanceof Error ? err.message : String(err);
+      set((s) => ({
+        messages: [
+          ...s.messages,
+          {
+            id: messageId(),
+            role: "bit",
+            kind: "error",
+            text: KID_FRIENDLY_ERROR,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        status: "idle",
+        error: messageText,
         streamingText: null,
       }));
       return null;
