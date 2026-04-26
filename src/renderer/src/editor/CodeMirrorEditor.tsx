@@ -1,9 +1,31 @@
+import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";
 import { javascript } from "@codemirror/lang-javascript";
-import type { Extension } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
-import { basicSetup } from "codemirror";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import { lintKeymap } from "@codemirror/lint";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { EditorState, type Extension } from "@codemirror/state";
+import {
+  crosshairCursor,
+  drawSelection,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
+} from "@codemirror/view";
 import { type JSX, type Ref, useEffect, useImperativeHandle, useRef } from "react";
 import { detectEditorLanguage, type EditorLanguage } from "./fileLanguage";
 
@@ -24,7 +46,7 @@ type Props = {
 function languageExtensionFor(lang: EditorLanguage | null): Extension | null {
   switch (lang) {
     case "html":
-      return html();
+      return html({ autoCloseTags: false });
     case "css":
       return css();
     case "javascript":
@@ -32,6 +54,88 @@ function languageExtensionFor(lang: EditorLanguage | null): Extension | null {
     default:
       return null;
   }
+}
+
+const editorBaseSetup: Extension = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap,
+  ]),
+];
+
+type EditorExtensionOptions = {
+  ariaLabel?: string;
+  onChange?: (next: string) => void;
+  onSave?: () => void;
+};
+
+export function createEditorExtensions(
+  filename: string,
+  readOnly: boolean,
+  options: EditorExtensionOptions = {},
+): Extension[] {
+  const langExt = languageExtensionFor(detectEditorLanguage(filename));
+  const extensions: Extension[] = [
+    editorBaseSetup,
+    keymap.of([
+      {
+        key: "Mod-s",
+        preventDefault: true,
+        run: () => {
+          options.onSave?.();
+          return true;
+        },
+      },
+    ]),
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        options.onChange?.(update.state.doc.toString());
+      }
+    }),
+    EditorView.editable.of(!readOnly),
+    EditorView.contentAttributes.of(options.ariaLabel ? { "aria-label": options.ariaLabel } : {}),
+    EditorView.theme({
+      "&": {
+        height: "100%",
+        fontSize: "13px",
+      },
+      ".cm-scroller": {
+        fontFamily: "var(--font-mono)",
+        lineHeight: "1.55",
+      },
+      "&.cm-focused": {
+        outline: "none",
+      },
+      ".cm-selectionBackground, ::selection": {
+        background: "color-mix(in oklch, var(--brand) 35%, transparent)",
+      },
+      "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+        background: "color-mix(in oklch, var(--brand) 35%, transparent)",
+      },
+    }),
+  ];
+  if (langExt) extensions.push(langExt);
+  return extensions;
 }
 
 export function CodeMirrorEditor({
@@ -78,47 +182,11 @@ export function CodeMirrorEditor({
   useEffect(() => {
     if (!hostRef.current) return;
     const host = hostRef.current;
-    const langExt = languageExtensionFor(detectEditorLanguage(filename));
-    const extensions: Extension[] = [
-      basicSetup,
-      keymap.of([
-        {
-          key: "Mod-s",
-          preventDefault: true,
-          run: () => {
-            onSaveRef.current?.();
-            return true;
-          },
-        },
-      ]),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          onChangeRef.current(update.state.doc.toString());
-        }
-      }),
-      EditorView.editable.of(!readOnly),
-      EditorView.contentAttributes.of(ariaLabel ? { "aria-label": ariaLabel } : {}),
-      EditorView.theme({
-        "&": {
-          height: "100%",
-          fontSize: "13px",
-        },
-        ".cm-scroller": {
-          fontFamily: "var(--font-mono)",
-          lineHeight: "1.55",
-        },
-        "&.cm-focused": {
-          outline: "none",
-        },
-        ".cm-selectionBackground, ::selection": {
-          background: "color-mix(in oklch, var(--brand) 35%, transparent)",
-        },
-        "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
-          background: "color-mix(in oklch, var(--brand) 35%, transparent)",
-        },
-      }),
-    ];
-    if (langExt) extensions.push(langExt);
+    const extensions = createEditorExtensions(filename, readOnly, {
+      ariaLabel,
+      onChange: (next) => onChangeRef.current(next),
+      onSave: () => onSaveRef.current?.(),
+    });
 
     const view = new EditorView({
       doc: initialValueRef.current,
