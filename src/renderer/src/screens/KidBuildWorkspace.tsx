@@ -29,10 +29,16 @@ export function KidBuildWorkspace({
   const [cursorTargetError, setCursorTargetError] = useState<string | null>(null);
   const [pendingCursorMessage, setPendingCursorMessage] = useState<string | null>(null);
   const projectStatus = useProjectsStore((s) => s.status);
+  const projectProfileId = useProjectsStore((s) => s.profileId);
+  const projectSlug = useProjectsStore((s) => s.slug);
+  const dreamId = profile.currentDreamId ?? null;
+  const projectReadyForProfile =
+    projectStatus === "ready" && projectProfileId === profile.id && projectSlug === dreamId;
 
   const locateCursorTarget = useCallback(
     async (latestBitMessage: string): Promise<void> => {
-      const { activeFileName, buffers } = useProjectsStore.getState();
+      const { activeFileName, buffers, profileId, slug } = useProjectsStore.getState();
+      if (profileId !== profile.id || slug !== dreamId) return;
       const activeBuffer = buffers.find((buffer) => buffer.name === activeFileName);
       if (!activeBuffer) {
         setCursorTargetError("Open a file first, then Bit can point to the spot.");
@@ -41,11 +47,21 @@ export function KidBuildWorkspace({
 
       setCursorTargetStatus("locating");
       setCursorTargetError(null);
+      const getFreshActiveBuffer = (): typeof activeBuffer | null => {
+        const fresh = useProjectsStore.getState();
+        if (fresh.profileId !== profileId || fresh.slug !== slug) return null;
+        if (fresh.activeFileName !== activeFileName) return null;
+        const freshBuffer = fresh.buffers.find((buffer) => buffer.name === activeFileName);
+        if (!freshBuffer || freshBuffer.content !== activeBuffer.content) return null;
+        return freshBuffer;
+      };
       const showLocalFallback = (): boolean => {
-        const local = findLocalCursorMarkerPosition(activeBuffer.content, latestBitMessage);
+        const freshBuffer = getFreshActiveBuffer();
+        if (!freshBuffer) return true;
+        const local = findLocalCursorMarkerPosition(freshBuffer.content, latestBitMessage);
         if (!local.ok) return false;
         setCursorTarget({
-          filename: activeBuffer.name,
+          filename: freshBuffer.name,
           position: local.position,
           requestId: Date.now(),
         });
@@ -76,8 +92,10 @@ export function KidBuildWorkspace({
           return;
         }
 
+        const freshBuffer = getFreshActiveBuffer();
+        if (!freshBuffer) return;
         const position = findCursorMarkerPosition(
-          activeBuffer.content,
+          freshBuffer.content,
           parsed.surroundingContentWithMarker,
         );
         if (!position.ok) {
@@ -87,7 +105,7 @@ export function KidBuildWorkspace({
         }
 
         setCursorTarget({
-          filename: activeBuffer.name,
+          filename: freshBuffer.name,
           position: position.position,
           requestId: Date.now(),
         });
@@ -99,12 +117,12 @@ export function KidBuildWorkspace({
         setCursorTargetStatus("idle");
       }
     },
-    [profile.id],
+    [dreamId, profile.id],
   );
 
   async function handleShowCursorTarget(latestBitMessage: string): Promise<void> {
     if (cursorTargetStatus === "locating") return;
-    if (!editorRevealed || projectStatus !== "ready") {
+    if (!editorRevealed || !projectReadyForProfile) {
       setCursorTargetError(null);
       setCursorTargetStatus("locating");
       setPendingCursorMessage(latestBitMessage);
@@ -123,11 +141,17 @@ export function KidBuildWorkspace({
       setCursorTargetError("Open a file first, then Bit can point to the spot.");
       return;
     }
-    if (projectStatus !== "ready") return;
+    if (!projectReadyForProfile) return;
     const message = pendingCursorMessage;
     setPendingCursorMessage(null);
     void locateCursorTarget(message);
-  }, [pendingCursorMessage, editorRevealed, projectStatus, locateCursorTarget]);
+  }, [
+    pendingCursorMessage,
+    editorRevealed,
+    projectStatus,
+    projectReadyForProfile,
+    locateCursorTarget,
+  ]);
 
   if (!editorRevealed) {
     return (
