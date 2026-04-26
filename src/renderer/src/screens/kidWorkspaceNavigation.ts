@@ -21,7 +21,7 @@ export const INITIAL_KID_WORKSPACE_STATE: KidWorkspaceState = {
 };
 
 export function reduceKidWorkspace(
-  state: KidWorkspaceState,
+  _state: KidWorkspaceState,
   event: KidWorkspaceEvent,
 ): KidWorkspaceState {
   switch (event.kind) {

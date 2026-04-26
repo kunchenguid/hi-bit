@@ -46,9 +46,9 @@ describe("reduceKidWorkspace", () => {
   });
 
   it("enter-parent-mode flips view to parent-gate", () => {
-    expect(
-      reduceKidWorkspace(INITIAL_KID_WORKSPACE_STATE, { kind: "enter-parent-mode" }),
-    ).toEqual({ view: "parent-gate" });
+    expect(reduceKidWorkspace(INITIAL_KID_WORKSPACE_STATE, { kind: "enter-parent-mode" })).toEqual({
+      view: "parent-gate",
+    });
   });
 
   it("parent-unlock flips view to parent", () => {

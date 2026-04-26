@@ -1828,6 +1828,16 @@ pre,
   width: 100%;
   padding: 0;
 }
+.hb-chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.hb-chat-header-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .hb-chat-shell-docked {
   height: 100%;
   width: 100%;
@@ -1934,17 +1944,6 @@ pre,
 }
 .hb-btn-sm:active:not(:disabled) {
   transform: translateY(1px);
-}
-
-.hb-chat-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.hb-chat-header-chrome {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .hb-parent-form {
