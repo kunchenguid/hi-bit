@@ -141,4 +141,38 @@ describe("KidBuildWorkspace cursor target", () => {
 
     expect(host.querySelector('[data-testid="cursor-target"]')?.textContent).toBe("none");
   });
+
+  it("returns to idle when the revealed editor has no active buffer", async () => {
+    useProjectsStore.setState({
+      activeFileName: "index.html",
+      buffers: [],
+    });
+
+    await act(async () => {
+      root.render(
+        <KidBuildWorkspace
+          profile={profile}
+          onEnterParentMode={() => {}}
+          onSwitchDream={() => {}}
+          onOpenProjects={() => {}}
+        />,
+      );
+    });
+
+    const button = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Show me where",
+    );
+    if (!button) throw new Error("Show me where button was not rendered");
+
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const nextButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Show me where",
+    );
+    expect(nextButton).toBeTruthy();
+    expect(host.textContent).toContain("Open a file first, then Bit can point to the spot.");
+    expect(window.hibit.requestCursorMarker).not.toHaveBeenCalled();
+  });
 });

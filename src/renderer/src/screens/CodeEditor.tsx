@@ -102,6 +102,18 @@ export function CodeEditor({
     () => buffers.find((b) => b.name === activeFileName) ?? null,
     [buffers, activeFileName],
   );
+  const cursorTargetFilename = cursorTarget?.filename ?? null;
+  const cursorTargetPosition = cursorTarget?.position ?? null;
+  const cursorTargetRequestId = cursorTarget?.requestId ?? null;
+  const codeMirrorCursorMarker = useMemo(
+    () =>
+      cursorTargetFilename === activeFileName &&
+      cursorTargetPosition !== null &&
+      cursorTargetRequestId !== null
+        ? { position: cursorTargetPosition, key: cursorTargetRequestId }
+        : null,
+    [activeFileName, cursorTargetFilename, cursorTargetPosition, cursorTargetRequestId],
+  );
   const isDirty = activeBuffer ? activeBuffer.content !== activeBuffer.savedContent : false;
 
   useEffect(() => {
@@ -376,11 +388,7 @@ export function CodeEditor({
                   void handleSave();
                 }}
                 ariaLabel={`Code editor for ${activeBuffer.name}`}
-                cursorMarker={
-                  cursorTarget && cursorTarget.filename === activeBuffer.name
-                    ? { position: cursorTarget.position, key: cursorTarget.requestId }
-                    : null
-                }
+                cursorMarker={codeMirrorCursorMarker}
               />
             ) : (
               <p className="hb-chat-empty">Ask Bit to help you make your first file.</p>

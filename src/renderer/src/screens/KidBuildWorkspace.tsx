@@ -42,6 +42,7 @@ export function KidBuildWorkspace({
       const activeBuffer = buffers.find((buffer) => buffer.name === activeFileName);
       if (!activeBuffer) {
         setCursorTargetError("Open a file first, then Bit can point to the spot.");
+        setCursorTargetStatus("idle");
         return;
       }
 
