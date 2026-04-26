@@ -14,6 +14,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+code,
+pre,
+.hb-editor-textarea,
+.hb-editor-cm .cm-scroller {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+}
+
 /* ---------- Profile gate shell ---------- */
 .hb-gate {
   display: grid;
@@ -1818,6 +1828,16 @@ body {
   width: 100%;
   padding: 0;
 }
+.hb-chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.hb-chat-header-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .hb-chat-shell-docked {
   height: 100%;
   width: 100%;
@@ -1924,17 +1944,6 @@ body {
 }
 .hb-btn-sm:active:not(:disabled) {
   transform: translateY(1px);
-}
-
-.hb-chat-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.hb-chat-header-chrome {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .hb-parent-form {
