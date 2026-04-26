@@ -14,6 +14,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+code,
+pre,
+.hb-editor-textarea,
+.hb-editor-cm .cm-scroller {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+}
+
 /* ---------- Profile gate shell ---------- */
 .hb-gate {
   display: grid;

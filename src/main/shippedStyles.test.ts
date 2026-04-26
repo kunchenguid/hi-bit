@@ -27,6 +27,16 @@ function extractReducedMotionBlock(css: string): string | null {
   return depth === 0 ? css.slice(open + 1, i - 1) : null;
 }
 
+function extractRuleBlock(css: string, selectorStart: string): string | null {
+  const start = css.indexOf(selectorStart);
+  if (start === -1) return null;
+  const open = css.indexOf("{", start);
+  if (open === -1) return null;
+  const close = css.indexOf("}", open);
+  if (close === -1) return null;
+  return css.slice(open + 1, close);
+}
+
 describe("reduced-motion media query in renderer app.css", () => {
   it("declares a prefers-reduced-motion: reduce block", async () => {
     const css = await loadCss();
@@ -52,5 +62,26 @@ describe("reduced-motion media query in renderer app.css", () => {
     expect(body).toMatch(/\*\s*,/);
     expect(body).toMatch(/\*::before/);
     expect(body).toMatch(/\*::after/);
+  });
+});
+
+describe("code text styles in renderer app.css", () => {
+  it("disables ligatures in code and editor text", async () => {
+    const css = await loadCss();
+    const block = extractRuleBlock(css, "code,");
+
+    expect(block).not.toBeNull();
+    expect(block).toContain("font-variant-ligatures: none");
+    expect(block).toMatch(/font-feature-settings:\s*"liga" 0,\s*"calt" 0/);
+  });
+
+  it("applies the no-ligature rule to code blocks and the code editor", async () => {
+    const css = await loadCss();
+    const selector = css.slice(css.indexOf("code,"), css.indexOf("{", css.indexOf("code,")));
+
+    expect(selector).toContain("code");
+    expect(selector).toContain("pre");
+    expect(selector).toContain(".hb-editor-textarea");
+    expect(selector).toContain(".hb-editor-cm .cm-scroller");
   });
 });
