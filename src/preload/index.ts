@@ -1,4 +1,4 @@
-import type { SendMessageResult } from "@shared/chat";
+import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
 import type { HarnessDetection, HiBitConfig } from "@shared/config";
 import type { DreamValidation } from "@shared/dreams";
 import type { ParentFlag } from "@shared/flag";
@@ -39,6 +39,11 @@ const api: HiBitApi = {
     ipcRenderer.invoke("hibit:update-profile-settings", profileId, settings),
   sendKidMessage: (profileId: string, prompt: string): Promise<SendMessageResult> =>
     ipcRenderer.invoke("hibit:send-kid-message", profileId, prompt),
+  requestCursorMarker: (
+    profileId: string,
+    request: CursorMarkerRequest,
+  ): Promise<SendMessageResult> =>
+    ipcRenderer.invoke("hibit:request-cursor-marker", profileId, request),
   sendParentMessage: (profileId: string, prompt: string): Promise<SendMessageResult> =>
     ipcRenderer.invoke("hibit:send-parent-message", profileId, prompt),
   onBitDelta: (handler: (event: BitDeltaEvent) => void): (() => void) => {

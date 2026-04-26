@@ -27,6 +27,8 @@ export type ExecuteHarnessTurnOptions = {
   now?: () => number;
   onEvent?: (event: HarnessRunEvent) => void;
   signal?: AbortSignal;
+  recordTranscript?: boolean;
+  recordSessionLog?: boolean;
 };
 
 export type HarnessTurnResult = {
@@ -43,6 +45,8 @@ export async function executeHarnessTurn(
   const now = opts.now ?? Date.now;
   const startMs = now();
   const startedAt = new Date(startMs).toISOString();
+  const recordTranscript = opts.recordTranscript ?? true;
+  const recordSessionLog = opts.recordSessionLog ?? true;
 
   const userEvent: TranscriptEvent = {
     timestamp: startedAt,
@@ -51,7 +55,9 @@ export async function executeHarnessTurn(
     kind: "user_message",
     text: opts.prompt,
   };
-  await appendTranscriptEvent(opts.paths, userEvent);
+  if (recordTranscript) {
+    await appendTranscriptEvent(opts.paths, userEvent);
+  }
 
   const command = buildHarnessCommand({
     harness: opts.harness,
@@ -72,23 +78,27 @@ export async function executeHarnessTurn(
     });
   } catch (err) {
     const endMs = now();
-    await appendTranscriptEvent(opts.paths, {
-      timestamp: new Date(endMs).toISOString(),
-      role: opts.role,
-      sessionId: opts.sessionId,
-      kind: "error",
-      text: err instanceof Error ? err.message : String(err),
-    });
-    await appendSessionLogEntry(opts.paths, {
-      timestamp: startedAt,
-      harness: opts.harness,
-      role: opts.role,
-      sessionId: opts.sessionId,
-      mode: opts.mode,
-      durationMs: endMs - startMs,
-      exitCode: null,
-      signal: null,
-    });
+    if (recordTranscript) {
+      await appendTranscriptEvent(opts.paths, {
+        timestamp: new Date(endMs).toISOString(),
+        role: opts.role,
+        sessionId: opts.sessionId,
+        kind: "error",
+        text: err instanceof Error ? err.message : String(err),
+      });
+    }
+    if (recordSessionLog) {
+      await appendSessionLogEntry(opts.paths, {
+        timestamp: startedAt,
+        harness: opts.harness,
+        role: opts.role,
+        sessionId: opts.sessionId,
+        mode: opts.mode,
+        durationMs: endMs - startMs,
+        exitCode: null,
+        signal: null,
+      });
+    }
     throw err;
   }
 
@@ -119,7 +129,9 @@ export async function executeHarnessTurn(
           run.stderr ||
           `harness exited with code=${run.exitCode ?? "null"} signal=${run.signal ?? "null"}`,
       };
-  await appendTranscriptEvent(opts.paths, outEvent);
+  if (recordTranscript) {
+    await appendTranscriptEvent(opts.paths, outEvent);
+  }
 
   const logEntry: HarnessInvocationLogEntry = {
     timestamp: startedAt,
@@ -132,7 +144,9 @@ export async function executeHarnessTurn(
     signal: run.signal,
     ...usageFields(parsed),
   };
-  await appendSessionLogEntry(opts.paths, logEntry);
+  if (recordSessionLog) {
+    await appendSessionLogEntry(opts.paths, logEntry);
+  }
 
   return {
     run,

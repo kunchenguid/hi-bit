@@ -1453,6 +1453,21 @@ pre,
   padding: 6px 14px;
   font-size: 14px;
 }
+.hb-chat-cursor-target {
+  align-self: flex-start;
+  display: grid;
+  gap: 6px;
+  margin-top: var(--s-1);
+}
+.hb-chat-cursor-target-btn {
+  justify-self: flex-start;
+}
+.hb-chat-cursor-target-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+}
 .hb-chat-msg-pending {
   opacity: 0.8;
 }
@@ -1750,6 +1765,31 @@ pre,
 }
 .hb-editor-cm .cm-content {
   caret-color: var(--brand);
+}
+.hb-editor-cursor-marker {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 4px;
+  padding: 2px 8px;
+  border: 2px solid var(--brand);
+  border-radius: var(--r-pill);
+  background: color-mix(in oklch, var(--brand) 14%, var(--paper));
+  box-shadow: 2px 2px 0 var(--ink);
+  color: var(--ink);
+  font-family: var(--font-fredoka);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  animation: hb-editor-cursor-marker-pop 900ms ease-in-out infinite alternate;
+  vertical-align: middle;
+}
+@keyframes hb-editor-cursor-marker-pop {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-1px);
+  }
 }
 
 .hb-editor-toolbar {

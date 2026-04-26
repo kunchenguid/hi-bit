@@ -1,4 +1,5 @@
-import type { SendMessageResult } from "@shared/chat";
+import { randomUUID } from "node:crypto";
+import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
 import type { HarnessDetection, HarnessId, HiBitConfig } from "@shared/config";
 import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog";
 import type { HiBitLayout, ProfilePaths } from "../storage/layout";
@@ -10,6 +11,7 @@ import { ClaudeSession, type ClaudeSessionSpawnFn, type ClaudeTurnEvent } from "
 import { ClaudeSessionRegistry } from "./claudeSessionRegistry";
 import { buildClaudeStreamArgs } from "./claudeStreamArgs";
 import type { HarnessInvocationMode } from "./command";
+import { buildCursorMarkerPrompt } from "./cursorMarkerPrompt";
 import type { HarnessRunEvent, HarnessSpawnFn } from "./run";
 import { withSessionContext } from "./sessionContext";
 import { executeHarnessTurn } from "./turn";
@@ -31,12 +33,94 @@ export type SendMessageOptions = {
 export type SendKidMessageOptions = SendMessageOptions;
 export type SendParentMessageOptions = SendMessageOptions;
 
+export type RequestCursorMarkerOptions = Omit<
+  SendMessageOptions,
+  "prompt" | "onDelta" | "claudeRegistry"
+> & {
+  request: CursorMarkerRequest;
+};
+
 export function sendKidMessage(opts: SendMessageOptions): Promise<SendMessageResult> {
   return sendMessage(opts, "kid");
 }
 
 export function sendParentMessage(opts: SendMessageOptions): Promise<SendMessageResult> {
   return sendMessage(opts, "parent");
+}
+
+export async function requestCursorMarker(
+  opts: RequestCursorMarkerOptions,
+): Promise<SendMessageResult> {
+  const startMs = (opts.now ?? Date.now)();
+  const profile = await readProfile(opts.layout, opts.profileId);
+  if (!profile) {
+    return { ok: false, error: `Profile not found: ${opts.profileId}`, durationMs: 0 };
+  }
+
+  const harnessId = opts.config.defaultHarness;
+  if (!harnessId) {
+    return { ok: false, error: "No default agent is configured", durationMs: 0 };
+  }
+
+  const binary = resolveBinary(harnessId, opts.config, opts.detection);
+  if (!binary) {
+    return {
+      ok: false,
+      error: `No binary found for default agent: ${harnessId}`,
+      durationMs: 0,
+    };
+  }
+
+  const paths = profilePathsFor(opts.layout, opts.profileId);
+  await ensureProfileScaffold(opts.layout, paths, profile);
+  const prompt = buildCursorMarkerPrompt(opts.request);
+  const agentPrompt = withSessionContext({
+    userPrompt: prompt,
+    role: "kid",
+    profile,
+    profileDir: paths.root,
+    mode: "start",
+  });
+
+  try {
+    const result = await executeHarnessTurn({
+      paths,
+      harness: harnessId,
+      binary,
+      sessionId: randomUUID(),
+      mode: "start",
+      prompt,
+      agentPrompt,
+      role: "kid",
+      cwd: paths.root,
+      spawn: opts.spawn,
+      now: opts.now,
+      onEvent: opts.onEvent,
+      signal: opts.signal,
+      recordTranscript: false,
+      recordSessionLog: false,
+    });
+    const exitedCleanly = result.run.exitCode === 0 && result.run.signal === null;
+    if (exitedCleanly && result.errorMessage === null) {
+      return { ok: true, text: result.text, durationMs: result.durationMs };
+    }
+    const stderr = result.run.stderr.trim();
+    const exitMessage = exitedCleanly
+      ? null
+      : `Agent exited with code=${result.run.exitCode ?? "null"} signal=${result.run.signal ?? "null"}`;
+    return {
+      ok: false,
+      error: stderr || exitMessage || result.errorMessage || "Agent failed",
+      durationMs: result.durationMs,
+    };
+  } catch (err) {
+    const endMs = (opts.now ?? Date.now)();
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+      durationMs: endMs - startMs,
+    };
+  }
 }
 
 async function sendMessage(

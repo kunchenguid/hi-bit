@@ -28,18 +28,24 @@ import { chooseNextSuggestion } from "./parent/nextKpSuggestion";
 type Props = {
   profile: Profile;
   onOpenEditor?: () => void;
+  onShowCursorTarget?: (latestBitMessage: string) => Promise<void>;
   onEnterParentMode?: () => void;
   onSwitchDream?: () => void;
   onOpenProjects?: () => void;
+  cursorTargetStatus?: "idle" | "locating";
+  cursorTargetError?: string | null;
   docked?: boolean;
 };
 
 export function KidChat({
   profile,
   onOpenEditor,
+  onShowCursorTarget,
   onEnterParentMode,
   onSwitchDream,
   onOpenProjects,
+  cursorTargetStatus = "idle",
+  cursorTargetError = null,
   docked = false,
 }: Props): JSX.Element {
   const messages = useChatStore((s) => s.messages);
@@ -134,6 +140,9 @@ export function KidChat({
   }, [status]);
 
   const lastMessageId = messages[messages.length - 1]?.id ?? null;
+  const lastBitTextMessageId = [...messages]
+    .reverse()
+    .find((m) => m.role === "bit" && m.kind === "text")?.id;
   useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -362,6 +371,11 @@ export function KidChat({
             m.kind !== "error" &&
             !!onOpenEditor &&
             messageHasEditorCue(m.text);
+          const showCursorCta =
+            m.id === lastBitTextMessageId &&
+            m.role === "bit" &&
+            m.kind === "text" &&
+            !!onShowCursorTarget;
           return (
             <div
               key={m.id}
@@ -383,6 +397,23 @@ export function KidChat({
                 >
                   Open the editor
                 </button>
+              ) : null}
+              {showCursorCta ? (
+                <div className="hb-chat-cursor-target">
+                  <button
+                    type="button"
+                    className="hb-btn hb-btn-ghost hb-btn-sm hb-chat-cursor-target-btn"
+                    onClick={() => {
+                      void onShowCursorTarget?.(m.text);
+                    }}
+                    disabled={status === "sending" || cursorTargetStatus === "locating"}
+                  >
+                    {cursorTargetStatus === "locating" ? "Finding..." : "Show me where"}
+                  </button>
+                  {cursorTargetError ? (
+                    <p className="hb-chat-cursor-target-error">{cursorTargetError}</p>
+                  ) : null}
+                </div>
               ) : null}
               {isLastError && canRetry ? (
                 <button

@@ -1,4 +1,4 @@
-import type { SendMessageResult } from "./chat";
+import type { CursorMarkerRequest, SendMessageResult } from "./chat";
 import type { HarnessDetection, HiBitConfig } from "./config";
 import type { DreamValidation } from "./dreams";
 import type { ParentFlag } from "./flag";
@@ -57,6 +57,10 @@ export type HiBitApi = {
   setCurrentDream: (profileId: string, dreamId: string) => Promise<Profile>;
   updateProfileSettings: (profileId: string, settings: ProfileSettingsInput) => Promise<Profile>;
   sendKidMessage: (profileId: string, prompt: string) => Promise<SendMessageResult>;
+  requestCursorMarker: (
+    profileId: string,
+    request: CursorMarkerRequest,
+  ) => Promise<SendMessageResult>;
   sendParentMessage: (profileId: string, prompt: string) => Promise<SendMessageResult>;
   onBitDelta: (handler: (event: BitDeltaEvent) => void) => () => void;
   listProjectSlugs: (profileId: string) => Promise<string[]>;
