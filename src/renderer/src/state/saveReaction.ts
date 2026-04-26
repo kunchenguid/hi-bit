@@ -20,6 +20,18 @@ export function buildSavedFilePrompt(saved: SavedProjectFile): string {
   ].join("\n");
 }
 
+export function isSavedFilePrompt(text: string): boolean {
+  return savedFilePromptLabel(text) !== null;
+}
+
+export function savedFilePromptLabel(text: string): string | null {
+  const lines = text.trimStart().split("\n");
+  if (lines[0] !== "The kid just clicked Save in Hi Bit.") return null;
+  const filename = lines[1]?.match(/^File saved: (.+)$/)?.[1]?.trim();
+  if (!filename) return null;
+  return `Saved ${filename}`;
+}
+
 export function buildLineDiff(before: string, after: string): string {
   if (before === after) return " No content changes.";
 

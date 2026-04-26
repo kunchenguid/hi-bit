@@ -5,10 +5,21 @@ import {
   KID_EMPTY_REPLY,
   KID_FRIENDLY_ERROR,
 } from "./chatStore";
+import { savedFilePromptLabel } from "./saveReaction";
 
 function toChatMessage(event: TranscriptEvent): ChatMessage | null {
   if (event.role !== "kid") return null;
   if (event.kind === "user_message") {
+    const savedLabel = savedFilePromptLabel(event.text);
+    if (savedLabel) {
+      return {
+        id: `${event.timestamp}-s`,
+        role: "system",
+        kind: "divider",
+        text: savedLabel,
+        timestamp: event.timestamp,
+      };
+    }
     return {
       id: `${event.timestamp}-u`,
       role: "kid",

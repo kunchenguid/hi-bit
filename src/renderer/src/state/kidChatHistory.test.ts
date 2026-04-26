@@ -32,6 +32,33 @@ describe("buildKidChatHistory", () => {
     ]);
   });
 
+  it("restores automatic save prompts as divider messages when rebuilding kid chat history", () => {
+    const events: TranscriptEvent[] = [
+      mkEvent({
+        timestamp: "t1",
+        kind: "user_message",
+        text: [
+          "The kid just clicked Save in Hi Bit.",
+          "File saved: index.html",
+          "Project: about-me",
+          "Use the diff below instead of reading the file first.",
+          "",
+          "```diff",
+          "+<p>space</p>",
+          "```",
+        ].join("\n"),
+      }),
+      mkEvent({ timestamp: "t2", kind: "assistant_message", text: "Nice save. Add a color next." }),
+    ];
+
+    const result = buildKidChatHistory(events);
+
+    expect(result.map((m) => `${m.role}:${m.kind}:${m.text}`)).toEqual([
+      "system:divider:Saved index.html",
+      "bit:text:Nice save. Add a color next.",
+    ]);
+  });
+
   it("maps kid assistant_message to a bit text bubble", () => {
     const events = [
       mkEvent({ timestamp: "t2", kind: "assistant_message", text: "hey Ada, ready?" }),
