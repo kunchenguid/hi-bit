@@ -147,6 +147,8 @@ Three faces, each with a job. All available free from Google Fonts.
 
 Press Start 2P is used *sparingly* — roughly 5% of total type on any screen. It's seasoning. Body text is Fredoka.
 
+Code and editor text use Fira Code with ligatures and contextual alternates disabled, so symbols stay literal for kids reading and typing code.
+
 Type ramp is defined in `colors_and_type.css` as `--t-display`, `--t-h1` through `--t-h4`, `--t-body`, `--t-small`, `--t-mono`, `--t-pixel`.
 
 ### Spacing
