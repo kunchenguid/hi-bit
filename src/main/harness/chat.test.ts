@@ -10,7 +10,7 @@ import { createProfile } from "../storage/profiles";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
-import { sendKidMessage, sendParentMessage } from "./chat";
+import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./chat";
 import { claudeOkStreamJson } from "./claudeStreamJsonFixture";
 import type { HarnessSpawnFn } from "./run";
 
@@ -96,6 +96,54 @@ describe("sendKidMessage", () => {
     expect(log).toHaveLength(1);
     expect(log[0]?.mode).toBe("start");
     expect(log[0]?.role).toBe("kid");
+  });
+
+  it("requests a cursor marker without writing JSON helper turns to the kid transcript", async () => {
+    const profile = await makeAda();
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit(
+          "data",
+          claudeOkStreamJson({
+            result: JSON.stringify({
+              surrounding_content_with_marker: "<body>[[BIT-CURSOR]]</body>",
+            }),
+          }),
+        );
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    const result = await requestCursorMarker({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      request: {
+        filename: "index.html",
+        editorContent: "<body></body>",
+        latestBitMessage: "Put the title inside body.",
+      },
+      spawn,
+    });
+
+    expect(result.ok).toBe(true);
+    const args = spawnArgs[0] as string[];
+    const promptArg = args[args.indexOf("-p") + 1];
+    expect(promptArg).toContain("Put the title inside body.");
+    expect(promptArg).toContain("<body></body>");
+    const sessionIdArg = args[args.indexOf("--session-id") + 1];
+    expect(sessionIdArg).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+
+    const paths = profilePathsFor(layout, profile.id);
+    await expect(readTranscript(paths, profile.sessions.kid)).resolves.toEqual([]);
+    await expect(readSessionLogEntries(paths)).resolves.toEqual([]);
   });
 
   it("injects the kid session-context preamble into the first-turn (start-mode) agent prompt while keeping the transcript user text raw", async () => {

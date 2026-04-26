@@ -27,6 +27,14 @@ type Props = {
   onBackToChat?: () => void;
   onEnterParentMode?: () => void;
   docked?: boolean;
+  cursorTarget?: EditorCursorTarget | null;
+  onCursorTargetCleared?: () => void;
+};
+
+export type EditorCursorTarget = {
+  filename: string;
+  position: number;
+  requestId: number;
 };
 
 export function CodeEditor({
@@ -34,6 +42,8 @@ export function CodeEditor({
   onBackToChat,
   onEnterParentMode,
   docked = false,
+  cursorTarget = null,
+  onCursorTargetCleared,
 }: Props): JSX.Element {
   const status = useProjectsStore((s) => s.status);
   const buffers = useProjectsStore((s) => s.buffers);
@@ -92,7 +102,26 @@ export function CodeEditor({
     () => buffers.find((b) => b.name === activeFileName) ?? null,
     [buffers, activeFileName],
   );
+  const cursorTargetFilename = cursorTarget?.filename ?? null;
+  const cursorTargetPosition = cursorTarget?.position ?? null;
+  const cursorTargetRequestId = cursorTarget?.requestId ?? null;
+  const codeMirrorCursorMarker = useMemo(
+    () =>
+      cursorTargetFilename === activeFileName &&
+      cursorTargetPosition !== null &&
+      cursorTargetRequestId !== null
+        ? { position: cursorTargetPosition, key: cursorTargetRequestId }
+        : null,
+    [activeFileName, cursorTargetFilename, cursorTargetPosition, cursorTargetRequestId],
+  );
   const isDirty = activeBuffer ? activeBuffer.content !== activeBuffer.savedContent : false;
+
+  useEffect(() => {
+    if (!cursorTarget) return;
+    if (cursorTarget.filename === activeFileName) return;
+    if (!buffers.some((b) => b.name === cursorTarget.filename)) return;
+    setActiveFile(cursorTarget.filename);
+  }, [cursorTarget, activeFileName, buffers, setActiveFile]);
 
   async function handleSave(): Promise<void> {
     if (!activeBuffer) return;
@@ -351,11 +380,15 @@ export function CodeEditor({
                 ref={editorRef}
                 filename={activeBuffer.name}
                 value={activeBuffer.content}
-                onChange={(next) => updateBuffer(activeBuffer.name, next)}
+                onChange={(next) => {
+                  if (cursorTarget?.filename === activeBuffer.name) onCursorTargetCleared?.();
+                  updateBuffer(activeBuffer.name, next);
+                }}
                 onSave={() => {
                   void handleSave();
                 }}
                 ariaLabel={`Code editor for ${activeBuffer.name}`}
+                cursorMarker={codeMirrorCursorMarker}
               />
             ) : (
               <p className="hb-chat-empty">Ask Bit to help you make your first file.</p>

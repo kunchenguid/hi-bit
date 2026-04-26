@@ -1,7 +1,7 @@
 import { spawn as nodeSpawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { SendMessageResult } from "@shared/chat";
+import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
 import type { HiBitConfig } from "@shared/config";
 import type { DreamValidation } from "@shared/dreams";
 import type { ParentFlag } from "@shared/flag";
@@ -16,7 +16,7 @@ import type { KnowledgePointStatus, Progress } from "@shared/progress";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { loadDreams } from "./graph/dreams";
 import { loadKnowledgeGraph } from "./graph/load";
-import { sendKidMessage, sendParentMessage } from "./harness/chat";
+import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./harness/chat";
 import type { ClaudeSession } from "./harness/claudeSession";
 import { ClaudeSessionRegistry } from "./harness/claudeSessionRegistry";
 import { detectHarnesses } from "./harness/detect";
@@ -295,6 +295,22 @@ function registerIpc(layout: HiBitLayout): void {
       await syncSessionSummariesToStateMd(layout, profileId);
       await syncCurrentSessionToStateMd(layout, profileId, "kid");
       return result;
+    },
+  );
+
+  ipcMain.handle(
+    "hibit:request-cursor-marker",
+    async (_event, profileId: string, request: CursorMarkerRequest): Promise<SendMessageResult> => {
+      const config = await loadOrInitConfig(layout);
+      const detection = await detectHarnesses();
+      return requestCursorMarker({
+        layout,
+        config,
+        detection,
+        profileId,
+        request,
+        spawn: nodeSpawn,
+      });
     },
   );
 
