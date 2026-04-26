@@ -35,6 +35,14 @@ export class ClaudeSessionRegistry<T extends Closable> {
     }
   }
 
+  closeProfileRole(profileId: string, role: SessionRole): void {
+    const key = ClaudeSessionRegistry.makeKey(profileId, role);
+    const session = this.sessions.get(key);
+    if (!session) return;
+    session.close();
+    this.sessions.delete(key);
+  }
+
   closeAll(): void {
     for (const session of this.sessions.values()) {
       session.close();

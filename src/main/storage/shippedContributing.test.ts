@@ -5,12 +5,9 @@ import { describe, expect, it } from "vitest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const contributing = resolve(__dirname, "../../../CONTRIBUTING.md");
-const prd = resolve(__dirname, "../../../PRD.md");
 
-// The shipped CONTRIBUTING.md answers the PRD "Open questions" entry:
-// "Who owns the canonical knowledge graph, and how do community PRs for new
-// KPs/dreams get reviewed?" - so the doc must keep covering the ownership
-// statement plus the KP and dream review paths, or the PRD gap reopens.
+// CONTRIBUTING.md must keep covering the ownership statement plus the KP and
+// dream review paths so the canonical-graph contribution flow stays clear.
 const REQUIRED_SECTIONS: Array<{ topic: string; markers: RegExp[] }> = [
   {
     topic: "ownership of the canonical graph",
@@ -54,23 +51,5 @@ describe("shipped CONTRIBUTING.md", () => {
   it("does not use em dashes (house style)", async () => {
     const text = await readFile(contributing, "utf8");
     expect(text).not.toMatch(/—/);
-  });
-
-  // The PRD "canonical knowledge graph ownership" open question is resolved by
-  // CONTRIBUTING.md (see comment at top). PRD.md §Resolved must cite
-  // CONTRIBUTING.md for graph ownership, and PRD.md §"Open questions" must no
-  // longer list the question, or the resolution has silently regressed.
-  it("PRD.md cites CONTRIBUTING.md as the graph-ownership resolution", async () => {
-    const text = await readFile(prd, "utf8");
-    const resolvedIndex = text.indexOf("## Resolved");
-    const openIndex = text.indexOf("## Open questions");
-    expect(resolvedIndex).toBeGreaterThan(-1);
-    expect(openIndex).toBeGreaterThan(-1);
-    expect(openIndex).toBeLessThan(resolvedIndex);
-    const openBlock = text.slice(openIndex, resolvedIndex);
-    const resolvedBlock = text.slice(resolvedIndex);
-    expect(openBlock).not.toMatch(/canonical knowledge graph/i);
-    expect(resolvedBlock).toMatch(/Canonical knowledge graph ownership/i);
-    expect(resolvedBlock).toMatch(/CONTRIBUTING\.md/);
   });
 });

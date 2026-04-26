@@ -464,10 +464,19 @@ export async function setCurrentDream(
     ? profile.dreamHistory
     : [...profile.dreamHistory, trimmedDreamId];
 
+  // Switching to a different dream rotates the kid session so Bit starts a
+  // fresh agent session with the new dream context. Without this, the long-
+  // lived Claude process resumes its prior conversation and keeps acting as
+  // if it's still in the previous dream.
+  const isDreamChanging =
+    typeof profile.currentDreamId === "string" && profile.currentDreamId !== trimmedDreamId;
+  const sessions = isDreamChanging ? { ...profile.sessions, kid: randomUUID() } : profile.sessions;
+
   const updated: Profile = {
     ...profile,
     currentDreamId: trimmedDreamId,
     dreamHistory,
+    sessions,
   };
   await writeProfileFile(paths, updated);
 

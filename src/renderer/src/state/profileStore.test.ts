@@ -124,25 +124,18 @@ describe("useProfileStore", () => {
     expect(state.profiles.find((p) => p.id === "bea")).toEqual(bea);
   });
 
-  it("setCurrentDream re-hydrates the kid chat so a freshly appended dream-switch divider lands in the message list", async () => {
+  it("setCurrentDream re-hydrates the kid chat against the rotated session id so the kid starts clean", async () => {
     const ada = fakeProfile({ id: "ada", name: "Ada", sessions: { kid: "k-1", parent: "p-1" } });
     useProfileStore.setState({ profiles: [ada], status: "ready" });
 
+    // Main rotates sessions.kid when the dream actually changes; renderer must follow.
     const updatedAda: Profile = {
       ...ada,
       currentDreamId: "dice-roller",
       dreamHistory: ["hello-card", "dice-roller"],
+      sessions: { kid: "k-2", parent: "p-1" },
     };
-    const getTranscript = vi.fn().mockResolvedValue([
-      {
-        timestamp: "2026-04-24T10:00:00.000Z",
-        role: "kid",
-        sessionId: "k-1",
-        kind: "system_event",
-        text: "New project: a page that rolls a dice",
-        metadata: { type: "dream_switch", dreamId: "dice-roller" },
-      },
-    ]);
+    const getTranscript = vi.fn().mockResolvedValue([]);
     mockHiBit({
       setCurrentDream: vi.fn().mockResolvedValue(updatedAda),
       getProgress: vi.fn().mockResolvedValue(emptyProgress()),
@@ -151,12 +144,10 @@ describe("useProfileStore", () => {
 
     await useProfileStore.getState().setCurrentDream("ada", "dice-roller");
 
-    expect(getTranscript).toHaveBeenCalledWith("ada", "k-1");
+    expect(getTranscript).toHaveBeenCalledWith("ada", "k-2");
     const chatState = useChatStore.getState();
-    expect(chatState.hydratedSessionId).toBe("k-1");
-    expect(chatState.messages.map((m) => `${m.role}:${m.kind}:${m.text}`)).toEqual([
-      "system:divider:New project: a page that rolls a dice",
-    ]);
+    expect(chatState.hydratedSessionId).toBe("k-2");
+    expect(chatState.messages).toEqual([]);
   });
 
   it("setCurrentDream resyncs the progress store so a freshly created project entry is visible", async () => {

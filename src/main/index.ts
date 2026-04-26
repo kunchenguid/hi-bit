@@ -63,7 +63,7 @@ import {
   updateStateMdRecentSessionSummaries,
   updateStateMdVoicePreferences,
 } from "./storage/stateFile";
-import { appendTranscriptEvent, buildDreamSwitchEvent, readTranscript } from "./storage/transcript";
+import { readTranscript } from "./storage/transcript";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -253,6 +253,13 @@ function registerIpc(layout: HiBitLayout): void {
     const prior = await readProfile(layout, profileId);
     const priorDreamId = prior?.currentDreamId ?? null;
     const profile = await setCurrentDream(layout, profileId, dreamId);
+    // setCurrentDream rotates profile.sessions.kid when the dream changes.
+    // The long-lived Claude subprocess is still bound to the prior sessionId,
+    // so we tear it down here so the next kid message spawns a fresh process
+    // against the rotated sessionId and re-injects the system preamble.
+    if (priorDreamId && priorDreamId !== profile.currentDreamId) {
+      claudeRegistry.closeProfileRole(profileId, "kid");
+    }
     const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);
     const graph = graphResult.ok ? graphResult.graph : { nodes: [], byId: {} };
     const dreamResult = await loadDreams(layout.graphDreamsDir, graph);
@@ -262,18 +269,6 @@ function registerIpc(layout: HiBitLayout): void {
       await scaffoldProject(paths, dream, { profileName: profile.name });
       await updateStateMdCurrentDream(paths, dream);
       await upsertProjectEntry(layout, profileId, dream.id, dream.id);
-    }
-    if (dream && priorDreamId && priorDreamId !== dream.id) {
-      await appendTranscriptEvent(
-        paths,
-        buildDreamSwitchEvent({
-          timestamp: new Date().toISOString(),
-          sessionId: profile.sessions.kid,
-          role: "kid",
-          dreamId: dream.id,
-          dreamTitleKid: dream.title_kid,
-        }),
-      );
     }
     return profile;
   });

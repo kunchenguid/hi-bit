@@ -76,6 +76,37 @@ describe("ClaudeSessionRegistry", () => {
     expect(samKid.close).not.toHaveBeenCalled();
   });
 
+  it("closeProfileRole() closes only the matching role and leaves siblings alone", () => {
+    const registry = new ClaudeSessionRegistry<FakeSession>();
+    const adaKid = makeFakeSession();
+    const adaParent = makeFakeSession();
+    const samKid = makeFakeSession();
+
+    registry.getOrCreate("ada/kid", () => adaKid);
+    registry.getOrCreate("ada/parent", () => adaParent);
+    registry.getOrCreate("sam/kid", () => samKid);
+
+    registry.closeProfileRole("ada", "kid");
+
+    expect(adaKid.close).toHaveBeenCalled();
+    expect(adaParent.close).not.toHaveBeenCalled();
+    expect(samKid.close).not.toHaveBeenCalled();
+  });
+
+  it("after closeProfileRole, the next getOrCreate creates a fresh session for that role", () => {
+    const registry = new ClaudeSessionRegistry<FakeSession>();
+    const first = makeFakeSession();
+    const second = makeFakeSession();
+    const factory = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+    registry.getOrCreate("ada/kid", factory);
+    registry.closeProfileRole("ada", "kid");
+    const next = registry.getOrCreate("ada/kid", factory);
+
+    expect(next).toBe(second);
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
   it("closeAll() closes every session", () => {
     const registry = new ClaudeSessionRegistry<FakeSession>();
     const a = makeFakeSession();

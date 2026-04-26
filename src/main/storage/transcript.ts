@@ -1,33 +1,7 @@
 import { appendFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { SessionRole } from "@shared/sessionLog";
 import type { TranscriptEvent } from "@shared/transcript";
 import type { ProfilePaths } from "./layout";
-
-export const DREAM_SWITCH_METADATA_TYPE = "dream_switch";
-
-export function buildDreamSwitchText(dreamTitleKid: string): string {
-  const trimmed = dreamTitleKid.trim();
-  if (trimmed.length === 0) return "New project";
-  return `New project: ${trimmed}`;
-}
-
-export function buildDreamSwitchEvent(args: {
-  timestamp: string;
-  sessionId: string;
-  role: SessionRole;
-  dreamId: string;
-  dreamTitleKid: string;
-}): TranscriptEvent {
-  return {
-    timestamp: args.timestamp,
-    role: args.role,
-    sessionId: args.sessionId,
-    kind: "system_event",
-    text: buildDreamSwitchText(args.dreamTitleKid),
-    metadata: { type: DREAM_SWITCH_METADATA_TYPE, dreamId: args.dreamId },
-  };
-}
 
 export function transcriptFileFor(paths: ProfilePaths, sessionId: string): string {
   if (sessionId.length === 0) {
