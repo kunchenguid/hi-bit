@@ -60,6 +60,7 @@ describe("CodeEditor cursor marker", () => {
     useGraphStore.setState({ status: "ready", graph: null, library: null });
     window.hibit = {
       subscribeProjectFiles: vi.fn(async () => ({ id: "sub-1", close: vi.fn() })),
+      openProjectFolder: vi.fn(async () => ({ ok: true, path: "/tmp/project" })),
     } as unknown as typeof window.hibit;
   });
 
@@ -92,5 +93,111 @@ describe("CodeEditor cursor marker", () => {
     });
 
     expect(renderedMarkers.at(-1)).toBe(firstMarker);
+  });
+
+  it("starts docked workspaces in code mode", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const editorPane = host.querySelector('[aria-label="Code editor"]');
+    const previewPane = host.querySelector('[aria-label="Live preview"]');
+
+    expect(editorPane?.hasAttribute("hidden")).toBe(false);
+    expect((editorPane as HTMLElement | null)?.style.display).toBe("");
+    expect(previewPane?.hasAttribute("hidden")).toBe(true);
+    expect((previewPane as HTMLElement | null)?.style.display).toBe("none");
+    expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Code");
+  });
+
+  it("switches docked workspaces to page mode after running the preview", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const editorPane = host.querySelector('[aria-label="Code editor"]');
+    const previewPane = host.querySelector('[aria-label="Live preview"]');
+
+    expect(editorPane?.hasAttribute("hidden")).toBe(true);
+    expect((editorPane as HTMLElement | null)?.style.display).toBe("none");
+    expect(previewPane?.hasAttribute("hidden")).toBe(false);
+    expect((previewPane as HTMLElement | null)?.style.display).toBe("");
+    expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Page");
+  });
+
+  it("can show editor and preview together in split mode", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const splitButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Split",
+    );
+    if (!splitButton) throw new Error("Split button was not rendered");
+
+    await act(async () => {
+      splitButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const editorPane = host.querySelector('[aria-label="Code editor"]');
+    const previewPane = host.querySelector('[aria-label="Live preview"]');
+
+    expect(editorPane?.hasAttribute("hidden")).toBe(false);
+    expect((editorPane as HTMLElement | null)?.style.display).toBe("");
+    expect(previewPane?.hasAttribute("hidden")).toBe(false);
+    expect((previewPane as HTMLElement | null)?.style.display).toBe("");
+    expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Split");
+  });
+
+  it("keeps Open folder with the file actions instead of the bottom toolbar", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const fileActions = host.querySelector(".hb-editor-file-actions");
+    const toolbar = host.querySelector(".hb-editor-toolbar");
+
+    expect(fileActions?.textContent).toContain("Open folder");
+    expect(toolbar?.textContent).not.toContain("Open folder");
+  });
+
+  it("refreshes the live preview from the latest file content", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    await act(async () => {
+      useProjectsStore.getState().updateBuffer("index.html", "<h1>Changed</h1>");
+    });
+
+    const refreshButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Refresh",
+    );
+    if (!refreshButton) throw new Error("Refresh button was not rendered");
+
+    await act(async () => {
+      refreshButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const iframe = host.querySelector("iframe");
+    expect(iframe?.getAttribute("srcdoc")).toContain("Changed");
   });
 });

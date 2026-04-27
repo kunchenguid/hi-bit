@@ -19,6 +19,7 @@ import { validateNewFilename } from "./newFileValidation";
 import { computeNextTabIndex } from "./tablistNavigation";
 
 type NewFileStatus = "closed" | "open" | "creating";
+type EditorViewMode = "code" | "preview" | "split";
 
 const EMPTY_PREVIEW = "<!doctype html><html><body></body></html>";
 
@@ -72,6 +73,7 @@ export function CodeEditor({
   const [newFileStatus, setNewFileStatus] = useState<NewFileStatus>("closed");
   const [newFileName, setNewFileName] = useState("");
   const [newFileError, setNewFileError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<EditorViewMode>(() => (docked ? "code" : "split"));
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const editorRef = useRef<CodeMirrorHandle | null>(null);
 
@@ -228,6 +230,7 @@ export function CodeEditor({
 
   function handleRun(): void {
     rebuildPreview();
+    setViewMode("preview");
   }
 
   useEffect(() => {
@@ -247,6 +250,9 @@ export function CodeEditor({
 
   const Shell = docked ? "section" : "main";
   const shellClass = `hb-editor-shell${docked ? " hb-editor-shell-docked" : ""}`;
+  const bodyClass = `hb-editor-body hb-editor-body-${viewMode}${docked ? " hb-editor-body-docked" : ""}`;
+  const showEditor = viewMode === "code" || viewMode === "split";
+  const showPreview = viewMode === "preview" || viewMode === "split";
 
   return (
     <Shell className={shellClass}>
@@ -259,6 +265,33 @@ export function CodeEditor({
           </h1>
         </div>
         <div className="hb-chat-header-actions">
+          <fieldset className="hb-editor-view-toggle">
+            <legend className="hb-editor-view-legend">Workspace view</legend>
+            <button
+              type="button"
+              className="hb-editor-view-button"
+              aria-pressed={viewMode === "code"}
+              onClick={() => setViewMode("code")}
+            >
+              Code
+            </button>
+            <button
+              type="button"
+              className="hb-editor-view-button"
+              aria-pressed={viewMode === "preview"}
+              onClick={() => setViewMode("preview")}
+            >
+              Page
+            </button>
+            <button
+              type="button"
+              className="hb-editor-view-button"
+              aria-pressed={viewMode === "split"}
+              onClick={() => setViewMode("split")}
+            >
+              Split
+            </button>
+          </fieldset>
           {onBackToChat && !docked ? (
             <button type="button" className="hb-btn hb-btn-ghost" onClick={onBackToChat}>
               Chat with Bit
@@ -284,47 +317,66 @@ export function CodeEditor({
       ) : null}
 
       {status === "ready" ? (
-        <div className={`hb-editor-body${docked ? " hb-editor-body-stacked" : ""}`}>
-          <section className="hb-editor-pane">
-            <div className="hb-editor-tabs" role="tablist" aria-label="Project files">
-              {buffers.length === 0 ? (
-                <span className="hb-editor-tabs-empty">No files yet.</span>
-              ) : null}
-              {buffers.map((b, idx) => {
-                const dirty = b.content !== b.savedContent;
-                const active = b.name === activeFileName;
-                return (
+        <div className={bodyClass}>
+          <section
+            className="hb-editor-pane"
+            aria-label="Code editor"
+            hidden={!showEditor}
+            style={{ display: showEditor ? undefined : "none" }}
+          >
+            <div className="hb-editor-file-row">
+              <div className="hb-editor-tabs" role="tablist" aria-label="Project files">
+                {buffers.length === 0 ? (
+                  <span className="hb-editor-tabs-empty">No files yet.</span>
+                ) : null}
+                {buffers.map((b, idx) => {
+                  const dirty = b.content !== b.savedContent;
+                  const active = b.name === activeFileName;
+                  return (
+                    <button
+                      key={b.name}
+                      ref={(el) => {
+                        tabRefs.current[idx] = el;
+                      }}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      tabIndex={active ? 0 : -1}
+                      className={`hb-editor-tab${active ? " hb-editor-tab-active" : ""}`}
+                      onClick={() => setActiveFile(b.name)}
+                      onKeyDown={(e) => handleTabKeyDown(idx, e)}
+                    >
+                      <span>{b.name}</span>
+                      {dirty ? (
+                        <span className="hb-editor-dirty" role="img" aria-label="unsaved changes">
+                          *
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <fieldset className="hb-editor-file-actions">
+                <legend className="hb-editor-view-legend">Project file actions</legend>
+                {newFileStatus === "closed" ? (
                   <button
-                    key={b.name}
-                    ref={(el) => {
-                      tabRefs.current[idx] = el;
-                    }}
                     type="button"
-                    role="tab"
-                    aria-selected={active}
-                    tabIndex={active ? 0 : -1}
-                    className={`hb-editor-tab${active ? " hb-editor-tab-active" : ""}`}
-                    onClick={() => setActiveFile(b.name)}
-                    onKeyDown={(e) => handleTabKeyDown(idx, e)}
+                    className="hb-editor-tab hb-editor-tab-add"
+                    onClick={openNewFileForm}
                   >
-                    <span>{b.name}</span>
-                    {dirty ? (
-                      <span className="hb-editor-dirty" role="img" aria-label="unsaved changes">
-                        *
-                      </span>
-                    ) : null}
+                    + New file
                   </button>
-                );
-              })}
-              {newFileStatus === "closed" ? (
+                ) : null}
                 <button
                   type="button"
                   className="hb-editor-tab hb-editor-tab-add"
-                  onClick={openNewFileForm}
+                  onClick={() => {
+                    void handleOpenFolder();
+                  }}
                 >
-                  + New file
+                  Open folder
                 </button>
-              ) : null}
+              </fieldset>
             </div>
 
             {newFileStatus !== "closed" ? (
@@ -421,15 +473,6 @@ export function CodeEditor({
               </button>
               <button
                 type="button"
-                className="hb-btn hb-btn-ghost"
-                onClick={() => {
-                  void handleOpenFolder();
-                }}
-              >
-                Open folder
-              </button>
-              <button
-                type="button"
                 className="hb-btn hb-btn-primary"
                 onClick={handleRun}
                 disabled={buffers.length === 0}
@@ -443,8 +486,22 @@ export function CodeEditor({
             {openFolderError ? <p className="hb-form-err">{openFolderError}</p> : null}
           </section>
 
-          <section className="hb-editor-preview" aria-label="Live preview">
-            <div className="t-pixel hb-gate-kicker">Live preview</div>
+          <section
+            className="hb-editor-preview"
+            aria-label="Live preview"
+            hidden={!showPreview}
+            style={{ display: showPreview ? undefined : "none" }}
+          >
+            <div className="hb-editor-preview-header">
+              <div className="t-pixel hb-gate-kicker">Live preview</div>
+              <button
+                type="button"
+                className="hb-editor-tab hb-editor-tab-add"
+                onClick={rebuildPreview}
+              >
+                Refresh
+              </button>
+            </div>
             {previewMissing ? (
               <p className="hb-editor-preview-hint">
                 Add an <code>index.html</code> and press Run to see your page.

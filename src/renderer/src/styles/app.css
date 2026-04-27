@@ -1611,11 +1611,55 @@ pre,
   line-height: 1.2;
 }
 
+.hb-editor-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  background: var(--paper-2);
+  border: 1px solid var(--ink-12);
+  border-radius: var(--r-lg);
+}
+.hb-editor-view-legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hb-editor-view-button {
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink-64);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+.hb-editor-view-button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-pixel);
+}
+.hb-editor-view-button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow-brand);
+}
+
 .hb-editor-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--s-3);
   min-height: 0;
+}
+
+.hb-editor-body-code,
+.hb-editor-body-preview {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .hb-editor-pane {
@@ -1630,10 +1674,27 @@ pre,
   padding: var(--s-3);
 }
 
-.hb-editor-tabs {
+.hb-editor-file-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.hb-editor-tabs,
+.hb-editor-file-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+.hb-editor-tabs {
+  min-width: 0;
+}
+.hb-editor-file-actions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-shrink: 0;
+  justify-content: flex-end;
 }
 .hb-editor-tabs-empty {
   color: var(--ink-64);
@@ -1819,6 +1880,12 @@ pre,
   box-shadow: var(--shadow-soft-lg);
   padding: var(--s-3);
 }
+.hb-editor-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
 .hb-editor-preview-hint {
   color: var(--ink-64);
   font-size: 13px;
@@ -1919,17 +1986,20 @@ pre,
   grid-area: done;
 }
 
-.hb-editor-body-stacked {
+.hb-editor-body-docked {
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.hb-editor-body-docked.hb-editor-body-split {
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
 }
-.hb-editor-body-stacked .hb-editor-pane {
+.hb-editor-body-docked .hb-editor-pane {
   overflow: hidden;
 }
-.hb-editor-body-stacked .hb-editor-cm {
+.hb-editor-body-docked .hb-editor-cm {
   min-height: 0;
 }
-.hb-editor-body-stacked .hb-editor-iframe {
+.hb-editor-body-docked .hb-editor-iframe {
   min-height: 0;
 }
 
