@@ -67,7 +67,7 @@ After adding the file, update the expected dream id list in `src/main/graph/ship
 
 - Open a PR against `main`.
 - Keep graph PRs small. One new KP, one new dream, or one tightly scoped cluster of related additions. Large batch PRs get asked to split.
-- CI must be green: `npm run check` (lint + format), `npm run typecheck`, `npm test`, and `npm run build`.
+- CI must be green: `npm run check` (Biome lint + format), `npm run typecheck`, `npm test`, and `npm run build`.
 - A maintainer reviews against the criteria above. Expect specific, concept-level feedback on KPs and dreams. The bar is "would we teach this to a real kid next week?"
 - Graph-affecting changes are merged by the graph maintainer (currently @kunchenguid). Non-graph code can be merged by any maintainer with write access.
 
