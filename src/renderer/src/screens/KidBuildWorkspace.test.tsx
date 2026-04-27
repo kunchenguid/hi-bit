@@ -52,7 +52,7 @@ describe("KidBuildWorkspace cursor target", () => {
           id: "bit-1",
           role: "bit",
           kind: "text",
-          text: "Replace the heading.",
+          text: "Replace the heading with this:\n\n```html\n<h1>New</h1>\n```",
           timestamp: "2026-01-01T00:00:00.000Z",
         },
       ],
