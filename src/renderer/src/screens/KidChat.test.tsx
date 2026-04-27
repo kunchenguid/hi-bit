@@ -33,7 +33,7 @@ describe("KidChat cursor target action", () => {
           id: "bit-1",
           role: "bit",
           kind: "text",
-          text: "Replace line 9 with a button.",
+          text: "Replace line 9 with this button:\n\n```html\n<button>Play</button>\n```",
           timestamp: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -71,6 +71,31 @@ describe("KidChat cursor target action", () => {
     expect(button).toBeTruthy();
   });
 
+  it("hides Show me where when the latest Bit message has no code block", async () => {
+    useChatStore.setState({
+      messages: [
+        {
+          id: "bit-plain",
+          role: "bit",
+          kind: "text",
+          text: "Replace line 9 with a button.",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+    const onShowCursorTarget = vi.fn(async () => {});
+
+    await act(async () => {
+      root.render(<KidChat profile={profile} onShowCursorTarget={onShowCursorTarget} />);
+    });
+
+    const button = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Show me where",
+    );
+
+    expect(button).toBeUndefined();
+  });
+
   it("sends the latest Bit message when Show me where is clicked before docking", async () => {
     const onShowCursorTarget = vi.fn(async () => {});
 
@@ -87,6 +112,8 @@ describe("KidChat cursor target action", () => {
       button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(onShowCursorTarget).toHaveBeenCalledWith("Replace line 9 with a button.");
+    expect(onShowCursorTarget).toHaveBeenCalledWith(
+      "Replace line 9 with this button:\n\n```html\n<button>Play</button>\n```",
+    );
   });
 });

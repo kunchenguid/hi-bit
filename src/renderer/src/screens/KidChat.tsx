@@ -13,7 +13,7 @@ import { canRetryLastKidMessage, useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
 import { useProfileStore } from "../state/profileStore";
 import { useProgressStore } from "../state/progressStore";
-import { ChatMarkdown } from "./chatMarkdown";
+import { ChatMarkdown, parseMarkdown } from "./chatMarkdown";
 import { describeKidDreamProgress } from "./kidDreamProgress";
 import { messageHasEditorCue } from "./kidEditorCue";
 import { buildKidGreetingText } from "./kidGreeting";
@@ -375,6 +375,7 @@ export function KidChat({
             m.id === lastBitTextMessageId &&
             m.role === "bit" &&
             m.kind === "text" &&
+            parseMarkdown(m.text).some((block) => block.type === "code-block") &&
             !!onShowCursorTarget;
           return (
             <div
