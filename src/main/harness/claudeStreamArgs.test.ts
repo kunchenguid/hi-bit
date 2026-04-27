@@ -6,7 +6,7 @@ describe("buildClaudeStreamArgs", () => {
     const args = buildClaudeStreamArgs({ sessionId: "abc", mode: "start" });
     expect(args).toEqual([
       "--setting-sources",
-      "",
+      "project",
       "--strict-mcp-config",
       "--disable-slash-commands",
       "--effort",

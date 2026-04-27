@@ -32,12 +32,23 @@ export function buildHarnessCommand(opts: BuildHarnessCommandOptions): HarnessCo
 
 const CLAUDE_ISOLATION_FLAGS = [
   "--setting-sources",
-  "",
+  "project",
   "--strict-mcp-config",
   "--disable-slash-commands",
 ];
 
-const CODEX_ISOLATION_FLAGS = ["--ignore-user-config", "--ignore-rules", "--skip-git-repo-check"];
+// `--sandbox workspace-write` keeps codex's filesystem reach inside cwd
+// (the kid's profile dir) and blocks network/shell escapes. `--full-auto`
+// pairs that sandbox with auto-approval so the streaming session never
+// stalls waiting for an interactive prompt.
+const CODEX_ISOLATION_FLAGS = [
+  "--ignore-user-config",
+  "--ignore-rules",
+  "--skip-git-repo-check",
+  "--sandbox",
+  "workspace-write",
+  "--full-auto",
+];
 
 const CLAUDE_EFFORT_FLAGS = ["--effort", "low"];
 const CLAUDE_OUTPUT_FLAGS = ["--output-format", "stream-json", "--verbose"];

@@ -16,6 +16,7 @@ import {
   type ProfilePaths,
   profilePathsFor,
 } from "./layout";
+import { renderClaudeSettings, renderOpencodeConfig } from "./profileHarnessConfig";
 import { promptsBitPath } from "./prompts";
 
 const SLUG_FALLBACK = "kid";
@@ -128,6 +129,8 @@ export async function createProfile(layout: HiBitLayout, input: ProfileInput): P
   await writeProfileFile(paths, profile);
   await writeFile(paths.stateFile, renderInitialStateMd(profile), "utf8");
   await writeFile(paths.progressFile, `${JSON.stringify(emptyProgress(), null, 2)}\n`, "utf8");
+  await writeFile(paths.claudeSettingsFile, renderClaudeSettings(), "utf8");
+  await writeFile(paths.opencodeConfigFile, renderOpencodeConfig(), "utf8");
 
   const bitSource = promptsBitPath(layout);
   await copyFile(bitSource, paths.agentsFile);
@@ -176,6 +179,12 @@ export async function ensureProfileScaffold(
     tasks.push(
       writeFile(paths.progressFile, `${JSON.stringify(emptyProgress(), null, 2)}\n`, "utf8"),
     );
+  }
+  if (!(await pathExists(paths.claudeSettingsFile))) {
+    tasks.push(writeFile(paths.claudeSettingsFile, renderClaudeSettings(), "utf8"));
+  }
+  if (!(await pathExists(paths.opencodeConfigFile))) {
+    tasks.push(writeFile(paths.opencodeConfigFile, renderOpencodeConfig(), "utf8"));
   }
   const agentsExists = await pathExists(paths.agentsFile);
   const claudeExists = await pathExists(paths.claudeFile);

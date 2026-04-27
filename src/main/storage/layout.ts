@@ -46,10 +46,14 @@ export type ProfilePaths = {
   flagsDir: string;
   transcriptsDir: string;
   sessionLogFile: string;
+  claudeSettingsDir: string;
+  claudeSettingsFile: string;
+  opencodeConfigFile: string;
 };
 
 export function profilePathsFor(layout: HiBitLayout, profileId: string): ProfilePaths {
   const root = join(layout.profilesDir, profileId);
+  const claudeSettingsDir = join(root, ".claude");
   return {
     root,
     profileFile: join(root, "profile.json"),
@@ -61,6 +65,9 @@ export function profilePathsFor(layout: HiBitLayout, profileId: string): Profile
     flagsDir: join(root, "flags"),
     transcriptsDir: join(root, "transcripts"),
     sessionLogFile: join(root, "session-log.jsonl"),
+    claudeSettingsDir,
+    claudeSettingsFile: join(claudeSettingsDir, "settings.json"),
+    opencodeConfigFile: join(root, "opencode.json"),
   };
 }
 
@@ -70,5 +77,6 @@ export async function bootstrapProfileDirs(paths: ProfilePaths): Promise<void> {
     mkdir(paths.projectsDir, { recursive: true }),
     mkdir(paths.flagsDir, { recursive: true }),
     mkdir(paths.transcriptsDir, { recursive: true }),
+    mkdir(paths.claudeSettingsDir, { recursive: true }),
   ]);
 }

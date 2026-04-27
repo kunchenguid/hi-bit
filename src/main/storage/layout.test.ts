@@ -33,6 +33,9 @@ describe("profilePathsFor", () => {
     expect(paths.flagsDir).toBe("/tmp/fake/profiles/ada/flags");
     expect(paths.transcriptsDir).toBe("/tmp/fake/profiles/ada/transcripts");
     expect(paths.sessionLogFile).toBe("/tmp/fake/profiles/ada/session-log.jsonl");
+    expect(paths.claudeSettingsDir).toBe("/tmp/fake/profiles/ada/.claude");
+    expect(paths.claudeSettingsFile).toBe("/tmp/fake/profiles/ada/.claude/settings.json");
+    expect(paths.opencodeConfigFile).toBe("/tmp/fake/profiles/ada/opencode.json");
   });
 });
 
