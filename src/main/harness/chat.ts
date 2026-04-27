@@ -75,17 +75,18 @@ export async function requestCursorMarker(
   const paths = profilePathsFor(opts.layout, opts.profileId);
   await ensureProfileScaffold(opts.layout, paths, profile);
   const prompt = buildCursorMarkerPrompt(opts.request);
-  const projectFiles = await projectFilesForCurrentDream(paths, profile);
-  const agentPrompt = withSessionContext({
-    userPrompt: prompt,
-    role: "kid",
-    profile,
-    profileDir: paths.root,
-    projectFiles,
-    mode: "start",
-  });
 
   try {
+    const projectFiles = await projectFilesForCurrentDream(paths, profile);
+    const agentPrompt = withSessionContext({
+      userPrompt: prompt,
+      role: "kid",
+      profile,
+      profileDir: paths.root,
+      projectFiles,
+      mode: "start",
+    });
+
     const result = await executeHarnessTurn({
       paths,
       harness: harnessId,
@@ -180,7 +181,9 @@ async function sendMessage(
   try {
     const mode = await resolveMode(paths, sessionId);
     const projectFiles =
-      mode === "start" ? await projectFilesForCurrentDream(paths, profile) : undefined;
+      role === "kid" && mode === "start"
+        ? await projectFilesForCurrentDream(paths, profile)
+        : undefined;
     const agentPrompt = withSessionContext({
       userPrompt: prompt,
       role,
@@ -247,6 +250,8 @@ type SendClaudeStreamingOptions = {
 async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<SendMessageResult> {
   const now = opts.now ?? Date.now;
   const startedAt = new Date(opts.startMs).toISOString();
+  let mode: HarnessInvocationMode = "start";
+  let session: ClaudeSession | null = null;
 
   await appendTranscriptEvent(opts.paths, {
     timestamp: startedAt,
@@ -256,50 +261,53 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
     text: opts.prompt,
   });
 
-  const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role);
-  const isProcessFresh = !opts.registry.has(key);
-  const mode: HarnessInvocationMode = isProcessFresh
-    ? await resolveMode(opts.paths, opts.sessionId)
-    : "resume";
-  const session = opts.registry.getOrCreate(
-    key,
-    () =>
-      new ClaudeSession({
-        binary: opts.binary,
-        args: buildClaudeStreamArgs({ sessionId: opts.sessionId, mode }),
-        cwd: opts.paths.root,
-        sessionId: opts.sessionId,
-        spawn: opts.spawn as unknown as ClaudeSessionSpawnFn,
-      }),
-  );
-
-  const messageText =
-    isProcessFresh && mode === "start"
-      ? withSessionContext({
-          userPrompt: opts.prompt,
-          role: opts.role,
-          profile: opts.profile,
-          profileDir: opts.paths.root,
-          projectFiles: await projectFilesForCurrentDream(opts.paths, opts.profile),
-          mode: "start",
-        })
-      : opts.prompt;
-
-  const turn = session.sendMessage(messageText);
-
-  const onAbort = () => session.close();
-  if (opts.signal) {
-    if (opts.signal.aborted) session.close();
-    else opts.signal.addEventListener("abort", onAbort, { once: true });
-  }
-
-  const drain = async () => {
-    for await (const ev of turn.events as AsyncIterable<ClaudeTurnEvent>) {
-      if (ev.kind === "delta" && opts.onDelta) opts.onDelta(ev.text);
-    }
-  };
+  const onAbort = () => session?.close();
 
   try {
+    const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role);
+    const isProcessFresh = !opts.registry.has(key);
+    mode = isProcessFresh ? await resolveMode(opts.paths, opts.sessionId) : "resume";
+    const projectFiles =
+      opts.role === "kid" && isProcessFresh && mode === "start"
+        ? await projectFilesForCurrentDream(opts.paths, opts.profile)
+        : undefined;
+    session = opts.registry.getOrCreate(
+      key,
+      () =>
+        new ClaudeSession({
+          binary: opts.binary,
+          args: buildClaudeStreamArgs({ sessionId: opts.sessionId, mode }),
+          cwd: opts.paths.root,
+          sessionId: opts.sessionId,
+          spawn: opts.spawn as unknown as ClaudeSessionSpawnFn,
+        }),
+    );
+
+    const messageText =
+      isProcessFresh && mode === "start"
+        ? withSessionContext({
+            userPrompt: opts.prompt,
+            role: opts.role,
+            profile: opts.profile,
+            profileDir: opts.paths.root,
+            projectFiles,
+            mode: "start",
+          })
+        : opts.prompt;
+
+    const turn = session.sendMessage(messageText);
+
+    if (opts.signal) {
+      if (opts.signal.aborted) session.close();
+      else opts.signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    const drain = async () => {
+      for await (const ev of turn.events as AsyncIterable<ClaudeTurnEvent>) {
+        if (ev.kind === "delta" && opts.onDelta) opts.onDelta(ev.text);
+      }
+    };
+
     const [_drained, result] = await Promise.all([drain(), turn.complete]);
     const endMs = now();
     const endedAt = new Date(endMs).toISOString();
