@@ -217,6 +217,24 @@ describe("sendKidMessage", () => {
     expect(promptArg).toMatch(/do not ask the kid to create it/i);
   });
 
+  it("returns ok=false when current dream project file lookup fails", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn: spawnEmitting([() => {}]),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
+  });
+
   it("does not inject the preamble on resume-mode turns", async () => {
     const profile = await makeAda();
     const spawnArgs: Array<readonly string[]> = [];

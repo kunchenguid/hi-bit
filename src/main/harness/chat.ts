@@ -177,19 +177,19 @@ async function sendMessage(
     });
   }
 
-  const mode = await resolveMode(paths, sessionId);
-  const projectFiles =
-    mode === "start" ? await projectFilesForCurrentDream(paths, profile) : undefined;
-  const agentPrompt = withSessionContext({
-    userPrompt: prompt,
-    role,
-    profile,
-    profileDir: paths.root,
-    projectFiles,
-    mode,
-  });
-
   try {
+    const mode = await resolveMode(paths, sessionId);
+    const projectFiles =
+      mode === "start" ? await projectFilesForCurrentDream(paths, profile) : undefined;
+    const agentPrompt = withSessionContext({
+      userPrompt: prompt,
+      role,
+      profile,
+      profileDir: paths.root,
+      projectFiles,
+      mode,
+    });
+
     const result = await executeHarnessTurn({
       paths,
       harness: harnessId,
