@@ -70,7 +70,7 @@ describe("buildHarnessCommand", () => {
       ]);
     });
 
-    it("builds a resume command using 'codex exec resume' with sandbox and reasoning effort 'low'", () => {
+    it("builds a resume command using only flags supported by 'codex exec resume'", () => {
       const cmd = buildHarnessCommand({ ...base, harness: "codex", mode: "resume" });
       expect(cmd.args).toEqual([
         "exec",
@@ -78,9 +78,6 @@ describe("buildHarnessCommand", () => {
         "--ignore-user-config",
         "--ignore-rules",
         "--skip-git-repo-check",
-        "--sandbox",
-        "workspace-write",
-        "--full-auto",
         "-c",
         'model_reasoning_effort="low"',
         "sess-123",

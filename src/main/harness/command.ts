@@ -49,6 +49,7 @@ const CODEX_ISOLATION_FLAGS = [
   "workspace-write",
   "--full-auto",
 ];
+const CODEX_RESUME_FLAGS = ["--ignore-user-config", "--ignore-rules", "--skip-git-repo-check"];
 
 const CLAUDE_EFFORT_FLAGS = ["--effort", "low"];
 const CLAUDE_OUTPUT_FLAGS = ["--output-format", "stream-json", "--verbose"];
@@ -91,7 +92,7 @@ function argsFor(
             sessionId,
             prompt,
           ]
-        : ["exec", "resume", ...CODEX_ISOLATION_FLAGS, ...CODEX_EFFORT_FLAGS, sessionId, prompt];
+        : ["exec", "resume", ...CODEX_RESUME_FLAGS, ...CODEX_EFFORT_FLAGS, sessionId, prompt];
     case "opencode":
       return ["run", "--pure", "--session", sessionId, prompt];
   }
