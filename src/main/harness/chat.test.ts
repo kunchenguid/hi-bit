@@ -1,12 +1,12 @@
 import { EventEmitter } from "node:events";
-import { mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import type { HarnessDetection, HiBitConfig } from "@shared/config";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import { createProfile } from "../storage/profiles";
+import { createProfile, writeProfileFile } from "../storage/profiles";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
@@ -179,6 +179,42 @@ describe("sendKidMessage", () => {
     const events = await readTranscript(paths, profile.sessions.kid);
     const userEvent = events.find((e) => e.kind === "user_message");
     expect(userEvent?.text).toBe("hi bit");
+  });
+
+  it("tells Bit which starter project files already exist on the first kid turn", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    const projectDir = join(paths.projectsDir, "hello-card");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
+    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn,
+    });
+
+    const args = spawnArgs[0] as string[];
+    const promptArg = args[args.indexOf("-p") + 1];
+    expect(promptArg).toContain(`project_dir: ${projectDir}`);
+    expect(promptArg).toContain('project_files: ["index.html"]');
+    expect(promptArg).toMatch(/index\.html already exists/i);
+    expect(promptArg).toMatch(/do not ask the kid to create it/i);
   });
 
   it("does not inject the preamble on resume-mode turns", async () => {

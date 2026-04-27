@@ -5,6 +5,7 @@ import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog"
 import type { HiBitLayout, ProfilePaths } from "../storage/layout";
 import { profilePathsFor } from "../storage/layout";
 import { ensureProfileScaffold, readProfile } from "../storage/profiles";
+import { listProjectFiles } from "../storage/projects";
 import { appendSessionLogEntry, readSessionLogEntries } from "../storage/sessionLog";
 import { appendTranscriptEvent } from "../storage/transcript";
 import { ClaudeSession, type ClaudeSessionSpawnFn, type ClaudeTurnEvent } from "./claudeSession";
@@ -74,11 +75,13 @@ export async function requestCursorMarker(
   const paths = profilePathsFor(opts.layout, opts.profileId);
   await ensureProfileScaffold(opts.layout, paths, profile);
   const prompt = buildCursorMarkerPrompt(opts.request);
+  const projectFiles = await projectFilesForCurrentDream(paths, profile);
   const agentPrompt = withSessionContext({
     userPrompt: prompt,
     role: "kid",
     profile,
     profileDir: paths.root,
+    projectFiles,
     mode: "start",
   });
 
@@ -175,11 +178,14 @@ async function sendMessage(
   }
 
   const mode = await resolveMode(paths, sessionId);
+  const projectFiles =
+    mode === "start" ? await projectFilesForCurrentDream(paths, profile) : undefined;
   const agentPrompt = withSessionContext({
     userPrompt: prompt,
     role,
     profile,
     profileDir: paths.root,
+    projectFiles,
     mode,
   });
 
@@ -274,6 +280,7 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
           role: opts.role,
           profile: opts.profile,
           profileDir: opts.paths.root,
+          projectFiles: await projectFilesForCurrentDream(opts.paths, opts.profile),
           mode: "start",
         })
       : opts.prompt;
@@ -369,4 +376,12 @@ async function resolveMode(paths: ProfilePaths, sessionId: string): Promise<Harn
     (e) => e.sessionId === sessionId && e.exitCode === 0 && e.signal === null,
   );
   return hasPriorSuccess ? "resume" : "start";
+}
+
+async function projectFilesForCurrentDream(
+  paths: ProfilePaths,
+  profile: Parameters<typeof withSessionContext>[0]["profile"],
+): Promise<string[] | undefined> {
+  if (!profile.currentDreamId) return undefined;
+  return listProjectFiles(paths, profile.currentDreamId);
 }
