@@ -11,7 +11,7 @@ import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./chat";
-import type { ClaudeSession } from "./claudeSession";
+import { ClaudeSession } from "./claudeSession";
 import { ClaudeSessionRegistry } from "./claudeSessionRegistry";
 import { claudeOkStreamJson } from "./claudeStreamJsonFixture";
 import type { HarnessSpawnFn } from "./run";
@@ -217,6 +217,101 @@ describe("sendKidMessage", () => {
     expect(promptArg).toContain('project_files: ["index.html"]');
     expect(promptArg).toMatch(/index\.html already exists/i);
     expect(promptArg).toMatch(/do not ask the kid to create it/i);
+  });
+
+  it("tells Bit which starter project files already exist when the first dream is picked after an earlier kid turn", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    const projectDir = join(paths.projectsDir, "hello-card");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
+
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "hi before dream",
+      spawn,
+    });
+    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn,
+    });
+
+    const secondArgs = spawnArgs[1] as string[];
+    const promptArg = secondArgs[secondArgs.indexOf("-p") + 1];
+    expect(secondArgs).toContain("--resume");
+    expect(promptArg).toContain(`project_dir: ${projectDir}`);
+    expect(promptArg).toContain('project_files: ["index.html"]');
+    expect(promptArg).toMatch(/index\.html already exists/i);
+    expect(promptArg).toMatch(/do not ask the kid to create it/i);
+  });
+
+  it("tells a resumed Claude stream which starter project files exist after the first dream is picked", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    const projectDir = join(paths.projectsDir, "hello-card");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
+
+    const prompts: string[] = [];
+    const registry = new ClaudeSessionRegistry<ClaudeSession>();
+    const spawn: HarnessSpawnFn = (_bin, _args) => {
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+    vi.spyOn(ClaudeSession.prototype, "sendMessage").mockImplementation((message: string) => {
+      prompts.push(message);
+      return {
+        events: (async function* () {})(),
+        complete: Promise.resolve({ text: "ok", usage: null, durationApiMs: null, numTurns: null }),
+      } as ReturnType<ClaudeSession["sendMessage"]>;
+    });
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "hi before dream",
+      spawn,
+      claudeRegistry: registry,
+    });
+    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn,
+      claudeRegistry: registry,
+    });
+
+    expect(prompts[1]).toContain(`project_dir: ${projectDir}`);
+    expect(prompts[1]).toContain('project_files: ["index.html"]');
+    expect(prompts[1]).toMatch(/index\.html already exists/i);
+    expect(prompts[1]).toMatch(/do not ask the kid to create it/i);
   });
 
   it("returns ok=false when current dream project file lookup fails", async () => {

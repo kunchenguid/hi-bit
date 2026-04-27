@@ -180,8 +180,9 @@ async function sendMessage(
 
   try {
     const mode = await resolveMode(paths, sessionId);
+    const injectSessionContext = shouldInjectSessionContext(role, profile, mode);
     const projectFiles =
-      role === "kid" && mode === "start"
+      role === "kid" && injectSessionContext
         ? await projectFilesForCurrentDream(paths, profile)
         : undefined;
     const agentPrompt = withSessionContext({
@@ -190,7 +191,7 @@ async function sendMessage(
       profile,
       profileDir: paths.root,
       projectFiles,
-      mode,
+      mode: injectSessionContext ? "start" : mode,
     });
 
     const result = await executeHarnessTurn({
@@ -267,8 +268,9 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
     const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role);
     const isProcessFresh = !opts.registry.has(key);
     mode = isProcessFresh ? await resolveMode(opts.paths, opts.sessionId) : "resume";
+    const injectSessionContext = shouldInjectSessionContext(opts.role, opts.profile, mode);
     const projectFiles =
-      opts.role === "kid" && isProcessFresh && mode === "start"
+      opts.role === "kid" && injectSessionContext
         ? await projectFilesForCurrentDream(opts.paths, opts.profile)
         : undefined;
     session = opts.registry.getOrCreate(
@@ -283,17 +285,16 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
         }),
     );
 
-    const messageText =
-      isProcessFresh && mode === "start"
-        ? withSessionContext({
-            userPrompt: opts.prompt,
-            role: opts.role,
-            profile: opts.profile,
-            profileDir: opts.paths.root,
-            projectFiles,
-            mode: "start",
-          })
-        : opts.prompt;
+    const messageText = injectSessionContext
+      ? withSessionContext({
+          userPrompt: opts.prompt,
+          role: opts.role,
+          profile: opts.profile,
+          profileDir: opts.paths.root,
+          projectFiles,
+          mode: "start",
+        })
+      : opts.prompt;
 
     const turn = session.sendMessage(messageText);
 
@@ -384,6 +385,14 @@ async function resolveMode(paths: ProfilePaths, sessionId: string): Promise<Harn
     (e) => e.sessionId === sessionId && e.exitCode === 0 && e.signal === null,
   );
   return hasPriorSuccess ? "resume" : "start";
+}
+
+function shouldInjectSessionContext(
+  role: SessionRole,
+  profile: Parameters<typeof withSessionContext>[0]["profile"],
+  mode: HarnessInvocationMode,
+): boolean {
+  return mode === "start" || (role === "kid" && typeof profile.currentDreamId === "string");
 }
 
 async function projectFilesForCurrentDream(
