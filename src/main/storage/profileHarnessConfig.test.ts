@@ -58,19 +58,23 @@ describe("renderClaudeSettings", () => {
 });
 
 describe("renderOpencodeConfig", () => {
-  it("emits an opencode.json with read/write/edit allowed and bash/webfetch denied", () => {
+  it("emits an opencode.json that denies unspecified tools and only allows Bit's tools", () => {
     const parsed = JSON.parse(renderOpencodeConfig()) as {
       $schema?: string;
       permission?: Record<string, string>;
     };
     expect(parsed.$schema).toBe("https://opencode.ai/config.json");
     expect(parsed.permission).toEqual({
+      "*": "deny",
       read: "allow",
-      write: "allow",
       edit: "allow",
-      bash: "deny",
-      webfetch: "deny",
+      glob: "allow",
     });
+    expect(parsed.permission?.task).toBeUndefined();
+    expect(parsed.permission?.websearch).toBeUndefined();
+    expect(parsed.permission?.grep).toBeUndefined();
+    expect(parsed.permission?.lsp).toBeUndefined();
+    expect(parsed.permission?.skill).toBeUndefined();
   });
 
   it("ends with a trailing newline", () => {

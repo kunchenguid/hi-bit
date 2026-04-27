@@ -30,11 +30,10 @@ export function renderOpencodeConfig(): string {
   const config = {
     $schema: "https://opencode.ai/config.json",
     permission: {
+      "*": "deny",
       read: "allow",
-      write: "allow",
       edit: "allow",
-      bash: "deny",
-      webfetch: "deny",
+      glob: "allow",
     },
   };
   return `${JSON.stringify(config, null, 2)}\n`;

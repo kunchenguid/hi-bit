@@ -49,7 +49,12 @@ const CODEX_ISOLATION_FLAGS = [
   "workspace-write",
   "--full-auto",
 ];
-const CODEX_RESUME_FLAGS = ["--ignore-user-config", "--ignore-rules", "--skip-git-repo-check"];
+const CODEX_RESUME_FLAGS = [
+  "--ignore-user-config",
+  "--ignore-rules",
+  "--skip-git-repo-check",
+  "--full-auto",
+];
 
 const CLAUDE_EFFORT_FLAGS = ["--effort", "low"];
 const CLAUDE_OUTPUT_FLAGS = ["--output-format", "stream-json", "--verbose"];
