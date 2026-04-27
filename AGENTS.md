@@ -9,7 +9,7 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
 ## Stack and layout
 
 - Electron 41, electron-vite, React 19, Zustand, CodeMirror 6, Vitest, Biome. TypeScript throughout.
-- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk profile layout (`state.md`, `progress.json`, transcripts, flags, project files); `harness/` detects and invokes the parent's agent harness; `graph/` loads the knowledge graph + dream library from `graph/` at the repo root.
+- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk profile layout (`state.md`, `progress.json`, transcripts, flags, project files, per-profile harness permission config); `harness/` detects and invokes the parent's agent harness; `graph/` loads the knowledge graph + dream library from `graph/` at the repo root.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds top-level views (kid home, dream picker, tutor chat, editor + live preview, parent gate, parent home with audit/mastery/directives/settings). `state/` is Zustand stores; `editor/` and `preview/` are the CodeMirror + iframe pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.

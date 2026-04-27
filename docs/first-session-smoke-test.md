@@ -22,6 +22,7 @@ PRD: "Parent installs Hi-Bit, configures their chosen harness, creates a kid pro
 
 - [ ] App launches to `ProfileGate` (no profiles yet, so the create form auto-opens per `ProfileGate.tsx`).
 - [ ] `CreateProfileForm.tsx` accepts a name, age (3-18), comma-separated interests, optional notes for Bit. Fill in a real kid-shaped profile - e.g. Name "Ada", age 9, interests "cats, drawing, games", notes "already knows some HTML from school".
+- [ ] The new profile contains `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
 - [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_HARNESS` in `src/shared/config.ts`). Select the harness you installed above.
 - [ ] `DreamPicker.tsx` opens next, sorted with the kid's interest-tag matches floated to the top.
 

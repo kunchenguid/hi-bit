@@ -155,6 +155,7 @@ describe("executeHarnessTurn", () => {
         "--ignore-user-config",
         "--ignore-rules",
         "--skip-git-repo-check",
+        "--full-auto",
         "-c",
         'model_reasoning_effort="low"',
         "sess-parent",

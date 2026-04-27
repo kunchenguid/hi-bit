@@ -7,7 +7,7 @@ export type BuildClaudeStreamArgsOptions = {
 
 const CLAUDE_ISOLATION_FLAGS = [
   "--setting-sources",
-  "",
+  "project",
   "--strict-mcp-config",
   "--disable-slash-commands",
 ];

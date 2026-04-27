@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { emptyProgress, type Progress } from "@shared/progress";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "./layout";
+import { renderClaudeSettings, renderOpencodeConfig } from "./profileHarnessConfig";
 import {
   createProfile,
   deleteProfile,
@@ -122,6 +123,13 @@ describe("profile storage", () => {
     await expect(readFile(paths.claudeFile, "utf8")).resolves.toBe(BIT_FIXTURE);
   });
 
+  it("createProfile seeds .claude/settings.json and opencode.json with the Bit tool spec", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 9 });
+    const paths = profilePathsFor(layout, profile.id);
+    await expect(readFile(paths.claudeSettingsFile, "utf8")).resolves.toBe(renderClaudeSettings());
+    await expect(readFile(paths.opencodeConfigFile, "utf8")).resolves.toBe(renderOpencodeConfig());
+  });
+
   it("ensureProfileScaffold writes missing state.md, progress.json, AGENTS.md, CLAUDE.md for legacy profiles", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 9 });
     const paths = profilePathsFor(layout, profile.id);
@@ -140,6 +148,32 @@ describe("profile storage", () => {
     expect(state).toContain("# State for Ada");
     const progress = await readFile(paths.progressFile, "utf8");
     expect(JSON.parse(progress)).toEqual(emptyProgress());
+  });
+
+  it("ensureProfileScaffold seeds .claude/settings.json and opencode.json for legacy profiles", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 9 });
+    const paths = profilePathsFor(layout, profile.id);
+    await unlink(paths.claudeSettingsFile);
+    await unlink(paths.opencodeConfigFile);
+
+    await ensureProfileScaffold(layout, paths, profile);
+
+    await expect(readFile(paths.claudeSettingsFile, "utf8")).resolves.toBe(renderClaudeSettings());
+    await expect(readFile(paths.opencodeConfigFile, "utf8")).resolves.toBe(renderOpencodeConfig());
+  });
+
+  it("ensureProfileScaffold preserves a parent-edited .claude/settings.json or opencode.json", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 9 });
+    const paths = profilePathsFor(layout, profile.id);
+    const customClaude = '{"permissions":{"allow":["Read"]}}\n';
+    const customOpencode = '{"permission":{"read":"allow"}}\n';
+    await writeFile(paths.claudeSettingsFile, customClaude, "utf8");
+    await writeFile(paths.opencodeConfigFile, customOpencode, "utf8");
+
+    await ensureProfileScaffold(layout, paths, profile);
+
+    await expect(readFile(paths.claudeSettingsFile, "utf8")).resolves.toBe(customClaude);
+    await expect(readFile(paths.opencodeConfigFile, "utf8")).resolves.toBe(customOpencode);
   });
 
   it("ensureProfileScaffold does not overwrite files that already exist", async () => {
