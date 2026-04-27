@@ -5,6 +5,7 @@ import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog"
 import type { HiBitLayout, ProfilePaths } from "../storage/layout";
 import { profilePathsFor } from "../storage/layout";
 import { ensureProfileScaffold, readProfile } from "../storage/profiles";
+import { listProjectFiles } from "../storage/projects";
 import { appendSessionLogEntry, readSessionLogEntries } from "../storage/sessionLog";
 import { appendTranscriptEvent } from "../storage/transcript";
 import { ClaudeSession, type ClaudeSessionSpawnFn, type ClaudeTurnEvent } from "./claudeSession";
@@ -74,15 +75,18 @@ export async function requestCursorMarker(
   const paths = profilePathsFor(opts.layout, opts.profileId);
   await ensureProfileScaffold(opts.layout, paths, profile);
   const prompt = buildCursorMarkerPrompt(opts.request);
-  const agentPrompt = withSessionContext({
-    userPrompt: prompt,
-    role: "kid",
-    profile,
-    profileDir: paths.root,
-    mode: "start",
-  });
 
   try {
+    const projectFiles = await projectFilesForCurrentDream(paths, profile);
+    const agentPrompt = withSessionContext({
+      userPrompt: prompt,
+      role: "kid",
+      profile,
+      profileDir: paths.root,
+      projectFiles,
+      mode: "start",
+    });
+
     const result = await executeHarnessTurn({
       paths,
       harness: harnessId,
@@ -174,16 +178,22 @@ async function sendMessage(
     });
   }
 
-  const mode = await resolveMode(paths, sessionId);
-  const agentPrompt = withSessionContext({
-    userPrompt: prompt,
-    role,
-    profile,
-    profileDir: paths.root,
-    mode,
-  });
-
   try {
+    const mode = await resolveMode(paths, sessionId);
+    const injectSessionContext = shouldInjectSessionContext(role, profile, mode);
+    const projectFiles =
+      role === "kid" && injectSessionContext
+        ? await projectFilesForCurrentDream(paths, profile)
+        : undefined;
+    const agentPrompt = withSessionContext({
+      userPrompt: prompt,
+      role,
+      profile,
+      profileDir: paths.root,
+      projectFiles,
+      mode: injectSessionContext ? "start" : mode,
+    });
+
     const result = await executeHarnessTurn({
       paths,
       harness: harnessId,
@@ -241,6 +251,8 @@ type SendClaudeStreamingOptions = {
 async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<SendMessageResult> {
   const now = opts.now ?? Date.now;
   const startedAt = new Date(opts.startMs).toISOString();
+  let mode: HarnessInvocationMode = "start";
+  let session: ClaudeSession | null = null;
 
   await appendTranscriptEvent(opts.paths, {
     timestamp: startedAt,
@@ -250,49 +262,53 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
     text: opts.prompt,
   });
 
-  const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role);
-  const isProcessFresh = !opts.registry.has(key);
-  const mode: HarnessInvocationMode = isProcessFresh
-    ? await resolveMode(opts.paths, opts.sessionId)
-    : "resume";
-  const session = opts.registry.getOrCreate(
-    key,
-    () =>
-      new ClaudeSession({
-        binary: opts.binary,
-        args: buildClaudeStreamArgs({ sessionId: opts.sessionId, mode }),
-        cwd: opts.paths.root,
-        sessionId: opts.sessionId,
-        spawn: opts.spawn as unknown as ClaudeSessionSpawnFn,
-      }),
-  );
+  const onAbort = () => session?.close();
 
-  const messageText =
-    isProcessFresh && mode === "start"
+  try {
+    const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role);
+    const isProcessFresh = !opts.registry.has(key);
+    mode = isProcessFresh ? await resolveMode(opts.paths, opts.sessionId) : "resume";
+    const injectSessionContext = shouldInjectSessionContext(opts.role, opts.profile, mode);
+    const projectFiles =
+      opts.role === "kid" && injectSessionContext
+        ? await projectFilesForCurrentDream(opts.paths, opts.profile)
+        : undefined;
+    session = opts.registry.getOrCreate(
+      key,
+      () =>
+        new ClaudeSession({
+          binary: opts.binary,
+          args: buildClaudeStreamArgs({ sessionId: opts.sessionId, mode }),
+          cwd: opts.paths.root,
+          sessionId: opts.sessionId,
+          spawn: opts.spawn as unknown as ClaudeSessionSpawnFn,
+        }),
+    );
+
+    const messageText = injectSessionContext
       ? withSessionContext({
           userPrompt: opts.prompt,
           role: opts.role,
           profile: opts.profile,
           profileDir: opts.paths.root,
+          projectFiles,
           mode: "start",
         })
       : opts.prompt;
 
-  const turn = session.sendMessage(messageText);
+    const turn = session.sendMessage(messageText);
 
-  const onAbort = () => session.close();
-  if (opts.signal) {
-    if (opts.signal.aborted) session.close();
-    else opts.signal.addEventListener("abort", onAbort, { once: true });
-  }
-
-  const drain = async () => {
-    for await (const ev of turn.events as AsyncIterable<ClaudeTurnEvent>) {
-      if (ev.kind === "delta" && opts.onDelta) opts.onDelta(ev.text);
+    if (opts.signal) {
+      if (opts.signal.aborted) session.close();
+      else opts.signal.addEventListener("abort", onAbort, { once: true });
     }
-  };
 
-  try {
+    const drain = async () => {
+      for await (const ev of turn.events as AsyncIterable<ClaudeTurnEvent>) {
+        if (ev.kind === "delta" && opts.onDelta) opts.onDelta(ev.text);
+      }
+    };
+
     const [_drained, result] = await Promise.all([drain(), turn.complete]);
     const endMs = now();
     const endedAt = new Date(endMs).toISOString();
@@ -369,4 +385,20 @@ async function resolveMode(paths: ProfilePaths, sessionId: string): Promise<Harn
     (e) => e.sessionId === sessionId && e.exitCode === 0 && e.signal === null,
   );
   return hasPriorSuccess ? "resume" : "start";
+}
+
+function shouldInjectSessionContext(
+  role: SessionRole,
+  profile: Parameters<typeof withSessionContext>[0]["profile"],
+  mode: HarnessInvocationMode,
+): boolean {
+  return mode === "start" || (role === "kid" && typeof profile.currentDreamId === "string");
+}
+
+async function projectFilesForCurrentDream(
+  paths: ProfilePaths,
+  profile: Parameters<typeof withSessionContext>[0]["profile"],
+): Promise<string[] | undefined> {
+  if (!profile.currentDreamId) return undefined;
+  return listProjectFiles(paths, profile.currentDreamId);
 }

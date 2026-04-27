@@ -55,6 +55,7 @@ PRD: "Kid picks a dream. Bit commits to the journey: 'We're going to build this 
 
 - [ ] Clicking a dream card calls `setCurrentDream(profileId, dreamId)` in `profileStore.ts` and returns to the chat view.
 - [ ] Bit's next turn acknowledges the chosen dream by name and commits to it ("We're going to build a sticker gallery together. Here's where we start."). No hedging, no offer to switch immediately.
+- [ ] Bit treats the starter `projects/<dream_slug>/index.html` as already existing and tells the kid to open or change it, not create a new `index.html`.
 - [ ] Bit names the first concrete knowledge-point step ("Let's get a page on the screen first") rather than dumping the whole roadmap.
 
 ### Step 6 - Typed something real, saw it run, saved a file

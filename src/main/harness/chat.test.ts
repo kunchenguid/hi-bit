@@ -1,16 +1,18 @@
 import { EventEmitter } from "node:events";
-import { mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import type { HarnessDetection, HiBitConfig } from "@shared/config";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import { createProfile } from "../storage/profiles";
+import { createProfile, writeProfileFile } from "../storage/profiles";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./chat";
+import { ClaudeSession } from "./claudeSession";
+import { ClaudeSessionRegistry } from "./claudeSessionRegistry";
 import { claudeOkStreamJson } from "./claudeStreamJsonFixture";
 import type { HarnessSpawnFn } from "./run";
 
@@ -179,6 +181,196 @@ describe("sendKidMessage", () => {
     const events = await readTranscript(paths, profile.sessions.kid);
     const userEvent = events.find((e) => e.kind === "user_message");
     expect(userEvent?.text).toBe("hi bit");
+  });
+
+  it("tells Bit which starter project files already exist on the first kid turn", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    const projectDir = join(paths.projectsDir, "hello-card");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
+    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn,
+    });
+
+    const args = spawnArgs[0] as string[];
+    const promptArg = args[args.indexOf("-p") + 1];
+    expect(promptArg).toContain(`project_dir: ${projectDir}`);
+    expect(promptArg).toContain('project_files: ["index.html"]');
+    expect(promptArg).toMatch(/index\.html already exists/i);
+    expect(promptArg).toMatch(/do not ask the kid to create it/i);
+  });
+
+  it("tells Bit which starter project files already exist when the first dream is picked after an earlier kid turn", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    const projectDir = join(paths.projectsDir, "hello-card");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
+
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "hi before dream",
+      spawn,
+    });
+    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn,
+    });
+
+    const secondArgs = spawnArgs[1] as string[];
+    const promptArg = secondArgs[secondArgs.indexOf("-p") + 1];
+    expect(secondArgs).toContain("--resume");
+    expect(promptArg).toContain(`project_dir: ${projectDir}`);
+    expect(promptArg).toContain('project_files: ["index.html"]');
+    expect(promptArg).toMatch(/index\.html already exists/i);
+    expect(promptArg).toMatch(/do not ask the kid to create it/i);
+  });
+
+  it("tells a resumed Claude stream which starter project files exist after the first dream is picked", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    const projectDir = join(paths.projectsDir, "hello-card");
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
+
+    const prompts: string[] = [];
+    const registry = new ClaudeSessionRegistry<ClaudeSession>();
+    const spawn: HarnessSpawnFn = (_bin, _args) => {
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+    vi.spyOn(ClaudeSession.prototype, "sendMessage").mockImplementation((message: string) => {
+      prompts.push(message);
+      return {
+        events: (async function* () {})(),
+        complete: Promise.resolve({ text: "ok", usage: null, durationApiMs: null, numTurns: null }),
+      } as ReturnType<ClaudeSession["sendMessage"]>;
+    });
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "hi before dream",
+      spawn,
+      claudeRegistry: registry,
+    });
+    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn,
+      claudeRegistry: registry,
+    });
+
+    expect(prompts[1]).toContain(`project_dir: ${projectDir}`);
+    expect(prompts[1]).toContain('project_files: ["index.html"]');
+    expect(prompts[1]).toMatch(/index\.html already exists/i);
+    expect(prompts[1]).toMatch(/do not ask the kid to create it/i);
+  });
+
+  it("returns ok=false when current dream project file lookup fails", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn: spawnEmitting([() => {}]),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
+  });
+
+  it("returns ok=false when cursor marker project file lookup fails", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
+
+    const result = await requestCursorMarker({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      request: {
+        filename: "index.html",
+        editorContent: "<body></body>",
+        latestBitMessage: "Put the title inside body.",
+      },
+      spawn: spawnEmitting([() => {}]),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
+  });
+
+  it("returns ok=false when streaming current dream project file lookup fails", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn: spawnEmitting([() => {}]),
+      claudeRegistry: new ClaudeSessionRegistry<ClaudeSession>(),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
   });
 
   it("does not inject the preamble on resume-mode turns", async () => {
@@ -472,6 +664,37 @@ describe("sendParentMessage", () => {
     expect(log[0]?.role).toBe("parent");
     expect(log[0]?.sessionId).toBe(profile.sessions.parent);
     expect(log[0]?.mode).toBe("start");
+  });
+
+  it("does not look up kid project files for a parent start-mode turn", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    const result = await sendParentMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "summarize",
+      spawn,
+    });
+
+    expect(result.ok).toBe(true);
+    const args = spawnArgs[0] as string[];
+    const promptArg = args[args.indexOf("-p") + 1];
+    expect(promptArg).toMatch(/mode:\s*parent/);
+    expect(promptArg).not.toContain("project_files");
   });
 
   it("uses start mode for the parent session even after the kid session has succeeded", async () => {

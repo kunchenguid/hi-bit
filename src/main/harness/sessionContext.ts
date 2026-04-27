@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { Profile } from "@shared/profile";
 import type { SessionRole } from "@shared/sessionLog";
 import type { HarnessInvocationMode } from "./command";
@@ -6,6 +7,7 @@ export type BuildSessionContextOptions = {
   role: SessionRole;
   profile: Profile;
   profileDir: string;
+  projectFiles?: string[];
 };
 
 export function buildSessionContextPreamble(opts: BuildSessionContextOptions): string {
@@ -15,6 +17,7 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
       ? profile.interests.map((i) => JSON.stringify(i)).join(", ")
       : "none listed";
   const currentDream = profile.currentDreamId ?? "no dream chosen yet";
+  const projectLines = buildProjectLines(profile, profileDir, opts.projectFiles);
 
   if (role === "kid") {
     return [
@@ -23,6 +26,7 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
       `kid: { name: ${JSON.stringify(profile.name)}, age: ${profile.age}, interests: [${interests}] }`,
       `profile_dir: ${profileDir}`,
       `current_dream: ${currentDream}`,
+      ...projectLines,
       "",
       "You are Bit, the tutor defined in CLAUDE.md / AGENTS.md in your working directory. You are speaking to the kid, not to a developer. Stay in character at all times. Before replying, read state.md and progress.json in the profile directory above for continuity. Never narrate filesystem state, session infrastructure, or agent internals to the kid. If a file is missing, recover silently and keep the conversation natural.",
       "</hibit-context>",
@@ -41,6 +45,25 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
     "</hibit-context>",
     "",
   ].join("\n");
+}
+
+function buildProjectLines(
+  profile: Profile,
+  profileDir: string,
+  projectFiles: string[] | undefined,
+): string[] {
+  if (!profile.currentDreamId) return [];
+  const files = projectFiles ?? [];
+  const lines = [
+    `project_dir: ${join(profileDir, "projects", profile.currentDreamId)}`,
+    `project_files: ${JSON.stringify(files)}`,
+  ];
+  if (files.includes("index.html")) {
+    lines.push(
+      "starter_note: index.html already exists; do not ask the kid to create it. Help them open and change the existing file.",
+    );
+  }
+  return lines;
 }
 
 export type WithSessionContextOptions = BuildSessionContextOptions & {
