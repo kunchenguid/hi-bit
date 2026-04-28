@@ -64,7 +64,7 @@ Groupings below are authoring conveniences, not kid-facing categories. A kid nev
 | id | title_parent | title_kid |
 |---|---|---|
 | `html-doc-shell` | HTML document shell | the frame that holds your page |
-| `run-and-preview` | Using the Run button and live preview | running your code and seeing what happens |
+| `run-and-preview` | Using See my page and the live preview | running your code and seeing what happens |
 
 ### HTML
 

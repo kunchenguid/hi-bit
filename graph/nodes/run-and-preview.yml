@@ -1,12 +1,12 @@
 id: run-and-preview
-title_parent: Using the Run button and live preview
+title_parent: Using See my page and the live preview
 title_kid: running your code and seeing what happens
-why_kid: this is how you watch your page come to life - press the button and your code turns into a real page on the right.
+why_kid: this is how you watch your page come to life - press See my page and your code turns into a real page.
 area: html
 prereqs: []
-introduces: [run-button, live-preview, edit-run-loop]
+introduces: [see-my-page, page-view, split-view, live-preview, edit-preview-loop]
 mastery_signals:
-  saw_it: Bit had the kid press Run after a tiny change and pointed to what showed up on the right side.
-  did_with_help: Kid pressed Run after an edit with Bit reminding them where the button is and what to look for.
-  did_unprompted: Kid pressed Run on their own after making a change, to see what happened.
-  explained_it: Kid described Run as the button that shows their code as a real page, or said that the right side is what their code looks like to a visitor.
+  saw_it: Bit had the kid press See my page after a tiny change and pointed to what showed up in Page view.
+  did_with_help: Kid pressed See my page after an edit with Bit reminding them where the button is and what to look for.
+  did_unprompted: Kid pressed See my page on their own after making a change, to see what happened.
+  explained_it: Kid described See my page as the button that shows their code as a real page, or said that Split view shows code and page together.
