@@ -1296,7 +1296,8 @@ pre,
   max-width: 84%;
 }
 .hb-chat-row-kid {
-  align-self: flex-end;
+  align-self: stretch;
+  justify-content: flex-end;
 }
 .hb-chat-avatar {
   width: 36px;
