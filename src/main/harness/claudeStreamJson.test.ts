@@ -145,6 +145,27 @@ describe("parseClaudeStreamJson", () => {
     expect(parsed.errorMessage).toBeNull();
   });
 
+  it("falls back to streamed text deltas when result.result is empty on success", () => {
+    const stdout = jsonl(
+      {
+        type: "stream_event",
+        event: { type: "content_block_delta", delta: { type: "text_delta", text: "Nice save. " } },
+      },
+      {
+        type: "stream_event",
+        event: {
+          type: "content_block_delta",
+          delta: { type: "text_delta", text: "Add a green square next." },
+        },
+      },
+      { ...successResult, result: "" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("Nice save. Add a green square next.");
+    expect(parsed.isError).toBe(false);
+    expect(parsed.errorMessage).toBeNull();
+  });
+
   it("prefers result.result over assistant message text when both are present", () => {
     const stdout = jsonl(
       {

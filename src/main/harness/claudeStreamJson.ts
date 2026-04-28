@@ -38,6 +38,16 @@ type AssistantEvent = {
   };
 };
 
+type StreamEvent = {
+  type: "stream_event";
+  event?: {
+    type?: string;
+    delta?: {
+      text?: string;
+    };
+  };
+};
+
 function isResultEvent(value: unknown): value is ResultEvent {
   return (
     typeof value === "object" && value !== null && (value as { type?: unknown }).type === "result"
@@ -49,6 +59,14 @@ function isAssistantEvent(value: unknown): value is AssistantEvent {
     typeof value === "object" &&
     value !== null &&
     (value as { type?: unknown }).type === "assistant"
+  );
+}
+
+function isStreamEvent(value: unknown): value is StreamEvent {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { type?: unknown }).type === "stream_event"
   );
 }
 
@@ -64,7 +82,7 @@ function extractAssistantText(ev: AssistantEvent): string {
 
 export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
   let lastResult: ResultEvent | null = null;
-  const assistantTextParts: string[] = [];
+  const fallbackTextParts: string[] = [];
 
   for (const rawLine of stdout.split("\n")) {
     const line = rawLine.trim();
@@ -81,7 +99,13 @@ export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
     }
     if (isAssistantEvent(parsed)) {
       const text = extractAssistantText(parsed);
-      if (text) assistantTextParts.push(text);
+      if (text) fallbackTextParts.push(text);
+      continue;
+    }
+    if (isStreamEvent(parsed)) {
+      const text =
+        parsed.event?.type === "content_block_delta" ? parsed.event.delta?.text : undefined;
+      if (typeof text === "string" && text.length > 0) fallbackTextParts.push(text);
     }
   }
 
@@ -100,7 +124,7 @@ export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
   const subtype = lastResult.subtype ?? "";
   const isError = lastResult.is_error === true || subtype !== "success";
   const resultText = typeof lastResult.result === "string" ? lastResult.result : "";
-  const text = !isError && resultText.length === 0 ? assistantTextParts.join("") : resultText;
+  const text = !isError && resultText.length === 0 ? fallbackTextParts.join("") : resultText;
 
   return {
     text,
