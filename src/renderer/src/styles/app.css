@@ -1333,6 +1333,7 @@ pre,
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 6px;
   padding: 4px 6px;
   background: rgba(255, 253, 245, 0.04);
   border-bottom: 1px solid rgba(255, 253, 245, 0.08);
@@ -1387,6 +1388,28 @@ pre,
   color: #fffdf5;
   line-height: 1.2;
   pointer-events: none;
+}
+.hb-chat-md-show-where {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(255, 253, 245, 0.4);
+  background: rgba(255, 253, 245, 0.12);
+  color: #fffdf5;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.hb-chat-md-show-where:hover:not(:disabled) {
+  background: rgba(255, 253, 245, 0.22);
+}
+.hb-chat-md-show-where:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.hb-chat-md-show-where:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 .hb-chat-md-code {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
@@ -1453,17 +1476,9 @@ pre,
   padding: 6px 14px;
   font-size: 14px;
 }
-.hb-chat-cursor-target {
-  align-self: flex-start;
-  display: grid;
-  gap: 6px;
-  margin-top: var(--s-1);
-}
-.hb-chat-cursor-target-btn {
-  justify-self: flex-start;
-}
 .hb-chat-cursor-target-error {
-  margin: 0;
+  align-self: flex-start;
+  margin: var(--s-1) 0 0;
   color: var(--danger);
   font-size: 12px;
   font-weight: 600;
@@ -1843,6 +1858,10 @@ pre,
   line-height: 1.2;
   animation: hb-editor-cursor-marker-pop 900ms ease-in-out infinite alternate;
   vertical-align: middle;
+  /* The marker is a hint, not a target. Letting clicks fall through keeps the
+     editor's cursor focused on the spot the kid is about to type into. */
+  pointer-events: none;
+  user-select: none;
 }
 @keyframes hb-editor-cursor-marker-pop {
   from {

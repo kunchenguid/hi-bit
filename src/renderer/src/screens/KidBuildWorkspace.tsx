@@ -17,6 +17,8 @@ type Props = {
   onOpenProjects: () => void;
 };
 
+type PendingCursorRequest = { snippet: string; latestBitMessage: string };
+
 export function KidBuildWorkspace({
   profile,
   onEnterParentMode,
@@ -27,7 +29,9 @@ export function KidBuildWorkspace({
   const [cursorTarget, setCursorTarget] = useState<EditorCursorTarget | null>(null);
   const [cursorTargetStatus, setCursorTargetStatus] = useState<"idle" | "locating">("idle");
   const [cursorTargetError, setCursorTargetError] = useState<string | null>(null);
-  const [pendingCursorMessage, setPendingCursorMessage] = useState<string | null>(null);
+  const [pendingCursorRequest, setPendingCursorRequest] = useState<PendingCursorRequest | null>(
+    null,
+  );
   const projectStatus = useProjectsStore((s) => s.status);
   const projectProfileId = useProjectsStore((s) => s.profileId);
   const projectSlug = useProjectsStore((s) => s.slug);
@@ -36,7 +40,7 @@ export function KidBuildWorkspace({
     projectStatus === "ready" && projectProfileId === profile.id && projectSlug === dreamId;
 
   const locateCursorTarget = useCallback(
-    async (latestBitMessage: string): Promise<void> => {
+    async ({ snippet, latestBitMessage }: PendingCursorRequest): Promise<void> => {
       const { activeFileName, buffers, profileId, slug } = useProjectsStore.getState();
       if (profileId !== profile.id || slug !== dreamId) return;
       const activeBuffer = buffers.find((buffer) => buffer.name === activeFileName);
@@ -73,6 +77,7 @@ export function KidBuildWorkspace({
           filename: activeBuffer.name,
           editorContent: activeBuffer.content,
           latestBitMessage,
+          snippet,
         });
         if (!result.ok) {
           if (showLocalFallback()) return;
@@ -109,6 +114,7 @@ export function KidBuildWorkspace({
           filename: freshBuffer.name,
           position: position.position,
           requestId: Date.now(),
+          label: parsed.markerLabel,
         });
       } catch (err) {
         if (showLocalFallback()) return;
@@ -121,33 +127,33 @@ export function KidBuildWorkspace({
     [dreamId, profile.id],
   );
 
-  async function handleShowCursorTarget(latestBitMessage: string): Promise<void> {
+  async function handleShowCursorTarget(snippet: string, latestBitMessage: string): Promise<void> {
     if (cursorTargetStatus === "locating") return;
     if (!editorRevealed || !projectReadyForProfile) {
       setCursorTargetError(null);
       setCursorTargetStatus("locating");
-      setPendingCursorMessage(latestBitMessage);
+      setPendingCursorRequest({ snippet, latestBitMessage });
       setEditorRevealed(true);
       return;
     }
-    await locateCursorTarget(latestBitMessage);
+    await locateCursorTarget({ snippet, latestBitMessage });
   }
 
   useEffect(() => {
-    if (!pendingCursorMessage) return;
+    if (!pendingCursorRequest) return;
     if (!editorRevealed) return;
     if (projectStatus === "error") {
-      setPendingCursorMessage(null);
+      setPendingCursorRequest(null);
       setCursorTargetStatus("idle");
       setCursorTargetError("Open a file first, then Bit can point to the spot.");
       return;
     }
     if (!projectReadyForProfile) return;
-    const message = pendingCursorMessage;
-    setPendingCursorMessage(null);
-    void locateCursorTarget(message);
+    const request = pendingCursorRequest;
+    setPendingCursorRequest(null);
+    void locateCursorTarget(request);
   }, [
-    pendingCursorMessage,
+    pendingCursorRequest,
     editorRevealed,
     projectStatus,
     projectReadyForProfile,

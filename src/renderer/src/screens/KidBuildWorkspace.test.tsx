@@ -128,6 +128,14 @@ describe("KidBuildWorkspace cursor target", () => {
       button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
+    expect(window.hibit.requestCursorMarker).toHaveBeenCalledWith(
+      profile.id,
+      expect.objectContaining({
+        snippet: "<h1>New</h1>",
+        latestBitMessage: "Replace the heading with this:\n\n```html\n<h1>New</h1>\n```",
+      }),
+    );
+
     useProjectsStore.getState().updateBuffer("index.html", "<main><h1>New</h1></main>");
 
     await act(async () => {

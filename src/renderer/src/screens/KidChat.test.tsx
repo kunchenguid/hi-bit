@@ -57,18 +57,29 @@ describe("KidChat cursor target action", () => {
     useProgressStore.getState().reset();
   });
 
-  it("shows Show me where before the editor is docked", async () => {
+  it("shows Show me where on each code block of the latest Bit message", async () => {
+    useChatStore.setState({
+      messages: [
+        {
+          id: "bit-2",
+          role: "bit",
+          kind: "text",
+          text: "Change your button line:\n\n```html\n<button>Play</button>\n```\n\nThen right before `</body>`:\n\n```html\n<script>play()</script>\n```",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    });
     const onShowCursorTarget = vi.fn(async () => {});
 
     await act(async () => {
       root.render(<KidChat profile={profile} onShowCursorTarget={onShowCursorTarget} />);
     });
 
-    const button = Array.from(host.querySelectorAll("button")).find(
+    const buttons = Array.from(host.querySelectorAll("button")).filter(
       (el) => el.textContent === "Show me where",
     );
 
-    expect(button).toBeTruthy();
+    expect(buttons).toHaveLength(2);
   });
 
   it("hides Show me where when the latest Bit message has no code block", async () => {
@@ -96,24 +107,68 @@ describe("KidChat cursor target action", () => {
     expect(button).toBeUndefined();
   });
 
-  it("sends the latest Bit message when Show me where is clicked before docking", async () => {
+  it("does not show Show me where on older Bit messages", async () => {
+    useChatStore.setState({
+      messages: [
+        {
+          id: "bit-old",
+          role: "bit",
+          kind: "text",
+          text: "Old step:\n\n```html\n<h1>Old</h1>\n```",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "bit-new",
+          role: "bit",
+          kind: "text",
+          text: "New step. No code here.",
+          timestamp: "2026-01-01T00:00:01.000Z",
+        },
+      ],
+    });
     const onShowCursorTarget = vi.fn(async () => {});
 
     await act(async () => {
       root.render(<KidChat profile={profile} onShowCursorTarget={onShowCursorTarget} />);
     });
 
-    const button = Array.from(host.querySelectorAll("button")).find(
+    const buttons = Array.from(host.querySelectorAll("button")).filter(
       (el) => el.textContent === "Show me where",
     );
-    if (!button) throw new Error("Show me where button was not rendered");
+    expect(buttons).toHaveLength(0);
+  });
+
+  it("passes the clicked snippet and the full Bit message to the handler", async () => {
+    useChatStore.setState({
+      messages: [
+        {
+          id: "bit-3",
+          role: "bit",
+          kind: "text",
+          text: "Change your button line:\n\n```html\n<button>Play</button>\n```\n\nThen right before `</body>`:\n\n```html\n<script>play()</script>\n```",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+    const onShowCursorTarget = vi.fn(async () => {});
 
     await act(async () => {
-      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      root.render(<KidChat profile={profile} onShowCursorTarget={onShowCursorTarget} />);
     });
 
+    const buttons = Array.from(host.querySelectorAll("button")).filter(
+      (el) => el.textContent === "Show me where",
+    );
+    if (buttons.length < 2) throw new Error("Expected two Show me where buttons");
+
+    await act(async () => {
+      buttons[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onShowCursorTarget).toHaveBeenCalledTimes(1);
     expect(onShowCursorTarget).toHaveBeenCalledWith(
-      "Replace line 9 with this button:\n\n```html\n<button>Play</button>\n```",
+      "<script>play()</script>",
+      "Change your button line:\n\n```html\n<button>Play</button>\n```\n\nThen right before `</body>`:\n\n```html\n<script>play()</script>\n```",
     );
   });
 });

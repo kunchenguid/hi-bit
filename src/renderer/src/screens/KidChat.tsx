@@ -13,7 +13,7 @@ import { canRetryLastKidMessage, useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
 import { useProfileStore } from "../state/profileStore";
 import { useProgressStore } from "../state/progressStore";
-import { ChatMarkdown, parseMarkdown } from "./chatMarkdown";
+import { ChatMarkdown } from "./chatMarkdown";
 import { describeKidDreamProgress } from "./kidDreamProgress";
 import { messageHasEditorCue } from "./kidEditorCue";
 import { buildKidGreetingText } from "./kidGreeting";
@@ -28,7 +28,7 @@ import { chooseNextSuggestion } from "./parent/nextKpSuggestion";
 type Props = {
   profile: Profile;
   onOpenEditor?: () => void;
-  onShowCursorTarget?: (latestBitMessage: string) => Promise<void>;
+  onShowCursorTarget?: (snippet: string, latestBitMessage: string) => Promise<void>;
   onEnterParentMode?: () => void;
   onSwitchDream?: () => void;
   onOpenProjects?: () => void;
@@ -371,12 +371,14 @@ export function KidChat({
             m.kind !== "error" &&
             !!onOpenEditor &&
             messageHasEditorCue(m.text);
-          const showCursorCta =
-            m.id === lastBitTextMessageId &&
-            m.role === "bit" &&
-            m.kind === "text" &&
-            parseMarkdown(m.text).some((block) => block.type === "code-block") &&
-            !!onShowCursorTarget;
+          const isLatestBitText =
+            m.id === lastBitTextMessageId && m.role === "bit" && m.kind === "text";
+          const onBlockShowCursor =
+            onShowCursorTarget && isLatestBitText && status !== "sending"
+              ? (snippet: string) => {
+                  void onShowCursorTarget(snippet, m.text);
+                }
+              : undefined;
           return (
             <div
               key={m.id}
@@ -388,7 +390,15 @@ export function KidChat({
                 {m.role === "kid" ? profile.name : "Bit"}
               </div>
               <div className="hb-chat-msg-body">
-                {m.role === "bit" && m.kind !== "error" ? <ChatMarkdown text={m.text} /> : m.text}
+                {m.role === "bit" && m.kind !== "error" ? (
+                  <ChatMarkdown
+                    text={m.text}
+                    onShowCursorTarget={onBlockShowCursor}
+                    cursorTargetStatus={cursorTargetStatus}
+                  />
+                ) : (
+                  m.text
+                )}
               </div>
               {showEditorCta ? (
                 <button
@@ -399,22 +409,8 @@ export function KidChat({
                   Open the editor
                 </button>
               ) : null}
-              {showCursorCta ? (
-                <div className="hb-chat-cursor-target">
-                  <button
-                    type="button"
-                    className="hb-btn hb-btn-ghost hb-btn-sm hb-chat-cursor-target-btn"
-                    onClick={() => {
-                      void onShowCursorTarget?.(m.text);
-                    }}
-                    disabled={status === "sending" || cursorTargetStatus === "locating"}
-                  >
-                    {cursorTargetStatus === "locating" ? "Finding..." : "Show me where"}
-                  </button>
-                  {cursorTargetError ? (
-                    <p className="hb-chat-cursor-target-error">{cursorTargetError}</p>
-                  ) : null}
-                </div>
+              {isLatestBitText && cursorTargetError ? (
+                <p className="hb-chat-cursor-target-error">{cursorTargetError}</p>
               ) : null}
               {isLastError && canRetry ? (
                 <button

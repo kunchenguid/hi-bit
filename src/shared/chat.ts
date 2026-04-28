@@ -6,4 +6,5 @@ export type CursorMarkerRequest = {
   filename: string;
   editorContent: string;
   latestBitMessage: string;
+  snippet: string;
 };
