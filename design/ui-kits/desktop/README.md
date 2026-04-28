@@ -4,7 +4,7 @@ The Electron app recreated as an interactive in-browser prototype. Five surfaces
 
 - **Home** — Boo greets the learner, a "continue" card resumes the current lesson, a rainbow grid picks a subject.
 - **Tutor** — Boo chat view. Try typing `let` to see a correct-answer flow; `var` or `const` for gentle redirection; anything else for a nudge. XP is awarded on success.
-- **Code** — code editor + live preview, runs HTML/CSS/JS in an iframe. "Run" button awards XP on first run.
+- **Code** — code editor + live preview with Code, Page, and Split views. "See my page" runs HTML/CSS/JS in an iframe; preview can be refreshed after edits.
 - **Lessons / Trophies** — stubbed simple views (real product would expand).
 
 ### Components
@@ -14,7 +14,7 @@ The Electron app recreated as an interactive in-browser prototype. Five surfaces
 | `Sidebar.jsx` | App nav, level chip, XP bar, streak pill |
 | `HomeScreen.jsx` | Dashboard: hero, continue card, subject cards grid |
 | `TutorScreen.jsx` | Boo chat with suggestion chips + composer |
-| `EditorScreen.jsx` | Dual-pane code editor + iframe preview |
+| `EditorScreen.jsx` | Code editor + iframe preview with Code/Page/Split view toggle |
 | `XpToast.jsx` | "+N XP" pop with bounce easing |
 | `styles.css` | All kit styles; reads tokens from `../../colors_and_type.css` |
 
