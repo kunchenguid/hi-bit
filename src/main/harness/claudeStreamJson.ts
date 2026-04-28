@@ -82,7 +82,9 @@ function extractAssistantText(ev: AssistantEvent): string {
 
 export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
   let lastResult: ResultEvent | null = null;
-  const fallbackTextParts: string[] = [];
+  let lastFallbackText = "";
+  const assistantTextParts: string[] = [];
+  const streamTextParts: string[] = [];
 
   for (const rawLine of stdout.split("\n")) {
     const line = rawLine.trim();
@@ -94,18 +96,22 @@ export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
       continue;
     }
     if (isResultEvent(parsed)) {
+      lastFallbackText =
+        assistantTextParts.length > 0 ? assistantTextParts.join("") : streamTextParts.join("");
+      assistantTextParts.length = 0;
+      streamTextParts.length = 0;
       lastResult = parsed;
       continue;
     }
     if (isAssistantEvent(parsed)) {
       const text = extractAssistantText(parsed);
-      if (text) fallbackTextParts.push(text);
+      if (text) assistantTextParts.push(text);
       continue;
     }
     if (isStreamEvent(parsed)) {
       const text =
         parsed.event?.type === "content_block_delta" ? parsed.event.delta?.text : undefined;
-      if (typeof text === "string" && text.length > 0) fallbackTextParts.push(text);
+      if (typeof text === "string" && text.length > 0) streamTextParts.push(text);
     }
   }
 
@@ -124,7 +130,7 @@ export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
   const subtype = lastResult.subtype ?? "";
   const isError = lastResult.is_error === true || subtype !== "success";
   const resultText = typeof lastResult.result === "string" ? lastResult.result : "";
-  const text = !isError && resultText.length === 0 ? fallbackTextParts.join("") : resultText;
+  const text = !isError && resultText.length === 0 ? lastFallbackText : resultText;
 
   return {
     text,

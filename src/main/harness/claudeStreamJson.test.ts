@@ -166,6 +166,44 @@ describe("parseClaudeStreamJson", () => {
     expect(parsed.errorMessage).toBeNull();
   });
 
+  it("uses fallback text associated with the last result event only", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "first reply" }] },
+      },
+      { ...successResult, result: "" },
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "second reply" }] },
+      },
+      { ...successResult, result: "", usage: { ...successResult.usage, output_tokens: 22 } },
+    );
+
+    const parsed = parseClaudeStreamJson(stdout);
+
+    expect(parsed.text).toBe("second reply");
+    expect(parsed.usage?.outputTokens).toBe(22);
+  });
+
+  it("does not duplicate fallback text when assistant and stream events both carry it", () => {
+    const stdout = jsonl(
+      {
+        type: "stream_event",
+        event: { type: "content_block_delta", delta: { type: "text_delta", text: "Same reply" } },
+      },
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "Same reply" }] },
+      },
+      { ...successResult, result: "" },
+    );
+
+    const parsed = parseClaudeStreamJson(stdout);
+
+    expect(parsed.text).toBe("Same reply");
+  });
+
   it("prefers result.result over assistant message text when both are present", () => {
     const stdout = jsonl(
       {
