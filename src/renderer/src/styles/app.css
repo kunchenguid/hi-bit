@@ -1900,9 +1900,6 @@ pre,
   box-shadow: var(--shadow-soft-lg);
   padding: var(--s-3);
 }
-.hb-editor-preview > .hb-editor-iframe {
-  flex: 1 1 0;
-}
 .hb-editor-preview-header {
   display: flex;
   align-items: center;
@@ -1927,6 +1924,9 @@ pre,
   border: 1px solid var(--ink-12);
   border-radius: var(--r-md);
   min-height: 240px;
+}
+.hb-editor-preview > .hb-editor-iframe {
+  flex: 1 1 0;
 }
 
 /* ---------- Build workspace (chat docked alongside editor) ---------- */
