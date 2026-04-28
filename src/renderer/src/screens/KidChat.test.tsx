@@ -82,6 +82,48 @@ describe("KidChat cursor target action", () => {
     expect(buttons).toHaveLength(2);
   });
 
+  it("shows the empty chat mascot before the first message", async () => {
+    useChatStore.setState({ messages: [] });
+
+    await act(async () => {
+      root.render(<KidChat profile={profile} onShowCursorTarget={vi.fn()} />);
+    });
+
+    const mascot = host.querySelector<HTMLImageElement>(".hb-chat-empty-mascot");
+
+    expect(mascot).not.toBeNull();
+    expect(mascot?.getAttribute("aria-hidden")).toBe("true");
+    expect(mascot?.alt).toBe("");
+  });
+
+  it("shows an avatar beside Bit messages without adding one to kid messages", async () => {
+    useChatStore.setState({
+      messages: [
+        {
+          id: "bit-hello",
+          role: "bit",
+          kind: "text",
+          text: "Hi Ada!",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "kid-hello",
+          role: "kid",
+          kind: "text",
+          text: "Hi Bit!",
+          timestamp: "2026-01-01T00:00:01.000Z",
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<KidChat profile={profile} onShowCursorTarget={vi.fn()} />);
+    });
+
+    expect(host.querySelectorAll(".hb-chat-row-bit .hb-chat-avatar")).toHaveLength(1);
+    expect(host.querySelectorAll(".hb-chat-row-kid .hb-chat-avatar")).toHaveLength(0);
+  });
+
   it("hides Show me where when the latest Bit message has no code block", async () => {
     useChatStore.setState({
       messages: [
