@@ -21,4 +21,18 @@ describe("buildCursorMarkerPrompt", () => {
     expect(prompt).toContain("<button>Play</button>");
     expect(prompt).toContain("snippet");
   });
+
+  it("tells the agent the marker is visual-only and can land anywhere, including mid-tag", () => {
+    const prompt = buildCursorMarkerPrompt({
+      filename: "index.html",
+      editorContent: '<canvas id="game" width="400" height="400"></canvas>',
+      latestBitMessage: "Add style='border: 2px solid black' right before the closing >.",
+      snippet: "style='border: 2px solid black'",
+    });
+
+    expect(prompt.toLowerCase()).toContain("visual");
+    expect(prompt.toLowerCase()).toContain("not saved");
+    expect(prompt.toLowerCase()).toMatch(/inside (an html )?tag|mid-?tag|between attributes/);
+    expect(prompt.toLowerCase()).not.toContain("safe place");
+  });
 });

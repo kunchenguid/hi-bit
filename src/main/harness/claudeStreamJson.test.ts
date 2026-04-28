@@ -121,4 +121,110 @@ describe("parseClaudeStreamJson", () => {
     expect(parsed.text).toBe("ok");
     expect(parsed.usage).toBeNull();
   });
+
+  it("falls back to assistant message text when result.result is empty on success", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: {
+          content: [
+            { type: "text", text: "Nice save. " },
+            { type: "tool_use", name: "Read", input: { file_path: "index.html" } },
+          ],
+        },
+      },
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "Add a green square next." }] },
+      },
+      { ...successResult, result: "" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("Nice save. Add a green square next.");
+    expect(parsed.isError).toBe(false);
+    expect(parsed.errorMessage).toBeNull();
+  });
+
+  it("falls back to streamed text deltas when result.result is empty on success", () => {
+    const stdout = jsonl(
+      {
+        type: "stream_event",
+        event: { type: "content_block_delta", delta: { type: "text_delta", text: "Nice save. " } },
+      },
+      {
+        type: "stream_event",
+        event: {
+          type: "content_block_delta",
+          delta: { type: "text_delta", text: "Add a green square next." },
+        },
+      },
+      { ...successResult, result: "" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("Nice save. Add a green square next.");
+    expect(parsed.isError).toBe(false);
+    expect(parsed.errorMessage).toBeNull();
+  });
+
+  it("uses fallback text associated with the last result event only", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "first reply" }] },
+      },
+      { ...successResult, result: "" },
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "second reply" }] },
+      },
+      { ...successResult, result: "", usage: { ...successResult.usage, output_tokens: 22 } },
+    );
+
+    const parsed = parseClaudeStreamJson(stdout);
+
+    expect(parsed.text).toBe("second reply");
+    expect(parsed.usage?.outputTokens).toBe(22);
+  });
+
+  it("does not duplicate fallback text when assistant and stream events both carry it", () => {
+    const stdout = jsonl(
+      {
+        type: "stream_event",
+        event: { type: "content_block_delta", delta: { type: "text_delta", text: "Same reply" } },
+      },
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "Same reply" }] },
+      },
+      { ...successResult, result: "" },
+    );
+
+    const parsed = parseClaudeStreamJson(stdout);
+
+    expect(parsed.text).toBe("Same reply");
+  });
+
+  it("prefers result.result over assistant message text when both are present", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "intermediate thinking" }] },
+      },
+      { ...successResult, result: "final answer" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("final answer");
+  });
+
+  it("still flags an error when result.result is empty and no assistant text was emitted", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: { content: [{ type: "tool_use", name: "Read", input: {} }] },
+      },
+      { ...successResult, result: "" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("");
+  });
 });

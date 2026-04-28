@@ -31,14 +31,60 @@ type ResultEvent = {
   };
 };
 
+type AssistantEvent = {
+  type: "assistant";
+  message?: {
+    content?: Array<{ type?: string; text?: string }>;
+  };
+};
+
+type StreamEvent = {
+  type: "stream_event";
+  event?: {
+    type?: string;
+    delta?: {
+      text?: string;
+    };
+  };
+};
+
 function isResultEvent(value: unknown): value is ResultEvent {
   return (
     typeof value === "object" && value !== null && (value as { type?: unknown }).type === "result"
   );
 }
 
+function isAssistantEvent(value: unknown): value is AssistantEvent {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { type?: unknown }).type === "assistant"
+  );
+}
+
+function isStreamEvent(value: unknown): value is StreamEvent {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { type?: unknown }).type === "stream_event"
+  );
+}
+
+function extractAssistantText(ev: AssistantEvent): string {
+  const blocks = ev.message?.content;
+  if (!Array.isArray(blocks)) return "";
+  const parts: string[] = [];
+  for (const block of blocks) {
+    if (block?.type === "text" && typeof block.text === "string") parts.push(block.text);
+  }
+  return parts.join("");
+}
+
 export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
   let lastResult: ResultEvent | null = null;
+  let lastFallbackText = "";
+  const assistantTextParts: string[] = [];
+  const streamTextParts: string[] = [];
 
   for (const rawLine of stdout.split("\n")) {
     const line = rawLine.trim();
@@ -49,7 +95,24 @@ export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
     } catch {
       continue;
     }
-    if (isResultEvent(parsed)) lastResult = parsed;
+    if (isResultEvent(parsed)) {
+      lastFallbackText =
+        assistantTextParts.length > 0 ? assistantTextParts.join("") : streamTextParts.join("");
+      assistantTextParts.length = 0;
+      streamTextParts.length = 0;
+      lastResult = parsed;
+      continue;
+    }
+    if (isAssistantEvent(parsed)) {
+      const text = extractAssistantText(parsed);
+      if (text) assistantTextParts.push(text);
+      continue;
+    }
+    if (isStreamEvent(parsed)) {
+      const text =
+        parsed.event?.type === "content_block_delta" ? parsed.event.delta?.text : undefined;
+      if (typeof text === "string" && text.length > 0) streamTextParts.push(text);
+    }
   }
 
   if (!lastResult) {
@@ -66,13 +129,14 @@ export function parseClaudeStreamJson(stdout: string): ParsedClaudeStream {
 
   const subtype = lastResult.subtype ?? "";
   const isError = lastResult.is_error === true || subtype !== "success";
-  const text = typeof lastResult.result === "string" ? lastResult.result : "";
+  const resultText = typeof lastResult.result === "string" ? lastResult.result : "";
+  const text = !isError && resultText.length === 0 ? lastFallbackText : resultText;
 
   return {
     text,
     usage: extractUsage(lastResult.usage),
     isError,
-    errorMessage: isError ? text || `claude result subtype="${subtype}"` : null,
+    errorMessage: isError ? resultText || `claude result subtype="${subtype}"` : null,
     numTurns: typeof lastResult.num_turns === "number" ? lastResult.num_turns : null,
     durationApiMs:
       typeof lastResult.duration_api_ms === "number" ? lastResult.duration_api_ms : null,
