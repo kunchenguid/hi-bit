@@ -134,6 +134,40 @@ describe("CodeEditor cursor marker", () => {
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Page");
   });
 
+  it("reveals the editor when a cursor target arrives in page mode", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    await act(async () => {
+      root.render(
+        <CodeEditor
+          profile={profile}
+          docked
+          cursorTarget={{ filename: "index.html", position: 4, requestId: 456 }}
+        />,
+      );
+    });
+
+    const editorPane = host.querySelector('[aria-label="Code editor"]');
+    const previewPane = host.querySelector('[aria-label="Live preview"]');
+
+    expect(editorPane?.hasAttribute("hidden")).toBe(false);
+    expect((editorPane as HTMLElement | null)?.style.display).toBe("");
+    expect(previewPane?.hasAttribute("hidden")).toBe(false);
+    expect((previewPane as HTMLElement | null)?.style.display).toBe("");
+    expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Split");
+  });
+
   it("can show editor and preview together in split mode", async () => {
     await act(async () => {
       root.render(<CodeEditor profile={profile} docked />);

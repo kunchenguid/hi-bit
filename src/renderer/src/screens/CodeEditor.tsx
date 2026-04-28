@@ -120,10 +120,10 @@ export function CodeEditor({
 
   useEffect(() => {
     if (!cursorTarget) return;
-    if (cursorTarget.filename === activeFileName) return;
     if (!buffers.some((b) => b.name === cursorTarget.filename)) return;
-    setActiveFile(cursorTarget.filename);
-  }, [cursorTarget, activeFileName, buffers, setActiveFile]);
+    if (viewMode === "preview") setViewMode("split");
+    if (cursorTarget.filename !== activeFileName) setActiveFile(cursorTarget.filename);
+  }, [cursorTarget, activeFileName, buffers, setActiveFile, viewMode]);
 
   async function handleSave(): Promise<void> {
     if (!activeBuffer) return;
