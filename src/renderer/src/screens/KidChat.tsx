@@ -1,3 +1,5 @@
+import mascotAvatarUrl from "@design/assets/logo-mark.svg";
+import mascotBooUrl from "@design/assets/mascot-boo.svg";
 import type { Dream } from "@shared/dreams";
 import type { Profile } from "@shared/profile";
 import {
@@ -350,9 +352,19 @@ export function KidChat({
           <p className="hb-chat-empty">Loading your last chat with Bit...</p>
         ) : null}
         {hydrateStatus !== "loading" && messages.length === 0 ? (
-          <p className="hb-chat-empty">
-            Say hi to Bit when you're ready. Bit will greet you and tell you the first move.
-          </p>
+          <div className="hb-chat-empty">
+            <img
+              className="hb-chat-empty-mascot"
+              src={mascotBooUrl}
+              alt=""
+              aria-hidden="true"
+              width={160}
+              height={160}
+            />
+            <p className="hb-chat-empty-text">
+              Say hi to Bit when you're ready. Bit will greet you and tell you the first move.
+            </p>
+          </div>
         ) : null}
         {messages.map((m, idx) => {
           if (m.role === "system" && m.kind === "divider") {
@@ -379,9 +391,8 @@ export function KidChat({
                   void onShowCursorTarget(snippet, m.text);
                 }
               : undefined;
-          return (
+          const bubble = (
             <div
-              key={m.id}
               className={`hb-chat-msg hb-chat-${m.role}${
                 m.kind === "error" ? " hb-chat-msg-error" : ""
               }`}
@@ -423,22 +434,47 @@ export function KidChat({
               ) : null}
             </div>
           );
+          if (m.role === "bit") {
+            return (
+              <div key={m.id} className="hb-chat-row hb-chat-row-bit">
+                <img
+                  className="hb-chat-avatar"
+                  src={mascotAvatarUrl}
+                  alt=""
+                  aria-hidden="true"
+                  width={36}
+                  height={36}
+                />
+                {bubble}
+              </div>
+            );
+          }
+          return (
+            <div key={m.id} className="hb-chat-row hb-chat-row-kid">
+              {bubble}
+            </div>
+          );
         })}
         {status === "sending" ? (
-          <div className="hb-chat-msg hb-chat-bit hb-chat-msg-pending">
-            <div className="hb-chat-msg-role t-pixel">Bit</div>
-            {streamingText && streamingText.length > 0 ? (
-              <div className="hb-chat-msg-body hb-chat-streaming">{streamingText}</div>
-            ) : (
-              <div className="hb-chat-msg-body hb-chat-thinking">
-                <span className="hb-chat-thinking-label">Bit is thinking</span>
-                <span className="hb-chat-thinking-dots" aria-hidden="true">
-                  <span className="hb-chat-thinking-dot" />
-                  <span className="hb-chat-thinking-dot" />
-                  <span className="hb-chat-thinking-dot" />
-                </span>
-              </div>
-            )}
+          <div className="hb-chat-row hb-chat-row-bit">
+            <img
+              className="hb-chat-avatar hb-chat-avatar-thinking"
+              src={mascotAvatarUrl}
+              alt=""
+              aria-hidden="true"
+              width={36}
+              height={36}
+            />
+            <div className="hb-chat-msg hb-chat-bit hb-chat-msg-pending">
+              <div className="hb-chat-msg-role t-pixel">Bit</div>
+              {streamingText && streamingText.length > 0 ? (
+                <div className="hb-chat-msg-body hb-chat-streaming">{streamingText}</div>
+              ) : (
+                <div className="hb-chat-msg-body hb-chat-thinking">
+                  <span className="hb-chat-thinking-label">Bit is thinking</span>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </div>

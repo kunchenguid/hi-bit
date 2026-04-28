@@ -1,3 +1,4 @@
+import mascotBooUrl from "@design/assets/mascot-boo.svg";
 import type { Profile } from "@shared/profile";
 import { type JSX, useEffect, useState } from "react";
 import { useProfileStore } from "../state/profileStore";
@@ -74,6 +75,14 @@ export function ProfileGate(): JSX.Element {
     return (
       <main className="hb-gate">
         <div className="hb-gate-card">
+          <img
+            className="hb-gate-mascot"
+            src={mascotBooUrl}
+            alt=""
+            aria-hidden="true"
+            width={120}
+            height={120}
+          />
           <div className="t-pixel hb-gate-kicker">
             {profiles.length === 0 ? "First time" : "New profile"}
           </div>
@@ -96,6 +105,14 @@ export function ProfileGate(): JSX.Element {
   return (
     <main className="hb-gate">
       <div className="hb-gate-card">
+        <img
+          className="hb-gate-mascot"
+          src={mascotBooUrl}
+          alt=""
+          aria-hidden="true"
+          width={120}
+          height={120}
+        />
         <div className="t-pixel hb-gate-kicker">Who's using Hi Bit?</div>
         <h1>Pick a profile.</h1>
         <ul className="hb-profile-list">
