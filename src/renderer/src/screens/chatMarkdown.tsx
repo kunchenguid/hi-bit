@@ -208,14 +208,34 @@ function isSafeHref(href: string): boolean {
   return false;
 }
 
-type ChatMarkdownProps = { text: string };
+type CursorTargetStatus = "idle" | "locating";
 
-export function ChatMarkdown({ text }: ChatMarkdownProps): JSX.Element {
+type ChatMarkdownProps = {
+  text: string;
+  onShowCursorTarget?: (snippet: string) => void;
+  cursorTargetStatus?: CursorTargetStatus;
+};
+
+type CodeBlockExtras = {
+  onShowCursorTarget?: (snippet: string) => void;
+  cursorTargetStatus?: CursorTargetStatus;
+};
+
+export function ChatMarkdown({
+  text,
+  onShowCursorTarget,
+  cursorTargetStatus,
+}: ChatMarkdownProps): JSX.Element {
   const blocks = parseMarkdown(text);
-  return <div className="hb-chat-md">{blocks.map((block, i) => renderBlock(block, i))}</div>;
+  const codeBlockExtras: CodeBlockExtras = { onShowCursorTarget, cursorTargetStatus };
+  return (
+    <div className="hb-chat-md">
+      {blocks.map((block, i) => renderBlock(block, i, codeBlockExtras))}
+    </div>
+  );
 }
 
-function renderBlock(block: MdBlock, key: number): ReactNode {
+function renderBlock(block: MdBlock, key: number, codeBlockExtras: CodeBlockExtras): ReactNode {
   if (block.type === "paragraph") {
     return (
       <p key={key} className="hb-chat-md-p">
@@ -239,7 +259,15 @@ function renderBlock(block: MdBlock, key: number): ReactNode {
     );
   }
   if (block.type === "code-block") {
-    return <CodeBlock key={key} text={block.text} practice={block.practice} />;
+    return (
+      <CodeBlock
+        key={key}
+        text={block.text}
+        practice={block.practice}
+        onShowCursorTarget={codeBlockExtras.onShowCursorTarget}
+        cursorTargetStatus={codeBlockExtras.cursorTargetStatus}
+      />
+    );
   }
   if (block.type === "list") {
     if (block.ordered) {
@@ -264,9 +292,19 @@ function renderBlock(block: MdBlock, key: number): ReactNode {
   return null;
 }
 
-type CodeBlockProps = { text: string; practice?: boolean };
+type CodeBlockProps = {
+  text: string;
+  practice?: boolean;
+  onShowCursorTarget?: (snippet: string) => void;
+  cursorTargetStatus?: CursorTargetStatus;
+};
 
-export function CodeBlock({ text, practice = false }: CodeBlockProps): JSX.Element {
+export function CodeBlock({
+  text,
+  practice = false,
+  onShowCursorTarget,
+  cursorTargetStatus = "idle",
+}: CodeBlockProps): JSX.Element {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -283,6 +321,9 @@ export function CodeBlock({ text, practice = false }: CodeBlockProps): JSX.Eleme
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => setCopied(false), 1500);
   }
+
+  const showCursorButton = !!onShowCursorTarget;
+  const locating = cursorTargetStatus === "locating";
 
   return (
     <div
@@ -303,6 +344,16 @@ export function CodeBlock({ text, practice = false }: CodeBlockProps): JSX.Eleme
             {copied ? "Copied!" : "Copy"}
           </button>
         )}
+        {showCursorButton ? (
+          <button
+            type="button"
+            className="hb-chat-md-show-where"
+            onClick={() => onShowCursorTarget?.(text)}
+            disabled={locating}
+          >
+            {locating ? "Finding..." : "Show me where"}
+          </button>
+        ) : null}
       </div>
       <pre className="hb-chat-md-pre">
         <code>{text}</code>

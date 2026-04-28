@@ -15,6 +15,7 @@ describe("parseCursorMarkerResponse", () => {
     expect(parsed).toEqual({
       ok: true,
       surroundingContentWithMarker: `<main>${BIT_CURSOR_MARKER}</main>`,
+      markerLabel: undefined,
     });
   });
 
@@ -24,6 +25,54 @@ describe("parseCursorMarkerResponse", () => {
     );
 
     expect(parsed).toEqual({ ok: false, error: "Bit did not return a cursor marker." });
+  });
+
+  it("returns Bit's marker_label when it fits in 16 characters", () => {
+    const parsed = parseCursorMarkerResponse(
+      JSON.stringify({
+        surrounding_content_with_marker: `<main>${BIT_CURSOR_MARKER}</main>`,
+        marker_label: "type your h1",
+      }),
+    );
+
+    expect(parsed).toEqual({
+      ok: true,
+      surroundingContentWithMarker: `<main>${BIT_CURSOR_MARKER}</main>`,
+      markerLabel: "type your h1",
+    });
+  });
+
+  it("trims whitespace before measuring the marker_label", () => {
+    const parsed = parseCursorMarkerResponse(
+      JSON.stringify({
+        surrounding_content_with_marker: `<main>${BIT_CURSOR_MARKER}</main>`,
+        marker_label: "  type here  ",
+      }),
+    );
+
+    expect(parsed).toMatchObject({ ok: true, markerLabel: "type here" });
+  });
+
+  it("drops a marker_label longer than 16 characters", () => {
+    const parsed = parseCursorMarkerResponse(
+      JSON.stringify({
+        surrounding_content_with_marker: `<main>${BIT_CURSOR_MARKER}</main>`,
+        marker_label: "this label is way too long",
+      }),
+    );
+
+    expect(parsed).toMatchObject({ ok: true, markerLabel: undefined });
+  });
+
+  it("drops an empty marker_label", () => {
+    const parsed = parseCursorMarkerResponse(
+      JSON.stringify({
+        surrounding_content_with_marker: `<main>${BIT_CURSOR_MARKER}</main>`,
+        marker_label: "   ",
+      }),
+    );
+
+    expect(parsed).toMatchObject({ ok: true, markerLabel: undefined });
   });
 });
 

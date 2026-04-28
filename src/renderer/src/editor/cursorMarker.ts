@@ -2,8 +2,10 @@ import { BIT_CURSOR_MARKER } from "@shared/cursorMarker";
 
 export { BIT_CURSOR_MARKER };
 
+export const BIT_CURSOR_MARKER_LABEL_MAX = 16;
+
 type CursorMarkerParseResult =
-  | { ok: true; surroundingContentWithMarker: string }
+  | { ok: true; surroundingContentWithMarker: string; markerLabel: string | undefined }
   | { ok: false; error: string };
 
 type CursorMarkerPositionResult = { ok: true; position: number } | { ok: false; error: string };
@@ -38,15 +40,25 @@ export function parseCursorMarkerResponse(text: string): CursorMarkerParseResult
     return { ok: false, error: "Bit did not return the cursor schema." };
   }
 
+  const markerLabel = sanitizeMarkerLabel((parsed as { marker_label?: unknown }).marker_label);
+
   if (value.length === 0) {
-    return { ok: true, surroundingContentWithMarker: "" };
+    return { ok: true, surroundingContentWithMarker: "", markerLabel };
   }
 
   if (countOccurrences(value, BIT_CURSOR_MARKER) !== 1) {
     return { ok: false, error: "Bit did not return a cursor marker." };
   }
 
-  return { ok: true, surroundingContentWithMarker: value };
+  return { ok: true, surroundingContentWithMarker: value, markerLabel };
+}
+
+function sanitizeMarkerLabel(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return undefined;
+  if (trimmed.length > BIT_CURSOR_MARKER_LABEL_MAX) return undefined;
+  return trimmed;
 }
 
 export function findCursorMarkerPosition(

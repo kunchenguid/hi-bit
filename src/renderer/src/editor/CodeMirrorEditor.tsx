@@ -34,13 +34,16 @@ import { detectEditorLanguage, type EditorLanguage } from "./fileLanguage";
 
 export type CodeMirrorHandle = {
   insertText: (text: string) => void;
-  showCursorMarker: (position: number) => void;
+  showCursorMarker: (position: number, label?: string) => void;
 };
 
 export type CodeMirrorCursorMarker = {
   position: number;
   key: number;
+  label?: string;
 };
+
+const DEFAULT_CURSOR_MARKER_LABEL = "← Type here";
 
 type Props = {
   ref?: Ref<CodeMirrorHandle>;
@@ -66,14 +69,24 @@ function languageExtensionFor(lang: EditorLanguage | null): Extension | null {
   }
 }
 
-const setCursorMarkerEffect = StateEffect.define<number | null>();
+type CursorMarkerEffectValue = { position: number; label: string } | null;
+const setCursorMarkerEffect = StateEffect.define<CursorMarkerEffectValue>();
 
 class CursorMarkerWidget extends WidgetType {
+  constructor(readonly label: string) {
+    super();
+  }
+  override eq(other: CursorMarkerWidget): boolean {
+    return other.label === this.label;
+  }
   toDOM(): HTMLElement {
     const el = document.createElement("span");
     el.className = "hb-editor-cursor-marker";
-    el.textContent = "← Type here";
+    el.textContent = this.label;
     return el;
+  }
+  override ignoreEvent(): boolean {
+    return false;
   }
 }
 
@@ -87,7 +100,10 @@ const cursorMarkerField = StateField.define<DecorationSet>({
         next = Decoration.none;
       } else {
         next = Decoration.set([
-          Decoration.widget({ widget: new CursorMarkerWidget(), side: 1 }).range(effect.value),
+          Decoration.widget({
+            widget: new CursorMarkerWidget(effect.value.label),
+            side: 1,
+          }).range(effect.value.position),
         ]);
       }
     }
@@ -208,13 +224,16 @@ export function CodeMirrorEditor({
         });
         view.focus();
       },
-      showCursorMarker(position: number): void {
+      showCursorMarker(position: number, label?: string): void {
         const view = viewRef.current;
         if (!view) return;
         const safePosition = Math.max(0, Math.min(position, view.state.doc.length));
         view.dispatch({
           selection: { anchor: safePosition },
-          effects: setCursorMarkerEffect.of(safePosition),
+          effects: setCursorMarkerEffect.of({
+            position: safePosition,
+            label: label ?? DEFAULT_CURSOR_MARKER_LABEL,
+          }),
           scrollIntoView: true,
         });
         view.focus();
@@ -272,7 +291,10 @@ export function CodeMirrorEditor({
     const safePosition = Math.max(0, Math.min(cursorMarker.position, view.state.doc.length));
     view.dispatch({
       selection: { anchor: safePosition },
-      effects: setCursorMarkerEffect.of(safePosition),
+      effects: setCursorMarkerEffect.of({
+        position: safePosition,
+        label: cursorMarker.label ?? DEFAULT_CURSOR_MARKER_LABEL,
+      }),
       scrollIntoView: true,
     });
     view.focus();

@@ -36,6 +36,7 @@ export type EditorCursorTarget = {
   filename: string;
   position: number;
   requestId: number;
+  label?: string;
 };
 
 export function CodeEditor({
@@ -107,14 +108,25 @@ export function CodeEditor({
   const cursorTargetFilename = cursorTarget?.filename ?? null;
   const cursorTargetPosition = cursorTarget?.position ?? null;
   const cursorTargetRequestId = cursorTarget?.requestId ?? null;
+  const cursorTargetLabel = cursorTarget?.label;
   const codeMirrorCursorMarker = useMemo(
     () =>
       cursorTargetFilename === activeFileName &&
       cursorTargetPosition !== null &&
       cursorTargetRequestId !== null
-        ? { position: cursorTargetPosition, key: cursorTargetRequestId }
+        ? {
+            position: cursorTargetPosition,
+            key: cursorTargetRequestId,
+            label: cursorTargetLabel,
+          }
         : null,
-    [activeFileName, cursorTargetFilename, cursorTargetPosition, cursorTargetRequestId],
+    [
+      activeFileName,
+      cursorTargetFilename,
+      cursorTargetPosition,
+      cursorTargetRequestId,
+      cursorTargetLabel,
+    ],
   );
   const isDirty = activeBuffer ? activeBuffer.content !== activeBuffer.savedContent : false;
 

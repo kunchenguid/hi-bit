@@ -129,6 +129,7 @@ describe("sendKidMessage", () => {
         filename: "index.html",
         editorContent: "<body></body>",
         latestBitMessage: "Put the title inside body.",
+        snippet: "<h1>Hi</h1>",
       },
       spawn,
     });
@@ -346,6 +347,7 @@ describe("sendKidMessage", () => {
         filename: "index.html",
         editorContent: "<body></body>",
         latestBitMessage: "Put the title inside body.",
+        snippet: "<h1>Hi</h1>",
       },
       spawn: spawnEmitting([() => {}]),
     });

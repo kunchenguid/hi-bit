@@ -63,9 +63,9 @@ PRD: "Kid picks a dream. Bit commits to the journey: 'We're going to build this 
 PRD: "Within five minutes of opening the app, the kid has typed something real, seen it run in the live preview, and saved a file they can open outside Hi-Bit."
 
 - [ ] Bit leads the kid to the editor with a fill-in-the-blank or change-a-line task via `CodeEditor.tsx`.
-- [ ] When the latest Bit message includes a fenced code block, clicking its `Show me where` button calls `window.hibit.requestCursorMarker`, opens or focuses the editor as needed, and displays a `Type here` marker at the intended code location. Plain text instructions should not show this button.
+- [ ] When the latest Bit message includes fenced code blocks, each block shows its own `Show me where` button. Clicking one calls `window.hibit.requestCursorMarker` with that snippet, opens or focuses the editor as needed, and displays a marker at the intended location for that snippet. Plain text instructions should not show this button.
 - [ ] Docked workspaces start in `Code` view. Typing in the editor updates the buffer; clicking `See my page` renders via `buildPreviewSrcdoc` from `src/renderer/src/preview/buildPreview.ts`, switches to `Page` view, and shows the kid's actual change inside the iframe.
-- [ ] The `Split` view shows the code editor and live preview together. If `Show me where` is used while in `Page` view, the workspace switches to `Split` and shows the `Type here` marker.
+- [ ] The `Split` view shows the code editor and live preview together. If `Show me where` is used while in `Page` view, the workspace switches to `Split` and shows the cursor marker, using Bit's snippet-specific label when provided and `Type here` as the fallback.
 - [ ] After another edit, clicking `Refresh` in the live preview header updates the iframe from the latest buffer content.
 - [ ] Clicking Save writes to `~/.hi-bit/profiles/<kid_id>/projects/<dream_slug>/` on disk. Confirm the file exists: `ls ~/.hi-bit/profiles/*/projects/`.
 - [ ] Open the saved file in an external editor or browser and verify it renders the same thing the in-app preview showed. This proves the artifact survives outside Hi-Bit, which is the PRD's shareability contract.
