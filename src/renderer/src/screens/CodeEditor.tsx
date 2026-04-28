@@ -504,7 +504,7 @@ export function CodeEditor({
             </div>
             {previewMissing ? (
               <p className="hb-editor-preview-hint">
-                Add an <code>index.html</code> and press Run to see your page.
+                Add an <code>index.html</code> and press See my page.
               </p>
             ) : null}
             <iframe
