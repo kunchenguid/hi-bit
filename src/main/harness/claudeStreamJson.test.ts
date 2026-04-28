@@ -121,4 +121,51 @@ describe("parseClaudeStreamJson", () => {
     expect(parsed.text).toBe("ok");
     expect(parsed.usage).toBeNull();
   });
+
+  it("falls back to assistant message text when result.result is empty on success", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: {
+          content: [
+            { type: "text", text: "Nice save. " },
+            { type: "tool_use", name: "Read", input: { file_path: "index.html" } },
+          ],
+        },
+      },
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "Add a green square next." }] },
+      },
+      { ...successResult, result: "" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("Nice save. Add a green square next.");
+    expect(parsed.isError).toBe(false);
+    expect(parsed.errorMessage).toBeNull();
+  });
+
+  it("prefers result.result over assistant message text when both are present", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: { content: [{ type: "text", text: "intermediate thinking" }] },
+      },
+      { ...successResult, result: "final answer" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("final answer");
+  });
+
+  it("still flags an error when result.result is empty and no assistant text was emitted", () => {
+    const stdout = jsonl(
+      {
+        type: "assistant",
+        message: { content: [{ type: "tool_use", name: "Read", input: {} }] },
+      },
+      { ...successResult, result: "" },
+    );
+    const parsed = parseClaudeStreamJson(stdout);
+    expect(parsed.text).toBe("");
+  });
 });

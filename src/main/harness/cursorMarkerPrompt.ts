@@ -13,13 +13,17 @@ Return only JSON matching this schema:
 
 Insert exactly one ${BIT_CURSOR_MARKER} marker into an exact excerpt copied from the current editor content.
 
+About the marker: ${BIT_CURSOR_MARKER} is a visual cursor that the editor draws on top of the file. It is not saved to the file and is never executed, so it cannot break HTML, CSS, or JavaScript. Place it at the exact character position where the kid should start typing, even if that position is inside an HTML tag (between attributes, before the closing >, in the middle of a string), inside a CSS rule, or in the middle of a line. Do not move the marker to the start or end of the line just to keep the surrounding code looking valid.
+
 Rules:
 - Do not rewrite, reformat, fix, or invent code.
 - The excerpt without ${BIT_CURSOR_MARKER} must match the editor content exactly.
 - Include enough surrounding text to make the location unique.
-- The marker should land where the kid will put the snippet (an empty insertion point) or where the snippet replaces existing code (just before the line being replaced).
-- If you cannot identify a safe place, return { "surrounding_content_with_marker": "" }.
+- The marker should land at the precise character offset where the kid will type. If the snippet replaces existing code, place the marker right before the first character being replaced.
+- If you cannot find any matching spot in the current file, return { "surrounding_content_with_marker": "" }.
 - marker_label is the short kid-facing label rendered next to the cursor spot (for example "type the h1" or "your button"). Sentence case, no punctuation, no quotes, max 16 characters. Pick something that names what the kid is about to type at this exact spot. If you cannot do better than a generic prompt, return "marker_label": "".
+
+Example - inserting an attribute mid-tag. Editor content: \`<canvas id="game" width="400" height="400"></canvas>\`. Snippet: \`style="border: 2px solid black"\`. Correct response uses \`"surrounding_content_with_marker": "height=\\"400\\" ${BIT_CURSOR_MARKER}></canvas>"\` - the marker sits between the closing \`"\` and \`>\`, exactly where the new attribute is typed.
 
 The snippet the kid clicked Show me where on:
 <snippet>

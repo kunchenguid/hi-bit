@@ -1668,6 +1668,7 @@ pre,
 .hb-editor-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--s-3);
   min-height: 0;
 }
@@ -1889,8 +1890,8 @@ pre,
 }
 
 .hb-editor-preview {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--s-1);
   min-height: 0;
   background: var(--paper-2);
@@ -1898,6 +1899,9 @@ pre,
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-soft-lg);
   padding: var(--s-3);
+}
+.hb-editor-preview > .hb-editor-iframe {
+  flex: 1 1 0;
 }
 .hb-editor-preview-header {
   display: flex;

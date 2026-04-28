@@ -6,10 +6,14 @@ export type SavedProjectFile = {
   after: string;
 };
 
+const SYSTEM_NOTE_PREFIX = "[Hi-Bit system note - this is from the editor, not from the kid]";
+const SAVE_HEADER = "The kid just clicked Save in Hi Bit.";
+
 export function buildSavedFilePrompt(saved: SavedProjectFile): string {
   const diff = buildLineDiff(saved.before, saved.after);
   return [
-    "The kid just clicked Save in Hi Bit.",
+    SYSTEM_NOTE_PREFIX,
+    SAVE_HEADER,
     `File saved: ${saved.filename}`,
     `Project: ${saved.slug}`,
     "Use the diff below instead of reading the file first. React to what changed, name what worked or what looks off, and guide the kid to the next small step.",
@@ -26,8 +30,10 @@ export function isSavedFilePrompt(text: string): boolean {
 
 export function savedFilePromptLabel(text: string): string | null {
   const lines = text.trimStart().split("\n");
-  if (lines[0] !== "The kid just clicked Save in Hi Bit.") return null;
-  const filename = lines[1]?.match(/^File saved: (.+)$/)?.[1]?.trim();
+  let cursor = 0;
+  if (lines[cursor] === SYSTEM_NOTE_PREFIX) cursor += 1;
+  if (lines[cursor] !== SAVE_HEADER) return null;
+  const filename = lines[cursor + 1]?.match(/^File saved: (.+)$/)?.[1]?.trim();
   if (!filename) return null;
   return `Saved ${filename}`;
 }
