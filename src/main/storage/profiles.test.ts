@@ -333,18 +333,17 @@ describe("profile storage", () => {
     expect(progress.dreamHistory).toEqual(["hello-card", "pet-page"]);
   });
 
-  it("setCurrentDream rotates the kid session id when the dream actually changes", async () => {
+  it("setCurrentDream rotates the kid session id whenever the active dream changes", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 9 });
     const originalKidSession = profile.sessions.kid;
     const originalParentSession = profile.sessions.parent;
 
     const first = await setCurrentDream(layout, profile.id, "hello-card");
-    // first dream pick (no prior dream) should NOT rotate
-    expect(first.sessions.kid).toBe(originalKidSession);
+    expect(first.sessions.kid).not.toBe(originalKidSession);
+    expect(first.sessions.kid).toMatch(/^[0-9a-f-]{36}$/);
 
     const second = await setCurrentDream(layout, profile.id, "dice-roller");
-    // switching to a different dream rotates the kid session, leaves parent alone
-    expect(second.sessions.kid).not.toBe(originalKidSession);
+    expect(second.sessions.kid).not.toBe(first.sessions.kid);
     expect(second.sessions.kid).toMatch(/^[0-9a-f-]{36}$/);
     expect(second.sessions.parent).toBe(originalParentSession);
 

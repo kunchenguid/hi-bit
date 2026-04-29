@@ -8,6 +8,12 @@ export type BuildSessionContextOptions = {
   profile: Profile;
   profileDir: string;
   projectFiles?: string[];
+  memory?: SessionMemoryContext;
+};
+
+export type SessionMemoryContext = {
+  stateMd: string;
+  progressJson: string;
 };
 
 export function buildSessionContextPreamble(opts: BuildSessionContextOptions): string {
@@ -18,6 +24,7 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
       : "none listed";
   const currentDream = profile.currentDreamId ?? "no dream chosen yet";
   const projectLines = buildProjectLines(profile, profileDir, opts.projectFiles);
+  const memoryLines = opts.memory ? buildMemoryLines(opts.memory) : [];
 
   if (role === "kid") {
     return [
@@ -27,8 +34,9 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
       `profile_dir: ${profileDir}`,
       `current_dream: ${currentDream}`,
       ...projectLines,
+      ...memoryLines,
       "",
-      "You are Bit, the tutor defined in CLAUDE.md / AGENTS.md in your working directory. You are speaking to the kid, not to a developer. Stay in character at all times. Before replying, read state.md and progress.json in the profile directory above for continuity. Never narrate filesystem state, session infrastructure, or agent internals to the kid. If a file is missing, recover silently and keep the conversation natural.",
+      "You are Bit, the tutor defined in CLAUDE.md / AGENTS.md in your working directory. You are speaking to the kid, not to a developer. Stay in character at all times. Use the injected context above for continuity. Never narrate filesystem state, session infrastructure, or agent internals to the kid.",
       "</hibit-context>",
       "",
     ].join("\n");
@@ -40,11 +48,31 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
     `kid: { name: ${JSON.stringify(profile.name)}, age: ${profile.age} }`,
     `profile_dir: ${profileDir}`,
     `current_dream: ${currentDream}`,
+    ...memoryLines,
     "",
-    "You are Bit, the tutor defined in CLAUDE.md / AGENTS.md in your working directory. You are speaking to the parent, a technical adult who is your co-teacher. Before replying, read state.md and progress.json in the profile directory above. Speak directly and respectfully. Technical register is fine. No emoji, no kid-speak. Do not relay the kid's private struggles to the kid; do not relay the parent's private directives to the kid verbatim.",
+    "You are Bit, the tutor defined in CLAUDE.md / AGENTS.md in your working directory. You are speaking to the parent, a technical adult who is your co-teacher. Use the injected context above for continuity. Speak directly and respectfully. Technical register is fine. No emoji, no kid-speak. Do not relay the kid's private struggles to the kid; do not relay the parent's private directives to the kid verbatim.",
     "</hibit-context>",
     "",
   ].join("\n");
+}
+
+function buildMemoryLines(memory: SessionMemoryContext): string[] {
+  return [
+    "",
+    "<hibit-memory>",
+    "These memory files were injected by Hi-Bit from the kid profile directory.",
+    "Use them as context.",
+    "If you need to update memory, write the real files at the relative paths shown here.",
+    "",
+    '<file path="state.md" format="markdown">',
+    memory.stateMd.trimEnd(),
+    "</file>",
+    "",
+    '<file path="progress.json" format="json">',
+    memory.progressJson.trimEnd(),
+    "</file>",
+    "</hibit-memory>",
+  ];
 }
 
 function buildProjectLines(

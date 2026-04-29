@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
 import type { HarnessDetection, HarnessId, HiBitConfig } from "@shared/config";
 import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog";
@@ -14,6 +15,7 @@ import { buildClaudeStreamArgs } from "./claudeStreamArgs";
 import type { HarnessInvocationMode } from "./command";
 import { buildCursorMarkerPrompt } from "./cursorMarkerPrompt";
 import type { HarnessRunEvent, HarnessSpawnFn } from "./run";
+import type { SessionMemoryContext } from "./sessionContext";
 import { withSessionContext } from "./sessionContext";
 import { executeHarnessTurn } from "./turn";
 
@@ -185,12 +187,14 @@ async function sendMessage(
       role === "kid" && injectSessionContext
         ? await projectFilesForCurrentDream(paths, profile)
         : undefined;
+    const memory = injectSessionContext ? await readSessionMemory(paths) : undefined;
     const agentPrompt = withSessionContext({
       userPrompt: prompt,
       role,
       profile,
       profileDir: paths.root,
       projectFiles,
+      memory,
       mode: injectSessionContext ? "start" : mode,
     });
 
@@ -265,7 +269,7 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
   const onAbort = () => session?.close();
 
   try {
-    const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role);
+    const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role, opts.sessionId);
     const isProcessFresh = !opts.registry.has(key);
     mode = isProcessFresh ? await resolveMode(opts.paths, opts.sessionId) : "resume";
     const injectSessionContext = shouldInjectSessionContext(opts.role, opts.profile, mode);
@@ -273,6 +277,7 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
       opts.role === "kid" && injectSessionContext
         ? await projectFilesForCurrentDream(opts.paths, opts.profile)
         : undefined;
+    const memory = injectSessionContext ? await readSessionMemory(opts.paths) : undefined;
     session = opts.registry.getOrCreate(
       key,
       () =>
@@ -292,6 +297,7 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
           profile: opts.profile,
           profileDir: opts.paths.root,
           projectFiles,
+          memory,
           mode: "start",
         })
       : opts.prompt;
@@ -392,7 +398,17 @@ function shouldInjectSessionContext(
   profile: Parameters<typeof withSessionContext>[0]["profile"],
   mode: HarnessInvocationMode,
 ): boolean {
-  return mode === "start" || (role === "kid" && typeof profile.currentDreamId === "string");
+  void role;
+  void profile;
+  return mode === "start";
+}
+
+async function readSessionMemory(paths: ProfilePaths): Promise<SessionMemoryContext> {
+  const [stateMd, progressJson] = await Promise.all([
+    readFile(paths.stateFile, "utf8"),
+    readFile(paths.progressFile, "utf8"),
+  ]);
+  return { stateMd, progressJson };
 }
 
 async function projectFilesForCurrentDream(
