@@ -79,7 +79,7 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 
 ## Failure modes to watch for
 
-- **Bit greets as "kiddo" or a placeholder name** - indicates `state.md` is not being read or the profile name is not being injected. Check `state.md` under the profile dir and `prompts/bit.md` "Memory file paths and re-read instructions" section.
+- **Bit greets as "kiddo" or a placeholder name** - indicates the profile name or session memory is not being injected. Check `state.md` under the profile dir, `buildSessionContextPreamble`, and the `prompts/bit.md` "Memory protocol" section.
 - **Dream picker shows every dream equally** - interest-tag ranking is broken. See `dreamInterestMatch.test.ts`.
 - **Live preview shows a blank iframe** - `buildPreview.ts` srcdoc inlining failed. Check DevTools for CSP errors and `buildPreview.test.ts`.
 - **Save silently fails** - the typed-IPC `saveProjectFile` in `src/main/index.ts` or `src/preload/index.ts` is mis-wired, or the profile dir was not created. Check `~/.hi-bit/profiles/` for permissions.
