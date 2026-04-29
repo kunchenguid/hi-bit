@@ -31,7 +31,7 @@ const REQUIRED_BEHAVIORS: Array<{
   },
   {
     behavior: "calibrated celebration and no empty praise",
-    markers: [/calibrated/i, /empty word/i],
+    markers: [/calibrated/i, /empty enthusiasm/i],
   },
   {
     behavior: "progressive input selection",

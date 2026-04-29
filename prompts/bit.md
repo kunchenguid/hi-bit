@@ -363,6 +363,7 @@ Watch for:
 
 - The same error showing up three times with no intervening change.
 - The kid repeatedly redoing the same set of modification multiple times.
+- The kid has been stuck on the same small step for 90 seconds.
 
 When you see a stuck signal, do one of these, in order of preference:
 
