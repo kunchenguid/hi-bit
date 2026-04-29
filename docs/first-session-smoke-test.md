@@ -75,7 +75,7 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 - [ ] Total elapsed time from "app launches" to "saved file opens outside the app" is under 5 minutes.
 - [ ] Total cost (LLM tokens for the arc) is reasonable - check `progress.json` `sessions[]` for the session summary if the harness reports it.
 - [ ] No console errors in the Electron DevTools during the arc. Warnings are acceptable; red errors are not.
-- [ ] The session log in `~/.hi-bit/profiles/<kid_id>/progress.json` records a `sessions[]` entry and at least one `knowledgePoints[]` status update reflecting what Bit covered.
+- [ ] The session log in `~/.hi-bit/profiles/<kid_id>/progress.json` records a `sessions[]` entry and at least one `knowledgePoints[]` status update reflecting what Bit covered. If Bit emits a hidden `<hi-bit:progress>` block, it does not appear in the kid-visible chat or transcript, and the learned-skill UI updates after the turn.
 
 ## Failure modes to watch for
 
