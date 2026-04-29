@@ -43,17 +43,33 @@ describe("describeKidNextUp", () => {
 
   it("returns cheerful all-done text when every KP meets threshold", () => {
     const suggestion: NextKpSuggestion = { kind: "all-done" };
-    expect(describeKidNextUp(suggestion)).toEqual({ label: "Up next", text: "ready to build!" });
+    expect(describeKidNextUp(suggestion)).toEqual({
+      label: "All skills learned",
+      text: "ready to build!",
+    });
   });
 
   it("uses kid-friendly title for next-kp", () => {
     const suggestion: NextKpSuggestion = {
       kind: "next-kp",
       kp: makeKp("html-buttons", "make a button you can click"),
+      status: null,
     };
     expect(describeKidNextUp(suggestion)).toEqual({
       label: "Up next",
       text: "make a button you can click",
+    });
+  });
+
+  it("labels an already-started KP as keep practicing", () => {
+    const suggestion: NextKpSuggestion = {
+      kind: "next-kp",
+      kp: makeKp("html-doc-shell", "the frame that holds your page"),
+      status: "saw_it",
+    };
+    expect(describeKidNextUp(suggestion)).toEqual({
+      label: "Keep practicing",
+      text: "the frame that holds your page",
     });
   });
 
@@ -62,6 +78,7 @@ describe("describeKidNextUp", () => {
     const suggestion: NextKpSuggestion = {
       kind: "next-kp",
       kp: makeKp("html-long", longTitle),
+      status: null,
     };
     expect(describeKidNextUp(suggestion)?.text).toBe(longTitle);
   });
@@ -74,6 +91,7 @@ describe("describeKidNextUp", () => {
         "the frame that holds your page",
         "every page needs this outer wrapper before anything else shows up.",
       ),
+      status: null,
     };
     expect(describeKidNextUp(suggestion)).toEqual({
       label: "Up next",
@@ -86,6 +104,7 @@ describe("describeKidNextUp", () => {
     const suggestion: NextKpSuggestion = {
       kind: "next-kp",
       kp: makeKp("html-buttons", "make a button you can click"),
+      status: null,
     };
     const out = describeKidNextUp(suggestion);
     expect(out?.subtext).toBeUndefined();
@@ -95,6 +114,7 @@ describe("describeKidNextUp", () => {
     const suggestion: NextKpSuggestion = {
       kind: "next-kp",
       kp: makeKp("html-buttons", "make a button you can click", "   "),
+      status: null,
     };
     const out = describeKidNextUp(suggestion);
     expect(out?.subtext).toBeUndefined();
@@ -110,6 +130,7 @@ describe("describeKidNextUp", () => {
     const suggestion: NextKpSuggestion = {
       kind: "next-kp",
       kp: makeKp("html-doc-shell", "the frame that holds your page"),
+      status: null,
     };
     const out = describeKidNextUp(suggestion);
     expect(out?.label).toBe("Up next");

@@ -2,10 +2,19 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
 import type { HarnessDetection, HarnessId, HiBitConfig } from "@shared/config";
+import type { KnowledgePointStatus } from "@shared/progress";
+import { collectRequiredKps, pickNextKP } from "@shared/scheduler";
 import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog";
+import { loadDreams } from "../graph/dreams";
+import { loadKnowledgeGraph } from "../graph/load";
 import type { HiBitLayout, ProfilePaths } from "../storage/layout";
 import { profilePathsFor } from "../storage/layout";
-import { ensureProfileScaffold, readProfile } from "../storage/profiles";
+import {
+  ensureProfileScaffold,
+  readProfile,
+  readProgress,
+  updateKpStatus,
+} from "../storage/profiles";
 import { listProjectFiles } from "../storage/projects";
 import { appendSessionLogEntry, readSessionLogEntries } from "../storage/sessionLog";
 import { appendTranscriptEvent } from "../storage/transcript";
@@ -14,8 +23,14 @@ import { ClaudeSessionRegistry } from "./claudeSessionRegistry";
 import { buildClaudeStreamArgs } from "./claudeStreamArgs";
 import type { HarnessInvocationMode } from "./command";
 import { buildCursorMarkerPrompt } from "./cursorMarkerPrompt";
+import {
+  createHiBitControlStreamFilter,
+  extractHiBitControlBlocks,
+  type HiBitControlBlock,
+  stripHiBitControlBlocks,
+} from "./hiBitControl";
 import type { HarnessRunEvent, HarnessSpawnFn } from "./run";
-import type { SessionMemoryContext } from "./sessionContext";
+import type { LearningPlanContext, SessionMemoryContext } from "./sessionContext";
 import { withSessionContext } from "./sessionContext";
 import { executeHarnessTurn } from "./turn";
 
@@ -165,6 +180,7 @@ async function sendMessage(
   if (harnessId === "claude" && opts.claudeRegistry) {
     return sendClaudeStreaming({
       registry: opts.claudeRegistry,
+      layout: opts.layout,
       paths,
       profileId: opts.profileId,
       profile,
@@ -188,6 +204,11 @@ async function sendMessage(
         ? await projectFilesForCurrentDream(paths, profile)
         : undefined;
     const memory = injectSessionContext ? await readSessionMemory(paths) : undefined;
+    const learningPlan =
+      role === "kid" && injectSessionContext
+        ? await learningPlanForCurrentDream(opts.layout, opts.profileId, profile)
+        : undefined;
+    let controlBlocks: HiBitControlBlock[] = [];
     const agentPrompt = withSessionContext({
       userPrompt: prompt,
       role,
@@ -195,6 +216,7 @@ async function sendMessage(
       profileDir: paths.root,
       projectFiles,
       memory,
+      learningPlan,
       mode: injectSessionContext ? "start" : mode,
     });
 
@@ -212,9 +234,14 @@ async function sendMessage(
       now: opts.now,
       onEvent: opts.onEvent,
       signal: opts.signal,
+      transformAssistantText: (text) => {
+        controlBlocks = extractHiBitControlBlocks(text);
+        return stripHiBitControlBlocks(text);
+      },
     });
     const exitedCleanly = result.run.exitCode === 0 && result.run.signal === null;
     if (exitedCleanly && result.errorMessage === null) {
+      await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
       return { ok: true, text: result.text, durationMs: result.durationMs };
     }
     const stderr = result.run.stderr.trim();
@@ -238,6 +265,7 @@ async function sendMessage(
 
 type SendClaudeStreamingOptions = {
   registry: ClaudeSessionRegistry<ClaudeSession>;
+  layout: HiBitLayout;
   paths: ProfilePaths;
   profileId: string;
   profile: Parameters<typeof withSessionContext>[0]["profile"];
@@ -278,6 +306,10 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
         ? await projectFilesForCurrentDream(opts.paths, opts.profile)
         : undefined;
     const memory = injectSessionContext ? await readSessionMemory(opts.paths) : undefined;
+    const learningPlan =
+      opts.role === "kid" && injectSessionContext
+        ? await learningPlanForCurrentDream(opts.layout, opts.profileId, opts.profile)
+        : undefined;
     session = opts.registry.getOrCreate(
       key,
       () =>
@@ -298,6 +330,7 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
           profileDir: opts.paths.root,
           projectFiles,
           memory,
+          learningPlan,
           mode: "start",
         })
       : opts.prompt;
@@ -309,22 +342,28 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
       else opts.signal.addEventListener("abort", onAbort, { once: true });
     }
 
+    const streamFilter = opts.onDelta ? createHiBitControlStreamFilter(opts.onDelta) : null;
     const drain = async () => {
       for await (const ev of turn.events as AsyncIterable<ClaudeTurnEvent>) {
-        if (ev.kind === "delta" && opts.onDelta) opts.onDelta(ev.text);
+        if (ev.kind === "delta") streamFilter?.push(ev.text);
       }
+      streamFilter?.finish();
     };
 
     const [_drained, result] = await Promise.all([drain(), turn.complete]);
     const endMs = now();
     const endedAt = new Date(endMs).toISOString();
 
+    const controlBlocks = extractHiBitControlBlocks(result.text);
+    const visibleText = stripHiBitControlBlocks(result.text);
+    await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
+
     await appendTranscriptEvent(opts.paths, {
       timestamp: endedAt,
       role: opts.role,
       sessionId: opts.sessionId,
       kind: "assistant_message",
-      text: result.text,
+      text: visibleText,
     });
 
     const logEntry: HarnessInvocationLogEntry = {
@@ -348,7 +387,7 @@ async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<Se
     await appendSessionLogEntry(opts.paths, logEntry);
 
     opts.signal?.removeEventListener("abort", onAbort);
-    return { ok: true, text: result.text, durationMs: endMs - opts.startMs };
+    return { ok: true, text: visibleText, durationMs: endMs - opts.startMs };
   } catch (err) {
     opts.signal?.removeEventListener("abort", onAbort);
     const endMs = now();
@@ -417,4 +456,89 @@ async function projectFilesForCurrentDream(
 ): Promise<string[] | undefined> {
   if (!profile.currentDreamId) return undefined;
   return listProjectFiles(paths, profile.currentDreamId);
+}
+
+async function learningPlanForCurrentDream(
+  layout: HiBitLayout,
+  profileId: string,
+  profile: Parameters<typeof withSessionContext>[0]["profile"],
+): Promise<LearningPlanContext | undefined> {
+  if (!profile.currentDreamId) return undefined;
+  const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);
+  if (!graphResult.ok) return undefined;
+  const graph = graphResult.graph;
+  const dreamResult = await loadDreams(layout.graphDreamsDir, graph);
+  if (!dreamResult.ok) return undefined;
+  const dream = dreamResult.library.byId[profile.currentDreamId];
+  if (!dream) return undefined;
+
+  const progress = await readProgress(layout, profileId);
+  const nextUpKpId = pickNextKP(graph, dream, progress);
+  const { ordered } = collectRequiredKps(graph, dream);
+  const requiredKps = ordered
+    .map((id) => graph.byId[id])
+    .filter((kp) => kp !== undefined)
+    .map((kp) => ({
+      id: kp.id,
+      titleKid: kp.title_kid,
+      ...(kp.why_kid ? { whyKid: kp.why_kid } : {}),
+      status: progress.knowledgePoints[kp.id]?.status ?? null,
+      masterySignals: kp.mastery_signals,
+    }));
+
+  return {
+    dream: { id: dream.id, titleKid: dream.title_kid },
+    nextUpKpId,
+    requiredKps,
+  };
+}
+
+type ProgressControlEntry = {
+  kpId?: unknown;
+  status?: unknown;
+  evidence?: unknown;
+};
+
+const VALID_KP_STATUSES = new Set<KnowledgePointStatus>([
+  "saw_it",
+  "did_with_help",
+  "did_unprompted",
+  "explained_it",
+]);
+
+async function applyProgressControlBlocks(
+  layout: HiBitLayout,
+  profileId: string,
+  blocks: readonly HiBitControlBlock[],
+): Promise<void> {
+  const progressBlocks = blocks.filter((block) => block.name === "progress");
+  if (progressBlocks.length === 0) return;
+
+  const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);
+  if (!graphResult.ok) return;
+  const validKpIds = new Set(Object.keys(graphResult.graph.byId));
+
+  for (const block of progressBlocks) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(block.body);
+    } catch {
+      continue;
+    }
+    const entries = Array.isArray(parsed) ? parsed : [parsed];
+    for (const entry of entries) {
+      const candidate = entry as ProgressControlEntry;
+      if (typeof candidate.kpId !== "string") continue;
+      if (!validKpIds.has(candidate.kpId)) continue;
+      if (typeof candidate.status !== "string") continue;
+      if (!VALID_KP_STATUSES.has(candidate.status as KnowledgePointStatus)) continue;
+      await updateKpStatus(
+        layout,
+        profileId,
+        candidate.kpId,
+        candidate.status as KnowledgePointStatus,
+        { evidence: typeof candidate.evidence === "string" ? candidate.evidence : undefined },
+      );
+    }
+  }
 }

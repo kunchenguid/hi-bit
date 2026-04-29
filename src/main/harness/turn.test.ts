@@ -243,7 +243,7 @@ describe("executeHarnessTurn", () => {
       sessionId: "sess-kid",
       mode: "start",
       prompt: "hi",
-      agentPrompt: "<hibit-context>mode: kid</hibit-context>\n\nhi",
+      agentPrompt: "<hi-bit:context>mode: kid</hi-bit:context>\n\nhi",
       role: "kid",
       cwd: paths.root,
       spawn: inner,
@@ -252,7 +252,7 @@ describe("executeHarnessTurn", () => {
 
     const args = inner.mock.calls[0]?.[1] as string[];
     const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toMatch(/hibit-context/);
+    expect(promptArg).toMatch(/hi-bit:context/);
     expect(promptArg?.endsWith("hi")).toBe(true);
 
     const events = await readTranscript(paths, "sess-kid");

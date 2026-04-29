@@ -6,7 +6,7 @@ import { Readable, Writable } from "node:stream";
 import type { HarnessDetection, HiBitConfig } from "@shared/config";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import { createProfile } from "../storage/profiles";
+import { createProfile, readProgress } from "../storage/profiles";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
@@ -187,7 +187,7 @@ describe("sendKidMessage with claudeRegistry (streaming path)", () => {
     const msg1 = JSON.parse(handle.written[0]?.trim() ?? "");
     const msg2 = JSON.parse(handle.written[1]?.trim() ?? "");
 
-    expect(msg1.message.content[0].text).toMatch(/<hibit-context>/);
+    expect(msg1.message.content[0].text).toMatch(/<hi-bit:context>/);
     expect(msg1.message.content[0].text).toMatch(/Ada/);
     expect(msg1.message.content[0].text).toMatch(/first$/);
     expect(msg2.message.content[0].text).toBe("second");
@@ -224,6 +224,66 @@ describe("sendKidMessage with claudeRegistry (streaming path)", () => {
     const events = await readTranscript(paths, profile.sessions.kid);
     expect(events.map((e) => e.kind)).toEqual(["user_message", "assistant_message"]);
     expect(events[1]?.text).toBe("Hi Ada!");
+  });
+
+  it("hides hi-bit control blocks from streaming and applies progress after completion", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await writeFile(
+      join(layout.graphNodesDir, "html-text-headings.yml"),
+      [
+        "id: html-text-headings",
+        "title_parent: Headings",
+        "title_kid: big titles and small titles",
+        "area: html",
+        "prereqs: []",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const registry = new ClaudeSessionRegistry<ClaudeSession>();
+    const handle = makeFakeChild();
+    const spawn: HarnessSpawnFn = () => handle.child as unknown as ReturnType<HarnessSpawnFn>;
+    const rawReply =
+      'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1 text."}]</hi-bit:progress>';
+
+    const deltas: string[] = [];
+    const turn = sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "saved",
+      spawn,
+      claudeRegistry: registry,
+      onDelta: (t) => deltas.push(t),
+    });
+
+    await waitForStdinWrites(handle, 1);
+    handle.emitStdout(`${DELTA("Nice title.<hi-bit:pro")}\n`);
+    handle.emitStdout(
+      `${DELTA('gress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1 text."}]</hi-bit:progress>')}\n`,
+    );
+    handle.emitStdout(`${RESULT(rawReply)}\n`);
+
+    const result = await turn;
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.text).toBe("Nice title.");
+    expect(deltas.join("")).toBe("Nice title.");
+
+    const paths = profilePathsFor(layout, profile.id);
+    const events = await readTranscript(paths, profile.sessions.kid);
+    expect(events[1]?.text).toBe("Nice title.");
+    expect(events[1]?.text).not.toContain("hi-bit:progress");
+
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["html-text-headings"]?.status).toBe("did_with_help");
+    expect(progress.knowledgePoints["html-text-headings"]?.evidence).toBe("Changed the h1 text.");
   });
 
   it("records usage tokens on the session log entry", async () => {

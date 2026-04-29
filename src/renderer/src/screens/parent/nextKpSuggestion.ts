@@ -1,14 +1,14 @@
 import type { DreamLibrary } from "@shared/dreams";
 import type { KnowledgeGraph, KnowledgePoint } from "@shared/knowledgeGraph";
-import type { Progress } from "@shared/progress";
-import { collectRequiredKps, pickNextKP } from "@shared/scheduler";
+import type { KnowledgePointStatus, Progress } from "@shared/progress";
+import { collectRequiredKps, kpLevel, pickNextKP } from "@shared/scheduler";
 
 export type NextKpSuggestion =
   | { kind: "no-dream" }
   | { kind: "loading" }
   | { kind: "unknown-dream"; dreamId: string }
   | { kind: "unresolved-prereqs"; missing: string[] }
-  | { kind: "next-kp"; kp: KnowledgePoint }
+  | { kind: "next-kp"; kp: KnowledgePoint; status: KnowledgePointStatus | null }
   | { kind: "all-done" };
 
 export type ChooseNextSuggestionInput = {
@@ -30,5 +30,5 @@ export function chooseNextSuggestion(input: ChooseNextSuggestionInput): NextKpSu
   if (!nextId) return { kind: "all-done" };
   const kp = graph.byId[nextId];
   if (!kp) return { kind: "unresolved-prereqs", missing: [nextId] };
-  return { kind: "next-kp", kp };
+  return { kind: "next-kp", kp, status: kpLevel(progress, nextId) };
 }

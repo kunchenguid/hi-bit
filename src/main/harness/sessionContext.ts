@@ -9,6 +9,26 @@ export type BuildSessionContextOptions = {
   profileDir: string;
   projectFiles?: string[];
   memory?: SessionMemoryContext;
+  learningPlan?: LearningPlanContext;
+};
+
+export type LearningPlanKp = {
+  id: string;
+  titleKid: string;
+  whyKid?: string;
+  status: string | null;
+  masterySignals?: {
+    saw_it: string;
+    did_with_help: string;
+    did_unprompted: string;
+    explained_it: string;
+  };
+};
+
+export type LearningPlanContext = {
+  dream: { id: string; titleKid: string };
+  nextUpKpId: string | null;
+  requiredKps: LearningPlanKp[];
 };
 
 export type SessionMemoryContext = {
@@ -25,25 +45,27 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
   const currentDream = profile.currentDreamId ?? "no dream chosen yet";
   const projectLines = buildProjectLines(profile, profileDir, opts.projectFiles);
   const memoryLines = opts.memory ? buildMemoryLines(opts.memory) : [];
+  const learningPlanLines = opts.learningPlan ? buildLearningPlanLines(opts.learningPlan) : [];
 
   if (role === "kid") {
     return [
-      "<hibit-context>",
+      "<hi-bit:context>",
       "mode: kid",
       `kid: { name: ${JSON.stringify(profile.name)}, age: ${profile.age}, interests: [${interests}] }`,
       `profile_dir: ${profileDir}`,
       `current_dream: ${currentDream}`,
       ...projectLines,
       ...memoryLines,
+      ...learningPlanLines,
       "",
       "You are Bit, the tutor defined in CLAUDE.md / AGENTS.md in your working directory. You are speaking to the kid, not to a developer. Stay in character at all times. Use the injected context above for continuity. Never narrate filesystem state, session infrastructure, or agent internals to the kid.",
-      "</hibit-context>",
+      "</hi-bit:context>",
       "",
     ].join("\n");
   }
 
   return [
-    "<hibit-context>",
+    "<hi-bit:context>",
     "mode: parent",
     `kid: { name: ${JSON.stringify(profile.name)}, age: ${profile.age} }`,
     `profile_dir: ${profileDir}`,
@@ -51,27 +73,54 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
     ...memoryLines,
     "",
     "You are Bit, the tutor defined in CLAUDE.md / AGENTS.md in your working directory. You are speaking to the parent, a technical adult who is your co-teacher. Use the injected context above for continuity. Speak directly and respectfully. Technical register is fine. No emoji, no kid-speak. Do not relay the kid's private struggles to the kid; do not relay the parent's private directives to the kid verbatim.",
-    "</hibit-context>",
+    "</hi-bit:context>",
     "",
   ].join("\n");
+}
+
+function buildLearningPlanLines(plan: LearningPlanContext): string[] {
+  const lines = [
+    "",
+    "<hi-bit:learning-plan>",
+    "This is the current dream path from Hi-Bit's knowledge graph.",
+    "Use these exact KP ids in hidden <hi-bit:progress> blocks. Do not invent KP ids.",
+    "Use listed ids like html-text-headings, not tag names like h1.",
+    "Before your visible reply ends, include a hidden <hi-bit:progress> block when this turn teaches or checks next_up.",
+    "If next_up is not_started and you ask the kid to inspect or change related code, mark it saw_it in that hidden block first.",
+    "Never mention hidden progress blocks to the kid.",
+    `dream: ${plan.dream.id} - ${plan.dream.titleKid}`,
+    `next_up: ${plan.nextUpKpId ?? "none"}`,
+    "required_kps:",
+  ];
+  for (const kp of plan.requiredKps) {
+    lines.push(`- ${kp.id} | ${kp.titleKid} | status: ${kp.status ?? "not_started"}`);
+    if (kp.whyKid) lines.push(`  why: ${kp.whyKid}`);
+    if (kp.masterySignals) {
+      lines.push(
+        `  mastery_signals: saw_it=${kp.masterySignals.saw_it}; did_with_help=${kp.masterySignals.did_with_help}; did_unprompted=${kp.masterySignals.did_unprompted}; explained_it=${kp.masterySignals.explained_it}`,
+      );
+    }
+  }
+  lines.push("</hi-bit:learning-plan>");
+  return lines;
 }
 
 function buildMemoryLines(memory: SessionMemoryContext): string[] {
   return [
     "",
-    "<hibit-memory>",
+    "<hi-bit:memory>",
     "These memory files were injected by Hi-Bit from the kid profile directory.",
     "Use them as context.",
-    "If you need to update memory, write the real files at the relative paths shown here.",
+    "Use these files as context. Update state.md directly only when the prompt says to. Do not edit progress.json directly; emit hidden <hi-bit:progress> blocks instead.",
     "",
-    '<file path="state.md" format="markdown">',
+    '<hi-bit:file path="state.md" format="markdown">',
     memory.stateMd.trimEnd(),
-    "</file>",
+    "</hi-bit:file>",
     "",
-    '<file path="progress.json" format="json">',
+    '<hi-bit:file path="progress.json" format="json">',
     memory.progressJson.trimEnd(),
-    "</file>",
-    "</hibit-memory>",
+    "</hi-bit:file>",
+    "</hi-bit:memory>",
   ];
 }
 

@@ -54,9 +54,9 @@ describe("buildSessionContextPreamble", () => {
       },
     });
     expect(text).toMatch("/tmp/profiles/ada");
-    expect(text).toContain('<file path="state.md" format="markdown">');
+    expect(text).toContain('<hi-bit:file path="state.md" format="markdown">');
     expect(text).toContain("Ada likes turtles.");
-    expect(text).toContain('<file path="progress.json" format="json">');
+    expect(text).toContain('<hi-bit:file path="progress.json" format="json">');
     expect(text).toContain('"knowledgePoints"');
   });
 
@@ -67,6 +67,46 @@ describe("buildSessionContextPreamble", () => {
       profileDir: "/tmp/profiles/ada",
     });
     expect(text).toMatch(/snake/);
+  });
+
+  it("includes the current dream learning plan when provided", () => {
+    const text = buildSessionContextPreamble({
+      role: "kid",
+      profile: { ...baseProfile, currentDreamId: "click-me" },
+      profileDir: "/tmp/profiles/ada",
+      learningPlan: {
+        dream: { id: "click-me", titleKid: "a page with buttons to click" },
+        nextUpKpId: "html-doc-shell",
+        requiredKps: [
+          {
+            id: "html-doc-shell",
+            titleKid: "the frame that holds your page",
+            whyKid: "every page needs an outside wrapper.",
+            status: null,
+          },
+          {
+            id: "html-text-headings",
+            titleKid: "big titles and small titles",
+            status: "did_with_help",
+          },
+        ],
+      },
+    });
+
+    expect(text).toContain("<hi-bit:learning-plan>");
+    expect(text).toContain(
+      "Before your visible reply ends, include a hidden <hi-bit:progress> block when this turn teaches or checks next_up.",
+    );
+    expect(text).toContain("Use listed ids like html-text-headings, not tag names like h1.");
+    expect(text).toContain("dream: click-me - a page with buttons to click");
+    expect(text).toContain("next_up: html-doc-shell");
+    expect(text).toContain(
+      "- html-doc-shell | the frame that holds your page | status: not_started",
+    );
+    expect(text).toContain("why: every page needs an outside wrapper.");
+    expect(text).toContain(
+      "- html-text-headings | big titles and small titles | status: did_with_help",
+    );
   });
 
   it("says no dream chosen yet when currentDreamId is absent", () => {
@@ -119,6 +159,7 @@ describe("withSessionContext", () => {
     });
     expect(merged.endsWith("hi bit")).toBe(true);
     expect(merged.length).toBeGreaterThan("hi bit".length);
+    expect(merged).toMatch(/<hi-bit:context>/);
     expect(merged).toMatch(/mode:\s*kid/);
   });
 
