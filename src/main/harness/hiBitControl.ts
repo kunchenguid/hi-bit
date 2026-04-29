@@ -78,7 +78,11 @@ export function createHiBitControlStreamFilter(onVisible: (text: string) => void
     }
     const closeTag = `</hi-bit:${hiddenName}>`;
     const close = text.indexOf(closeTag);
-    if (close === -1) return;
+    if (close === -1) {
+      const keep = prefixSuffixLength(text, closeTag);
+      buffer = keep > 0 ? text.slice(-keep) : "";
+      return;
+    }
     const rest = text.slice(close + closeTag.length);
     hiddenName = null;
     buffer = "";
@@ -101,9 +105,13 @@ export function createHiBitControlStreamFilter(onVisible: (text: string) => void
 }
 
 function controlPrefixSuffixLength(text: string): number {
-  const max = Math.min(text.length, CONTROL_PREFIX.length - 1);
+  return prefixSuffixLength(text, CONTROL_PREFIX);
+}
+
+function prefixSuffixLength(text: string, prefix: string): number {
+  const max = Math.min(text.length, prefix.length - 1);
   for (let len = max; len > 0; len -= 1) {
-    if (CONTROL_PREFIX.startsWith(text.slice(-len))) return len;
+    if (prefix.startsWith(text.slice(-len))) return len;
   }
   return 0;
 }

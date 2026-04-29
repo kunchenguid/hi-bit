@@ -32,6 +32,18 @@ describe("hi-bit control blocks", () => {
     expect(onVisible.mock.calls.map(([text]) => text).join("")).toBe("Nice  done.");
   });
 
+  it("recognizes hidden control close tags split across streaming chunks", () => {
+    const onVisible = vi.fn();
+    const filter = createHiBitControlStreamFilter(onVisible);
+
+    filter.push("Nice <hi-bit:progress>{}");
+    filter.push("</hi-bit:prog");
+    filter.push("ress> done.");
+    filter.finish();
+
+    expect(onVisible.mock.calls.map(([text]) => text).join("")).toBe("Nice  done.");
+  });
+
   it("flushes a partial non-control tag as visible text", () => {
     const onVisible = vi.fn();
     const filter = createHiBitControlStreamFilter(onVisible);
