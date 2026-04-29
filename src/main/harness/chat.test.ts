@@ -10,6 +10,7 @@ import {
   createProfile,
   readProgress,
   setCurrentDream,
+  updateKpSkipped,
   updateKpStatus,
   writeProfileFile,
 } from "../storage/profiles";
@@ -322,6 +323,54 @@ describe("sendKidMessage", () => {
     expect(progress.knowledgePoints["html-text-headings"]?.evidence).toBe(
       "Built the heading independently.",
     );
+  });
+
+  it("does not let hidden progress blocks update parent-skipped KPs", async () => {
+    const profile = await makeAda();
+    await writeFile(
+      join(layout.graphNodesDir, "html-text-headings.yml"),
+      [
+        "id: html-text-headings",
+        "title_parent: Headings",
+        "title_kid: big titles and small titles",
+        "area: html",
+        "prereqs: []",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await updateKpSkipped(layout, profile.id, "html-text-headings", true);
+    const reply =
+      'Nice work.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1 text."}]</hi-bit:progress>';
+    const spawn = spawnEmitting([
+      (c) => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: reply }));
+        c.emit("close", 0, null);
+      },
+    ]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "saved",
+      spawn,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Nice work.", durationMs: expect.any(Number) });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["html-text-headings"]).toMatchObject({
+      status: "saw_it",
+      skipped: true,
+    });
+    expect(progress.knowledgePoints["html-text-headings"]?.evidence).toBeUndefined();
   });
 
   it("tells Bit which starter project files already exist on the first kid turn", async () => {

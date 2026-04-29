@@ -544,6 +544,7 @@ async function applyProgressControlBlocks(
       if (typeof candidate.status !== "string") continue;
       if (!VALID_KP_STATUSES.has(candidate.status as KnowledgePointStatus)) continue;
       const nextStatus = candidate.status as KnowledgePointStatus;
+      if (progress.knowledgePoints[candidate.kpId]?.skipped) continue;
       const currentStatus = currentStatuses.get(candidate.kpId);
       if (currentStatus && KP_STATUS_RANK[currentStatus] >= KP_STATUS_RANK[nextStatus]) continue;
       await updateKpStatus(
