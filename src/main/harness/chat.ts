@@ -506,6 +506,13 @@ const VALID_KP_STATUSES = new Set<KnowledgePointStatus>([
   "explained_it",
 ]);
 
+const KP_STATUS_RANK: Record<KnowledgePointStatus, number> = {
+  saw_it: 1,
+  did_with_help: 2,
+  did_unprompted: 3,
+  explained_it: 4,
+};
+
 async function applyProgressControlBlocks(
   layout: HiBitLayout,
   profileId: string,
@@ -517,6 +524,10 @@ async function applyProgressControlBlocks(
   const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);
   if (!graphResult.ok) return;
   const validKpIds = new Set(Object.keys(graphResult.graph.byId));
+  const progress = await readProgress(layout, profileId);
+  const currentStatuses = new Map(
+    Object.entries(progress.knowledgePoints).map(([kpId, kp]) => [kpId, kp.status]),
+  );
 
   for (const block of progressBlocks) {
     let parsed: unknown;
@@ -532,13 +543,17 @@ async function applyProgressControlBlocks(
       if (!validKpIds.has(candidate.kpId)) continue;
       if (typeof candidate.status !== "string") continue;
       if (!VALID_KP_STATUSES.has(candidate.status as KnowledgePointStatus)) continue;
+      const nextStatus = candidate.status as KnowledgePointStatus;
+      const currentStatus = currentStatuses.get(candidate.kpId);
+      if (currentStatus && KP_STATUS_RANK[currentStatus] >= KP_STATUS_RANK[nextStatus]) continue;
       await updateKpStatus(
         layout,
         profileId,
         candidate.kpId,
-        candidate.status as KnowledgePointStatus,
+        nextStatus,
         { evidence: typeof candidate.evidence === "string" ? candidate.evidence : undefined },
       );
+      currentStatuses.set(candidate.kpId, nextStatus);
     }
   }
 }
