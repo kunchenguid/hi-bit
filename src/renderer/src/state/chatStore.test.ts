@@ -1,7 +1,9 @@
 import type { SendMessageResult } from "@shared/chat";
+import { emptyProgress } from "@shared/progress";
 import type { TranscriptEvent } from "@shared/transcript";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { canRetryLastKidMessage, KID_EMPTY_REPLY, useChatStore } from "./chatStore";
+import { useProgressStore } from "./progressStore";
 
 type HiBitApi = typeof window.hibit;
 
@@ -26,6 +28,13 @@ beforeEach(() => {
     hydratedSessionId: null,
     greetingForSessionId: null,
   });
+  useProgressStore.setState({
+    progress: null,
+    profileId: null,
+    status: "idle",
+    error: null,
+    updateError: null,
+  });
 });
 
 describe("useChatStore", () => {
@@ -44,6 +53,28 @@ describe("useChatStore", () => {
     expect(state.error).toBeNull();
     expect(state.messages.length).toBe(2);
     expect(state.messages[1]).toMatchObject({ role: "bit", text: "hi Ada!", kind: "text" });
+  });
+
+  it("refreshes loaded progress after a successful kid turn", async () => {
+    const result: SendMessageResult = { ok: true, text: "next step", durationMs: 123 };
+    const refreshed = {
+      ...emptyProgress(),
+      knowledgePoints: {
+        "html-doc-shell": {
+          status: "saw_it" as const,
+          firstSeenAt: "2026-04-29T00:00:00.000Z",
+          updatedAt: "2026-04-29T00:00:00.000Z",
+        },
+      },
+    };
+    const getProgress = vi.fn().mockResolvedValue(refreshed);
+    mockHiBit({ sendKidMessage: vi.fn().mockResolvedValue(result), getProgress });
+    useProgressStore.setState({ status: "ready", profileId: "ada", progress: emptyProgress() });
+
+    await useChatStore.getState().send("ada", "hello");
+
+    expect(getProgress).toHaveBeenCalledWith("ada");
+    expect(useProgressStore.getState().progress).toEqual(refreshed);
   });
 
   it("sendSystemPrompt prompts Bit without showing the prompt as a kid message", async () => {

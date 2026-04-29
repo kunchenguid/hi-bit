@@ -103,6 +103,25 @@ describe("chooseNextSuggestion", () => {
     if (result.kind === "next-kp") expect(result.kp.id).toBe("a");
   });
 
+  it("includes the current progress status for the suggested KP", () => {
+    const a = makeKp("a");
+    const dream = makeDream("d1", ["a"]);
+    const progress: Progress = {
+      ...baseProgress,
+      knowledgePoints: {
+        a: { status: "saw_it", firstSeenAt: "x", updatedAt: "x" },
+      },
+    };
+    const result = chooseNextSuggestion({
+      graph: makeGraph([a]),
+      library: libraryOf([dream]),
+      currentDreamId: "d1",
+      progress,
+    });
+    expect(result.kind).toBe("next-kp");
+    if (result.kind === "next-kp") expect(result.status).toBe("saw_it");
+  });
+
   it("returns all-done when all kps in the dream's closure meet the threshold", () => {
     const a = makeKp("a");
     const dream = makeDream("d1", ["a"]);

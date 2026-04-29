@@ -81,6 +81,9 @@ chrome-devtools-axi stop
 
 Then kill the `npm run dev` process. Quitting the Electron window also ends the dev server because `electron-vite dev` is tied to Electron's lifecycle.
 
+Always tear down the Electron dev app and the `chrome-devtools-axi` bridge when you finish e2e testing.
+Do not leave background dev apps, CDP endpoints, or AXI bridge processes running after validation.
+
 ### What E2E can and can't cover
 
 - Can: full renderer flow (navigation, forms, live preview, CodeMirror input, parent-mode PIN, mastery grid rendering).

@@ -76,18 +76,21 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/## Session length awareness/i, /20 minutes/i, /natural stop/i, /never hard-cut/i],
   },
   {
-    behavior: "progress.json write protocol with concrete schema",
+    behavior: "hidden progress protocol with concrete schema",
     markers: [
-      /knowledgePoints/,
+      /<hi-bit:progress>/,
+      /kpId/,
       /saw_it/,
       /did_with_help/,
       /did_unprompted/,
       /explained_it/,
-      /firstSeenAt/,
-      /updatedAt/,
       /first time you teach or check a KP/i,
-      /write silently/i,
+      /Emit the hidden block silently/i,
     ],
+  },
+  {
+    behavior: "doc shell progress advances when the kid identifies page structure",
+    markers: [/html-doc-shell[\s\S]*identifies[\s\S]*doctype[\s\S]*body[\s\S]*did_with_help/i],
   },
   {
     behavior: "code block practice flag for type-it-yourself moments",
@@ -111,5 +114,10 @@ describe("shipped bit.md system prompt", () => {
   it("does not use em dashes (house style)", async () => {
     const text = await readFile(shippedBitPrompt, "utf8");
     expect(text).not.toMatch(/—/);
+  });
+
+  it("does not tell Bit to use HTML tag names as KP id examples", async () => {
+    const text = await readFile(shippedBitPrompt, "utf8");
+    expect(text).not.toMatch(/for example `[^`]*h1/i);
   });
 });

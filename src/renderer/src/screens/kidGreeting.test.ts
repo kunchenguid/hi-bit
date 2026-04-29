@@ -37,14 +37,14 @@ describe("buildKidGreetingText", () => {
     expect(text).toContain('Type "ready"');
   });
 
-  it("preserves the lowercase KP title mid-sentence and avoids doubling punctuation", () => {
+  it("does not turn all-done text into a start-with sentence", () => {
     const text = buildKidGreetingText({
       profileName: "Mia",
       dreamTitleKid: "a dice page",
       nextUpText: "ready to build!",
     });
-    expect(text).toContain("We'll start with ready to build!");
-    expect(text).not.toContain("ready to build!.");
+    expect(text).not.toContain("We'll start with ready to build!");
+    expect(text).toBe('Hey Mia! Ready to build a dice page? Type "ready" when you want to go.');
   });
 
   it("never produces ALL CAPS", () => {

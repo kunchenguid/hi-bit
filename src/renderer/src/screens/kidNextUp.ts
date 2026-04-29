@@ -13,13 +13,13 @@ export function describeKidNextUp(
   if (suggestion.kind === "next-kp") {
     const why = suggestion.kp.why_kid?.trim();
     return {
-      label: "Up next",
+      label: suggestion.status === "saw_it" ? "Keep practicing" : "Up next",
       text: suggestion.kp.title_kid,
       ...(why ? { subtext: why } : {}),
     };
   }
   if (suggestion.kind === "all-done") {
-    return { label: "Up next", text: "ready to build!" };
+    return { label: "All skills learned", text: "ready to build!" };
   }
   return null;
 }

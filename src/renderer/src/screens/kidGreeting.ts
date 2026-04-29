@@ -15,6 +15,7 @@ export function buildKidGreetingText(input: KidGreetingInput): string {
   const dream = input.dreamTitleKid?.trim();
   const ready = dream && dream.length > 0 ? ` Ready to build ${dream}?` : "";
   const next = input.nextUpText?.trim();
-  const startWith = next && next.length > 0 ? ` We'll start with ${ensureTerminal(next)}` : "";
+  const startWith =
+    next && next !== "ready to build!" ? ` We'll start with ${ensureTerminal(next)}` : "";
   return `${greeting}${ready}${startWith} Type "ready" when you want to go.`;
 }

@@ -1,6 +1,7 @@
 import type { SendMessageResult } from "@shared/chat";
 import { create } from "zustand";
 import { buildKidChatHistory } from "./kidChatHistory";
+import { useProgressStore } from "./progressStore";
 
 export type ChatMessageRole = "kid" | "bit" | "system";
 export type ChatMessageKind = "text" | "error" | "divider";
@@ -52,6 +53,12 @@ export const KID_EMPTY_REPLY = "Bit got quiet there. Tap try again to wake him u
 
 export function isBlankAssistantText(text: string): boolean {
   return text.trim().length === 0;
+}
+
+async function refreshLoadedProgress(profileId: string): Promise<void> {
+  const progressState = useProgressStore.getState();
+  if (progressState.profileId !== profileId) return;
+  await progressState.load(profileId);
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -137,6 +144,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
       }));
+      if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -194,6 +202,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
       }));
+      if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
     } catch (err) {
       const messageText = err instanceof Error ? err.message : String(err);
@@ -248,6 +257,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
       }));
+      if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

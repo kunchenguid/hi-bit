@@ -29,6 +29,7 @@ export type ExecuteHarnessTurnOptions = {
   signal?: AbortSignal;
   recordTranscript?: boolean;
   recordSessionLog?: boolean;
+  transformAssistantText?: (text: string) => string;
 };
 
 export type HarnessTurnResult = {
@@ -108,7 +109,10 @@ export async function executeHarnessTurn(
 
   const parsed = opts.harness === "claude" ? parseClaudeStreamJson(run.stdout) : null;
   const success = exitedCleanly && (parsed === null || !parsed.isError);
-  const assistantText = parsed ? parsed.text : run.stdout;
+  const rawAssistantText = parsed ? parsed.text : run.stdout;
+  const assistantText = opts.transformAssistantText
+    ? opts.transformAssistantText(rawAssistantText)
+    : rawAssistantText;
   const parseError = parsed?.errorMessage ?? null;
 
   const outEvent: TranscriptEvent = success

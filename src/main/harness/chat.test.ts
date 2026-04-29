@@ -6,7 +6,14 @@ import { Readable } from "node:stream";
 import type { HarnessDetection, HiBitConfig } from "@shared/config";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import { createProfile, setCurrentDream, writeProfileFile } from "../storage/profiles";
+import {
+  createProfile,
+  readProgress,
+  setCurrentDream,
+  updateKpSkipped,
+  updateKpStatus,
+  writeProfileFile,
+} from "../storage/profiles";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
@@ -173,7 +180,7 @@ describe("sendKidMessage", () => {
 
     const args = spawnArgs[0] as string[];
     const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toMatch(/<hibit-context>/);
+    expect(promptArg).toMatch(/<hi-bit:context>/);
     expect(promptArg).toMatch(/mode:\s*kid/);
     expect(promptArg).toMatch(/Ada/);
     expect(promptArg?.endsWith("hi bit")).toBe(true);
@@ -215,11 +222,155 @@ describe("sendKidMessage", () => {
 
     const args = spawnArgs[0] as string[];
     const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toContain('<file path="state.md" format="markdown">');
+    expect(promptArg).toContain('<hi-bit:file path="state.md" format="markdown">');
     expect(promptArg).toContain("Ada likes turtles.");
-    expect(promptArg).toContain('<file path="progress.json" format="json">');
+    expect(promptArg).toContain('<hi-bit:file path="progress.json" format="json">');
     expect(promptArg).toContain('"knowledgePoints": {}');
     expect(promptArg).not.toMatch(/Before replying, read state\.md/i);
+  });
+
+  it("strips hi-bit progress blocks from non-streaming replies and applies valid KP updates", async () => {
+    const profile = await makeAda();
+    await writeFile(
+      join(layout.graphNodesDir, "html-text-headings.yml"),
+      [
+        "id: html-text-headings",
+        "title_parent: Headings",
+        "title_kid: big titles and small titles",
+        "area: html",
+        "prereqs: []",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const reply =
+      'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1 text."},{"kpId":"h1","status":"did_with_help","evidence":"Invalid id."}]</hi-bit:progress>';
+    const spawn = spawnEmitting([
+      (c) => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: reply }));
+        c.emit("close", 0, null);
+      },
+    ]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "saved",
+      spawn,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Nice title.", durationMs: expect.any(Number) });
+    const paths = profilePathsFor(layout, profile.id);
+    const events = await readTranscript(paths, profile.sessions.kid);
+    expect(events[1]?.text).toBe("Nice title.");
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["html-text-headings"]?.status).toBe("did_with_help");
+    expect(progress.knowledgePoints.h1).toBeUndefined();
+  });
+
+  it("does not let hidden progress blocks downgrade existing KP mastery", async () => {
+    const profile = await makeAda();
+    await writeFile(
+      join(layout.graphNodesDir, "html-text-headings.yml"),
+      [
+        "id: html-text-headings",
+        "title_parent: Headings",
+        "title_kid: big titles and small titles",
+        "area: html",
+        "prereqs: []",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await updateKpStatus(layout, profile.id, "html-text-headings", "did_unprompted", {
+      evidence: "Built the heading independently.",
+    });
+    const reply =
+      'Nice review.<hi-bit:progress>[{"kpId":"html-text-headings","status":"saw_it","evidence":"Reviewed headings."}]</hi-bit:progress>';
+    const spawn = spawnEmitting([
+      (c) => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: reply }));
+        c.emit("close", 0, null);
+      },
+    ]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "review headings",
+      spawn,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Nice review.", durationMs: expect.any(Number) });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["html-text-headings"]?.status).toBe("did_unprompted");
+    expect(progress.knowledgePoints["html-text-headings"]?.evidence).toBe(
+      "Built the heading independently.",
+    );
+  });
+
+  it("does not let hidden progress blocks update parent-skipped KPs", async () => {
+    const profile = await makeAda();
+    await writeFile(
+      join(layout.graphNodesDir, "html-text-headings.yml"),
+      [
+        "id: html-text-headings",
+        "title_parent: Headings",
+        "title_kid: big titles and small titles",
+        "area: html",
+        "prereqs: []",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await updateKpSkipped(layout, profile.id, "html-text-headings", true);
+    const reply =
+      'Nice work.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1 text."}]</hi-bit:progress>';
+    const spawn = spawnEmitting([
+      (c) => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: reply }));
+        c.emit("close", 0, null);
+      },
+    ]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "saved",
+      spawn,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Nice work.", durationMs: expect.any(Number) });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["html-text-headings"]).toMatchObject({
+      status: "saw_it",
+      skipped: true,
+    });
+    expect(progress.knowledgePoints["html-text-headings"]?.evidence).toBeUndefined();
   });
 
   it("tells Bit which starter project files already exist on the first kid turn", async () => {
@@ -256,6 +407,96 @@ describe("sendKidMessage", () => {
     expect(promptArg).toContain('project_files: ["index.html"]');
     expect(promptArg).toMatch(/index\.html already exists/i);
     expect(promptArg).toMatch(/do not ask the kid to create it/i);
+  });
+
+  it("injects the current dream learning plan on the first kid turn", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await writeFile(
+      join(layout.graphNodesDir, "html-doc-shell.yml"),
+      [
+        "id: html-doc-shell",
+        "title_parent: HTML document shell",
+        "title_kid: the frame that holds your page",
+        "why_kid: every page needs an outside wrapper.",
+        "area: html",
+        "prereqs: []",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(layout.graphNodesDir, "html-text-headings.yml"),
+      [
+        "id: html-text-headings",
+        "title_parent: Headings",
+        "title_kid: big titles and small titles",
+        "area: html",
+        "prereqs: [html-doc-shell]",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      join(layout.graphDreamsDir, "click-me.yml"),
+      [
+        "id: click-me",
+        "title_parent: Click-me page",
+        "title_kid: a page with buttons to click",
+        "summary_kid: a page with buttons",
+        'emoji: "👉"',
+        "categories: [creative]",
+        "interest_tags: [buttons]",
+        "requires: [html-doc-shell, html-text-headings]",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeProfileFile(paths, { ...profile, currentDreamId: "click-me" });
+
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "ready",
+      spawn,
+    });
+
+    const args = spawnArgs[0] as string[];
+    const promptArg = args[args.indexOf("-p") + 1];
+    expect(promptArg).toContain("<hi-bit:learning-plan>");
+    expect(promptArg).toContain("dream: click-me - a page with buttons to click");
+    expect(promptArg).toContain("next_up: html-doc-shell");
+    expect(promptArg).toContain(
+      "- html-doc-shell | the frame that holds your page | status: not_started",
+    );
+    expect(promptArg).toContain(
+      "- html-text-headings | big titles and small titles | status: not_started",
+    );
   });
 
   it("tells Bit which starter project files already exist when the first dream is picked after an earlier kid turn", async () => {
@@ -670,7 +911,7 @@ describe("sendParentMessage", () => {
 
     const args = spawnArgs[0] as string[];
     const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toMatch(/<hibit-context>/);
+    expect(promptArg).toMatch(/<hi-bit:context>/);
     expect(promptArg).toMatch(/mode:\s*parent/);
   });
 
