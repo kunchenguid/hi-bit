@@ -18,8 +18,12 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/## Who you are/i, /## How you speak/i, /sentence case/i],
   },
   {
-    behavior: "memory file paths and re-read instructions",
-    markers: [/state\.md/i, /progress\.json/i, /read these two files/i],
+    behavior: "kid-mode turn shape: one point at a time",
+    markers: [/one-point turns/i, /one learning point/i, /one next action/i],
+  },
+  {
+    behavior: "memory file paths and injected context instructions",
+    markers: [/state\.md/i, /progress\.json/i, /injects memory/i],
   },
   {
     behavior: "pedagogy: ask-first, show-sometimes, tell-rarely",

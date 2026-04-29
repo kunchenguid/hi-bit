@@ -43,15 +43,21 @@ describe("buildSessionContextPreamble", () => {
     expect(text).toMatch(/drawing/);
   });
 
-  it("includes the absolute profile directory so Bit can read state.md and progress.json", () => {
+  it("includes injected memory with relative source paths when memory is provided", () => {
     const text = buildSessionContextPreamble({
       role: "kid",
       profile: baseProfile,
       profileDir: "/tmp/profiles/ada",
+      memory: {
+        stateMd: "# State\n\nAda likes turtles.\n",
+        progressJson: '{"version":1,"knowledgePoints":{}}\n',
+      },
     });
     expect(text).toMatch("/tmp/profiles/ada");
-    expect(text).toMatch(/state\.md/);
-    expect(text).toMatch(/progress\.json/);
+    expect(text).toContain('<file path="state.md" format="markdown">');
+    expect(text).toContain("Ada likes turtles.");
+    expect(text).toContain('<file path="progress.json" format="json">');
+    expect(text).toContain('"knowledgePoints"');
   });
 
   it("mentions the current dream when one is set", () => {

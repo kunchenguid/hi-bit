@@ -8,8 +8,8 @@ type Closable = {
 export class ClaudeSessionRegistry<T extends Closable> {
   private readonly sessions = new Map<string, T>();
 
-  static makeKey(profileId: string, role: SessionRole): string {
-    return `${profileId}/${role}`;
+  static makeKey(profileId: string, role: SessionRole, sessionId?: string): string {
+    return sessionId ? `${profileId}/${role}/${sessionId}` : `${profileId}/${role}`;
   }
 
   getOrCreate(key: string, factory: () => T): T {
@@ -36,11 +36,13 @@ export class ClaudeSessionRegistry<T extends Closable> {
   }
 
   closeProfileRole(profileId: string, role: SessionRole): void {
-    const key = ClaudeSessionRegistry.makeKey(profileId, role);
-    const session = this.sessions.get(key);
-    if (!session) return;
-    session.close();
-    this.sessions.delete(key);
+    const prefix = `${profileId}/${role}`;
+    for (const [key, session] of this.sessions.entries()) {
+      if (key === prefix || key.startsWith(`${prefix}/`)) {
+        session.close();
+        this.sessions.delete(key);
+      }
+    }
   }
 
   closeAll(): void {

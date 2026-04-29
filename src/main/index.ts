@@ -251,13 +251,13 @@ function registerIpc(layout: HiBitLayout): void {
 
   ipcMain.handle("hibit:set-current-dream", async (_event, profileId: string, dreamId: string) => {
     const prior = await readProfile(layout, profileId);
-    const priorDreamId = prior?.currentDreamId ?? null;
+    const priorKidSessionId = prior?.sessions.kid ?? null;
     const profile = await setCurrentDream(layout, profileId, dreamId);
     // setCurrentDream rotates profile.sessions.kid when the dream changes.
     // The long-lived Claude subprocess is still bound to the prior sessionId,
     // so we tear it down here so the next kid message spawns a fresh process
     // against the rotated sessionId and re-injects the system preamble.
-    if (priorDreamId && priorDreamId !== profile.currentDreamId) {
+    if (priorKidSessionId && priorKidSessionId !== profile.sessions.kid) {
       claudeRegistry.closeProfileRole(profileId, "kid");
     }
     const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);

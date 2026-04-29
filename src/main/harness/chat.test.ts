@@ -6,7 +6,7 @@ import { Readable } from "node:stream";
 import type { HarnessDetection, HiBitConfig } from "@shared/config";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import { createProfile, writeProfileFile } from "../storage/profiles";
+import { createProfile, setCurrentDream, writeProfileFile } from "../storage/profiles";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
@@ -184,6 +184,44 @@ describe("sendKidMessage", () => {
     expect(userEvent?.text).toBe("hi bit");
   });
 
+  it("injects memory file contents with relative source paths on the first kid turn", async () => {
+    const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await writeFile(paths.stateFile, "# State\n\nAda likes turtles.\n", "utf8");
+    await writeFile(
+      paths.progressFile,
+      `${JSON.stringify({ version: 1, knowledgePoints: {}, projects: [], sessions: [], dreamHistory: [] }, null, 2)}\n`,
+      "utf8",
+    );
+    const spawnArgs: Array<readonly string[]> = [];
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
+      const c = makeFakeChild();
+      setImmediate(() => {
+        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
+        c.emit("close", 0, null);
+      });
+      return c as unknown as ReturnType<HarnessSpawnFn>;
+    };
+
+    await sendKidMessage({
+      layout,
+      config,
+      detection,
+      profileId: profile.id,
+      prompt: "hi bit",
+      spawn,
+    });
+
+    const args = spawnArgs[0] as string[];
+    const promptArg = args[args.indexOf("-p") + 1];
+    expect(promptArg).toContain('<file path="state.md" format="markdown">');
+    expect(promptArg).toContain("Ada likes turtles.");
+    expect(promptArg).toContain('<file path="progress.json" format="json">');
+    expect(promptArg).toContain('"knowledgePoints": {}');
+    expect(promptArg).not.toMatch(/Before replying, read state\.md/i);
+  });
+
   it("tells Bit which starter project files already exist on the first kid turn", async () => {
     const profile = await makeAda();
     const paths = profilePathsFor(layout, profile.id);
@@ -246,7 +284,7 @@ describe("sendKidMessage", () => {
       prompt: "hi before dream",
       spawn,
     });
-    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+    await setCurrentDream(layout, profile.id, "hello-card");
     await sendKidMessage({
       layout,
       config,
@@ -258,7 +296,7 @@ describe("sendKidMessage", () => {
 
     const secondArgs = spawnArgs[1] as string[];
     const promptArg = secondArgs[secondArgs.indexOf("-p") + 1];
-    expect(secondArgs).toContain("--resume");
+    expect(secondArgs).not.toContain("--resume");
     expect(promptArg).toContain(`project_dir: ${projectDir}`);
     expect(promptArg).toContain('project_files: ["index.html"]');
     expect(promptArg).toMatch(/index\.html already exists/i);
@@ -273,8 +311,10 @@ describe("sendKidMessage", () => {
     await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
 
     const prompts: string[] = [];
+    const spawnArgs: Array<readonly string[]> = [];
     const registry = new ClaudeSessionRegistry<ClaudeSession>();
-    const spawn: HarnessSpawnFn = (_bin, _args) => {
+    const spawn: HarnessSpawnFn = (_bin, args) => {
+      spawnArgs.push(args);
       const c = makeFakeChild();
       setImmediate(() => {
         c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
@@ -298,7 +338,7 @@ describe("sendKidMessage", () => {
       spawn,
       claudeRegistry: registry,
     });
-    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
+    await setCurrentDream(layout, profile.id, "hello-card");
     await sendKidMessage({
       layout,
       config,
@@ -309,6 +349,8 @@ describe("sendKidMessage", () => {
       claudeRegistry: registry,
     });
 
+    expect(spawnArgs).toHaveLength(2);
+    expect(spawnArgs[1]).not.toContain("--resume");
     expect(prompts[1]).toContain(`project_dir: ${projectDir}`);
     expect(prompts[1]).toContain('project_files: ["index.html"]');
     expect(prompts[1]).toMatch(/index\.html already exists/i);
@@ -375,8 +417,16 @@ describe("sendKidMessage", () => {
     if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
   });
 
-  it("does not inject the preamble on resume-mode turns", async () => {
+  it("does not inject the preamble on resume-mode turns after the current dream is known", async () => {
     const profile = await makeAda();
+    const paths = profilePathsFor(layout, profile.id);
+    await mkdir(join(paths.projectsDir, "hello-card"), { recursive: true });
+    await writeFile(
+      join(paths.projectsDir, "hello-card", "index.html"),
+      "<!doctype html>\n",
+      "utf8",
+    );
+    await setCurrentDream(layout, profile.id, "hello-card");
     const spawnArgs: Array<readonly string[]> = [];
     const spawn: HarnessSpawnFn = (_bin, args) => {
       spawnArgs.push(args);
