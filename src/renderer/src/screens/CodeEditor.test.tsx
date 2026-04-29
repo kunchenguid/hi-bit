@@ -234,4 +234,34 @@ describe("CodeEditor cursor marker", () => {
     const iframe = host.querySelector("iframe");
     expect(iframe?.getAttribute("srcdoc")).toContain("Changed");
   });
+
+  it("reloads the iframe on Refresh even when no content changed", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const iframeBefore = host.querySelector("iframe");
+    if (!iframeBefore) throw new Error("Live preview iframe was not rendered");
+
+    const refreshButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Refresh",
+    );
+    if (!refreshButton) throw new Error("Refresh button was not rendered");
+
+    await act(async () => {
+      refreshButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const iframeAfter = host.querySelector("iframe");
+    expect(iframeAfter).not.toBe(iframeBefore);
+  });
 });

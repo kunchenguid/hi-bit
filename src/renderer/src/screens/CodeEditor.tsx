@@ -66,6 +66,7 @@ export function CodeEditor({
   const loadGraph = useGraphStore((s) => s.load);
 
   const [srcdoc, setSrcdoc] = useState<string>(EMPTY_PREVIEW);
+  const [previewNonce, setPreviewNonce] = useState(0);
   const [previewMissing, setPreviewMissing] = useState(false);
   const didAutoPreviewRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -165,6 +166,7 @@ export function CodeEditor({
       setSrcdoc(EMPTY_PREVIEW);
       setPreviewMissing(true);
     }
+    setPreviewNonce((n) => n + 1);
   }
 
   async function handleOpenFolder(): Promise<void> {
@@ -520,7 +522,7 @@ export function CodeEditor({
               </p>
             ) : null}
             <iframe
-              key={srcdoc}
+              key={previewNonce}
               className="hb-editor-iframe"
               title="Live preview"
               sandbox="allow-scripts allow-modals"
