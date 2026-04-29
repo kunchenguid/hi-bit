@@ -547,13 +547,9 @@ async function applyProgressControlBlocks(
       if (progress.knowledgePoints[candidate.kpId]?.skipped) continue;
       const currentStatus = currentStatuses.get(candidate.kpId);
       if (currentStatus && KP_STATUS_RANK[currentStatus] >= KP_STATUS_RANK[nextStatus]) continue;
-      await updateKpStatus(
-        layout,
-        profileId,
-        candidate.kpId,
-        nextStatus,
-        { evidence: typeof candidate.evidence === "string" ? candidate.evidence : undefined },
-      );
+      await updateKpStatus(layout, profileId, candidate.kpId, nextStatus, {
+        evidence: typeof candidate.evidence === "string" ? candidate.evidence : undefined,
+      });
       currentStatuses.set(candidate.kpId, nextStatus);
     }
   }
