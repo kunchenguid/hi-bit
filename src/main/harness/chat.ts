@@ -347,8 +347,7 @@ async function projectFilesForCurrentDream(
   profile: Parameters<typeof withSessionContext>[0]["profile"],
 ): Promise<string[] | undefined> {
   if (!profile.currentDreamId) return undefined;
-  const files = await listProjectFiles(paths, profile.currentDreamId);
-  return files.length > 0 ? files : undefined;
+  return listProjectFiles(paths, profile.currentDreamId);
 }
 
 async function learningPlanForCurrentDream(

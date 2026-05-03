@@ -421,6 +421,24 @@ describe("ACP-backed chat", () => {
     expect(prompts[0]).toContain('project_files: ["index.html"]');
   });
 
+  it("keeps an empty current dream in project context", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await setCurrentDream(layout, profile.id, "empty-project");
+    const paths = profilePathsFor(layout, profile.id);
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "ready" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "start",
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain(`project_dir: ${join(paths.root, "projects", "empty-project")}`);
+    expect(prompts[0]).toContain("project_files: []");
+  });
+
   it("keeps freeform dreams in project context without a fixed learning plan", async () => {
     await writeFile(
       join(layout.graphDreamsDir, "playground.yml"),
