@@ -97,7 +97,7 @@ describe("DreamPicker difficulty", () => {
   it("pins playground first with a not-sure-yet cue", async () => {
     const playground = makeDream(1, {
       id: "playground",
-      mode: "conversation",
+      mode: "freeform",
       title_parent: "Playground",
       title_kid: "playground",
       summary_kid: "chat with Bit about anything you are curious about",

@@ -164,9 +164,6 @@ export async function scaffoldProject(
   dream: Dream,
   options: ScaffoldOptions,
 ): Promise<ScaffoldResult> {
-  if (dream.mode === "conversation") {
-    return { created: [], skipped: [] };
-  }
   const dir = projectPathFor(paths, dream.id);
   await mkdir(dir, { recursive: true });
   const files: Array<{ name: string; content: string }> = [

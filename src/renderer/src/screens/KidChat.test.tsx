@@ -158,7 +158,7 @@ describe("KidChat cursor target action", () => {
   it("seeds the playground greeting as a freeform prompt", async () => {
     const playground = makeDream([]);
     playground.id = "playground";
-    playground.mode = "conversation";
+    playground.mode = "freeform";
     playground.title_kid = "playground";
     useChatStore.setState({ messages: [], greetingForSessionId: null });
     useGraphStore.setState({

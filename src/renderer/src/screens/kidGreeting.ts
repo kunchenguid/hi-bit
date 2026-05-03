@@ -6,14 +6,14 @@ function ensureTerminal(text: string): string {
 export type KidGreetingInput = {
   profileName: string;
   dreamTitleKid: string | null;
-  dreamMode?: "project" | "conversation";
+  dreamMode?: "project" | "freeform";
   nextUpText: string | null;
 };
 
 export function buildKidGreetingText(input: KidGreetingInput): string {
   const name = input.profileName.trim();
   const greeting = name.length > 0 ? `Hey ${name}!` : "Hey!";
-  if (input.dreamMode === "conversation") {
+  if (input.dreamMode === "freeform") {
     return `${greeting} What would you like to do?`;
   }
   const dream = input.dreamTitleKid?.trim();

@@ -364,7 +364,7 @@ async function learningPlanForCurrentDream(
   if (!dreamResult.ok) return undefined;
   const dream = dreamResult.library.byId[profile.currentDreamId];
   if (!dream) return undefined;
-  if (dream.mode === "conversation") return undefined;
+  if (dream.mode === "freeform") return undefined;
 
   const progress = await readProgress(layout, profileId);
   const nextUpKpId = pickNextKP(graph, dream, progress);

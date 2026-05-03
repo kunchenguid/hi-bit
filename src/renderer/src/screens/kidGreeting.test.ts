@@ -57,11 +57,11 @@ describe("buildKidGreetingText", () => {
     expect(text).not.toContain("Ready to build show me around?");
   });
 
-  it("uses a freeform prompt for conversation dreams", () => {
+  it("uses a freeform prompt for dreams without a fixed path", () => {
     const text = buildKidGreetingText({
       profileName: "Ada",
       dreamTitleKid: "playground",
-      dreamMode: "conversation",
+      dreamMode: "freeform",
       nextUpText: null,
     });
     expect(text).toBe("Hey Ada! What would you like to do?");

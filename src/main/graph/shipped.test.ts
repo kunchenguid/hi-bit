@@ -275,7 +275,7 @@ describe("shipped dream library content", () => {
     const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
     if (!dreamValidation.ok) throw new Error("expected dreams to validate");
     for (const dream of dreamValidation.library.dreams) {
-      if (dream.mode !== "conversation") {
+      if (dream.mode !== "freeform") {
         expect(dream.requires.length).toBeGreaterThan(0);
       }
       for (const req of dream.requires) {
@@ -284,13 +284,13 @@ describe("shipped dream library content", () => {
     }
   });
 
-  it("includes a playground conversation dream with no required KPs", async () => {
+  it("includes a playground freeform dream with no fixed required KPs", async () => {
     const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
     if (!graphValidation.ok) throw new Error("expected graph to validate");
     const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
     if (!dreamValidation.ok) throw new Error("expected dreams to validate");
     expect(dreamValidation.library.byId.playground).toMatchObject({
-      mode: "conversation",
+      mode: "freeform",
       requires: [],
       difficulty: 1,
     });

@@ -421,7 +421,7 @@ describe("ACP-backed chat", () => {
     expect(prompts[0]).toContain('project_files: ["index.html"]');
   });
 
-  it("keeps conversation dreams out of project and learning-plan context", async () => {
+  it("keeps freeform dreams in project context without a fixed learning plan", async () => {
     await writeFile(
       join(layout.graphDreamsDir, "playground.yml"),
       [
@@ -430,7 +430,7 @@ describe("ACP-backed chat", () => {
         "title_kid: playground",
         "summary_kid: chat with Bit about anything you are curious about",
         'emoji: "💬"',
-        "mode: conversation",
+        "mode: freeform",
         "categories: [creative]",
         "interest_tags: [chat, questions, ideas]",
         "requires: []",
@@ -440,6 +440,24 @@ describe("ACP-backed chat", () => {
     );
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     await setCurrentDream(layout, profile.id, "playground");
+    const paths = profilePathsFor(layout, profile.id);
+    await scaffoldProject(
+      paths,
+      {
+        id: "playground",
+        mode: "freeform",
+        title_parent: "Playground",
+        title_kid: "playground",
+        summary_kid: "chat with Bit about anything you are curious about",
+        categories: ["creative" as const],
+        interest_tags: [],
+        requires: [],
+        style_hints: [],
+        emoji: "*",
+        difficulty: 1 as const,
+      },
+      { profileName: profile.name },
+    );
     const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "let's chat" }]);
 
     await sendKidMessage({
@@ -451,8 +469,8 @@ describe("ACP-backed chat", () => {
     });
 
     expect(prompts[0]).toContain("current_dream: playground");
-    expect(prompts[0]).not.toContain("project_dir:");
-    expect(prompts[0]).not.toContain("project_files:");
+    expect(prompts[0]).toContain(`project_dir: ${join(paths.root, "projects", "playground")}`);
+    expect(prompts[0]).toContain('project_files: ["index.html"]');
     expect(prompts[0]).not.toContain("<hi-bit:learning-plan>");
   });
 

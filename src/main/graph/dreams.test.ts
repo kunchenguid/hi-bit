@@ -85,18 +85,18 @@ requires: [html-doc-shell]
     expect(dream.style_hints).toEqual([]);
   });
 
-  it("parses a conversation dream mode", () => {
+  it("parses a freeform dream mode", () => {
     const yaml = `id: playground
 title_parent: Playground
 title_kid: playground
 summary_kid: chat with Bit about anything you are curious about
 emoji: "💬"
-mode: conversation
+mode: freeform
 categories: [creative]
 requires: []
 `;
     const dream = parseDream(yaml);
-    expect(dream.mode).toBe("conversation");
+    expect(dream.mode).toBe("freeform");
     expect(dream.requires).toEqual([]);
   });
 
@@ -267,12 +267,12 @@ describe("validateDreams", () => {
     }
   });
 
-  it("allows conversation dreams to have no required KPs", () => {
+  it("allows freeform dreams to have no fixed required KPs", () => {
     const graph = graphOf([]);
     const dreams = [
       makeDream({
         id: "playground",
-        mode: "conversation",
+        mode: "freeform",
         categories: ["creative"],
         requires: [],
       }),

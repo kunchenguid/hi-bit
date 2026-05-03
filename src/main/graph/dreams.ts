@@ -19,8 +19,8 @@ function isCategory(value: unknown): value is DreamCategory {
 
 function asDreamMode(value: unknown): DreamMode {
   if (value === undefined || value === null) return "project";
-  if (value === "project" || value === "conversation") return value;
-  throw new Error("mode must be project or conversation");
+  if (value === "project" || value === "freeform") return value;
+  throw new Error("mode must be project or freeform");
 }
 
 function asStringArray(value: unknown, field: string): string[] {
@@ -145,7 +145,7 @@ export function validateDreams(dreams: DreamDefinition[], graph: KnowledgeGraph)
     if (dream.categories.length === 0) {
       errors.push({ kind: "empty-categories", id: dream.id });
     }
-    if ((dream.mode ?? "project") !== "conversation" && dream.requires.length === 0) {
+    if ((dream.mode ?? "project") !== "freeform" && dream.requires.length === 0) {
       errors.push({ kind: "empty-requires", id: dream.id });
     }
     for (const req of dream.requires) {

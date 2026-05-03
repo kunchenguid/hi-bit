@@ -10,7 +10,7 @@ export const DREAM_CATEGORIES = [
 
 export type DreamDifficulty = 1 | 2 | 3 | 4 | 5;
 
-export type DreamMode = "project" | "conversation";
+export type DreamMode = "project" | "freeform";
 
 export type DreamDefinition = {
   id: string;

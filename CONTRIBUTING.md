@@ -44,13 +44,13 @@ One file per KP under `graph/nodes/<id>.yml`, following the shape in `docs/knowl
 ## Adding a dream
 
 Dreams are usually buildable projects the kid can pick from Bit's dream menu.
-The current v1 library ships 53 dreams, including the `playground` conversation dream.
+The current v1 library ships 53 dreams, including the `playground` freeform dream.
 Schema lives in `src/shared/dreams.ts`.
 
 Review criteria:
 
 1. **Real and achievable.** A dream is a real web project a 7-12 year old would actually want to build and could finish in one to a handful of sessions.
-2. **Coverable by shipped KPs.** Every id in `requires:` must resolve to an existing `graph/nodes/*.yml`. If you need a KP that does not exist yet, add the KP in the same PR - but prefer reusing KPs. Only `mode: conversation` dreams may have an empty `requires:` list.
+2. **Coverable by shipped KPs.** Every id in `requires:` must resolve to an existing `graph/nodes/*.yml`. If you need a KP that does not exist yet, add the KP in the same PR - but prefer reusing KPs. Only `mode: freeform` dreams may have an empty `requires:` list.
 3. **Direct-use prereqs only.** Like KP prereqs, list the KPs the dream directly exercises. The scheduler resolves transitive prereqs from the graph; you do not need to include them.
 4. **Difficulty is computed.** Do not author `difficulty` in `graph/dreams/*.yml`. Validation computes the 1-5 bit rating shown in the picker from the direct `requires:` count and the graph depth of those direct requirements.
 5. **Categorized.** Use the `arcade | creative | personal | utility | art` enum. Multiple categories are fine. Adding a new category is a separate architectural change, not a dream PR.
