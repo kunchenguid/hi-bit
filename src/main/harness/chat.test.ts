@@ -373,6 +373,7 @@ describe("ACP-backed chat", () => {
       requires: ["html-doc-shell"],
       style_hints: [],
       emoji: "*",
+      difficulty: 1 as const,
     };
     await setCurrentDream(layout, profile.id, dream.id);
     const paths = profilePathsFor(layout, profile.id);
