@@ -181,6 +181,40 @@ describe("ACP-backed chat", () => {
     expect(log.map((entry) => entry.mode)).toEqual(["start", "resume"]);
   });
 
+  it("records resume mode when a resumed turn throws", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "first",
+      runtimeFactory: runtimeFactoryFor([{ text: "one" }]).runtimeFactory,
+    });
+    const throwingRuntimeFactory = vi.fn(() => ({
+      ensureSession: vi.fn(async () => ({
+        sessionKey: "s",
+        backend: "acpx",
+        runtimeSessionName: "runtime",
+      })),
+      startTurn: vi.fn(() => {
+        throw new Error("ACP exploded");
+      }),
+      close: vi.fn(async () => {}),
+    }));
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "second",
+      runtimeFactory: throwingRuntimeFactory,
+    });
+
+    expect(result.ok).toBe(false);
+    const log = await readSessionLogEntries(profilePathsFor(layout, profile.id));
+    expect(log.map((entry) => entry.mode)).toEqual(["start", "resume"]);
+  });
+
   it("requestCursorMarker does not write helper turns to transcript or session log", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const { runtimeFactory, prompts } = runtimeFactoryFor([

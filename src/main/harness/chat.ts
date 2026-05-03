@@ -141,9 +141,10 @@ async function sendMessage(
   await ensureProfileScaffold(opts.layout, paths, profile);
   const sessionId = role === "kid" ? profile.sessions.kid : profile.sessions.parent;
   const startedAt = new Date(startMs).toISOString();
+  let mode: HarnessInvocationMode = "start";
 
   try {
-    const mode = await resolveMode(paths, sessionId);
+    mode = await resolveMode(paths, sessionId);
     const injectSessionContext = shouldInjectSessionContext(role, profile, mode);
     const projectFiles =
       role === "kid" && injectSessionContext
@@ -242,7 +243,7 @@ async function sendMessage(
       harness: agent,
       role,
       sessionId,
-      mode: "start",
+      mode,
       durationMs: endMs - startMs,
       exitCode: null,
       signal: null,

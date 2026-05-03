@@ -11,6 +11,7 @@ import {
 } from "acpx/runtime";
 
 type AcpxRuntimeLike = Pick<AcpxRuntime, "ensureSession" | "startTurn" | "close">;
+type AcpxRuntimeHandleLike = Awaited<ReturnType<AcpxRuntimeLike["ensureSession"]>>;
 
 export type AcpTurnUsage = {
   inputTokens: number;
@@ -50,50 +51,61 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
     nonInteractivePermissions: "deny",
   });
 
-  const handle = await runtime.ensureSession({
-    sessionKey: opts.sessionKey,
-    agent: opts.agent,
-    mode: "persistent",
-    cwd: opts.cwd,
-  });
-  const turn = runtime.startTurn({
-    handle,
-    text: opts.prompt,
-    mode: "prompt",
-    requestId: randomUUID(),
-    signal: opts.signal,
-  });
+  let handle: AcpxRuntimeHandleLike | undefined;
+  try {
+    handle = await runtime.ensureSession({
+      sessionKey: opts.sessionKey,
+      agent: opts.agent,
+      mode: "persistent",
+      cwd: opts.cwd,
+    });
+    const turn = runtime.startTurn({
+      handle,
+      text: opts.prompt,
+      mode: "prompt",
+      requestId: randomUUID(),
+      signal: opts.signal,
+    });
 
-  let text = "";
-  let outputChars = 0;
-  let latestUsed: number | null = null;
+    let text = "";
+    let outputChars = 0;
+    let latestUsed: number | null = null;
 
-  for await (const event of turn.events as AsyncIterable<AcpRuntimeEvent>) {
-    if (event.type === "text_delta") {
-      if ((event.stream ?? "output") === "output") {
-        text += event.text;
-        opts.onDelta?.(event.text);
+    for await (const event of turn.events as AsyncIterable<AcpRuntimeEvent>) {
+      if (event.type === "text_delta") {
+        if ((event.stream ?? "output") === "output") {
+          text += event.text;
+          opts.onDelta?.(event.text);
+        }
+        outputChars += event.text.length;
+        continue;
       }
-      outputChars += event.text.length;
-      continue;
+      if (event.type === "status" && typeof event.used === "number") {
+        latestUsed = event.used;
+      }
     }
-    if (event.type === "status" && typeof event.used === "number") {
-      latestUsed = event.used;
+
+    const result = await turn.result;
+    const usage =
+      latestUsed === null
+        ? null
+        : {
+            inputTokens: latestUsed,
+            outputTokens: estimateTokens(outputChars),
+            estimated: false,
+          };
+
+    if (result.status === "failed") {
+      return { status: result.status, text, usage, error: result.error.message };
+    }
+    return { status: result.status, text, usage };
+  } finally {
+    if (handle) {
+      await runtime.close({
+        handle,
+        reason: "turn complete",
+        discardPersistentState: false,
+      });
     }
   }
-
-  const result = await turn.result;
-  const usage =
-    latestUsed === null
-      ? null
-      : {
-          inputTokens: latestUsed,
-          outputTokens: estimateTokens(outputChars),
-          estimated: false,
-        };
-
-  if (result.status === "failed") {
-    return { status: result.status, text, usage, error: result.error.message };
-  }
-  return { status: result.status, text, usage };
 }

@@ -87,6 +87,27 @@ describe("executeAcpTurn", () => {
     });
   });
 
+  it("closes the runtime handle after consuming the turn", async () => {
+    const { runtime, calls, handle } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
+
+    await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir: "/profiles/ada/.acpx-sessions",
+      prompt: "hello",
+      runtimeFactory: () => runtime,
+    });
+
+    expect(calls.close).toEqual([
+      {
+        handle,
+        reason: "turn complete",
+        discardPersistentState: false,
+      },
+    ]);
+  });
+
   it("streams only visible output text to onDelta", async () => {
     const { runtime } = createFakeRuntime([
       { type: "text_delta", text: "thinking", stream: "thought" },
