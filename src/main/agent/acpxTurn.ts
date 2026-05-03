@@ -43,24 +43,40 @@ async function removeLocalSessionRecord(stateDir: string, sessionId: string): Pr
   await rm(join(stateDir, "sessions", `${encodeURIComponent(sessionId)}.json`), { force: true });
 }
 
+function acpxAgentError(agent: AgentId, err: unknown): Error {
+  const message = err instanceof Error ? err.message : String(err);
+  return new Error(`Failed to start ${agent} through ACPX: ${message}`, {
+    cause: err,
+  });
+}
+
 export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTurnResult> {
   const runtimeFactory = opts.runtimeFactory ?? ((options) => createAcpRuntime(options));
-  const runtime = runtimeFactory({
-    cwd: opts.cwd,
-    sessionStore: createFileSessionStore({ stateDir: opts.stateDir }),
-    agentRegistry: createAgentRegistry(),
-    permissionMode: "approve-all",
-    nonInteractivePermissions: "deny",
-  });
+  let runtime: AcpxRuntimeLike;
+  try {
+    runtime = runtimeFactory({
+      cwd: opts.cwd,
+      sessionStore: createFileSessionStore({ stateDir: opts.stateDir }),
+      agentRegistry: createAgentRegistry(),
+      permissionMode: "approve-all",
+      nonInteractivePermissions: "deny",
+    });
+  } catch (err) {
+    throw acpxAgentError(opts.agent, err);
+  }
 
   let handle: AcpxRuntimeHandleLike | undefined;
   try {
-    handle = await runtime.ensureSession({
-      sessionKey: opts.sessionKey,
-      agent: opts.agent,
-      mode: "persistent",
-      cwd: opts.cwd,
-    });
+    try {
+      handle = await runtime.ensureSession({
+        sessionKey: opts.sessionKey,
+        agent: opts.agent,
+        mode: "persistent",
+        cwd: opts.cwd,
+      });
+    } catch (err) {
+      throw acpxAgentError(opts.agent, err);
+    }
     const turn = runtime.startTurn({
       handle,
       text: opts.prompt,

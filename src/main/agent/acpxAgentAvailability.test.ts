@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { assertAcpAgentLauncherAvailable, resolveAcpAgentLauncher } from "./acpxAgentAvailability";
 
 describe("resolveAcpAgentLauncher", () => {
-  it("shows that ACPX launches Claude through the npx adapter bridge", () => {
-    expect(resolveAcpAgentLauncher("claude").command).toBe("npx");
+  it("can describe ACPX's registered launcher without requiring it on PATH", () => {
+    expect(resolveAcpAgentLauncher("claude").commandLine).toContain("claude");
   });
 });
 
 describe("assertAcpAgentLauncherAvailable", () => {
-  it("rejects setup when the ACPX adapter launcher is not on PATH", async () => {
+  it("accepts a supported ACP agent without probing launcher commands", async () => {
     const access = vi.fn(async () => {
       throw Object.assign(new Error("missing"), { code: "ENOENT" });
     });
@@ -19,6 +19,7 @@ describe("assertAcpAgentLauncherAvailable", () => {
         access,
         platform: "darwin",
       }),
-    ).rejects.toThrow(/npx/);
+    ).resolves.toBeUndefined();
+    expect(access).not.toHaveBeenCalled();
   });
 });

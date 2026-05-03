@@ -228,6 +228,27 @@ describe("executeAcpTurn", () => {
     });
   });
 
+  it("adds agent context when ACPX cannot start the selected agent", async () => {
+    const runtime = {
+      ensureSession: vi.fn(async () => {
+        throw new Error("spawn npx ENOENT");
+      }),
+      startTurn: vi.fn(),
+      close: vi.fn(),
+    };
+
+    await expect(
+      executeAcpTurn({
+        agent: "claude",
+        sessionKey: "ada:kid:s1:claude",
+        cwd: "/profiles/ada",
+        stateDir: "/profiles/ada/.acpx-sessions",
+        prompt: "hello",
+        runtimeFactory: () => runtime,
+      }),
+    ).rejects.toThrow("Failed to start claude through ACPX: spawn npx ENOENT");
+  });
+
   it("streams only visible output text to onDelta", async () => {
     const { runtime } = createFakeRuntime([
       { type: "text_delta", text: "thinking", stream: "thought" },
