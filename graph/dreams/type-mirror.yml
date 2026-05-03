@@ -1,0 +1,16 @@
+id: type-mirror
+title_parent: Type mirror
+title_kid: words that copy what you type
+summary_kid: type into a box and watch the page copy your words live
+emoji: "🪞"
+categories: [utility, creative]
+interest_tags: [typing, names, messages]
+requires:
+  - html-inputs-text
+  - dom-input-value
+  - dom-text-content
+  - events-input
+style_hints:
+  - the label for the typing box
+  - what the empty message says first
+  - where the copied words show up

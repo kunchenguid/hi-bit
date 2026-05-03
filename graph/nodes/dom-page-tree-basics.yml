@@ -1,0 +1,12 @@
+id: dom-page-tree-basics
+title_parent: Page tree basics
+title_kid: the page as a tree of things
+why_kid: code can find and change page things because the browser keeps them in a tree-like map.
+area: dom
+prereqs: [html-tags-basics]
+introduces: [dom-tree, parent-element, child-element, page-element]
+mastery_signals:
+  saw_it: Bit showed that an element can hold other elements and called that parent and child structure the page tree.
+  did_with_help: Kid pointed to a parent element and one child element in their own page with Bit's guidance.
+  did_unprompted: Kid described a nested element as being inside another element while deciding what code should change.
+  explained_it: Kid said the browser keeps page elements in a tree so code can find them.

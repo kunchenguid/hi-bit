@@ -6,7 +6,6 @@ emoji: "✏️"
 categories: [art, creative]
 interest_tags: [drawing, art, painting, doodles]
 requires:
-  - html-doc-shell
   - run-and-preview
   - js-attach
   - dom-query-selector

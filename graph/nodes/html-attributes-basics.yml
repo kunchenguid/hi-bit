@@ -1,0 +1,12 @@
+id: html-attributes-basics
+title_parent: HTML attribute basics
+title_kid: extra details inside a tag
+why_kid: attributes are little name-and-value details that tell a tag more, like where a picture comes from or what kind of input you want.
+area: html
+prereqs: [html-page-body]
+introduces: [attribute-name, attribute-value, quoted-attribute, opening-tag-attribute]
+mastery_signals:
+  saw_it: Bit pointed to an attribute inside an opening tag and named the attribute name and quoted value.
+  did_with_help: Kid added a simple attribute with a quoted value while Bit reminded them it belongs inside the opening tag.
+  did_unprompted: Kid added or changed an attribute value on an element without Bit first pointing to the opening tag.
+  explained_it: Kid described an attribute as extra information inside a tag, written like name equals quoted value.

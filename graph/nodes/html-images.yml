@@ -3,7 +3,7 @@ title_parent: Image tags with src and alt
 title_kid: pictures
 why_kid: a page with pictures is way more fun to look at than one with only words.
 area: html
-prereqs: [html-doc-shell]
+prereqs: [html-attributes-basics]
 introduces: [img-tag, src-attribute, alt-attribute, self-closing-tag]
 mastery_signals:
   saw_it: Bit added an img tag with a src to the kid's page and pointed out the picture showing up in the preview.

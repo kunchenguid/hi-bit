@@ -3,7 +3,7 @@ title_parent: Element selectors
 title_kid: styling every paragraph on the page
 why_kid: instead of styling each paragraph or button one by one, you can write one rule that changes every paragraph (or every button, or every heading) at once, which saves you from repeating yourself over and over.
 area: css
-prereqs: [css-attach, html-text-paragraphs]
+prereqs: [css-rule-basics, html-text-paragraphs]
 introduces: [element-selector, declaration-block, property-value-pair]
 mastery_signals:
   saw_it: Bit wrote a rule like p { ... } in the kid's stylesheet and pointed out that every paragraph on the page changed at once.

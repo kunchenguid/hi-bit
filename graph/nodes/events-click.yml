@@ -3,7 +3,7 @@ title_parent: addEventListener for click events
 title_kid: making things happen when you click
 why_kid: this is the magic that turns a button from a thing on the screen into something that actually does stuff.
 area: dom
-prereqs: [dom-query-selector, js-functions-define, html-buttons]
+prereqs: [dom-query-selector, event-callback-basics, html-buttons]
 introduces: [event-handler, callback-function, dom-event, add-event-listener]
 mastery_signals:
   saw_it: Bit wrote a click handler with addEventListener on a button in the kid's code and explained that the function runs every time the button is clicked.

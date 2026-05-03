@@ -1,0 +1,12 @@
+id: js-function-call-basics
+title_parent: Calling a function
+title_kid: telling code to do a named action
+why_kid: some code actions already have names, and writing the name with parentheses tells the computer to do that action now.
+area: js
+prereqs: [js-instructions-basics]
+introduces: [function-call, parentheses-call, named-action]
+mastery_signals:
+  saw_it: Bit pointed to a simple function call and explained that the parentheses tell the named action to run.
+  did_with_help: Kid typed or edited a function call with Bit reminding them to include the parentheses.
+  did_unprompted: Kid used a function call they had seen before without Bit reminding them of the parentheses.
+  explained_it: Kid said calling a function means writing its name with parentheses to make it run.

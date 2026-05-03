@@ -6,7 +6,6 @@ emoji: "🟪"
 categories: [art, creative]
 interest_tags: [art, drawing, pixels, colors]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-div-span
   - css-attach

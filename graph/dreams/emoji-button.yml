@@ -1,0 +1,13 @@
+id: emoji-button
+title_parent: Emoji button
+title_kid: a button with your favorite emoji
+summary_kid: make a page with a button that has your favorite emoji and a label you choose
+emoji: "🙂"
+categories: [arcade, creative]
+interest_tags: [buttons, emoji, silly]
+requires:
+  - html-buttons
+style_hints:
+  - the emoji on the button
+  - the words on the button
+  - how many buttons to make

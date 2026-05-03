@@ -6,7 +6,6 @@ emoji: "🥁"
 categories: [arcade, art]
 interest_tags: [music, rhythm, drums, beats, keyboard]
 requires:
-  - html-doc-shell
   - html-div-span
   - css-attach
   - css-selectors-class-id

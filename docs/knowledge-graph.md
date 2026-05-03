@@ -43,8 +43,8 @@ A dream is "doable" when all its required KPs are at `did_with_help` or above fo
 
 Dream files author direct `requires:` only, then validation computes the runtime 1-5 bit difficulty rating from the graph.
 The score is the higher of two measures: maximum required-KP depth and the count of required KPs plus their transitive prereqs.
-Depth scores map to 1 bit for depth 1, 2 bits for depths 2-3, 3 bits for depths 4-5, 4 bits for depths 6-7, and 5 bits for deeper chains.
-Count scores map to 1 bit for 1-2 KPs, 2 bits for 3-4, 3 bits for 5-7, 4 bits for 8-10, and 5 bits for larger closures.
+Depth scores map to 1 bit for depth 1, 2 bits for depths 2-3, 3 bits for depths 4-6, 4 bits for depths 7-10, and 5 bits for deeper chains.
+Count scores map to 1 bit for 1-2 KPs, 2 bits for 3-4, 3 bits for 5-8, 4 bits for 9-24, and 5 bits for larger closures.
 
 ## v1 scope
 
@@ -66,37 +66,44 @@ Out of scope for v1:
 
 Groupings below are authoring conveniences, not kid-facing categories. A kid never sees "HTML nodes."
 
-### Foundations (no prereqs)
+### Foundations
 
 | id | title_parent | title_kid |
 |---|---|---|
-| `html-doc-shell` | HTML document shell | the frame that holds your page |
 | `run-and-preview` | Using See my page and the live preview | running your code and seeing what happens |
+| `web-page-parts` | HTML, CSS, and JavaScript roles | the three parts of a web page |
+| `html-tags-basics` | HTML tag basics | the little markers around page stuff |
+| `html-page-body` | Body as the visible page area | where visible page stuff goes |
+| `html-head-title` | Head and title basics | page info that is not the page itself |
+| `html-attributes-basics` | HTML attribute basics | extra details inside a tag |
 
 ### HTML
 
 | id | title_parent | title_kid | prereqs |
 |---|---|---|---|
-| `html-text-headings` | Headings `h1`-`h6` | big titles and small titles | `html-doc-shell` |
-| `html-text-paragraphs` | Paragraphs | regular text | `html-doc-shell` |
+| `html-doc-shell` | HTML document shell | the frame that holds your page | `html-head-title` |
+| `html-text-headings` | Headings `h1`-`h6` | big titles and small titles | `html-page-body` |
+| `html-text-paragraphs` | Paragraphs | regular text | `html-page-body` |
 | `html-lists` | Ordered and unordered lists | lists of things | `html-text-paragraphs` |
-| `html-links` | Anchor tags | clickable links to other pages | `html-text-paragraphs` |
-| `html-images` | Image tags with `src` and `alt` | pictures | `html-doc-shell` |
+| `html-links` | Anchor tags | clickable links to other pages | `html-text-paragraphs`, `html-attributes-basics` |
+| `html-images` | Image tags with `src` and `alt` | pictures | `html-attributes-basics` |
 | `html-div-span` | Generic containers | invisible boxes that hold other things | `html-text-paragraphs` |
-| `html-buttons` | Button elements | clickable buttons | `html-doc-shell` |
-| `html-inputs-text` | Text input | a place where the kid types | `html-doc-shell` |
+| `html-buttons` | Button elements | clickable buttons | `html-page-body` |
+| `html-inputs-text` | Text input | a place where the kid types | `html-attributes-basics` |
 | `html-inputs-number` | Number input | a place where the kid types a number | `html-inputs-text` |
 | `html-inputs-checkbox-radio` | Checkbox and radio inputs | boxes you can check | `html-inputs-text` |
-| `html-labels` | Form labels | telling inputs what they are | `html-inputs-text` |
-| `html-id-class` | `id` and `class` attributes | names and categories for your elements | `html-div-span` |
-| `html-comments` | HTML comments | notes that don't show up on the page | `html-doc-shell` |
+| `html-labels` | Form labels | telling inputs what they are | `html-inputs-text`, `html-id-attribute` |
+| `html-id-attribute` | `id` attribute | one special name for one thing | `html-attributes-basics` |
+| `html-id-class` | `id` and `class` attributes | names and categories for your elements | `html-div-span`, `html-id-attribute` |
+| `html-comments` | HTML comments | notes that don't show up on the page | `html-page-body` |
 
 ### CSS
 
 | id | title_parent | title_kid | prereqs |
 |---|---|---|---|
-| `css-attach` | Attaching CSS (style tag and external sheet) | where styles live | `html-doc-shell` |
-| `css-selectors-element` | Element selectors | styling every `<p>` on the page | `css-attach`, `html-text-paragraphs` |
+| `css-attach` | Attaching CSS (style tag and external sheet) | where styles live | `web-page-parts` |
+| `css-rule-basics` | CSS rule basics | one style rule | `css-attach` |
+| `css-selectors-element` | Element selectors | styling every `<p>` on the page | `css-rule-basics`, `html-text-paragraphs` |
 | `css-selectors-class-id` | Class and id selectors | styling just one thing or one group | `css-selectors-element`, `html-id-class` |
 | `css-colors` | Colors (named and hex) | picking colors | `css-selectors-element` |
 | `css-text-font` | `font-family`, `font-size`, `font-weight` | how your text looks | `css-selectors-element` |
@@ -117,8 +124,10 @@ Groupings below are authoring conveniences, not kid-facing categories. A kid nev
 
 | id | title_parent | title_kid | prereqs |
 |---|---|---|---|
-| `js-attach` | Attaching JS (script tag) | where code lives | `html-doc-shell` |
-| `js-console-log` | `console.log` and the dev console | how to print something so only you see it | `js-attach` |
+| `js-attach` | Attaching JS (script tag) | where code lives | `web-page-parts` |
+| `js-instructions-basics` | JavaScript instructions | code steps the computer follows | `js-attach` |
+| `js-function-call-basics` | Calling a function | telling code to do a named action | `js-instructions-basics` |
+| `js-console-log` | `console.log` and the dev console | how to print something so only you see it | `js-instructions-basics` |
 | `js-variables-let-const` | `let` and `const` | giving things names so you can use them later | `js-console-log` |
 | `js-strings` | Strings and concatenation | writing text in code | `js-variables-let-const` |
 | `js-numbers` | Numbers and arithmetic | math in code | `js-variables-let-const` |
@@ -129,12 +138,12 @@ Groupings below are authoring conveniences, not kid-facing categories. A kid nev
 | `js-array-length` | `.length` on arrays | how long your list is | `js-arrays` |
 | `js-objects` | Object literals and property access | labeled collections of stuff | `js-variables-let-const` |
 | `js-comparison` | `===`, `!==`, `<`, `>` | comparing two things | `js-numbers` |
-| `js-logic` | `&&`, `\|\|`, `!` | combining yes and no | `js-booleans`, `js-comparison` |
-| `js-if-else` | `if` / `else if` / `else` | doing different things depending on what's true | `js-logic` |
+| `js-if-else` | `if` / `else if` / `else` | doing different things depending on what's true | `js-booleans`, `js-comparison` |
+| `js-logic` | `&&`, `\|\|`, `!` | combining yes and no | `js-if-else` |
 | `js-for-loop` | `for` loop | doing something a bunch of times | `js-if-else`, `js-array-length` |
 | `js-for-of` | `for...of` over arrays | going through every item in a list | `js-for-loop`, `js-arrays` |
 | `js-while-loop` | `while` loop | doing something until you say stop | `js-for-loop` |
-| `js-functions-define` | Function declarations | teaching the computer a new trick | `js-if-else` |
+| `js-functions-define` | Function declarations | teaching the computer a new trick | `events-click` |
 | `js-function-params` | Parameters and arguments | giving your trick different inputs | `js-functions-define` |
 | `js-function-return` | `return` | getting an answer back from a function | `js-function-params` |
 | `js-math-random` | `Math.random` and `Math.floor` | picking a random number | `js-numbers` |
@@ -144,7 +153,8 @@ Groupings below are authoring conveniences, not kid-facing categories. A kid nev
 
 | id | title_parent | title_kid | prereqs |
 |---|---|---|---|
-| `dom-query-selector` | `document.querySelector` and `getElementById` | grabbing something on the page | `js-variables-let-const`, `html-id-class` |
+| `dom-page-tree-basics` | Page tree basics | the page as a tree of things | `html-tags-basics` |
+| `dom-query-selector` | `document.querySelector` and `getElementById` | grabbing something on the page | `dom-page-tree-basics`, `js-variables-let-const`, `html-id-attribute` |
 | `dom-text-content` | `textContent` | changing the words inside an element | `dom-query-selector` |
 | `dom-change-style` | `element.style.property` | changing how something looks from code | `dom-query-selector`, `css-colors` |
 | `dom-class-toggle` | `classList.add` / `remove` / `toggle` | turning a style on and off | `dom-change-style`, `css-selectors-class-id` |
@@ -156,7 +166,8 @@ Groupings below are authoring conveniences, not kid-facing categories. A kid nev
 
 | id | title_parent | title_kid | prereqs |
 |---|---|---|---|
-| `events-click` | `addEventListener('click', ...)` | making things happen when you click | `dom-query-selector`, `js-functions-define`, `html-buttons` |
+| `event-callback-basics` | Event callback basics | code saved for later | `js-function-call-basics` |
+| `events-click` | `addEventListener('click', ...)` | making things happen when you click | `dom-query-selector`, `event-callback-basics`, `html-buttons` |
 | `events-keydown` | `addEventListener('keydown', ...)` | making things happen when you press a key | `events-click` |
 | `events-input` | `input` event on text fields | reacting as the kid types | `events-click`, `dom-input-value` |
 | `events-change` | `change` event on form controls | reacting when something is chosen | `events-click`, `html-inputs-checkbox-radio` |
@@ -207,7 +218,7 @@ id: events-click
 title_parent: addEventListener('click', ...)
 title_kid: making things happen when you click
 area: dom
-prereqs: [dom-query-selector, js-functions-define, html-buttons]
+prereqs: [dom-query-selector, event-callback-basics, html-buttons]
 introduces: [event-handler, callback-function, dom-event]
 mastery_signals:
   saw_it: Bit wrote a click handler in the kid's code and explained what the parts mean.

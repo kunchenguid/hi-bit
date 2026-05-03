@@ -13,6 +13,7 @@ import { CodeMirrorEditor, type CodeMirrorHandle } from "../editor/CodeMirrorEdi
 import { buildPreviewSrcdoc } from "../preview/buildPreview";
 import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
+import { useProgressStore } from "../state/progressStore";
 import { useProjectsStore } from "../state/projectsStore";
 import { buildSavedFilePrompt } from "../state/saveReaction";
 import { validateNewFilename } from "./newFileValidation";
@@ -60,6 +61,7 @@ export function CodeEditor({
   const unsubscribe = useProjectsStore((s) => s.unsubscribe);
   const openFolder = useProjectsStore((s) => s.openFolder);
   const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
+  const updateProgressStatus = useProgressStore((s) => s.updateStatus);
 
   const library = useGraphStore((s) => s.library);
   const graphStatus = useGraphStore((s) => s.status);
@@ -245,6 +247,11 @@ export function CodeEditor({
   function handleRun(): void {
     rebuildPreview();
     setViewMode("preview");
+    void updateProgressStatus(
+      "run-and-preview",
+      "did_with_help",
+      "Clicked See my page and viewed the live preview.",
+    );
   }
 
   useEffect(() => {

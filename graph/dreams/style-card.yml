@@ -6,11 +6,11 @@ emoji: "💳"
 categories: [art, creative]
 interest_tags: [design, colors, fonts, art]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - css-attach
   - css-colors
+  - css-text-font
   - css-background
   - css-border-radius
 style_hints:

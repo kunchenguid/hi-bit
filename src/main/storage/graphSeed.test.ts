@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -61,13 +61,28 @@ describe("seedGraph", () => {
     expect(result.nodesCopied).toEqual([]);
   });
 
-  it("does not overwrite an existing destination file", async () => {
+  it("updates an existing shipped graph file when the bundled copy changes", async () => {
     await writeFile(join(sourceGraph, "nodes", "html-doc-shell.yml"), KP_YAML, "utf8");
     const destFile = join(layout.graphNodesDir, "html-doc-shell.yml");
-    await writeFile(destFile, "# user edits\n", "utf8");
+    await writeFile(destFile, "# stale bundled copy\n", "utf8");
     const result = await seedGraph(layout, sourceGraph);
-    expect(result.nodesCopied).toEqual([]);
-    await expect(readFile(destFile, "utf8")).resolves.toBe("# user edits\n");
+    expect(result.nodesCopied).toEqual(["html-doc-shell.yml"]);
+    await expect(readFile(destFile, "utf8")).resolves.toBe(KP_YAML);
+  });
+
+  it("removes stale shipped yaml files that no longer exist in the bundled graph", async () => {
+    await writeFile(
+      join(sourceGraph, "dreams", "show-me-around.yml"),
+      "id: show-me-around\n",
+      "utf8",
+    );
+    const staleFile = join(layout.graphDreamsDir, "preview-playground.yml");
+    await writeFile(staleFile, "id: preview-playground\n", "utf8");
+
+    const result = await seedGraph(layout, sourceGraph);
+
+    expect(result.dreamsCopied).toEqual(["show-me-around.yml"]);
+    await expect(stat(staleFile)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("seeds dreams dir in parallel with nodes dir", async () => {
@@ -81,6 +96,15 @@ describe("seedGraph", () => {
   it("tolerates missing source nodes and dreams directories", async () => {
     const result = await seedGraph(layout, join(sourceRoot, "does-not-exist"));
     expect(result).toEqual({ nodesCopied: [], dreamsCopied: [] });
+  });
+
+  it("does not remove seeded files when the bundled source dir is missing", async () => {
+    const existingFile = join(layout.graphDreamsDir, "existing.yml");
+    await writeFile(existingFile, "id: existing\n", "utf8");
+
+    await seedGraph(layout, join(sourceRoot, "does-not-exist"));
+
+    await expect(readFile(existingFile, "utf8")).resolves.toBe("id: existing\n");
   });
 
   it("seeded nodes dir round-trips through loadKnowledgeGraph", async () => {

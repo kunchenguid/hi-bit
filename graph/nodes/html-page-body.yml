@@ -1,0 +1,12 @@
+id: html-page-body
+title_parent: Body as the visible page area
+title_kid: where visible page stuff goes
+why_kid: the body is the part of the file where the words, pictures, and buttons that visitors see belong.
+area: html
+prereqs: [html-tags-basics]
+introduces: [body-content, visible-page, page-content-area]
+mastery_signals:
+  saw_it: Bit put a visible element inside the body and showed that it appeared in the preview.
+  did_with_help: Kid added a visible thing inside the body while Bit helped them keep it in the right place.
+  did_unprompted: Kid added new visible page content inside the body instead of outside the page structure.
+  explained_it: Kid said the body is where visible page things go.

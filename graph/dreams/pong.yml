@@ -1,12 +1,11 @@
 id: pong
 title_parent: Pong
 title_kid: a paddle that bounces a ball back and forth
-summary_kid: a page with a canvas where you move a paddle up and down with the keyboard, a ball bounces around, and you try to hit it back every time
+summary_kid: a page with a canvas where you move a paddle, bounce a ball back, and keep score when you hit it
 emoji: "🏓"
 categories: [arcade]
 interest_tags: [games, pong, paddles, ball]
 requires:
-  - html-doc-shell
   - run-and-preview
   - js-attach
   - dom-query-selector
@@ -21,4 +20,5 @@ requires:
 style_hints:
   - the color of the paddle and the ball
   - how fast the ball moves
+  - how the score looks
   - what happens when you miss the ball

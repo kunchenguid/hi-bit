@@ -6,12 +6,12 @@ emoji: "⚽"
 categories: [arcade, art]
 interest_tags: [games, animation, physics, motion]
 requires:
-  - html-doc-shell
   - run-and-preview
   - js-attach
   - dom-query-selector
   - canvas-setup
   - canvas-fillrect
+  - canvas-circle
   - canvas-clear
   - animation-raf
   - canvas-collision-bounds

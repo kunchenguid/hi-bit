@@ -6,7 +6,6 @@ emoji: "🎱"
 categories: [arcade, creative]
 interest_tags: [games, questions, magic, chance]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-buttons

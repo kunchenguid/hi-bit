@@ -1,7 +1,7 @@
 import type { SendMessageResult } from "@shared/chat";
 import { emptyProgress } from "@shared/progress";
 import type { TranscriptEvent } from "@shared/transcript";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canRetryLastKidMessage, KID_EMPTY_REPLY, useChatStore } from "./chatStore";
 import { useProgressStore } from "./progressStore";
 
@@ -19,6 +19,7 @@ function mockHiBit(partial: Partial<HiBitApi>): void {
 }
 
 beforeEach(() => {
+  vi.useRealTimers();
   useChatStore.setState({
     messages: [],
     status: "idle",
@@ -35,6 +36,10 @@ beforeEach(() => {
     error: null,
     updateError: null,
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("useChatStore", () => {
@@ -176,6 +181,24 @@ describe("useChatStore", () => {
     expect(state.error).toBe("ipc blew up");
     expect(state.messages.length).toBe(2);
     expect(state.messages[1]).toMatchObject({ role: "bit", kind: "error" });
+  });
+
+  it("times out a stuck harness turn and returns the input to idle", async () => {
+    vi.useFakeTimers();
+    mockHiBit({ sendKidMessage: vi.fn(() => new Promise<SendMessageResult>(() => {})) });
+
+    const sendPromise = useChatStore.getState().send("ada", "ready");
+    expect(useChatStore.getState().status).toBe("sending");
+
+    await vi.advanceTimersByTimeAsync(45_000);
+    await sendPromise;
+
+    const state = useChatStore.getState();
+    expect(state.status).toBe("idle");
+    expect(state.error).toMatch(/timed out/i);
+    expect(state.messages).toHaveLength(2);
+    expect(state.messages[1]).toMatchObject({ role: "bit", kind: "error" });
+    expect(canRetryLastKidMessage(state.messages)).toBe(true);
   });
 
   it("reset clears messages, status, error, and hydrate state", () => {

@@ -6,7 +6,6 @@ emoji: "🎨"
 categories: [art, creative]
 interest_tags: [colors, art, buttons, rainbow]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-buttons
   - css-attach

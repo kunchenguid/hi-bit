@@ -6,7 +6,6 @@ emoji: "✊"
 categories: [arcade]
 interest_tags: [games, rps, hands, versus, chance]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-buttons

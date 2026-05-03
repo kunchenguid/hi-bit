@@ -6,7 +6,6 @@ emoji: "⌨️"
 categories: [arcade, utility]
 interest_tags: [games, typing, words, speed]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-labels
   - html-inputs-text

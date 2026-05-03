@@ -6,7 +6,6 @@ emoji: "⭐"
 categories: [personal, creative]
 interest_tags: [hobbies, food, music, collecting]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-lists
   - html-images

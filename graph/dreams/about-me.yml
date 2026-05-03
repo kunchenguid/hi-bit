@@ -6,7 +6,6 @@ emoji: "🪞"
 categories: [personal]
 interest_tags: [self, family, school, friends]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-images

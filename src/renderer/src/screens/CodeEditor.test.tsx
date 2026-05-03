@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CodeMirrorCursorMarker } from "../editor/CodeMirrorEditor";
 import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
+import { useProgressStore } from "../state/progressStore";
 import { useProjectsStore } from "../state/projectsStore";
 import { CodeEditor } from "./CodeEditor";
 
@@ -58,6 +59,7 @@ describe("CodeEditor cursor marker", () => {
       subscriptionId: null,
     });
     useGraphStore.setState({ status: "ready", graph: null, library: null });
+    useProgressStore.setState({ profileId: profile.id, status: "ready", progress: null });
     window.hibit = {
       subscribeProjectFiles: vi.fn(async () => ({ id: "sub-1", close: vi.fn() })),
       openProjectFolder: vi.fn(async () => ({ ok: true, path: "/tmp/project" })),
@@ -77,6 +79,7 @@ describe("CodeEditor cursor marker", () => {
       error: null,
     });
     useChatStore.getState().reset();
+    useProgressStore.getState().reset();
     vi.restoreAllMocks();
   });
 
@@ -132,6 +135,30 @@ describe("CodeEditor cursor marker", () => {
     expect(previewPane?.hasAttribute("hidden")).toBe(false);
     expect((previewPane as HTMLElement | null)?.style.display).toBe("");
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Page");
+  });
+
+  it("records run-and-preview progress when the kid clicks See my page", async () => {
+    const updateStatus = vi.fn(async () => {});
+    useProgressStore.setState({ updateStatus });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).toHaveBeenCalledWith(
+      "run-and-preview",
+      "did_with_help",
+      "Clicked See my page and viewed the live preview.",
+    );
   });
 
   it("reveals the editor when a cursor target arrives in page mode", async () => {

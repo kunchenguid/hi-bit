@@ -1,0 +1,13 @@
+id: page-frame
+title_parent: Page frame
+title_kid: the outside frame of a web page
+summary_kid: build the hidden frame that holds a whole web page, including the body and the page title
+emoji: "🖼️"
+categories: [utility]
+interest_tags: [first, pages, setup]
+requires:
+  - html-doc-shell
+style_hints:
+  - the page title
+  - the first visible words to put in the body
+  - how to check the title and the page body

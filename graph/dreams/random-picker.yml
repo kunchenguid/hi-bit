@@ -1,0 +1,15 @@
+id: random-picker
+title_parent: Random picker
+title_kid: a picker that chooses one surprise
+summary_kid: put choices in a list and let the page pick one at random
+emoji: "🎲"
+categories: [utility, arcade]
+interest_tags: [random, choices, games, food]
+requires:
+  - js-arrays
+  - js-array-length
+  - js-math-random
+style_hints:
+  - the list of choices
+  - the button or moment that picks
+  - what the surprise message says

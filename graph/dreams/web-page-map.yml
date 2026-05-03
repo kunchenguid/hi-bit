@@ -1,0 +1,13 @@
+id: web-page-map
+title_parent: Web page map
+title_kid: a map of what pages are made of
+summary_kid: "a tiny page that shows the three page parts: stuff, looks, and actions"
+emoji: "🗺️"
+categories: [creative, utility]
+interest_tags: [first, explaining, pages]
+requires:
+  - web-page-parts
+style_hints:
+  - what examples to use for stuff on a page
+  - what examples to use for looks
+  - what examples to use for actions

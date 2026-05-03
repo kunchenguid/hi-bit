@@ -6,7 +6,6 @@ emoji: "🖼️"
 categories: [art, creative]
 interest_tags: [pictures, photos, art, animation]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-images
   - html-div-span

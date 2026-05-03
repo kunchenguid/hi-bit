@@ -1,0 +1,14 @@
+id: tiny-poster
+title_parent: Tiny poster
+title_kid: a tiny poster page
+summary_kid: make a mini poster with a big title and one sentence underneath
+emoji: "📌"
+categories: [creative, personal]
+interest_tags: [posters, writing, school, favorites]
+requires:
+  - html-text-headings
+  - html-text-paragraphs
+style_hints:
+  - the poster topic
+  - the big title
+  - the one sentence under it

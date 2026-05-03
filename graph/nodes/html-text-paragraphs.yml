@@ -3,7 +3,7 @@ title_parent: Paragraphs
 title_kid: regular text
 why_kid: this is how you put real sentences on your page, not just titles.
 area: html
-prereqs: [html-doc-shell]
+prereqs: [html-page-body]
 introduces: [paragraph-tag, block-text]
 mastery_signals:
   saw_it: Bit added a p tag in the kid's page and called out that the words show up as regular text.

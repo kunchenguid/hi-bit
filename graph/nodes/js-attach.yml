@@ -3,7 +3,7 @@ title_parent: Attaching JS (script tag)
 title_kid: where code lives
 why_kid: this is the spot on your page where you tell the computer what to do when someone clicks or types something.
 area: js
-prereqs: [html-doc-shell]
+prereqs: [web-page-parts]
 introduces: [script-tag, inline-script, external-script]
 mastery_signals:
   saw_it: Bit added a script tag to the kid's page with one line of JavaScript inside it and ran the page so the kid could see the code do something that plain HTML could not.

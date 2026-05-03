@@ -1,0 +1,13 @@
+id: show-me-around
+title_parent: Show me around
+title_kid: show me around
+summary_kid: take a tiny tour of the editor, page view, and split view so you know where your code lives
+emoji: "🔍"
+categories: [creative]
+interest_tags: [first, exploring, pages]
+requires:
+  - run-and-preview
+style_hints:
+  - point out where code lives
+  - point out where the page preview lives
+  - try Code, Page, and Split view once

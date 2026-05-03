@@ -3,7 +3,7 @@ title_parent: if, else if, else
 title_kid: doing different things depending on what's true
 why_kid: this lets your code make a choice, like show a smiley if they win and a sad face if they lose.
 area: js
-prereqs: [js-logic]
+prereqs: [js-booleans, js-comparison]
 introduces: [if-statement, else-branch, else-if]
 mastery_signals:
   saw_it: Bit wrote an if block with an else branch in the kid's code and showed the kid that only one of the two bodies ran depending on whether the condition was true or false.

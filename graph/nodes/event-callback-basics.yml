@@ -1,0 +1,12 @@
+id: event-callback-basics
+title_parent: Event callback basics
+title_kid: code saved for later
+why_kid: when someone clicks or types, the page can run a chunk of code that was saved for that moment.
+area: dom
+prereqs: [js-function-call-basics]
+introduces: [event-callback, run-later, handler-function]
+mastery_signals:
+  saw_it: Bit showed a small chunk of code that did not run right away, then ran later when an event happened.
+  did_with_help: Kid connected a small chunk of code to an event with Bit reminding them that it runs later.
+  did_unprompted: Kid talked about the click or typing code as something that waits for the user action before running.
+  explained_it: Kid said an event callback is code saved for later, to run when the user does something.

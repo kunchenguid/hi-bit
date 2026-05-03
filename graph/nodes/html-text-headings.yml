@@ -3,7 +3,7 @@ title_parent: Headings h1-h6
 title_kid: big titles and small titles
 why_kid: titles tell a visitor what your page is about before they read anything else.
 area: html
-prereqs: [html-doc-shell]
+prereqs: [html-page-body]
 introduces: [heading-tag, heading-hierarchy]
 mastery_signals:
   saw_it: Bit added an h1 to the kid's page and named it as the biggest title.

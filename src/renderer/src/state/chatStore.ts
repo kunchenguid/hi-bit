@@ -50,6 +50,10 @@ export function canRetryLastKidMessage(messages: ChatMessage[]): boolean {
 
 export const KID_FRIENDLY_ERROR = "Bit went to grab a snack. Try again in a minute.";
 export const KID_EMPTY_REPLY = "Bit got quiet there. Tap try again to wake him up.";
+export const KID_REPLY_TIMEOUT_MS = 45_000;
+export const KID_REPLY_TIMEOUT_ERROR = "Bit timed out waiting for the agent harness";
+export const KID_TIMEOUT_REPLY =
+  "Bit is taking too long. Tap try again and we'll give it another shot.";
 
 export function isBlankAssistantText(text: string): boolean {
   return text.trim().length === 0;
@@ -59,6 +63,27 @@ async function refreshLoadedProgress(profileId: string): Promise<void> {
   const progressState = useProgressStore.getState();
   if (progressState.profileId !== profileId) return;
   await progressState.load(profileId);
+}
+
+function friendlyErrorText(message: string): string {
+  return /timed out/i.test(message) ? KID_TIMEOUT_REPLY : KID_FRIENDLY_ERROR;
+}
+
+async function sendKidMessageWithTimeout(
+  profileId: string,
+  prompt: string,
+): Promise<SendMessageResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      window.hibit.sendKidMessage(profileId, prompt),
+      new Promise<SendMessageResult>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(KID_REPLY_TIMEOUT_ERROR)), KID_REPLY_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -129,7 +154,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
 
     try {
-      const result = await window.hibit.sendKidMessage(profileId, trimmed);
+      const result = await sendKidMessageWithTimeout(profileId, trimmed);
       const blank = result.ok && isBlankAssistantText(result.text);
       const reply: ChatMessage = {
         id: messageId(),
@@ -155,7 +180,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             id: messageId(),
             role: "bit",
             kind: "error",
-            text: KID_FRIENDLY_ERROR,
+            text: friendlyErrorText(message),
             timestamp: new Date().toISOString(),
           },
         ],
@@ -187,7 +212,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
 
     try {
-      const result = await window.hibit.sendKidMessage(profileId, trimmed);
+      const result = await sendKidMessageWithTimeout(profileId, trimmed);
       const blank = result.ok && isBlankAssistantText(result.text);
       const reply: ChatMessage = {
         id: messageId(),
@@ -213,7 +238,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             id: messageId(),
             role: "bit",
             kind: "error",
-            text: KID_FRIENDLY_ERROR,
+            text: friendlyErrorText(messageText),
             timestamp: new Date().toISOString(),
           },
         ],
@@ -242,7 +267,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
 
     try {
-      const result = await window.hibit.sendKidMessage(profileId, lastKid.text);
+      const result = await sendKidMessageWithTimeout(profileId, lastKid.text);
       const blank = result.ok && isBlankAssistantText(result.text);
       const reply: ChatMessage = {
         id: messageId(),
@@ -268,7 +293,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             id: messageId(),
             role: "bit",
             kind: "error",
-            text: KID_FRIENDLY_ERROR,
+            text: friendlyErrorText(message),
             timestamp: new Date().toISOString(),
           },
         ],

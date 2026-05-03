@@ -1,0 +1,12 @@
+id: js-instructions-basics
+title_parent: JavaScript instructions
+title_kid: code steps the computer follows
+why_kid: JavaScript is made of small instructions that the computer follows in order.
+area: js
+prereqs: [js-attach]
+introduces: [statement, execution-order, code-step]
+mastery_signals:
+  saw_it: Bit ran two simple JavaScript instructions and showed that the computer follows them from top to bottom.
+  did_with_help: Kid added or changed one JavaScript instruction with Bit helping them run the page to see what happened.
+  did_unprompted: Kid predicted which of two nearby JavaScript instructions would happen first.
+  explained_it: Kid said JavaScript code is a list of instructions the computer follows in order.

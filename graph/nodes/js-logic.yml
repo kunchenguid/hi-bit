@@ -3,7 +3,7 @@ title_parent: Logical operators (and, or, not)
 title_kid: combining yes and no
 why_kid: real choices usually have more than one condition (like only if it is raining and you have a coat), so and, or, and not let you stick yes-or-no answers together to make the check you actually want.
 area: js
-prereqs: [js-booleans, js-comparison]
+prereqs: [js-if-else]
 introduces: [logical-and, logical-or, logical-not]
 mastery_signals:
   saw_it: Bit combined two comparisons with a logical and (or or), and flipped a boolean with a logical not in the kid's code, printing each result so the kid could see how the pieces combined.

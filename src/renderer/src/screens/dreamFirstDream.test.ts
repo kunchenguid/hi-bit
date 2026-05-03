@@ -1,4 +1,4 @@
-import type { Dream } from "@shared/dreams";
+import type { Dream, DreamDifficulty } from "@shared/dreams";
 import type { Progress } from "@shared/progress";
 import { describe, expect, it } from "vitest";
 import {
@@ -7,7 +7,7 @@ import {
   pickGreatFirstDreamIds,
 } from "./dreamFirstDream";
 
-function makeDream(id: string, requiresCount: number): Dream {
+function makeDream(id: string, requiresCount: number, difficulty: DreamDifficulty = 1): Dream {
   return {
     id,
     title_parent: id,
@@ -18,7 +18,7 @@ function makeDream(id: string, requiresCount: number): Dream {
     requires: Array.from({ length: requiresCount }, (_, i) => `kp-${id}-${i}`),
     style_hints: [],
     emoji: "✨",
-    difficulty: 1,
+    difficulty,
   };
 }
 
@@ -84,6 +84,20 @@ describe("pickGreatFirstDreamIds", () => {
       makeDream("hardest", 21),
     ];
     expect(pickGreatFirstDreamIds(dreams)).toEqual(new Set(["easy-a", "easy-b", "easy-c"]));
+  });
+
+  it("prefers lower difficulty before alphabetical ids for first-time kids", () => {
+    const dreams: Dream[] = [
+      makeDream("emoji-button", 1, 3),
+      makeDream("first-heading", 1, 3),
+      makeDream("page-frame", 1, 3),
+      makeDream("show-me-around", 1, 1),
+      makeDream("tag-sandwich", 1, 2),
+      makeDream("web-page-map", 1, 2),
+    ];
+    expect(pickGreatFirstDreamIds(dreams)).toEqual(
+      new Set(["show-me-around", "tag-sandwich", "web-page-map"]),
+    );
   });
 
   it("breaks ties by id (alphabetical) so the pick is deterministic", () => {

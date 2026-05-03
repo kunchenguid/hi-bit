@@ -3,7 +3,7 @@ title_parent: Anchor tags
 title_kid: clickable links to other pages
 why_kid: links are how your page can send a visitor somewhere else on the web.
 area: html
-prereqs: [html-text-paragraphs]
+prereqs: [html-text-paragraphs, html-attributes-basics]
 introduces: [a-tag, href-attribute, external-link]
 mastery_signals:
   saw_it: Bit added an a tag with an href to the kid's page and pointed out the clickable link in the preview.

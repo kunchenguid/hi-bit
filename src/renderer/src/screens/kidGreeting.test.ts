@@ -9,7 +9,7 @@ describe("buildKidGreetingText", () => {
       nextUpText: "the frame that holds your page",
     });
     expect(text).toBe(
-      'Hey Eddie! Ready to build a page all about you? We\'ll start with the frame that holds your page. Type "ready" when you want to go.',
+      'Hey Eddie! Ready for a page all about you? We\'ll start with the frame that holds your page. Type "ready" when you want to go.',
     );
   });
 
@@ -20,7 +20,7 @@ describe("buildKidGreetingText", () => {
       nextUpText: "the frame that holds your page",
     });
     expect(text).toContain("Hey Ada!");
-    expect(text).not.toMatch(/Ready to build/);
+    expect(text).not.toMatch(/Ready for/);
     expect(text).toContain("We'll start with");
     expect(text).toContain('Type "ready"');
   });
@@ -32,7 +32,7 @@ describe("buildKidGreetingText", () => {
       nextUpText: null,
     });
     expect(text).toContain("Hey Ada!");
-    expect(text).toContain("Ready to build a dice page?");
+    expect(text).toContain("Ready for a dice page?");
     expect(text).not.toMatch(/We'll start with/);
     expect(text).toContain('Type "ready"');
   });
@@ -44,7 +44,17 @@ describe("buildKidGreetingText", () => {
       nextUpText: "ready to build!",
     });
     expect(text).not.toContain("We'll start with ready to build!");
-    expect(text).toBe('Hey Mia! Ready to build a dice page? Type "ready" when you want to go.');
+    expect(text).toBe('Hey Mia! Ready for a dice page? Type "ready" when you want to go.');
+  });
+
+  it("does not force verb-like dream titles into 'build X' grammar", () => {
+    const text = buildKidGreetingText({
+      profileName: "Nova",
+      dreamTitleKid: "show me around",
+      nextUpText: "running your code and seeing what happens",
+    });
+    expect(text).toContain("Ready for show me around?");
+    expect(text).not.toContain("Ready to build show me around?");
   });
 
   it("never produces ALL CAPS", () => {

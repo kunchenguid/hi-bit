@@ -1,0 +1,12 @@
+id: css-rule-basics
+title_parent: CSS rule basics
+title_kid: one style rule
+why_kid: a style rule says which page things to change and what look to give them.
+area: css
+prereqs: [css-attach]
+introduces: [css-selector, declaration-block, css-property, css-value, semicolon]
+mastery_signals:
+  saw_it: Bit wrote one CSS rule and pointed to the selector, braces, property, value, and semicolon.
+  did_with_help: Kid wrote one CSS rule with Bit helping them place the braces, colon, and semicolon.
+  did_unprompted: Kid added a new property and value to an existing rule without Bit reminding them about the punctuation.
+  explained_it: Kid described a CSS rule as choosing what to style and then listing how it should look inside braces.

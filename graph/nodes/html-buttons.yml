@@ -3,7 +3,7 @@ title_parent: Button elements
 title_kid: clickable buttons
 why_kid: buttons are the thing on your page a visitor can actually push to make something happen.
 area: html
-prereqs: [html-doc-shell]
+prereqs: [html-page-body]
 introduces: [button-tag, interactive-element]
 mastery_signals:
   saw_it: Bit added a button element to the kid's page and pointed out that it looks like a clickable button in the preview.

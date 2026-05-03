@@ -1,0 +1,12 @@
+id: web-page-parts
+title_parent: HTML, CSS, and JavaScript roles
+title_kid: the three parts of a web page
+why_kid: a web page has things you can see, rules for how they look, and code that can make them do stuff.
+area: html
+prereqs: [run-and-preview]
+introduces: [html-content, css-style, javascript-behavior]
+mastery_signals:
+  saw_it: Bit showed the kid one visible HTML thing, one style change, and one tiny behavior change, and named them as the page's stuff, look, and action.
+  did_with_help: Kid pointed to where the visible page content, style rules, and behavior code live with Bit's guidance.
+  did_unprompted: Kid used their own words to ask for a content, style, or behavior change while working on a project.
+  explained_it: Kid described HTML as what is on the page, CSS as how it looks, and JavaScript as what makes it do things.

@@ -3,7 +3,7 @@ title_parent: Attaching CSS (style tag and external sheet)
 title_kid: where styles live
 why_kid: this is the spot on your page where colors, fonts, and sizes for everything else go.
 area: css
-prereqs: [html-doc-shell]
+prereqs: [web-page-parts]
 introduces: [style-tag, link-rel-stylesheet, external-css, css-vs-html]
 mastery_signals:
   saw_it: Bit added a style block (or a linked stylesheet) to the kid's page and showed that the words inside it change how the page looks, not what the page says.

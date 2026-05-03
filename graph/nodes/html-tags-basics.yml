@@ -1,0 +1,12 @@
+id: html-tags-basics
+title_parent: HTML tag basics
+title_kid: the little markers around page stuff
+why_kid: tags are how you tell the page what each thing is, like a title, a paragraph, or a button.
+area: html
+prereqs: [web-page-parts]
+introduces: [opening-tag, closing-tag, tag-content, nesting]
+mastery_signals:
+  saw_it: Bit highlighted an opening tag, closing tag, and the words between them in the kid's page.
+  did_with_help: Kid wrote a simple open and close tag pair with content between them while Bit pointed out each part.
+  did_unprompted: Kid added a matching closing tag after starting a tag, without Bit reminding them.
+  explained_it: Kid described a tag pair as markers around something on the page, and said the closing tag marks where that thing ends.

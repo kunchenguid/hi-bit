@@ -42,6 +42,8 @@ export function computeDreamReadiness(
 export function describeDreamReadiness(readiness: DreamReadiness): string {
   if (readiness.requiredCount === 0) return "Ready to build!";
   if (readiness.allReady) return "Ready to build!";
-  if (readiness.readyCount === 0) return `Bit will teach ${readiness.requiredCount} new skills`;
+  const skillLabel = readiness.requiredCount === 1 ? "skill" : "skills";
+  if (readiness.readyCount === 0)
+    return `Bit will teach ${readiness.requiredCount} new ${skillLabel}`;
   return `You know ${readiness.readyCount} of ${readiness.requiredCount} skills`;
 }

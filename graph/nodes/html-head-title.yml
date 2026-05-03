@@ -1,0 +1,12 @@
+id: html-head-title
+title_parent: Head and title basics
+title_kid: page info that is not the page itself
+why_kid: some page information helps the browser, even though it is not part of the big visible page.
+area: html
+prereqs: [html-page-body]
+introduces: [head-tag, title-tag, browser-tab-title, page-metadata]
+mastery_signals:
+  saw_it: Bit changed the title in the head and showed that it names the page rather than adding visible words to the body.
+  did_with_help: Kid edited the title tag in the head with Bit reminding them that it is page info, not body content.
+  did_unprompted: Kid changed the page title when naming a new project without putting that title in the visible body by mistake.
+  explained_it: Kid described the head as page info for the browser and the title as the name of the page.

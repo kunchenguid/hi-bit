@@ -13,7 +13,7 @@ export function buildKidGreetingText(input: KidGreetingInput): string {
   const name = input.profileName.trim();
   const greeting = name.length > 0 ? `Hey ${name}!` : "Hey!";
   const dream = input.dreamTitleKid?.trim();
-  const ready = dream && dream.length > 0 ? ` Ready to build ${dream}?` : "";
+  const ready = dream && dream.length > 0 ? ` Ready for ${dream}?` : "";
   const next = input.nextUpText?.trim();
   const startWith =
     next && next !== "ready to build!" ? ` We'll start with ${ensureTerminal(next)}` : "";

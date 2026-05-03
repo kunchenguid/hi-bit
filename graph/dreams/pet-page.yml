@@ -6,10 +6,9 @@ emoji: "🐶"
 categories: [personal, creative]
 interest_tags: [animals, pets, family]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
-  - html-comments
+  - html-images
 style_hints:
   - the pet's name
   - the pet's type (dog, cat, dragon, whatever)

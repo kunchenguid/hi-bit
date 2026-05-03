@@ -1,0 +1,13 @@
+id: tag-sandwich
+title_parent: Tag sandwich
+title_kid: words inside matching tags
+summary_kid: make a tiny page piece by putting words between an opening tag and a closing tag
+emoji: "🥪"
+categories: [creative]
+interest_tags: [first, writing, tags]
+requires:
+  - html-tags-basics
+style_hints:
+  - which words go inside the tags
+  - how to spot the opening tag
+  - how to spot the closing tag

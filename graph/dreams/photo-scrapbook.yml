@@ -6,7 +6,6 @@ emoji: "📷"
 categories: [creative, personal]
 interest_tags: [scrapbook, photos, memories, collage, design]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-div-span
   - html-images
