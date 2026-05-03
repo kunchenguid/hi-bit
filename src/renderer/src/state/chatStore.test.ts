@@ -217,7 +217,38 @@ describe("useChatStore", () => {
     expect(state.activeRequestId).toBeNull();
   });
 
-  it("returns to idle when cancellation IPC hangs after timeout", async () => {
+  it("keeps retry disabled until cancellation is acknowledged after timeout", async () => {
+    vi.useFakeTimers();
+    let resolveCancel: () => void = () => {};
+    const cancelKidMessage = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCancel = resolve;
+        }),
+    );
+    const sendKidMessage = vi.fn(() => new Promise<SendMessageResult>(() => {}));
+    mockHiBit({ sendKidMessage, cancelKidMessage });
+
+    const sendPromise = useChatStore.getState().send("ada", "ready");
+    const requestId = useChatStore.getState().activeRequestId;
+
+    await vi.advanceTimersByTimeAsync(KID_REPLY_TIMEOUT_MS);
+
+    expect(cancelKidMessage).toHaveBeenCalledWith(requestId);
+    expect(useChatStore.getState().status).toBe("sending");
+    await useChatStore.getState().retry("ada");
+    expect(sendKidMessage).toHaveBeenCalledTimes(1);
+
+    resolveCancel();
+    await sendPromise;
+
+    const state = useChatStore.getState();
+    expect(state.status).toBe("idle");
+    expect(state.error).toMatch(/timed out/i);
+    expect(state.activeRequestId).toBeNull();
+  });
+
+  it("returns to idle when cancellation IPC hangs past the acknowledgement window", async () => {
     vi.useFakeTimers();
     const cancelKidMessage = vi.fn(() => new Promise<void>(() => {}));
     mockHiBit({
@@ -230,12 +261,14 @@ describe("useChatStore", () => {
 
     await vi.advanceTimersByTimeAsync(KID_REPLY_TIMEOUT_MS);
 
-    const state = useChatStore.getState();
     expect(cancelKidMessage).toHaveBeenCalledWith(requestId);
-    expect(state.status).toBe("idle");
-    expect(state.error).toMatch(/timed out/i);
-    expect(state.activeRequestId).toBeNull();
+    expect(useChatStore.getState().status).toBe("sending");
+
+    await vi.advanceTimersByTimeAsync(3_000);
     await sendPromise;
+
+    expect(useChatStore.getState().status).toBe("idle");
+    expect(useChatStore.getState().error).toMatch(/timed out/i);
   });
 
   it("ignores streaming deltas that do not match the active kid turn", async () => {

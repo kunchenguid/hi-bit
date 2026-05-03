@@ -52,6 +52,7 @@ export function canRetryLastKidMessage(messages: ChatMessage[]): boolean {
 export const KID_FRIENDLY_ERROR = "Bit went to grab a snack. Try again in a minute.";
 export const KID_EMPTY_REPLY = "Bit got quiet there. Tap try again to wake him up.";
 export const KID_REPLY_TIMEOUT_MS = 45_000;
+const KID_CANCEL_ACK_TIMEOUT_MS = 3_000;
 export const KID_REPLY_TIMEOUT_ERROR = "Bit timed out waiting for the agent harness";
 export const KID_TIMEOUT_REPLY =
   "Bit is taking too long. Tap try again and we'll give it another shot.";
@@ -70,6 +71,20 @@ function friendlyErrorText(message: string): string {
   return /timed out/i.test(message) ? KID_TIMEOUT_REPLY : KID_FRIENDLY_ERROR;
 }
 
+async function waitForKidCancellationAck(requestId: string): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      window.hibit.cancelKidMessage(requestId).catch(() => {}),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, KID_CANCEL_ACK_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function sendKidMessageWithTimeout(
   profileId: string,
   prompt: string,
@@ -86,7 +101,7 @@ async function sendKidMessageWithTimeout(
     ]);
     if (result !== "timeout") return result;
     void sendPromise.catch(() => {});
-    void window.hibit.cancelKidMessage(requestId).catch(() => {});
+    await waitForKidCancellationAck(requestId);
     throw new Error(KID_REPLY_TIMEOUT_ERROR);
   } finally {
     if (timer) clearTimeout(timer);

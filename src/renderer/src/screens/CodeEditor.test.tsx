@@ -227,6 +227,31 @@ describe("CodeEditor cursor marker", () => {
     expect(updateStatus).not.toHaveBeenCalled();
   });
 
+  it("does not record run-and-preview against a different loaded profile", async () => {
+    const updateStatus = vi.fn(async () => {});
+    useProgressStore.setState({
+      profileId: "kid-2",
+      status: "ready",
+      progress: emptyProgress(),
+      updateStatus,
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
   it("reveals the editor when a cursor target arrives in page mode", async () => {
     await act(async () => {
       root.render(<CodeEditor profile={profile} docked />);

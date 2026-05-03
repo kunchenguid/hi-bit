@@ -75,6 +75,8 @@ export function CodeEditor({
   const openFolder = useProjectsStore((s) => s.openFolder);
   const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
   const updateProgressStatus = useProgressStore((s) => s.updateStatus);
+  const progressProfileId = useProgressStore((s) => s.profileId);
+  const progressStatus = useProgressStore((s) => s.status);
   const runAndPreviewProgress = useProgressStore(
     (s) => s.progress?.knowledgePoints["run-and-preview"],
   );
@@ -263,7 +265,11 @@ export function CodeEditor({
   function handleRun(): void {
     rebuildPreview();
     setViewMode("preview");
-    if (shouldRecordRunAndPreview(runAndPreviewProgress)) {
+    if (
+      progressProfileId === profile.id &&
+      progressStatus === "ready" &&
+      shouldRecordRunAndPreview(runAndPreviewProgress)
+    ) {
       void updateProgressStatus(
         "run-and-preview",
         "did_with_help",
