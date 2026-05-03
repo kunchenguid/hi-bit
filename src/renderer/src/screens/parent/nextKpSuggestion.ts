@@ -9,7 +9,8 @@ export type NextKpSuggestion =
   | { kind: "unknown-dream"; dreamId: string }
   | { kind: "unresolved-prereqs"; missing: string[] }
   | { kind: "next-kp"; kp: KnowledgePoint; status: KnowledgePointStatus | null }
-  | { kind: "all-done" };
+  | { kind: "all-done" }
+  | { kind: "freeform" };
 
 export type ChooseNextSuggestionInput = {
   graph: KnowledgeGraph | null;
@@ -24,6 +25,7 @@ export function chooseNextSuggestion(input: ChooseNextSuggestionInput): NextKpSu
   if (!graph || !library) return { kind: "loading" };
   const dream = library.byId[currentDreamId];
   if (!dream) return { kind: "unknown-dream", dreamId: currentDreamId };
+  if (dream.mode === "freeform") return { kind: "freeform" };
   const { unresolved } = collectRequiredKps(graph, dream);
   if (unresolved.length > 0) return { kind: "unresolved-prereqs", missing: unresolved };
   const nextId = pickNextKP(graph, dream, progress);

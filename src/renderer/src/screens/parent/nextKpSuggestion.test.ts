@@ -140,4 +140,16 @@ describe("chooseNextSuggestion", () => {
     });
     expect(result).toEqual({ kind: "all-done" });
   });
+
+  it("returns freeform for freeform dreams without a fixed learning plan", () => {
+    const dream = makeDream("playground", []);
+    dream.mode = "freeform";
+    const result = chooseNextSuggestion({
+      graph: makeGraph([]),
+      library: libraryOf([dream]),
+      currentDreamId: "playground",
+      progress: baseProgress,
+    });
+    expect(result).toEqual({ kind: "freeform" });
+  });
 });
