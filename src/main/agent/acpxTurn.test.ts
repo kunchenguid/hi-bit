@@ -1,5 +1,8 @@
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AcpRuntimeTurnResult } from "acpx/runtime";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { executeAcpTurn } from "./acpxTurn";
 
 type FakeEvent =
@@ -27,6 +30,7 @@ function createFakeRuntime(
     sessionKey: "ada:kid:s1:claude",
     backend: "acpx",
     runtimeSessionName: "runtime-session",
+    acpxRecordId: "ada:kid:s1:claude",
   };
   const runtime = {
     ensureSession: vi.fn(async (input: unknown) => {
@@ -50,6 +54,18 @@ function createFakeRuntime(
   };
   return { runtime, calls, handle };
 }
+
+const tempDirs: string[] = [];
+
+async function createTempDir(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "hibit-acpx-turn-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+afterEach(async () => {
+  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+});
 
 describe("executeAcpTurn", () => {
   it("creates an approve-all ACPX runtime and submits a persistent prompt turn", async () => {
@@ -156,6 +172,34 @@ describe("executeAcpTurn", () => {
     });
 
     expect(result).toEqual({ status: "completed", text: "Done.", usage: null });
+  });
+
+  it("removes local discarded session state when runtime close fails", async () => {
+    const stateDir = await createTempDir();
+    const sessionRecordPath = join(
+      stateDir,
+      "sessions",
+      `${encodeURIComponent("ada:kid:s1:claude")}.json`,
+    );
+    await mkdir(join(stateDir, "sessions"), { recursive: true });
+    await writeFile(sessionRecordPath, "{}\n", "utf8");
+    const { runtime } = createFakeRuntime([{ type: "text_delta", text: "Done." }], {
+      close: async () => {
+        throw new Error("close unsupported");
+      },
+    });
+
+    await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:cursor-marker:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      prompt: "hello",
+      discardPersistentState: true,
+      runtimeFactory: () => runtime,
+    });
+
+    await expect(readFile(sessionRecordPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("returns a failed turn when runtime close fails after agent failure", async () => {

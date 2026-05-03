@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
+import { join } from "node:path";
 import type { AgentId } from "@shared/config";
 import {
   type AcpRuntimeEvent,
@@ -40,6 +42,10 @@ export type ExecuteAcpTurnOptions = {
 
 function estimateTokens(chars: number): number {
   return chars <= 0 ? 0 : Math.ceil(chars / 4);
+}
+
+async function removeLocalSessionRecord(stateDir: string, sessionId: string): Promise<void> {
+  await rm(join(stateDir, "sessions", `${encodeURIComponent(sessionId)}.json`), { force: true });
 }
 
 export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTurnResult> {
@@ -109,6 +115,13 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
           discardPersistentState: opts.discardPersistentState ?? false,
         });
       } catch (err) {
+        if (opts.discardPersistentState) {
+          try {
+            await removeLocalSessionRecord(opts.stateDir, handle.acpxRecordId ?? handle.sessionKey);
+          } catch (removeErr) {
+            void removeErr;
+          }
+        }
         void err;
       }
     }
