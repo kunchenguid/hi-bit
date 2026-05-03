@@ -332,6 +332,21 @@ describe("shipped dream library content", () => {
     expect(byDifficulty.get(5) ?? 0).toBeLessThan(36);
   });
 
+  it("keeps starter dream difficulty aligned with kid-facing project size", async () => {
+    const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!graphValidation.ok) throw new Error("expected graph to validate");
+    const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
+    if (!dreamValidation.ok) throw new Error("expected dreams to validate");
+    expect(dreamValidation.library.byId["show-me-around"]?.difficulty).toBe(1);
+    expect(dreamValidation.library.byId["tag-sandwich"]?.difficulty).toBe(1);
+    expect(dreamValidation.library.byId["web-page-map"]?.difficulty).toBe(1);
+    expect(dreamValidation.library.byId["first-heading"]?.difficulty).toBe(1);
+    expect(dreamValidation.library.byId["tiny-poster"]?.difficulty).toBe(2);
+    expect(dreamValidation.library.byId["click-me"]?.difficulty).toBe(2);
+    expect(dreamValidation.library.byId["random-picker"]?.difficulty).toBe(3);
+    expect(dreamValidation.library.byId.pong?.difficulty).toBe(5);
+  });
+
   it("only the explicit page-frame dream directly requires the full HTML shell", async () => {
     const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
     if (!graphValidation.ok) throw new Error("expected graph to validate");

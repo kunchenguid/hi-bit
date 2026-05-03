@@ -50,7 +50,7 @@ Review criteria:
 1. **Real and achievable.** A dream is a real web project a 7-12 year old would actually want to build and could finish in one to a handful of sessions.
 2. **Coverable by shipped KPs.** Every id in `requires:` must resolve to an existing `graph/nodes/*.yml`. If you need a KP that does not exist yet, add the KP in the same PR - but prefer reusing KPs.
 3. **Direct-use prereqs only.** Like KP prereqs, list the KPs the dream directly exercises. The scheduler resolves transitive prereqs from the graph; you do not need to include them.
-4. **Difficulty is computed.** Do not author `difficulty` in `graph/dreams/*.yml`. Validation computes the 1-5 bit rating shown in the picker from the direct `requires:` choices and their transitive prereqs.
+4. **Difficulty is computed.** Do not author `difficulty` in `graph/dreams/*.yml`. Validation computes the 1-5 bit rating shown in the picker from the direct `requires:` count and the graph depth of those direct requirements.
 5. **Categorized.** Use the `arcade | creative | personal | utility | art` enum. Multiple categories are fine. Adding a new category is a separate architectural change, not a dream PR.
 6. **Interest tags are kid-facing filters.** They drive the dream picker. Use words a kid would recognize ("music", "animals", "space"), not author-facing taxonomy.
 7. **Style hints describe open choices, not the build.** They exist so Bit can ask the kid what they want, not so the PR proposes a finished design.
