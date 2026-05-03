@@ -34,4 +34,16 @@ describe("createCleanAgentRegistry", () => {
     await access(wrapperPath);
     await expect(readFile(wrapperPath, "utf8")).resolves.toContain("ELECTRON_RUN_AS_NODE");
   });
+
+  it("uses a shell when the clean launcher starts Windows command scripts", async () => {
+    const stateDir = await createTempDir();
+    await mkdir(stateDir, { recursive: true });
+
+    await createCleanAgentRegistry(stateDir);
+    const launcherPath = join(stateDir, "clean-agent-launch", "clean-acp-agent-launcher.cjs");
+
+    await expect(readFile(launcherPath, "utf8")).resolves.toContain(
+      'shell: process.platform === "win32"',
+    );
+  });
 });

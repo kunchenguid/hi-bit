@@ -27,6 +27,7 @@ const spec = JSON.parse(readFileSync(specPath, "utf8"));
 const child = spawn(spec.command, spec.args || [], {
   stdio: "inherit",
   env: { ...process.env, ...(spec.env || {}) },
+  shell: process.platform === "win32",
   windowsHide: true,
 });
 
