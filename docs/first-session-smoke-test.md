@@ -10,7 +10,8 @@ Run this before every alpha release build and after any change that touches onbo
 ## Setup
 
 1. Delete any existing install data: `rm -rf ~/.hi-bit`
-2. Install at least one supported ACP agent (Claude Code recommended per `REFERENCE_AGENT`). Verify it runs non-interactively: `claude -p "say hi" --session-id smoke-test`.
+2. Install at least one supported ACP agent (Claude Code recommended per `REFERENCE_AGENT`) and make sure `npx` is available.
+   Hi-Bit launches ACP providers through generated clean launch specs under `.acpx-sessions/clean-agent-launch`, so smoke testing should exercise the app path instead of only running the agent CLI directly.
 3. From the repo root, run `npm install && npm run dev`.
 
 ## The 5-minute arc
@@ -23,7 +24,9 @@ PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profi
 
 - [ ] App launches to `ProfileGate` (no profiles yet, so the create form auto-opens per `ProfileGate.tsx`).
 - [ ] `CreateProfileForm.tsx` accepts a name, age (3-18), comma-separated interests, optional notes for Bit. Fill in a real kid-shaped profile - e.g. Name "Ada", age 9, interests "cats, drawing, games", notes "already knows some HTML from school".
-- [ ] The new profile contains `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
+- [ ] The new profile contains seeded `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
+- [ ] After the first agent turn, `.acpx-sessions/clean-agent-launch` contains generated launch specs for the selected provider.
+  Codex specs include `ignore_user_config=true`; OpenCode specs use `--pure` and an isolated `XDG_CONFIG_HOME` under `.acpx-sessions/clean-agent-config`.
 - [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_AGENT` in `src/shared/config.ts`). Select the agent you installed above.
 - [ ] `DreamPicker.tsx` opens next, with `playground` pinned first and labeled `Not sure yet?`.
   The `Great first dream` starter projects follow before interest-tag matches for a brand-new profile.
