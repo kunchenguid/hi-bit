@@ -118,6 +118,12 @@ function createMainWindow(): BrowserWindow {
 const PARENT_DIRECTIVES_LIMIT = 10;
 const SESSION_SUMMARIES_LIMIT = 5;
 
+type ActiveKidTurn = {
+  senderId: number;
+  controller: AbortController;
+  settled: Promise<void>;
+};
+
 async function syncParentDirectivesToStateMd(
   layout: HiBitLayout,
   profileId: string,
@@ -162,6 +168,7 @@ export function projectFileChangeChannel(id: number): string {
 
 function registerIpc(layout: HiBitLayout): void {
   const projectWatchers = createProjectWatcherRegistry();
+  const activeKidTurns = new Map<string, ActiveKidTurn>();
   ipcMain.handle("hibit:get-app-info", (): AppInfo => {
     return {
       version: app.getVersion(),
@@ -265,24 +272,56 @@ function registerIpc(layout: HiBitLayout): void {
 
   ipcMain.handle(
     "hibit:send-kid-message",
-    async (event, profileId: string, prompt: string): Promise<SendMessageResult> => {
-      const config = await loadOrInitConfig(layout);
-      const result = await sendKidMessage({
-        layout,
-        config,
-        profileId,
-        prompt,
-        onDelta: (text) => {
-          if (!event.sender.isDestroyed()) {
-            event.sender.send("hibit:bit-delta", { role: "kid", profileId, text });
-          }
-        },
-      });
-      await syncSessionSummariesToStateMd(layout, profileId);
-      await syncCurrentSessionToStateMd(layout, profileId, "kid");
-      return result;
+    async (
+      event,
+      profileId: string,
+      prompt: string,
+      requestId?: string,
+    ): Promise<SendMessageResult> => {
+      const controller = requestId ? new AbortController() : undefined;
+      const run = async (): Promise<SendMessageResult> => {
+        const config = await loadOrInitConfig(layout);
+        const result = await sendKidMessage({
+          layout,
+          config,
+          profileId,
+          prompt,
+          signal: controller?.signal,
+          onDelta: (text) => {
+            if (!event.sender.isDestroyed()) {
+              event.sender.send("hibit:bit-delta", { role: "kid", profileId, requestId, text });
+            }
+          },
+        });
+        await syncSessionSummariesToStateMd(layout, profileId);
+        await syncCurrentSessionToStateMd(layout, profileId, "kid");
+        return result;
+      };
+      const promise = run();
+      if (requestId && controller) {
+        activeKidTurns.set(requestId, {
+          senderId: event.sender.id,
+          controller,
+          settled: promise.then(
+            () => undefined,
+            () => undefined,
+          ),
+        });
+      }
+      try {
+        return await promise;
+      } finally {
+        if (requestId) activeKidTurns.delete(requestId);
+      }
     },
   );
+
+  ipcMain.handle("hibit:cancel-kid-message", async (event, requestId: string): Promise<void> => {
+    const active = activeKidTurns.get(requestId);
+    if (!active || active.senderId !== event.sender.id) return;
+    active.controller.abort();
+    await active.settled;
+  });
 
   ipcMain.handle(
     "hibit:request-cursor-marker",

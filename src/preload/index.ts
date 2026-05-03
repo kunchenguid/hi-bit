@@ -36,8 +36,14 @@ const api: HiBitApi = {
     ipcRenderer.invoke("hibit:set-current-dream", profileId, dreamId),
   updateProfileSettings: (profileId: string, settings: ProfileSettingsInput): Promise<Profile> =>
     ipcRenderer.invoke("hibit:update-profile-settings", profileId, settings),
-  sendKidMessage: (profileId: string, prompt: string): Promise<SendMessageResult> =>
-    ipcRenderer.invoke("hibit:send-kid-message", profileId, prompt),
+  sendKidMessage: (
+    profileId: string,
+    prompt: string,
+    requestId?: string,
+  ): Promise<SendMessageResult> =>
+    ipcRenderer.invoke("hibit:send-kid-message", profileId, prompt, requestId),
+  cancelKidMessage: (requestId: string): Promise<void> =>
+    ipcRenderer.invoke("hibit:cancel-kid-message", requestId),
   requestCursorMarker: (
     profileId: string,
     request: CursorMarkerRequest,

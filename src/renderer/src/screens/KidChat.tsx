@@ -87,7 +87,7 @@ export function KidChat({
   useEffect(() => {
     const unsubscribe = window.hibit.onBitDelta((event) => {
       if (event.role === "kid" && event.profileId === profile.id) {
-        appendStreamingDelta(event.text);
+        appendStreamingDelta(event.requestId, event.text);
       }
     });
     return unsubscribe;

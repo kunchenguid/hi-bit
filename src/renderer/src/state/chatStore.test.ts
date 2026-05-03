@@ -2,7 +2,12 @@ import type { SendMessageResult } from "@shared/chat";
 import { emptyProgress } from "@shared/progress";
 import type { TranscriptEvent } from "@shared/transcript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { canRetryLastKidMessage, KID_EMPTY_REPLY, useChatStore } from "./chatStore";
+import {
+  canRetryLastKidMessage,
+  KID_EMPTY_REPLY,
+  KID_REPLY_TIMEOUT_MS,
+  useChatStore,
+} from "./chatStore";
 import { useProgressStore } from "./progressStore";
 
 type HiBitApi = typeof window.hibit;
@@ -28,6 +33,8 @@ beforeEach(() => {
     hydrateError: null,
     hydratedSessionId: null,
     greetingForSessionId: null,
+    streamingText: null,
+    activeRequestId: null,
   });
   useProgressStore.setState({
     progress: null,
@@ -96,6 +103,7 @@ describe("useChatStore", () => {
     expect(sendKidMessage).toHaveBeenCalledWith(
       "ada",
       "The kid saved index.html. Diff: +<button>Go</button>",
+      expect.any(String),
     );
     expect(useChatStore.getState().messages.map((m) => [m.role, m.kind, m.text])).toEqual([
       ["system", "divider", "Saved index.html"],
@@ -169,7 +177,7 @@ describe("useChatStore", () => {
     const sendKidMessage = vi.fn().mockResolvedValue({ ok: true, text: "ok", durationMs: 1 });
     mockHiBit({ sendKidMessage });
     await useChatStore.getState().send("ada", "  hello  ");
-    expect(sendKidMessage).toHaveBeenCalledWith("ada", "hello");
+    expect(sendKidMessage).toHaveBeenCalledWith("ada", "hello", expect.any(String));
     expect(useChatStore.getState().messages[0].text).toBe("hello");
   });
 
@@ -185,20 +193,50 @@ describe("useChatStore", () => {
 
   it("times out a stuck harness turn and returns the input to idle", async () => {
     vi.useFakeTimers();
-    mockHiBit({ sendKidMessage: vi.fn(() => new Promise<SendMessageResult>(() => {})) });
+    const cancelKidMessage = vi.fn().mockResolvedValue(undefined);
+    mockHiBit({
+      sendKidMessage: vi.fn(() => new Promise<SendMessageResult>(() => {})),
+      cancelKidMessage,
+    });
 
     const sendPromise = useChatStore.getState().send("ada", "ready");
+    const requestId = useChatStore.getState().activeRequestId;
+    expect(requestId).toEqual(expect.any(String));
     expect(useChatStore.getState().status).toBe("sending");
 
-    await vi.advanceTimersByTimeAsync(45_000);
+    await vi.advanceTimersByTimeAsync(KID_REPLY_TIMEOUT_MS);
     await sendPromise;
 
     const state = useChatStore.getState();
+    expect(cancelKidMessage).toHaveBeenCalledWith(requestId);
     expect(state.status).toBe("idle");
     expect(state.error).toMatch(/timed out/i);
     expect(state.messages).toHaveLength(2);
     expect(state.messages[1]).toMatchObject({ role: "bit", kind: "error" });
     expect(canRetryLastKidMessage(state.messages)).toBe(true);
+    expect(state.activeRequestId).toBeNull();
+  });
+
+  it("ignores streaming deltas that do not match the active kid turn", async () => {
+    let resolveSend: (v: SendMessageResult) => void = () => {};
+    const pending = new Promise<SendMessageResult>((r) => {
+      resolveSend = r;
+    });
+    mockHiBit({ sendKidMessage: vi.fn().mockReturnValue(pending) });
+
+    const sendPromise = useChatStore.getState().send("ada", "ready");
+    const requestId = useChatStore.getState().activeRequestId;
+    expect(requestId).toEqual(expect.any(String));
+
+    useChatStore.getState().appendStreamingDelta("stale", "old");
+    useChatStore.getState().appendStreamingDelta(requestId, "new");
+    expect(useChatStore.getState().streamingText).toBe("new");
+
+    resolveSend({ ok: true, text: "done", durationMs: 1 });
+    await sendPromise;
+
+    useChatStore.getState().appendStreamingDelta(requestId, "late");
+    expect(useChatStore.getState().streamingText).toBeNull();
   });
 
   it("reset clears messages, status, error, and hydrate state", () => {
@@ -210,6 +248,8 @@ describe("useChatStore", () => {
       hydrateError: "stale",
       hydratedSessionId: "sess-1",
       greetingForSessionId: "sess-1",
+      streamingText: "typing",
+      activeRequestId: "request-1",
     });
     useChatStore.getState().reset();
     const state = useChatStore.getState();
@@ -220,6 +260,8 @@ describe("useChatStore", () => {
     expect(state.hydrateError).toBeNull();
     expect(state.hydratedSessionId).toBeNull();
     expect(state.greetingForSessionId).toBeNull();
+    expect(state.streamingText).toBeNull();
+    expect(state.activeRequestId).toBeNull();
   });
 
   it("hydrate populates messages from the persisted kid transcript", async () => {
@@ -315,7 +357,7 @@ describe("useChatStore", () => {
 
     await useChatStore.getState().retry("ada");
 
-    expect(sendKidMessage).toHaveBeenNthCalledWith(2, "ada", "hello");
+    expect(sendKidMessage).toHaveBeenNthCalledWith(2, "ada", "hello", expect.any(String));
     const state = useChatStore.getState();
     expect(state.messages.map((m) => `${m.role}:${m.kind}:${m.text}`)).toEqual([
       "kid:text:hello",
