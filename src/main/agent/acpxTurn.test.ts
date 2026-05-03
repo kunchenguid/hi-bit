@@ -304,7 +304,11 @@ describe("executeAcpTurn", () => {
     turnPromise.catch(() => {});
     await vi.waitFor(() => expect(runtime.ensureSession).toHaveBeenCalled());
 
-    const closePromise = closeAcpRuntimeSessions({ profileId: "ada", role: "kid", sessionId: "s1" });
+    const closePromise = closeAcpRuntimeSessions({
+      profileId: "ada",
+      role: "kid",
+      sessionId: "s1",
+    });
     rejectEnsureSession(new Error("spawn failed"));
 
     await expect(closePromise).resolves.toBeUndefined();
