@@ -68,14 +68,14 @@ Groupings below are authoring conveniences, not kid-facing categories. A kid nev
 
 ### Foundations
 
-| id | title_parent | title_kid |
-|---|---|---|
-| `run-and-preview` | Using See my page and the live preview | running your code and seeing what happens |
-| `web-page-parts` | HTML, CSS, and JavaScript roles | the three parts of a web page |
-| `html-tags-basics` | HTML tag basics | the little markers around page stuff |
-| `html-page-body` | Body as the visible page area | where visible page stuff goes |
-| `html-head-title` | Head and title basics | page info that is not the page itself |
-| `html-attributes-basics` | HTML attribute basics | extra details inside a tag |
+| id | title_parent | title_kid | prereqs |
+|---|---|---|---|
+| `run-and-preview` | Using See my page and the live preview | running your code and seeing what happens | _none_ |
+| `web-page-parts` | HTML, CSS, and JavaScript roles | the three parts of a web page | `run-and-preview` |
+| `html-tags-basics` | HTML tag basics | the little markers around page stuff | `web-page-parts` |
+| `html-page-body` | Body as the visible page area | where visible page stuff goes | `html-tags-basics` |
+| `html-head-title` | Head and title basics | page info that is not the page itself | `html-page-body` |
+| `html-attributes-basics` | HTML attribute basics | extra details inside a tag | `html-page-body` |
 
 ### HTML
 

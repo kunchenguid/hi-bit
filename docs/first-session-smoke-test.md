@@ -23,8 +23,9 @@ PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profi
 
 - [ ] App launches to `ProfileGate` (no profiles yet, so the create form auto-opens per `ProfileGate.tsx`).
 - [ ] `CreateProfileForm.tsx` accepts a name, age (3-18), comma-separated interests, optional notes for Bit. Fill in a real kid-shaped profile - e.g. Name "Ada", age 9, interests "cats, drawing, games", notes "already knows some HTML from school".
+- [ ] The new profile contains `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
 - [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_AGENT` in `src/shared/config.ts`). Select the agent you installed above.
-- [ ] `DreamPicker.tsx` opens next, sorted with the kid's interest-tag matches floated to the top.
+- [ ] `DreamPicker.tsx` opens next, sorted with `Great first dream` starters at the top for a brand-new profile before interest-tag matches.
 
 ### Step 2 - Kid opens app, Bit greets by name
 
@@ -46,7 +47,8 @@ PRD: "Bit asks about what they like (games, drawing, stories, animals). For youn
 PRD: "Bit shows a dream menu filtered by the kid's interests. Each dream is a real, achievable web project."
 
 - [ ] Bit proactively offers the dream menu, or the kid can click through to `DreamPicker.tsx` from the workspace nav.
-- [ ] The top of the dream list contains interest-matched dreams (e.g. cats + drawing surfaces `doodle-pad`, `pixel-painter`, `photo-scrapbook`, `sticker-gallery`). See `dreamInterestMatch.ts` for the ranking function.
+- [ ] For a brand-new profile, the top of the dream list contains the zero-knowledge starter dreams from `pickGreatFirstDreamIds`, ordered by lower difficulty and then fewer required skills.
+- [ ] After the first dream is no longer active, interest-matched dreams float up (e.g. cats + drawing surfaces `doodle-pad`, `pixel-painter`, `photo-scrapbook`, `sticker-gallery`). See `dreamInterestMatch.ts` for the ranking function.
 - [ ] Every rendered dream card has a kid-facing title, category chip(s), a bit difficulty rating with mascot icons, and an interest-tag preview. No empty, broken, or duplicate cards.
 
 ### Step 5 - Kid picks a dream, Bit commits
@@ -85,5 +87,6 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 - **Live preview shows a blank iframe** - `buildPreview.ts` srcdoc inlining failed. Check DevTools for CSP errors and `buildPreview.test.ts`.
 - **Save silently fails** - the typed-IPC `saveProjectFile` in `src/main/index.ts` or `src/preload/index.ts` is mis-wired, or the profile dir was not created. Check `~/.hi-bit/profiles/` for permissions.
 - **Agent errors surface to the kid** - the error bubble should read "Bit went to grab a snack. Try again in a minute." with a Try-again button, per the resolved "Kid-facing outage UX" decision in `TECHNICAL_DESIGN.md` §Resolved.
+- **Hung agent turn never recovers** - a kid turn that runs too long should cancel the request and show "Bit is taking too long. Tap try again and we'll give it another shot." with a Try-again button.
 
 If any of the checks above fail, do not ship the build. File an issue referencing this smoke test's step number so the regression is easy to reproduce.
