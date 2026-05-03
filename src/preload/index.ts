@@ -1,5 +1,5 @@
 import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
-import type { HarnessDetection, HiBitConfig } from "@shared/config";
+import type { HiBitConfig } from "@shared/config";
 import type { DreamValidation } from "@shared/dreams";
 import type { ParentFlag } from "@shared/flag";
 import type {
@@ -29,7 +29,6 @@ const api: HiBitApi = {
   getConfig: (): Promise<HiBitConfig> => ipcRenderer.invoke("hibit:get-config"),
   updateConfig: (config: HiBitConfig): Promise<HiBitConfig> =>
     ipcRenderer.invoke("hibit:update-config", config),
-  detectHarnesses: (): Promise<HarnessDetection> => ipcRenderer.invoke("hibit:detect-harnesses"),
   getKnowledgeGraph: (): Promise<KnowledgeGraphValidation> =>
     ipcRenderer.invoke("hibit:get-knowledge-graph"),
   getDreams: (): Promise<DreamValidation> => ipcRenderer.invoke("hibit:get-dreams"),

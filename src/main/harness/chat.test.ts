@@ -1,424 +1,219 @@
-import { EventEmitter } from "node:events";
-import { mkdir, mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Readable } from "node:stream";
-import type { HarnessDetection, HiBitConfig } from "@shared/config";
+import type { HiBitConfig } from "@shared/config";
+import type { AcpRuntimeEvent } from "acpx/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import {
-  createProfile,
-  readProgress,
-  setCurrentDream,
-  updateKpSkipped,
-  updateKpStatus,
-  writeProfileFile,
-} from "../storage/profiles";
+import { createProfile, readProgress, setCurrentDream } from "../storage/profiles";
+import { scaffoldProject } from "../storage/projects";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
 import { readTranscript } from "../storage/transcript";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./chat";
-import { ClaudeSession } from "./claudeSession";
-import { ClaudeSessionRegistry } from "./claudeSessionRegistry";
-import { claudeOkStreamJson } from "./claudeStreamJsonFixture";
-import type { HarnessSpawnFn } from "./run";
 
-type FakeChild = EventEmitter & {
-  stdout: Readable | null;
-  stderr: Readable | null;
-  kill: (signal?: NodeJS.Signals | number) => boolean;
-};
+type RuntimeOutput =
+  | { status?: "completed"; text: string; used?: number }
+  | { status: "failed"; text?: string; error: string };
 
-function makeFakeChild(): FakeChild {
-  const ee = new EventEmitter() as FakeChild;
-  ee.stdout = new Readable({ read() {} });
-  ee.stderr = new Readable({ read() {} });
-  ee.kill = vi.fn(() => true);
-  return ee;
+async function* asyncEvents(output: RuntimeOutput): AsyncGenerator<AcpRuntimeEvent, void, unknown> {
+  if ("used" in output && typeof output.used === "number") {
+    yield { type: "status", text: "usage", used: output.used, size: 1000 };
+  }
+  if (output.text) yield { type: "text_delta", text: output.text };
 }
 
-function spawnEmitting(responses: Array<(c: FakeChild) => void>): HarnessSpawnFn {
-  let call = 0;
-  return () => {
-    const c = makeFakeChild();
-    const respond = responses[Math.min(call, responses.length - 1)];
-    call += 1;
-    setImmediate(() => respond?.(c));
-    return c as unknown as ReturnType<HarnessSpawnFn>;
-  };
+function runtimeFactoryFor(outputs: RuntimeOutput[]) {
+  const prompts: string[] = [];
+  const ensureSessionInputs: unknown[] = [];
+  let index = 0;
+  const runtimeFactory = vi.fn(() => ({
+    ensureSession: vi.fn(async (input: unknown) => {
+      ensureSessionInputs.push(input);
+      return { sessionKey: "s", backend: "acpx", runtimeSessionName: "runtime" };
+    }),
+    startTurn: vi.fn((input: unknown) => {
+      const turnInput = input as { text: string; requestId: string };
+      prompts.push(turnInput.text);
+      const output = outputs[Math.min(index, outputs.length - 1)] ?? { text: "" };
+      index += 1;
+      return {
+        requestId: turnInput.requestId,
+        events: asyncEvents(output),
+        result: Promise.resolve(
+          output.status === "failed"
+            ? { status: "failed" as const, error: { message: output.error } }
+            : { status: "completed" as const },
+        ),
+        cancel: vi.fn(async () => {}),
+        closeStream: vi.fn(async () => {}),
+      };
+    }),
+    close: vi.fn(async () => {}),
+  }));
+  return { runtimeFactory, prompts, ensureSessionInputs };
 }
 
-const config: HiBitConfig = {
-  version: 1,
-  harness: { claude: "/usr/local/bin/claude" },
-  defaultHarness: "claude",
-};
+const config: HiBitConfig = { version: 2, defaultAgent: "claude" };
 
-const detection: HarnessDetection = {
-  claude: "/usr/local/bin/claude",
-  codex: null,
-  opencode: null,
-};
-
-describe("sendKidMessage", () => {
+describe("ACP-backed chat", () => {
   let root: string;
   let layout: HiBitLayout;
 
   beforeEach(async () => {
-    root = await mkdtemp(join(tmpdir(), "hi-bit-chat-"));
+    root = await mkdtemp(join(tmpdir(), "hi-bit-chat-acp-"));
     layout = await bootstrapLayout(root);
-    await writeFile(promptsBitPath(layout), "# Bit\n", "utf8");
+    await writeFile(
+      promptsBitPath(layout),
+      "# Bit - System Prompt v1\n\nTest Bit prompt.\n",
+      "utf8",
+    );
   });
 
   afterEach(async () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  async function makeAda() {
-    return createProfile(layout, { name: "Ada", age: 8 });
-  }
-
-  it("runs a start-mode turn, writes transcript + log, returns ok result", async () => {
-    const profile = await makeAda();
-    const spawn = spawnEmitting([
-      (c) => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "hi ada" }));
-        c.emit("close", 0, null);
-      },
+  it("sends a kid turn through ACPX, writes transcript and session log", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, prompts, ensureSessionInputs } = runtimeFactoryFor([
+      { text: "Hi Ada.", used: 42 },
     ]);
 
     const result = await sendKidMessage({
       layout,
       config,
-      detection,
       profileId: profile.id,
       prompt: "hello",
-      spawn,
+      runtimeFactory,
     });
 
-    expect(result).toEqual({ ok: true, text: "hi ada", durationMs: expect.any(Number) });
+    expect(result).toEqual({ ok: true, text: "Hi Ada.", durationMs: expect.any(Number) });
+    expect(prompts[0]).toContain("<hi-bit:context>");
+    expect(prompts[0]).toContain("mode: kid");
+    expect(prompts[0]).toMatch(/hello$/);
+    expect(ensureSessionInputs[0]).toMatchObject({
+      agent: "claude",
+      mode: "persistent",
+      cwd: profilePathsFor(layout, profile.id).root,
+    });
 
     const paths = profilePathsFor(layout, profile.id);
     const events = await readTranscript(paths, profile.sessions.kid);
-    expect(events.map((e) => e.kind)).toEqual(["user_message", "assistant_message"]);
+    expect(events.map((event) => event.kind)).toEqual(["user_message", "assistant_message"]);
+    expect(events[0]?.text).toBe("hello");
+    expect(events[1]?.text).toBe("Hi Ada.");
     const log = await readSessionLogEntries(paths);
-    expect(log).toHaveLength(1);
-    expect(log[0]?.mode).toBe("start");
-    expect(log[0]?.role).toBe("kid");
+    expect(log[0]).toMatchObject({
+      harness: "claude",
+      role: "kid",
+      sessionId: profile.sessions.kid,
+      mode: "start",
+      exitCode: 0,
+      tokensInput: 42,
+    });
   });
 
-  it("requests a cursor marker without writing JSON helper turns to the kid transcript", async () => {
-    const profile = await makeAda();
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit(
-          "data",
-          claudeOkStreamJson({
-            result: JSON.stringify({
-              surrounding_content_with_marker: "<body>[[BIT-CURSOR]]</body>",
-            }),
-          }),
-        );
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
+  it("strips hidden progress blocks from replies and applies valid progress updates", async () => {
+    await writeFile(
+      join(layout.graphNodesDir, "html-text-headings.yml"),
+      [
+        "id: html-text-headings",
+        "title_parent: Headings",
+        "title_kid: big titles",
+        "area: html",
+        "prereqs: []",
+        "introduces: []",
+        "mastery_signals:",
+        "  saw_it: saw",
+        "  did_with_help: did",
+        "  did_unprompted: unprompted",
+        "  explained_it: explained",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const rawReply =
+      'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1."}]</hi-bit:progress>';
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "done",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Nice title.", durationMs: expect.any(Number) });
+    const events = await readTranscript(profilePathsFor(layout, profile.id), profile.sessions.kid);
+    expect(events[1]?.text).toBe("Nice title.");
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["html-text-headings"]).toMatchObject({
+      status: "did_with_help",
+      evidence: "Changed the h1.",
+    });
+  });
+
+  it("does not inject the full preamble on resume turns", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "one" }, { text: "two" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "first",
+      runtimeFactory,
+    });
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "second",
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain("<hi-bit:context>");
+    expect(prompts[1]).toBe("second");
+    const log = await readSessionLogEntries(profilePathsFor(layout, profile.id));
+    expect(log.map((entry) => entry.mode)).toEqual(["start", "resume"]);
+  });
+
+  it("requestCursorMarker does not write helper turns to transcript or session log", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([
+      { text: JSON.stringify({ surrounding_content_with_marker: "<h1>[[BIT-CURSOR]]</h1>" }) },
+    ]);
 
     const result = await requestCursorMarker({
       layout,
       config,
-      detection,
       profileId: profile.id,
       request: {
         filename: "index.html",
-        editorContent: "<body></body>",
-        latestBitMessage: "Put the title inside body.",
-        snippet: "<h1>Hi</h1>",
+        editorContent: "<h1>Hello</h1>",
+        latestBitMessage: "Change the title.",
+        snippet: "<h1>Ada</h1>",
       },
-      spawn,
+      runtimeFactory,
     });
 
     expect(result.ok).toBe(true);
-    const args = spawnArgs[0] as string[];
-    const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toContain("Put the title inside body.");
-    expect(promptArg).toContain("<body></body>");
-    const sessionIdArg = args[args.indexOf("--session-id") + 1];
-    expect(sessionIdArg).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-    );
-
+    expect(prompts[0]).toContain("Change the title.");
     const paths = profilePathsFor(layout, profile.id);
     await expect(readTranscript(paths, profile.sessions.kid)).resolves.toEqual([]);
     await expect(readSessionLogEntries(paths)).resolves.toEqual([]);
   });
 
-  it("injects the kid session-context preamble into the first-turn (start-mode) agent prompt while keeping the transcript user text raw", async () => {
-    const profile = await makeAda();
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "hi bit",
-      spawn,
-    });
-
-    const args = spawnArgs[0] as string[];
-    const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toMatch(/<hi-bit:context>/);
-    expect(promptArg).toMatch(/mode:\s*kid/);
-    expect(promptArg).toMatch(/Ada/);
-    expect(promptArg?.endsWith("hi bit")).toBe(true);
-
-    const paths = profilePathsFor(layout, profile.id);
-    const events = await readTranscript(paths, profile.sessions.kid);
-    const userEvent = events.find((e) => e.kind === "user_message");
-    expect(userEvent?.text).toBe("hi bit");
-  });
-
-  it("injects memory file contents with relative source paths on the first kid turn", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    await writeFile(paths.stateFile, "# State\n\nAda likes turtles.\n", "utf8");
-    await writeFile(
-      paths.progressFile,
-      `${JSON.stringify({ version: 1, knowledgePoints: {}, projects: [], sessions: [], dreamHistory: [] }, null, 2)}\n`,
-      "utf8",
-    );
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "hi bit",
-      spawn,
-    });
-
-    const args = spawnArgs[0] as string[];
-    const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toContain('<hi-bit:file path="state.md" format="markdown">');
-    expect(promptArg).toContain("Ada likes turtles.");
-    expect(promptArg).toContain('<hi-bit:file path="progress.json" format="json">');
-    expect(promptArg).toContain('"knowledgePoints": {}');
-    expect(promptArg).not.toMatch(/Before replying, read state\.md/i);
-  });
-
-  it("strips hi-bit progress blocks from non-streaming replies and applies valid KP updates", async () => {
-    const profile = await makeAda();
-    await writeFile(
-      join(layout.graphNodesDir, "html-text-headings.yml"),
-      [
-        "id: html-text-headings",
-        "title_parent: Headings",
-        "title_kid: big titles and small titles",
-        "area: html",
-        "prereqs: []",
-        "introduces: []",
-        "mastery_signals:",
-        "  saw_it: saw",
-        "  did_with_help: did",
-        "  did_unprompted: unprompted",
-        "  explained_it: explained",
-        "",
-      ].join("\n"),
-      "utf8",
-    );
-    const reply =
-      'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1 text."},{"kpId":"h1","status":"did_with_help","evidence":"Invalid id."}]</hi-bit:progress>';
-    const spawn = spawnEmitting([
-      (c) => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: reply }));
-        c.emit("close", 0, null);
-      },
-    ]);
-
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "saved",
-      spawn,
-    });
-
-    expect(result).toEqual({ ok: true, text: "Nice title.", durationMs: expect.any(Number) });
-    const paths = profilePathsFor(layout, profile.id);
-    const events = await readTranscript(paths, profile.sessions.kid);
-    expect(events[1]?.text).toBe("Nice title.");
-    const progress = await readProgress(layout, profile.id);
-    expect(progress.knowledgePoints["html-text-headings"]?.status).toBe("did_with_help");
-    expect(progress.knowledgePoints.h1).toBeUndefined();
-  });
-
-  it("does not let hidden progress blocks downgrade existing KP mastery", async () => {
-    const profile = await makeAda();
-    await writeFile(
-      join(layout.graphNodesDir, "html-text-headings.yml"),
-      [
-        "id: html-text-headings",
-        "title_parent: Headings",
-        "title_kid: big titles and small titles",
-        "area: html",
-        "prereqs: []",
-        "introduces: []",
-        "mastery_signals:",
-        "  saw_it: saw",
-        "  did_with_help: did",
-        "  did_unprompted: unprompted",
-        "  explained_it: explained",
-        "",
-      ].join("\n"),
-      "utf8",
-    );
-    await updateKpStatus(layout, profile.id, "html-text-headings", "did_unprompted", {
-      evidence: "Built the heading independently.",
-    });
-    const reply =
-      'Nice review.<hi-bit:progress>[{"kpId":"html-text-headings","status":"saw_it","evidence":"Reviewed headings."}]</hi-bit:progress>';
-    const spawn = spawnEmitting([
-      (c) => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: reply }));
-        c.emit("close", 0, null);
-      },
-    ]);
-
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "review headings",
-      spawn,
-    });
-
-    expect(result).toEqual({ ok: true, text: "Nice review.", durationMs: expect.any(Number) });
-    const progress = await readProgress(layout, profile.id);
-    expect(progress.knowledgePoints["html-text-headings"]?.status).toBe("did_unprompted");
-    expect(progress.knowledgePoints["html-text-headings"]?.evidence).toBe(
-      "Built the heading independently.",
-    );
-  });
-
-  it("does not let hidden progress blocks update parent-skipped KPs", async () => {
-    const profile = await makeAda();
-    await writeFile(
-      join(layout.graphNodesDir, "html-text-headings.yml"),
-      [
-        "id: html-text-headings",
-        "title_parent: Headings",
-        "title_kid: big titles and small titles",
-        "area: html",
-        "prereqs: []",
-        "introduces: []",
-        "mastery_signals:",
-        "  saw_it: saw",
-        "  did_with_help: did",
-        "  did_unprompted: unprompted",
-        "  explained_it: explained",
-        "",
-      ].join("\n"),
-      "utf8",
-    );
-    await updateKpSkipped(layout, profile.id, "html-text-headings", true);
-    const reply =
-      'Nice work.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1 text."}]</hi-bit:progress>';
-    const spawn = spawnEmitting([
-      (c) => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: reply }));
-        c.emit("close", 0, null);
-      },
-    ]);
-
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "saved",
-      spawn,
-    });
-
-    expect(result).toEqual({ ok: true, text: "Nice work.", durationMs: expect.any(Number) });
-    const progress = await readProgress(layout, profile.id);
-    expect(progress.knowledgePoints["html-text-headings"]).toMatchObject({
-      status: "saw_it",
-      skipped: true,
-    });
-    expect(progress.knowledgePoints["html-text-headings"]?.evidence).toBeUndefined();
-  });
-
-  it("tells Bit which starter project files already exist on the first kid turn", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    const projectDir = join(paths.projectsDir, "hello-card");
-    await mkdir(projectDir, { recursive: true });
-    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
-    await writeProfileFile(paths, { ...profile, currentDreamId: "hello-card" });
-
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "ready",
-      spawn,
-    });
-
-    const args = spawnArgs[0] as string[];
-    const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toContain(`project_dir: ${projectDir}`);
-    expect(promptArg).toContain('project_files: ["index.html"]');
-    expect(promptArg).toMatch(/index\.html already exists/i);
-    expect(promptArg).toMatch(/do not ask the kid to create it/i);
-  });
-
-  it("injects the current dream learning plan on the first kid turn", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
+  it("injects current dream project files on a fresh dream session", async () => {
     await writeFile(
       join(layout.graphNodesDir, "html-doc-shell.yml"),
       [
         "id: html-doc-shell",
-        "title_parent: HTML document shell",
-        "title_kid: the frame that holds your page",
-        "why_kid: every page needs an outside wrapper.",
+        "title_parent: Document shell",
+        "title_kid: page frame",
         "area: html",
         "prereqs: []",
         "introduces: []",
@@ -431,662 +226,73 @@ describe("sendKidMessage", () => {
       ].join("\n"),
       "utf8",
     );
-    await writeFile(
-      join(layout.graphNodesDir, "html-text-headings.yml"),
-      [
-        "id: html-text-headings",
-        "title_parent: Headings",
-        "title_kid: big titles and small titles",
-        "area: html",
-        "prereqs: [html-doc-shell]",
-        "introduces: []",
-        "mastery_signals:",
-        "  saw_it: saw",
-        "  did_with_help: did",
-        "  did_unprompted: unprompted",
-        "  explained_it: explained",
-        "",
-      ].join("\n"),
-      "utf8",
-    );
-    await writeFile(
-      join(layout.graphDreamsDir, "click-me.yml"),
-      [
-        "id: click-me",
-        "title_parent: Click-me page",
-        "title_kid: a page with buttons to click",
-        "summary_kid: a page with buttons",
-        'emoji: "👉"',
-        "categories: [creative]",
-        "interest_tags: [buttons]",
-        "requires: [html-doc-shell, html-text-headings]",
-        "",
-      ].join("\n"),
-      "utf8",
-    );
-    await writeProfileFile(paths, { ...profile, currentDreamId: "click-me" });
-
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const dream = {
+      id: "about-me",
+      title_parent: "About Me",
+      title_kid: "a page about you",
+      summary_kid: "make a page",
+      categories: ["personal" as const],
+      interest_tags: [],
+      requires: ["html-doc-shell"],
+      style_hints: [],
+      emoji: "*",
     };
+    await setCurrentDream(layout, profile.id, dream.id);
+    const paths = profilePathsFor(layout, profile.id);
+    await scaffoldProject(paths, dream, { profileName: profile.name });
+    const updatedProfile = await (await import("../storage/profiles")).readProfile(
+      layout,
+      profile.id,
+    );
+    if (!updatedProfile) throw new Error("missing profile");
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "ready" }]);
 
     await sendKidMessage({
       layout,
       config,
-      detection,
       profileId: profile.id,
-      prompt: "ready",
-      spawn,
+      prompt: "start",
+      runtimeFactory,
     });
 
-    const args = spawnArgs[0] as string[];
-    const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toContain("<hi-bit:learning-plan>");
-    expect(promptArg).toContain("dream: click-me - a page with buttons to click");
-    expect(promptArg).toContain("next_up: html-doc-shell");
-    expect(promptArg).toContain(
-      "- html-doc-shell | the frame that holds your page | status: not_started",
-    );
-    expect(promptArg).toContain(
-      "- html-text-headings | big titles and small titles | status: not_started",
-    );
+    expect(prompts[0]).toContain(`project_dir: ${join(paths.root, "projects", "about-me")}`);
+    expect(prompts[0]).toContain('project_files: ["index.html"]');
   });
 
-  it("tells Bit which starter project files already exist when the first dream is picked after an earlier kid turn", async () => {
-    const profile = await makeAda();
+  it("runs parent turns against the parent session and role", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "Parent summary." }]);
+
+    const result = await sendParentMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "summarize",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Parent summary.", durationMs: expect.any(Number) });
+    expect(prompts[0]).toContain("mode: parent");
     const paths = profilePathsFor(layout, profile.id);
-    const projectDir = join(paths.projectsDir, "hello-card");
-    await mkdir(projectDir, { recursive: true });
-    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
-
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "hi before dream",
-      spawn,
-    });
-    await setCurrentDream(layout, profile.id, "hello-card");
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "ready",
-      spawn,
-    });
-
-    const secondArgs = spawnArgs[1] as string[];
-    const promptArg = secondArgs[secondArgs.indexOf("-p") + 1];
-    expect(secondArgs).not.toContain("--resume");
-    expect(promptArg).toContain(`project_dir: ${projectDir}`);
-    expect(promptArg).toContain('project_files: ["index.html"]');
-    expect(promptArg).toMatch(/index\.html already exists/i);
-    expect(promptArg).toMatch(/do not ask the kid to create it/i);
+    const parentEvents = await readTranscript(paths, profile.sessions.parent);
+    expect(parentEvents.map((event) => event.role)).toEqual(["parent", "parent"]);
+    const log = await readSessionLogEntries(paths);
+    expect(log[0]).toMatchObject({ role: "parent", sessionId: profile.sessions.parent });
   });
 
-  it("tells a resumed Claude stream which starter project files exist after the first dream is picked", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    const projectDir = join(paths.projectsDir, "hello-card");
-    await mkdir(projectDir, { recursive: true });
-    await writeFile(join(projectDir, "index.html"), "<!doctype html>\n", "utf8");
-
-    const prompts: string[] = [];
-    const spawnArgs: Array<readonly string[]> = [];
-    const registry = new ClaudeSessionRegistry<ClaudeSession>();
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-    vi.spyOn(ClaudeSession.prototype, "sendMessage").mockImplementation((message: string) => {
-      prompts.push(message);
-      return {
-        events: (async function* () {})(),
-        complete: Promise.resolve({ text: "ok", usage: null, durationApiMs: null, numTurns: null }),
-      } as ReturnType<ClaudeSession["sendMessage"]>;
-    });
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "hi before dream",
-      spawn,
-      claudeRegistry: registry,
-    });
-    await setCurrentDream(layout, profile.id, "hello-card");
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "ready",
-      spawn,
-      claudeRegistry: registry,
-    });
-
-    expect(spawnArgs).toHaveLength(2);
-    expect(spawnArgs[1]).not.toContain("--resume");
-    expect(prompts[1]).toContain(`project_dir: ${projectDir}`);
-    expect(prompts[1]).toContain('project_files: ["index.html"]');
-    expect(prompts[1]).toMatch(/index\.html already exists/i);
-    expect(prompts[1]).toMatch(/do not ask the kid to create it/i);
-  });
-
-  it("returns ok=false when current dream project file lookup fails", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
+  it("returns ok=false when no default agent is configured", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
 
     const result = await sendKidMessage({
       layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "ready",
-      spawn: spawnEmitting([() => {}]),
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
-  });
-
-  it("returns ok=false when cursor marker project file lookup fails", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
-
-    const result = await requestCursorMarker({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      request: {
-        filename: "index.html",
-        editorContent: "<body></body>",
-        latestBitMessage: "Put the title inside body.",
-        snippet: "<h1>Hi</h1>",
-      },
-      spawn: spawnEmitting([() => {}]),
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
-  });
-
-  it("returns ok=false when streaming current dream project file lookup fails", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
-
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "ready",
-      spawn: spawnEmitting([() => {}]),
-      claudeRegistry: new ClaudeSessionRegistry<ClaudeSession>(),
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/invalid project slug/i);
-  });
-
-  it("does not inject the preamble on resume-mode turns after the current dream is known", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    await mkdir(join(paths.projectsDir, "hello-card"), { recursive: true });
-    await writeFile(
-      join(paths.projectsDir, "hello-card", "index.html"),
-      "<!doctype html>\n",
-      "utf8",
-    );
-    await setCurrentDream(layout, profile.id, "hello-card");
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "first",
-      spawn,
-    });
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "second",
-      spawn,
-    });
-
-    const secondArgs = spawnArgs[1] as string[];
-    const secondPromptArg = secondArgs[secondArgs.indexOf("-p") + 1];
-    expect(secondPromptArg).toBe("second");
-  });
-
-  it("uses resume mode once a prior successful invocation is on record", async () => {
-    const profile = await makeAda();
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "one",
-      spawn,
-    });
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "two",
-      spawn,
-    });
-
-    expect(spawnArgs[0]).toContain("-p");
-    expect(spawnArgs[0]).not.toContain("--resume");
-    expect(spawnArgs[1]).toContain("--resume");
-  });
-
-  it("self-heals a profile missing state.md / progress.json / AGENTS.md / CLAUDE.md before spawning", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    await unlink(paths.stateFile);
-    await unlink(paths.progressFile);
-    await unlink(paths.agentsFile);
-    await unlink(paths.claudeFile);
-
-    const spawn = spawnEmitting([
-      (c) => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      },
-    ]);
-
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "hi",
-      spawn,
-    });
-
-    expect(result.ok).toBe(true);
-    await expect(stat(paths.stateFile)).resolves.toBeDefined();
-    await expect(stat(paths.progressFile)).resolves.toBeDefined();
-    await expect(stat(paths.agentsFile)).resolves.toBeDefined();
-    await expect(stat(paths.claudeFile)).resolves.toBeDefined();
-  });
-
-  it("returns ok=false with error when harness exits non-zero", async () => {
-    const profile = await makeAda();
-    const spawn = spawnEmitting([
-      (c) => {
-        c.stderr?.emit("data", "boom");
-        c.emit("close", 2, null);
-      },
-    ]);
-
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
+      config: { version: 2 },
       profileId: profile.id,
       prompt: "hello",
-      spawn,
+      runtimeFactory: runtimeFactoryFor([{ text: "unused" }]).runtimeFactory,
     });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/boom/);
-  });
-
-  it("returns ok=false when profile is missing", async () => {
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: "nope",
-      prompt: "hi",
-      spawn: spawnEmitting([() => {}]),
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/profile/i);
-  });
-
-  it("returns ok=false when no default harness is configured", async () => {
-    const profile = await makeAda();
-    const result = await sendKidMessage({
-      layout,
-      config: { version: 1, harness: {} },
-      detection,
-      profileId: profile.id,
-      prompt: "hi",
-      spawn: spawnEmitting([() => {}]),
-    });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toMatch(/default agent/i);
-  });
-
-  it("returns ok=false when the default harness binary is not on disk", async () => {
-    const profile = await makeAda();
-    const result = await sendKidMessage({
-      layout,
-      config: { version: 1, harness: {}, defaultHarness: "codex" },
-      detection: { claude: null, codex: null, opencode: null },
-      profileId: profile.id,
-      prompt: "hi",
-      spawn: spawnEmitting([() => {}]),
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/binary/i);
-  });
-
-  it("returns ok=false when prompt is empty", async () => {
-    const profile = await makeAda();
-    const result = await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "   ",
-      spawn: spawnEmitting([() => {}]),
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/prompt/i);
-  });
-
-  it("falls back to detection.path when config has no binary for the default harness", async () => {
-    const profile = await makeAda();
-    const bins: string[] = [];
-    const spawn: HarnessSpawnFn = (bin) => {
-      bins.push(bin);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "fine" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-    const result = await sendKidMessage({
-      layout,
-      config: { version: 1, harness: {}, defaultHarness: "claude" },
-      detection: { claude: "/usr/bin/claude", codex: null, opencode: null },
-      profileId: profile.id,
-      prompt: "hi",
-      spawn,
-    });
-    expect(result.ok).toBe(true);
-    expect(bins[0]).toBe("/usr/bin/claude");
-  });
-});
-
-describe("sendParentMessage", () => {
-  let root: string;
-  let layout: HiBitLayout;
-
-  beforeEach(async () => {
-    root = await mkdtemp(join(tmpdir(), "hi-bit-parent-chat-"));
-    layout = await bootstrapLayout(root);
-    await writeFile(promptsBitPath(layout), "# Bit\n", "utf8");
-  });
-
-  afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
-  });
-
-  async function makeAda() {
-    return createProfile(layout, { name: "Ada", age: 8 });
-  }
-
-  it("injects the parent session-context preamble on the first parent-mode turn", async () => {
-    const profile = await createProfile(layout, { name: "Ada", age: 8 });
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "summarize",
-      spawn,
-    });
-
-    const args = spawnArgs[0] as string[];
-    const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toMatch(/<hi-bit:context>/);
-    expect(promptArg).toMatch(/mode:\s*parent/);
-  });
-
-  it("runs a parent turn against the parent session, writes role=parent to log + transcript", async () => {
-    const profile = await makeAda();
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "parent summary" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    const result = await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "summarize ada's last three sessions",
-      spawn,
-    });
-
-    expect(result).toEqual({
-      ok: true,
-      text: "parent summary",
-      durationMs: expect.any(Number),
-    });
-    expect(spawnArgs[0]).toContain("--session-id");
-    expect(spawnArgs[0]).toContain(profile.sessions.parent);
-
-    const paths = profilePathsFor(layout, profile.id);
-    const kidEvents = await readTranscript(paths, profile.sessions.kid);
-    expect(kidEvents).toEqual([]);
-    const parentEvents = await readTranscript(paths, profile.sessions.parent);
-    expect(parentEvents.map((e) => e.kind)).toEqual(["user_message", "assistant_message"]);
-    expect(parentEvents.every((e) => e.role === "parent")).toBe(true);
-
-    const log = await readSessionLogEntries(paths);
-    expect(log).toHaveLength(1);
-    expect(log[0]?.role).toBe("parent");
-    expect(log[0]?.sessionId).toBe(profile.sessions.parent);
-    expect(log[0]?.mode).toBe("start");
-  });
-
-  it("does not look up kid project files for a parent start-mode turn", async () => {
-    const profile = await makeAda();
-    const paths = profilePathsFor(layout, profile.id);
-    await writeProfileFile(paths, { ...profile, currentDreamId: "../bad" });
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    const result = await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "summarize",
-      spawn,
-    });
-
-    expect(result.ok).toBe(true);
-    const args = spawnArgs[0] as string[];
-    const promptArg = args[args.indexOf("-p") + 1];
-    expect(promptArg).toMatch(/mode:\s*parent/);
-    expect(promptArg).not.toContain("project_files");
-  });
-
-  it("uses start mode for the parent session even after the kid session has succeeded", async () => {
-    const profile = await makeAda();
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendKidMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "kid turn",
-      spawn,
-    });
-    await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "parent turn",
-      spawn,
-    });
-
-    expect(spawnArgs[0]).toContain("-p");
-    expect(spawnArgs[0]).not.toContain("--resume");
-    expect(spawnArgs[1]).toContain("-p");
-    expect(spawnArgs[1]).not.toContain("--resume");
-  });
-
-  it("resumes the parent session on the second parent turn", async () => {
-    const profile = await makeAda();
-    const spawnArgs: Array<readonly string[]> = [];
-    const spawn: HarnessSpawnFn = (_bin, args) => {
-      spawnArgs.push(args);
-      const c = makeFakeChild();
-      setImmediate(() => {
-        c.stdout?.emit("data", claudeOkStreamJson({ result: "ok" }));
-        c.emit("close", 0, null);
-      });
-      return c as unknown as ReturnType<HarnessSpawnFn>;
-    };
-
-    await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "one",
-      spawn,
-    });
-    await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "two",
-      spawn,
-    });
-
-    expect(spawnArgs[0]).toContain("-p");
-    expect(spawnArgs[0]).not.toContain("--resume");
-    expect(spawnArgs[1]).toContain("--resume");
-    const resumeIdx = (spawnArgs[1] as readonly string[]).indexOf("--resume");
-    expect((spawnArgs[1] as readonly string[])[resumeIdx + 1]).toBe(profile.sessions.parent);
-  });
-
-  it("returns ok=false with error when prompt is empty", async () => {
-    const profile = await makeAda();
-    const result = await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: profile.id,
-      prompt: "   ",
-      spawn: spawnEmitting([() => {}]),
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/prompt/i);
-  });
-
-  it("returns ok=false when profile is missing", async () => {
-    const result = await sendParentMessage({
-      layout,
-      config,
-      detection,
-      profileId: "nope",
-      prompt: "hi",
-      spawn: spawnEmitting([() => {}]),
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toMatch(/profile/i);
   });
 });

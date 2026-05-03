@@ -9,21 +9,20 @@ Run this before every alpha release build and after any change that touches onbo
 ## Setup
 
 1. Delete any existing install data: `rm -rf ~/.hi-bit`
-2. Install at least one supported harness (Claude Code recommended per `REFERENCE_HARNESS`). Verify it runs non-interactively: `claude -p "say hi" --session-id smoke-test`.
+2. Install at least one supported ACP agent (Claude Code recommended per `REFERENCE_AGENT`). Verify it runs non-interactively: `claude -p "say hi" --session-id smoke-test`.
 3. From the repo root, run `npm install && npm run dev`.
 
 ## The 5-minute arc
 
 Timings are ideal-case; the arc should close inside 5 minutes on a reasonably fast machine with a warm harness cache.
 
-### Step 1 - Parent installs, configures harness, creates kid profile
+### Step 1 - Parent installs, configures agent, creates kid profile
 
-PRD: "Parent installs Hi-Bit, configures their chosen harness, creates a kid profile: name, age, interests, optional notes for Bit."
+PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profile: name, age, interests, optional notes for Bit."
 
 - [ ] App launches to `ProfileGate` (no profiles yet, so the create form auto-opens per `ProfileGate.tsx`).
 - [ ] `CreateProfileForm.tsx` accepts a name, age (3-18), comma-separated interests, optional notes for Bit. Fill in a real kid-shaped profile - e.g. Name "Ada", age 9, interests "cats, drawing, games", notes "already knows some HTML from school".
-- [ ] The new profile contains `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
-- [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_HARNESS` in `src/shared/config.ts`). Select the harness you installed above.
+- [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_AGENT` in `src/shared/config.ts`). Select the agent you installed above.
 - [ ] `DreamPicker.tsx` opens next, sorted with the kid's interest-tag matches floated to the top.
 
 ### Step 2 - Kid opens app, Bit greets by name
@@ -73,7 +72,7 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 ## Wrap-up
 
 - [ ] Total elapsed time from "app launches" to "saved file opens outside the app" is under 5 minutes.
-- [ ] Total cost (LLM tokens for the arc) is reasonable - check `progress.json` `sessions[]` for the session summary if the harness reports it.
+- [ ] Total cost (LLM tokens for the arc) is reasonable - check the session log for token fields if the agent reports them.
 - [ ] No console errors in the Electron DevTools during the arc. Warnings are acceptable; red errors are not.
 - [ ] The session log in `~/.hi-bit/profiles/<kid_id>/progress.json` records a `sessions[]` entry and at least one `knowledgePoints[]` status update reflecting what Bit covered. If Bit emits a hidden `<hi-bit:progress>` block, it does not appear in the kid-visible chat or transcript, and the learned-skill UI updates after the turn.
 
@@ -83,6 +82,6 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 - **Dream picker shows every dream equally** - interest-tag ranking is broken. See `dreamInterestMatch.test.ts`.
 - **Live preview shows a blank iframe** - `buildPreview.ts` srcdoc inlining failed. Check DevTools for CSP errors and `buildPreview.test.ts`.
 - **Save silently fails** - the typed-IPC `saveProjectFile` in `src/main/index.ts` or `src/preload/index.ts` is mis-wired, or the profile dir was not created. Check `~/.hi-bit/profiles/` for permissions.
-- **Harness spawn errors surface to the kid** - the error bubble should read "Bit went to grab a snack. Try again in a minute." with a Try-again button, per the resolved "Kid-facing outage UX" decision in `TECHNICAL_DESIGN.md` §Resolved.
+- **Agent errors surface to the kid** - the error bubble should read "Bit went to grab a snack. Try again in a minute." with a Try-again button, per the resolved "Kid-facing outage UX" decision in `TECHNICAL_DESIGN.md` §Resolved.
 
 If any of the checks above fail, do not ship the build. File an issue referencing this smoke test's step number so the regression is easy to reproduce.

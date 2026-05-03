@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { HARNESS_IDS, REFERENCE_HARNESS } from "./config";
+import { AGENT_IDS, REFERENCE_AGENT } from "./config";
 
-// The PRD "Open questions" list asked which harness ships first as the
-// reference integration. REFERENCE_HARNESS is the landed answer; pinning
-// its value here prevents silent drift and keeps the HarnessSetup's
+// The PRD "Open questions" list asked which agent ships first as the
+// reference integration. REFERENCE_AGENT is the landed answer; pinning
+// its value here prevents silent drift and keeps the setup screen's
 // "Recommended" hint stable.
-describe("REFERENCE_HARNESS", () => {
+describe("REFERENCE_AGENT", () => {
   it("is claude", () => {
-    expect(REFERENCE_HARNESS).toBe("claude");
+    expect(REFERENCE_AGENT).toBe("claude");
   });
 
-  it("is a shipped harness id", () => {
-    expect(HARNESS_IDS).toContain(REFERENCE_HARNESS);
+  it("is a shipped agent id", () => {
+    expect(AGENT_IDS).toContain(REFERENCE_AGENT);
   });
 });

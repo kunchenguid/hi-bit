@@ -1,5 +1,5 @@
 import type { CursorMarkerRequest, SendMessageResult } from "./chat";
-import type { HarnessDetection, HiBitConfig } from "./config";
+import type { HiBitConfig } from "./config";
 import type { DreamValidation } from "./dreams";
 import type { ParentFlag } from "./flag";
 import type { KnowledgeGraphValidation } from "./knowledgeGraph";
@@ -51,7 +51,6 @@ export type HiBitApi = {
   exportProfile: (profileId: string) => Promise<string | null>;
   getConfig: () => Promise<HiBitConfig>;
   updateConfig: (config: HiBitConfig) => Promise<HiBitConfig>;
-  detectHarnesses: () => Promise<HarnessDetection>;
   getKnowledgeGraph: () => Promise<KnowledgeGraphValidation>;
   getDreams: () => Promise<DreamValidation>;
   setCurrentDream: (profileId: string, dreamId: string) => Promise<Profile>;

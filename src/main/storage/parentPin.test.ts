@@ -59,28 +59,26 @@ describe("parent PIN storage", () => {
     await expect(verifyParentPin(layout, "1234")).resolves.toBe(true);
   });
 
-  it("setParentPin preserves existing harness config", async () => {
+  it("setParentPin preserves existing agent config", async () => {
     await writeConfig(layout, {
-      version: 1,
-      harness: { claude: "/usr/local/bin/claude" },
-      defaultHarness: "claude",
+      version: 2,
+      defaultAgent: "claude",
     });
     await setParentPin(layout, "1234", TEST_OPTS);
     const config = await readConfig(layout);
-    expect(config.harness).toEqual({ claude: "/usr/local/bin/claude" });
-    expect(config.defaultHarness).toBe("claude");
+    expect(config.defaultAgent).toBe("claude");
     expect(config.parentPin).toBeDefined();
   });
 
-  it("clearParentPin preserves existing harness config", async () => {
+  it("clearParentPin preserves existing agent config", async () => {
     await writeConfig(layout, {
-      version: 1,
-      harness: { codex: "/opt/bin/codex" },
+      version: 2,
+      defaultAgent: "codex",
     });
     await setParentPin(layout, "1234", TEST_OPTS);
     await clearParentPin(layout);
     const config = await readConfig(layout);
-    expect(config.harness).toEqual({ codex: "/opt/bin/codex" });
+    expect(config.defaultAgent).toBe("codex");
     expect(config.parentPin).toBeUndefined();
   });
 

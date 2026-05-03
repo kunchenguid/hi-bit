@@ -1,4 +1,4 @@
-import type { HarnessDetection, HarnessId, HiBitConfig } from "@shared/config";
+import type { AgentId, HiBitConfig } from "@shared/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useConfigStore } from "./configStore";
 
@@ -12,7 +12,6 @@ function mockHiBit(partial: Partial<HiBitApi>): void {
       createProfile: vi.fn(),
       getConfig: vi.fn(),
       updateConfig: vi.fn(),
-      detectHarnesses: vi.fn(),
       hasParentPin: vi.fn().mockResolvedValue(false),
       setParentPin: vi.fn(),
       verifyParentPin: vi.fn(),
@@ -23,17 +22,12 @@ function mockHiBit(partial: Partial<HiBitApi>): void {
 }
 
 function fakeConfig(overrides: Partial<HiBitConfig> = {}): HiBitConfig {
-  return { version: 1, harness: {}, ...overrides };
-}
-
-function fakeDetection(overrides: Partial<HarnessDetection> = {}): HarnessDetection {
-  return { claude: null, codex: null, opencode: null, ...overrides };
+  return { version: 2, ...overrides };
 }
 
 beforeEach(() => {
   useConfigStore.setState({
     config: null,
-    detection: null,
     status: "idle",
     error: null,
     hasParentPin: false,
@@ -41,12 +35,10 @@ beforeEach(() => {
 });
 
 describe("useConfigStore", () => {
-  it("loads config, detection, and parent-pin presence in parallel", async () => {
-    const config = fakeConfig({ defaultHarness: "claude", harness: { claude: "/usr/bin/claude" } });
-    const detection = fakeDetection({ claude: "/usr/bin/claude" });
+  it("loads config and parent-pin presence in parallel", async () => {
+    const config = fakeConfig({ defaultAgent: "claude" });
     mockHiBit({
       getConfig: vi.fn().mockResolvedValue(config),
-      detectHarnesses: vi.fn().mockResolvedValue(detection),
       hasParentPin: vi.fn().mockResolvedValue(true),
     });
 
@@ -57,7 +49,6 @@ describe("useConfigStore", () => {
     const state = useConfigStore.getState();
     expect(state.status).toBe("ready");
     expect(state.config).toEqual(config);
-    expect(state.detection).toEqual(detection);
     expect(state.hasParentPin).toBe(true);
     expect(state.error).toBeNull();
   });
@@ -65,7 +56,6 @@ describe("useConfigStore", () => {
   it("records the error when load fails", async () => {
     mockHiBit({
       getConfig: vi.fn().mockRejectedValue(new Error("fs down")),
-      detectHarnesses: vi.fn().mockResolvedValue(fakeDetection()),
     });
 
     await useConfigStore.getState().load();
@@ -76,36 +66,31 @@ describe("useConfigStore", () => {
     expect(state.config).toBeNull();
   });
 
-  it("setDefaultHarness persists the selection and its binary path", async () => {
-    const detection = fakeDetection({ codex: "/opt/codex" });
+  it("setDefaultAgent persists the selected ACP agent", async () => {
     useConfigStore.setState({
       config: fakeConfig(),
-      detection,
       status: "ready",
     });
-    const updated = fakeConfig({ defaultHarness: "codex", harness: { codex: "/opt/codex" } });
+    const updated = fakeConfig({ defaultAgent: "codex" });
     const updateConfig = vi.fn().mockResolvedValue(updated);
     mockHiBit({ updateConfig });
 
-    await useConfigStore.getState().setDefaultHarness("codex");
+    await useConfigStore.getState().setDefaultAgent("codex");
 
     expect(updateConfig).toHaveBeenCalledWith({
-      version: 1,
-      defaultHarness: "codex",
-      harness: { codex: "/opt/codex" },
+      version: 2,
+      defaultAgent: "codex",
     });
     expect(useConfigStore.getState().config).toEqual(updated);
   });
 
   it("setTheme persists a light theme preference", async () => {
     useConfigStore.setState({
-      config: fakeConfig({ defaultHarness: "claude", harness: { claude: "/x" } }),
-      detection: fakeDetection(),
+      config: fakeConfig({ defaultAgent: "claude" }),
       status: "ready",
     });
     const updated = fakeConfig({
-      defaultHarness: "claude",
-      harness: { claude: "/x" },
+      defaultAgent: "claude",
       theme: "light",
     });
     const updateConfig = vi.fn().mockResolvedValue(updated);
@@ -114,9 +99,8 @@ describe("useConfigStore", () => {
     await useConfigStore.getState().setTheme("light");
 
     expect(updateConfig).toHaveBeenCalledWith({
-      version: 1,
-      defaultHarness: "claude",
-      harness: { claude: "/x" },
+      version: 2,
+      defaultAgent: "claude",
       theme: "light",
     });
     expect(useConfigStore.getState().config).toEqual(updated);
@@ -125,7 +109,6 @@ describe("useConfigStore", () => {
   it("setTheme with null clears an existing theme preference", async () => {
     useConfigStore.setState({
       config: fakeConfig({ theme: "dark" }),
-      detection: fakeDetection(),
       status: "ready",
     });
     const updated = fakeConfig();
@@ -134,26 +117,24 @@ describe("useConfigStore", () => {
 
     await useConfigStore.getState().setTheme(null);
 
-    expect(updateConfig).toHaveBeenCalledWith({ version: 1, harness: {} });
+    expect(updateConfig).toHaveBeenCalledWith({ version: 2 });
     expect(useConfigStore.getState().config).toEqual(updated);
   });
 
-  it("setDefaultHarness without a detected path still records the choice", async () => {
+  it("setDefaultAgent records the choice without path detection", async () => {
     useConfigStore.setState({
-      config: fakeConfig({ harness: { claude: "/custom/claude" } }),
-      detection: fakeDetection(),
+      config: fakeConfig(),
       status: "ready",
     });
     const updateConfig = vi.fn().mockImplementation((cfg: HiBitConfig) => Promise.resolve(cfg));
     mockHiBit({ updateConfig });
 
-    const harness: HarnessId = "claude";
-    await useConfigStore.getState().setDefaultHarness(harness);
+    const agent: AgentId = "claude";
+    await useConfigStore.getState().setDefaultAgent(agent);
 
     expect(updateConfig).toHaveBeenCalledWith({
-      version: 1,
-      defaultHarness: "claude",
-      harness: { claude: "/custom/claude" },
+      version: 2,
+      defaultAgent: "claude",
     });
   });
 

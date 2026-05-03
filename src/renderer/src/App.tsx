@@ -11,7 +11,7 @@ export function App(): JSX.Element {
   const activeProfileId = useProfileStore((s) => s.activeProfileId);
   const profiles = useProfileStore((s) => s.profiles);
   const configStatus = useConfigStore((s) => s.status);
-  const defaultHarness = useConfigStore((s) => s.config?.defaultHarness);
+  const defaultAgent = useConfigStore((s) => s.config?.defaultAgent);
   const theme = useConfigStore((s) => s.config?.theme);
   const loadConfig = useConfigStore((s) => s.load);
 
@@ -33,7 +33,7 @@ export function App(): JSX.Element {
     return <ProfileGate />;
   }
 
-  if (!defaultHarness) {
+  if (!defaultAgent) {
     return <HarnessSetup onDone={() => void loadConfig()} />;
   }
 

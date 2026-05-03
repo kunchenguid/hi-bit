@@ -1,16 +1,15 @@
-import type { HarnessDetection, HarnessId, HiBitConfig, ThemePreference } from "@shared/config";
+import type { AgentId, HiBitConfig, ThemePreference } from "@shared/config";
 import { create } from "zustand";
 
 export type ConfigStoreStatus = "idle" | "loading" | "ready" | "error";
 
 export type ConfigStore = {
   config: HiBitConfig | null;
-  detection: HarnessDetection | null;
   status: ConfigStoreStatus;
   error: string | null;
   hasParentPin: boolean;
   load: () => Promise<void>;
-  setDefaultHarness: (harness: HarnessId) => Promise<void>;
+  setDefaultAgent: (agent: AgentId) => Promise<void>;
   setTheme: (theme: ThemePreference | null) => Promise<void>;
   setParentPin: (pin: string) => Promise<void>;
   verifyParentPin: (pin: string) => Promise<boolean>;
@@ -19,7 +18,6 @@ export type ConfigStore = {
 
 export const useConfigStore = create<ConfigStore>((set, get) => ({
   config: null,
-  detection: null,
   status: "idle",
   error: null,
   hasParentPin: false,
@@ -28,12 +26,11 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     if (get().status === "loading") return;
     set({ status: "loading", error: null });
     try {
-      const [config, detection, hasPin] = await Promise.all([
+      const [config, hasPin] = await Promise.all([
         window.hibit.getConfig(),
-        window.hibit.detectHarnesses(),
         window.hibit.hasParentPin(),
       ]);
-      set({ config, detection, hasParentPin: hasPin, status: "ready" });
+      set({ config, hasParentPin: hasPin, status: "ready" });
     } catch (err) {
       set({
         status: "error",
@@ -42,20 +39,12 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     }
   },
 
-  setDefaultHarness: async (harness) => {
-    const { config, detection } = get();
+  setDefaultAgent: async (agent) => {
+    const { config } = get();
     if (!config) throw new Error("Config not loaded");
-    const existingPath = config.harness[harness];
-    const detectedPath = detection?.[harness] ?? null;
-    const nextHarness = { ...config.harness };
-    const path = existingPath ?? detectedPath ?? undefined;
-    if (path) {
-      nextHarness[harness] = path;
-    }
     const next: HiBitConfig = {
       ...config,
-      defaultHarness: harness,
-      harness: nextHarness,
+      defaultAgent: agent,
     };
     const saved = await window.hibit.updateConfig(next);
     set({ config: saved });

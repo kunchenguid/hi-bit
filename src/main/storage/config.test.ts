@@ -30,40 +30,39 @@ describe("config storage", () => {
     expect(JSON.parse(raw)).toEqual(defaultConfig());
   });
 
-  it("writeConfig roundtrips full config with all harness paths", async () => {
+  it("writeConfig roundtrips the selected ACP agent without binary paths", async () => {
     await writeConfig(layout, {
-      version: 1,
-      harness: {
-        claude: "/usr/local/bin/claude",
-        codex: "/opt/bin/codex",
-        opencode: "/opt/bin/opencode",
-      },
-      defaultHarness: "claude",
+      version: 2,
+      defaultAgent: "claude",
     });
     await expect(readConfig(layout)).resolves.toEqual({
-      version: 1,
-      harness: {
-        claude: "/usr/local/bin/claude",
-        codex: "/opt/bin/codex",
-        opencode: "/opt/bin/opencode",
-      },
-      defaultHarness: "claude",
+      version: 2,
+      defaultAgent: "claude",
     });
   });
 
-  it("readConfig drops unknown harness ids and empty paths", async () => {
+  it("readConfig migrates v1 defaultHarness and drops binary paths", async () => {
     await writeFile(
       layout.configFile,
       JSON.stringify({
         version: 1,
         harness: { claude: "/x", codex: "", bogus: "/y" },
-        defaultHarness: "nonsense",
+        defaultHarness: "codex",
       }),
       "utf8",
     );
     const cfg = await readConfig(layout);
-    expect(cfg.harness).toEqual({ claude: "/x" });
-    expect(cfg.defaultHarness).toBeUndefined();
+    expect(cfg).toEqual({ version: 2, defaultAgent: "codex" });
+  });
+
+  it("readConfig drops unsupported default agents", async () => {
+    await writeFile(
+      layout.configFile,
+      JSON.stringify({ version: 2, defaultAgent: "gemini" }),
+      "utf8",
+    );
+    const cfg = await readConfig(layout);
+    expect(cfg.defaultAgent).toBeUndefined();
   });
 
   it("readConfig falls back to defaults when the file is not an object", async () => {
@@ -72,39 +71,29 @@ describe("config storage", () => {
   });
 
   it("writeConfig roundtrips a light theme preference", async () => {
-    await writeConfig(layout, { version: 1, harness: {}, theme: "light" });
+    await writeConfig(layout, { version: 2, theme: "light" });
     await expect(readConfig(layout)).resolves.toEqual({
-      version: 1,
-      harness: {},
+      version: 2,
       theme: "light",
     });
   });
 
   it("writeConfig roundtrips a dark theme preference", async () => {
-    await writeConfig(layout, { version: 1, harness: {}, theme: "dark" });
+    await writeConfig(layout, { version: 2, theme: "dark" });
     await expect(readConfig(layout)).resolves.toEqual({
-      version: 1,
-      harness: {},
+      version: 2,
       theme: "dark",
     });
   });
 
   it("readConfig drops an unknown theme value", async () => {
-    await writeFile(
-      layout.configFile,
-      JSON.stringify({ version: 1, harness: {}, theme: "neon" }),
-      "utf8",
-    );
+    await writeFile(layout.configFile, JSON.stringify({ version: 2, theme: "neon" }), "utf8");
     const cfg = await readConfig(layout);
     expect(cfg.theme).toBeUndefined();
   });
 
   it("readConfig drops a non-string theme value", async () => {
-    await writeFile(
-      layout.configFile,
-      JSON.stringify({ version: 1, harness: {}, theme: 42 }),
-      "utf8",
-    );
+    await writeFile(layout.configFile, JSON.stringify({ version: 2, theme: 42 }), "utf8");
     const cfg = await readConfig(layout);
     expect(cfg.theme).toBeUndefined();
   });
