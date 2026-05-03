@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -17,12 +17,21 @@ afterEach(async () => {
 });
 
 describe("createCleanAgentRegistry", () => {
-  it("runs the clean launcher through Electron's Node mode", async () => {
+  it("uses a directly spawnable command for Electron's Node mode", async () => {
     const stateDir = await createTempDir();
     await mkdir(stateDir, { recursive: true });
 
     const registry = await createCleanAgentRegistry(stateDir);
+    const command = registry.resolve("claude");
+    const wrapperPath = join(
+      stateDir,
+      "clean-agent-launch",
+      process.platform === "win32" ? "clean-acp-agent-launcher.cmd" : "clean-acp-agent-launcher",
+    );
 
-    expect(registry.resolve("claude")).toContain("ELECTRON_RUN_AS_NODE");
+    expect(command).toContain(wrapperPath);
+    expect(command).not.toMatch(/^(ELECTRON_RUN_AS_NODE=1|set ELECTRON_RUN_AS_NODE=1)/);
+    await access(wrapperPath);
+    await expect(readFile(wrapperPath, "utf8")).resolves.toContain("ELECTRON_RUN_AS_NODE");
   });
 });
