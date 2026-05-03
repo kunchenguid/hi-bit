@@ -111,12 +111,18 @@ export async function createCleanAgentRegistry(stateDir: string): Promise<AcpAge
     overrides: Object.fromEntries(
       AGENT_IDS.map((agent) => [
         agent,
-        [process.execPath, launcherPath, cleanLaunchSpecPath(launchDir, agent)]
-          .map(quoteCommandPart)
-          .join(" "),
+        cleanLauncherCommand(launcherPath, cleanLaunchSpecPath(launchDir, agent)),
       ]),
     ),
   });
+}
+
+function cleanLauncherCommand(launcherPath: string, specPath: string): string {
+  const command = [process.execPath, launcherPath, specPath].map(quoteCommandPart).join(" ");
+  if (process.platform === "win32") {
+    return `set ELECTRON_RUN_AS_NODE=1&& ${command}`;
+  }
+  return `ELECTRON_RUN_AS_NODE=1 ${command}`;
 }
 
 function cleanLaunchSpecPath(launchDir: string, agent: AgentId): string {
