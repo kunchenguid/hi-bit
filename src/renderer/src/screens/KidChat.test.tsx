@@ -179,6 +179,31 @@ describe("KidChat cursor target action", () => {
     expect(host.textContent).toContain("Hey Ada! What would you like to do?");
   });
 
+  it("does not show all-done learning progress for freeform dreams", async () => {
+    const playground = makeDream([]);
+    playground.id = "playground";
+    playground.mode = "freeform";
+    playground.title_kid = "playground";
+    useGraphStore.setState({
+      status: "ready",
+      graph: graphOf([]),
+      library: libraryOf(playground),
+    });
+    useProgressStore.setState({
+      status: "ready",
+      profileId: profile.id,
+      progress: emptyProgress(),
+    });
+
+    await act(async () => {
+      root.render(<KidChat profile={{ ...profile, currentDreamId: "playground" }} />);
+    });
+
+    expect(host.textContent).not.toContain("All skills learned");
+    expect(host.textContent).not.toContain("ready to build!");
+    expect(host.querySelector(".hb-chat-learning-strip")).toBeNull();
+  });
+
   it("shows an avatar beside Bit messages without adding one to kid messages", async () => {
     useChatStore.setState({
       messages: [
