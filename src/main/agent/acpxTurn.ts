@@ -47,7 +47,7 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
     cwd: opts.cwd,
     sessionStore: createFileSessionStore({ stateDir: opts.stateDir }),
     agentRegistry: createAgentRegistry(),
-    permissionMode: "approve-reads",
+    permissionMode: "approve-all",
     nonInteractivePermissions: "deny",
   });
 

@@ -44,7 +44,7 @@ function createFakeRuntime(events: FakeEvent[]) {
 }
 
 describe("executeAcpTurn", () => {
-  it("creates a read-only ACPX runtime and submits a persistent prompt turn", async () => {
+  it("creates an approve-all ACPX runtime and submits a persistent prompt turn", async () => {
     const { runtime, calls, handle } = createFakeRuntime([
       { type: "text_delta", text: "Hi " },
       { type: "text_delta", text: "Ada." },
@@ -63,7 +63,7 @@ describe("executeAcpTurn", () => {
     expect(runtimeFactory).toHaveBeenCalledWith(
       expect.objectContaining({
         cwd: "/profiles/ada",
-        permissionMode: "approve-reads",
+        permissionMode: "approve-all",
         nonInteractivePermissions: "deny",
       }),
     );
