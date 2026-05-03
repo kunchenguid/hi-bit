@@ -1,6 +1,6 @@
 import type { Dream } from "@shared/dreams";
 import type { Profile } from "@shared/profile";
-import type { KnowledgePointStatus } from "@shared/progress";
+import type { KnowledgePointProgress, KnowledgePointStatus } from "@shared/progress";
 import {
   type FormEvent,
   type JSX,
@@ -32,8 +32,9 @@ const KP_STATUS_RANK: Record<KnowledgePointStatus, number> = {
   explained_it: 4,
 };
 
-function shouldRecordRunAndPreview(status: KnowledgePointStatus | null | undefined): boolean {
-  return !status || KP_STATUS_RANK[status] < KP_STATUS_RANK.did_with_help;
+function shouldRecordRunAndPreview(progress: KnowledgePointProgress | null | undefined): boolean {
+  if (progress?.skipped) return false;
+  return !progress?.status || KP_STATUS_RANK[progress.status] < KP_STATUS_RANK.did_with_help;
 }
 
 type Props = {
@@ -74,8 +75,8 @@ export function CodeEditor({
   const openFolder = useProjectsStore((s) => s.openFolder);
   const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
   const updateProgressStatus = useProgressStore((s) => s.updateStatus);
-  const runAndPreviewStatus = useProgressStore(
-    (s) => s.progress?.knowledgePoints["run-and-preview"]?.status,
+  const runAndPreviewProgress = useProgressStore(
+    (s) => s.progress?.knowledgePoints["run-and-preview"],
   );
 
   const library = useGraphStore((s) => s.library);
@@ -262,7 +263,7 @@ export function CodeEditor({
   function handleRun(): void {
     rebuildPreview();
     setViewMode("preview");
-    if (shouldRecordRunAndPreview(runAndPreviewStatus)) {
+    if (shouldRecordRunAndPreview(runAndPreviewProgress)) {
       void updateProgressStatus(
         "run-and-preview",
         "did_with_help",

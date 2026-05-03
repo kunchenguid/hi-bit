@@ -190,10 +190,11 @@ async function sendMessage(
     const endMs = now();
     const endedAt = new Date(endMs).toISOString();
     const durationMs = endMs - startMs;
+    const wasCancelled = opts.signal?.aborted === true || result.status === "cancelled";
     const controlBlocks = extractHiBitControlBlocks(result.text);
     const visibleText = stripHiBitControlBlocks(result.text);
 
-    if (result.status === "completed") {
+    if (!wasCancelled && result.status === "completed") {
       await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
       await appendTranscriptEvent(paths, {
         timestamp: endedAt,
@@ -218,7 +219,7 @@ async function sendMessage(
       return { ok: true, text: visibleText, durationMs };
     }
 
-    const error = result.error || "Agent failed";
+    const error = wasCancelled ? "Turn cancelled" : result.error || "Agent failed";
     await appendTranscriptEvent(paths, {
       timestamp: endedAt,
       role,
@@ -236,13 +237,19 @@ async function sendMessage(
         mode,
         durationMs,
         success: false,
+        signal: wasCancelled ? "SIGTERM" : null,
         usage: result.usage,
       }),
     );
     return { ok: false, error, durationMs };
   } catch (err) {
     const endMs = now();
-    const message = err instanceof Error ? err.message : String(err);
+    const wasCancelled = opts.signal?.aborted === true;
+    const message = wasCancelled
+      ? "Turn cancelled"
+      : err instanceof Error
+        ? err.message
+        : String(err);
     await appendTranscriptEvent(paths, {
       timestamp: new Date(endMs).toISOString(),
       role,
@@ -258,7 +265,7 @@ async function sendMessage(
       mode,
       durationMs: endMs - startMs,
       exitCode: null,
-      signal: null,
+      signal: wasCancelled ? "SIGTERM" : null,
     });
     return { ok: false, error: message, durationMs: endMs - startMs };
   }
@@ -272,6 +279,7 @@ function buildInvocationLogEntry(opts: {
   mode: HarnessInvocationMode;
   durationMs: number;
   success: boolean;
+  signal?: string | null;
   usage: Awaited<ReturnType<typeof executeAcpTurn>>["usage"];
 }): HarnessInvocationLogEntry {
   return {
@@ -282,7 +290,7 @@ function buildInvocationLogEntry(opts: {
     mode: opts.mode,
     durationMs: opts.durationMs,
     exitCode: opts.success ? 0 : null,
-    signal: null,
+    signal: opts.signal ?? null,
     ...(opts.usage
       ? {
           contextTokensUsed: opts.usage.contextTokensUsed,

@@ -147,6 +147,30 @@ describe("ACP-backed chat", () => {
     expect(log[0]).not.toHaveProperty("tokensOutput");
   });
 
+  it("records an aborted clean ACP turn as cancelled", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const controller = new AbortController();
+    controller.abort();
+    const { runtimeFactory } = runtimeFactoryFor([{ text: "stale assistant text" }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "keep going",
+      signal: controller.signal,
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({ ok: false, error: "Turn cancelled", durationMs: expect.any(Number) });
+    const paths = profilePathsFor(layout, profile.id);
+    const events = await readTranscript(paths, profile.sessions.kid);
+    expect(events.map((event) => event.kind)).toEqual(["user_message", "error"]);
+    expect(events[1]?.text).toBe("Turn cancelled");
+    const log = await readSessionLogEntries(paths);
+    expect(log[0]).toMatchObject({ exitCode: null, signal: "SIGTERM" });
+  });
+
   it("strips hidden progress blocks from replies and applies valid progress updates", async () => {
     await writeGraphNode(layout, "html-text-headings");
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
