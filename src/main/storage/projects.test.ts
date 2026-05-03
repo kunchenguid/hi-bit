@@ -236,6 +236,14 @@ describe("projects storage", () => {
       );
     });
 
+    it("creates project files for freeform dreams", async () => {
+      const dream = makeDream({ id: "playground", mode: "freeform", requires: [] });
+      const result = await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      expect(result).toEqual({ created: ["index.html"], skipped: [] });
+      await expect(listProjectFiles(paths, "playground")).resolves.toEqual(["index.html"]);
+    });
+
     it("rejects a dream id that would be an unsafe slug", async () => {
       const dream = makeDream({ id: "../escape" });
       await expect(scaffoldProject(paths, dream, { profileName: "Ada" })).rejects.toThrow(/slug/);

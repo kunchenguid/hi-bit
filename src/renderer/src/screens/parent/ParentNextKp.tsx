@@ -59,6 +59,9 @@ export function ParentNextKp({
           Every required skill is at did-with-help or above. The dream is shippable.
         </p>
       ) : null}
+      {suggestion.kind === "freeform" ? (
+        <p className="hb-parent-empty">Free build mode has no fixed skill plan.</p>
+      ) : null}
       {suggestion.kind === "next-kp" ? (
         <div className="hb-next-kp-panel">
           <div className="t-pixel hb-next-kp-kicker">Up next</div>

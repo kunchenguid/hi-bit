@@ -421,6 +421,77 @@ describe("ACP-backed chat", () => {
     expect(prompts[0]).toContain('project_files: ["index.html"]');
   });
 
+  it("keeps an empty current dream in project context", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await setCurrentDream(layout, profile.id, "empty-project");
+    const paths = profilePathsFor(layout, profile.id);
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "ready" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "start",
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain(`project_dir: ${join(paths.root, "projects", "empty-project")}`);
+    expect(prompts[0]).toContain("project_files: []");
+  });
+
+  it("keeps freeform dreams in project context without a fixed learning plan", async () => {
+    await writeFile(
+      join(layout.graphDreamsDir, "playground.yml"),
+      [
+        "id: playground",
+        "title_parent: Playground",
+        "title_kid: playground",
+        "summary_kid: chat with Bit about anything you are curious about",
+        'emoji: "💬"',
+        "mode: freeform",
+        "categories: [creative]",
+        "interest_tags: [chat, questions, ideas]",
+        "requires: []",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await setCurrentDream(layout, profile.id, "playground");
+    const paths = profilePathsFor(layout, profile.id);
+    await scaffoldProject(
+      paths,
+      {
+        id: "playground",
+        mode: "freeform",
+        title_parent: "Playground",
+        title_kid: "playground",
+        summary_kid: "chat with Bit about anything you are curious about",
+        categories: ["creative" as const],
+        interest_tags: [],
+        requires: [],
+        style_hints: [],
+        emoji: "*",
+        difficulty: 1 as const,
+      },
+      { profileName: profile.name },
+    );
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "let's chat" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "start",
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain("current_dream: playground");
+    expect(prompts[0]).toContain(`project_dir: ${join(paths.root, "projects", "playground")}`);
+    expect(prompts[0]).toContain('project_files: ["index.html"]');
+    expect(prompts[0]).not.toContain("<hi-bit:learning-plan>");
+  });
+
   it("runs parent turns against the parent session and role", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "Parent summary." }]);

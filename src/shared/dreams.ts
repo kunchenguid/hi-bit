@@ -10,8 +10,11 @@ export const DREAM_CATEGORIES = [
 
 export type DreamDifficulty = 1 | 2 | 3 | 4 | 5;
 
+export type DreamMode = "project" | "freeform";
+
 export type DreamDefinition = {
   id: string;
+  mode?: DreamMode;
   title_parent: string;
   title_kid: string;
   summary_kid: string;

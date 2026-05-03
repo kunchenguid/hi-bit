@@ -6,6 +6,7 @@ import {
   type DreamCategory,
   type DreamDefinition,
   type DreamDifficulty,
+  type DreamMode,
   type DreamValidation,
   type DreamValidationError,
 } from "@shared/dreams";
@@ -14,6 +15,12 @@ import { load as parseYaml } from "js-yaml";
 
 function isCategory(value: unknown): value is DreamCategory {
   return typeof value === "string" && (DREAM_CATEGORIES as readonly string[]).includes(value);
+}
+
+function asDreamMode(value: unknown): DreamMode {
+  if (value === undefined || value === null) return "project";
+  if (value === "project" || value === "freeform") return value;
+  throw new Error("mode must be project or freeform");
 }
 
 function asStringArray(value: unknown, field: string): string[] {
@@ -60,6 +67,7 @@ export function parseDream(yaml: string): DreamDefinition {
 
   return {
     id: obj.id as string,
+    mode: asDreamMode(obj.mode),
     title_parent: obj.title_parent as string,
     title_kid: obj.title_kid as string,
     summary_kid: obj.summary_kid as string,
@@ -137,7 +145,7 @@ export function validateDreams(dreams: DreamDefinition[], graph: KnowledgeGraph)
     if (dream.categories.length === 0) {
       errors.push({ kind: "empty-categories", id: dream.id });
     }
-    if (dream.requires.length === 0) {
+    if ((dream.mode ?? "project") !== "freeform" && dream.requires.length === 0) {
       errors.push({ kind: "empty-requires", id: dream.id });
     }
     for (const req of dream.requires) {

@@ -25,7 +25,8 @@ PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profi
 - [ ] `CreateProfileForm.tsx` accepts a name, age (3-18), comma-separated interests, optional notes for Bit. Fill in a real kid-shaped profile - e.g. Name "Ada", age 9, interests "cats, drawing, games", notes "already knows some HTML from school".
 - [ ] The new profile contains `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
 - [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_AGENT` in `src/shared/config.ts`). Select the agent you installed above.
-- [ ] `DreamPicker.tsx` opens next, sorted with `Great first dream` starters at the top for a brand-new profile before interest-tag matches.
+- [ ] `DreamPicker.tsx` opens next, with `playground` pinned first and labeled `Not sure yet?`.
+  The `Great first dream` starter projects follow before interest-tag matches for a brand-new profile.
 
 ### Step 2 - Kid opens app, Bit greets by name
 
@@ -47,7 +48,8 @@ PRD: "Bit asks about what they like (games, drawing, stories, animals). For youn
 PRD: "Bit shows a dream menu filtered by the kid's interests. Each dream is a real, achievable web project."
 
 - [ ] Bit proactively offers the dream menu, or the kid can click through to `DreamPicker.tsx` from the workspace nav.
-- [ ] For a brand-new profile, the top of the dream list contains the zero-knowledge starter dreams from `pickGreatFirstDreamIds`, ordered by lower difficulty and then fewer required skills.
+- [ ] For a brand-new profile, the top dream is `playground` with the `Not sure yet?` cue and `talk with Bit before picking a project` text.
+- [ ] The next fixed-project dreams are the zero-knowledge starter dreams from `pickGreatFirstDreamIds`, ordered by lower difficulty and then fewer required skills.
 - [ ] After the first dream is no longer active, interest-matched dreams float up (e.g. cats + drawing surfaces `doodle-pad`, `pixel-painter`, `photo-scrapbook`, `sticker-gallery`). See `dreamInterestMatch.ts` for the ranking function.
 - [ ] Every rendered dream card has a kid-facing title, category chip(s), a bit difficulty rating with mascot icons, and an interest-tag preview. No empty, broken, or duplicate cards.
 
@@ -55,10 +57,12 @@ PRD: "Bit shows a dream menu filtered by the kid's interests. Each dream is a re
 
 PRD: "Kid picks a dream. Bit commits to the journey: 'We're going to build this together. Here's where we start.'"
 
+- [ ] To validate the fixed-project path, choose a non-`playground` dream card.
 - [ ] Clicking a dream card calls `setCurrentDream(profileId, dreamId)` in `profileStore.ts` and returns to the chat view.
 - [ ] Bit's next turn acknowledges the chosen dream by name and commits to it ("We're going to build a sticker gallery together. Here's where we start."). No hedging, no offer to switch immediately.
 - [ ] Bit treats the starter `projects/<dream_slug>/index.html` as already existing and tells the kid to open or change it, not create a new `index.html`.
 - [ ] Bit names the first concrete knowledge-point step ("Let's get a page on the screen first") rather than dumping the whole roadmap.
+- [ ] If choosing `playground` instead, Bit stays in free-build mode: no fixed learning strip appears, and the first greeting asks "What would you like to do?" rather than naming an up-next skill.
 
 ### Step 6 - Typed something real, saw it run, saved a file
 

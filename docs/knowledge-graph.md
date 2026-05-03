@@ -37,19 +37,27 @@ Each KP moves through four levels per kid. The progress file tracks the current 
 
 Mastery signals on each KP describe what counts as the transition into each level for that specific concept. Example: `did_unprompted` for `events-click` is "kid attaches a click handler to an element they created in the current session, without Bit proposing the listener."
 
-A dream is "doable" when all its required KPs are at `did_with_help` or above for the current kid.
+A fixed-project dream is "doable" when all its required KPs are at `did_with_help` or above for the current kid.
+
+### Dream files
+
+Dream files default to `mode: project`.
+Project dreams author direct `requires:` and must list at least one shipped KP.
+Freeform dreams use `mode: freeform`, may leave `requires: []`, and skip the fixed learning plan.
 
 ### Dream difficulty
 
-Dream files author direct `requires:` only, then validation computes the runtime 1-5 bit difficulty rating from the graph.
+Project dream files author direct `requires:` only, then validation computes the runtime 1-5 bit difficulty rating from the graph.
 The score is the higher of two measures: maximum direct required-KP depth and the count of direct required KPs.
 Transitive prereqs still matter for readiness and scheduling, but they are not counted as visible dream difficulty.
 Depth scores map to 1 bit for depths 1-5, 2 bits for depths 6-8, 3 bits for depths 9-12, 4 bits for depths 13-18, and 5 bits for deeper chains.
 Direct required-KP count scores map to 1 bit for 1 KP, 2 bits for 2 KPs, 3 bits for 3-4 KPs, 4 bits for 5-7 KPs, and 5 bits for 8 or more KPs.
+A freeform dream with an empty `requires:` list validates as 1 bit.
 
 ## v1 scope
 
-Coverage target: everything needed to build any dream on the shipped v1 dream menu (currently 52 projects: snake, pong, pet page, birthday card, quiz, drawing app, clicker, typing game, story page, and relatives).
+Coverage target: everything needed to build every fixed-project dream on the shipped v1 dream menu.
+The current library has 53 dreams, including the `playground` freeform dream plus snake, pong, pet page, birthday card, quiz, drawing app, clicker, typing game, story page, and relatives.
 
 Out of scope for v1:
 

@@ -114,15 +114,21 @@ export function KidChat({
     setSessionStartDone(computeDoneKpIds(graph, progress));
   }, [graph, progress, progressProfileId, profile.id, sessionStartDone]);
 
+  const dream = useMemo<Dream | null>(() => {
+    if (!library || !profile.currentDreamId) return null;
+    return library.byId[profile.currentDreamId] ?? null;
+  }, [library, profile.currentDreamId]);
+
   const nextSuggestion = useMemo(() => {
     if (!progress) return null;
+    if (dream?.mode === "freeform") return null;
     return chooseNextSuggestion({
       graph,
       library,
       currentDreamId: profile.currentDreamId ?? null,
       progress,
     });
-  }, [graph, library, profile.currentDreamId, progress]);
+  }, [dream?.mode, graph, library, profile.currentDreamId, progress]);
 
   const nextUp = useMemo(() => describeKidNextUp(nextSuggestion), [nextSuggestion]);
   const nextUpKpId = nextSuggestion?.kind === "next-kp" ? nextSuggestion.kp.id : null;
@@ -148,11 +154,6 @@ export function KidChat({
     void streamingText;
     el.scrollTop = el.scrollHeight;
   }, [lastMessageId, status, streamingText]);
-
-  const dream = useMemo<Dream | null>(() => {
-    if (!library || !profile.currentDreamId) return null;
-    return library.byId[profile.currentDreamId] ?? null;
-  }, [library, profile.currentDreamId]);
 
   const dreamProgress = useMemo(
     () => describeKidDreamProgress(dream, graph, progress),
@@ -193,6 +194,7 @@ export function KidChat({
     const greeting = buildKidGreetingText({
       profileName: profile.name,
       dreamTitleKid: dream.title_kid,
+      dreamMode: dream.mode,
       nextUpText: nextUp?.text ?? null,
     });
     seedKidGreeting(kidSessionId, greeting);
