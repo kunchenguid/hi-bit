@@ -22,9 +22,7 @@ import { buildKidGreetingText } from "./kidGreeting";
 import { describeKidNextUp } from "./kidNextUp";
 import { buildKidSessionLearned, computeDoneKpIds } from "./kidSessionLearned";
 import { buildKidSkillChecklist } from "./kidSkillChecklist";
-import { describeKidSkillsSummary } from "./kidSkillsSummary";
 import { buildKidWrapUpSummary } from "./kidWrapUp";
-import { computeMasterySummary } from "./parent/masterySummary";
 import { chooseNextSuggestion } from "./parent/nextKpSuggestion";
 
 type Props = {
@@ -115,11 +113,6 @@ export function KidChat({
     if (progressProfileId !== profile.id) return;
     setSessionStartDone(computeDoneKpIds(graph, progress));
   }, [graph, progress, progressProfileId, profile.id, sessionStartDone]);
-
-  const skillsSummary = useMemo(() => {
-    const summary = computeMasterySummary(graph, progress);
-    return describeKidSkillsSummary(summary);
-  }, [graph, progress]);
 
   const nextSuggestion = useMemo(() => {
     if (!progress) return null;
@@ -225,6 +218,9 @@ export function KidChat({
 
   const disabled = status === "sending" || input.trim().length === 0;
   const canRetry = status !== "sending" && canRetryLastKidMessage(messages);
+  const visibleSessionLearned = sessionLearned && sessionLearned.count > learnedDismissedCount;
+  const showSkillChecklist = skillChecklist && skillChecklist.totalCount > 1;
+  const showLearningStrip = visibleSessionLearned || nextUp || showSkillChecklist || dreamProgress;
 
   async function handleRetry(): Promise<void> {
     if (!canRetry) return;
@@ -238,7 +234,7 @@ export function KidChat({
     <Shell className={shellClass}>
       <header className="hb-chat-header">
         <div className="hb-chat-heading">
-          <div className="t-pixel hb-gate-kicker">Bit</div>
+          {docked ? null : <div className="t-pixel hb-gate-kicker">Bit</div>}
           <h1 className="hb-chat-title">
             {docked ? (
               "Bit"
@@ -249,64 +245,59 @@ export function KidChat({
               </>
             )}
           </h1>
-          {skillsSummary ? (
-            <span className="hb-chat-skills t-pixel">
-              <span className="hb-chat-skills-kicker">{skillsSummary.kicker}</span>
-              <span className="hb-chat-skills-text">{skillsSummary.text}</span>
-            </span>
-          ) : null}
-          {nextUp ? (
-            <div className="hb-chat-nextup-group">
-              <p className="hb-chat-nextup">
-                <span className="hb-chat-nextup-label">{nextUp.label}:</span>{" "}
-                <span className="hb-chat-nextup-text">{nextUp.text}</span>
-              </p>
-              {nextUp.subtext && !docked ? (
-                <p className="hb-chat-nextup-why">{nextUp.subtext}</p>
+          {showLearningStrip ? (
+            <div className="hb-chat-learning-strip">
+              {visibleSessionLearned ? (
+                <div className="hb-chat-session-learned" role="status" aria-live="polite">
+                  <span className="hb-chat-session-learned-text">{sessionLearned.text}</span>
+                  <button
+                    type="button"
+                    className="hb-chat-session-learned-dismiss"
+                    onClick={() => setLearnedDismissedCount(sessionLearned.count)}
+                    aria-label="Dismiss"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : null}
+              {nextUp ? (
+                <div className="hb-chat-nextup-group">
+                  <p className="hb-chat-nextup">
+                    <span className="hb-chat-nextup-label">{nextUp.label}:</span>{" "}
+                    <span className="hb-chat-nextup-text">{nextUp.text}</span>
+                  </p>
+                  {nextUp.subtext && !docked ? (
+                    <p className="hb-chat-nextup-why">{nextUp.subtext}</p>
+                  ) : null}
+                </div>
+              ) : null}
+              {showSkillChecklist ? (
+                <details className="hb-chat-skill-checklist">
+                  <summary className="hb-chat-skill-checklist-summary">
+                    <span className="hb-chat-skill-checklist-kicker t-pixel">Skill map</span>
+                    <span className="hb-chat-skill-checklist-count">{skillChecklist.summary}</span>
+                  </summary>
+                  <ul className="hb-chat-skill-list">
+                    {skillChecklist.items.map((item) => (
+                      <li
+                        key={item.id}
+                        className={`hb-chat-skill-item hb-chat-skill-item-${item.status}`}
+                      >
+                        <span className="hb-chat-skill-icon" aria-hidden="true">
+                          {item.status === "done" ? "✓" : item.status === "next" ? "→" : "○"}
+                        </span>
+                        <span className="hb-chat-skill-label">{item.titleKid}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : dreamProgress ? (
+                <span className="hb-chat-dream-progress t-pixel">
+                  <span className="hb-chat-dream-progress-kicker">{dreamProgress.kicker}</span>
+                  <span className="hb-chat-dream-progress-text">{dreamProgress.text}</span>
+                </span>
               ) : null}
             </div>
-          ) : null}
-          {sessionLearned && sessionLearned.count > learnedDismissedCount ? (
-            <div className="hb-chat-session-learned" role="status" aria-live="polite">
-              <span className="hb-chat-session-learned-emoji" aria-hidden="true">
-                🎉
-              </span>
-              <span className="hb-chat-session-learned-text">{sessionLearned.text}</span>
-              <button
-                type="button"
-                className="hb-chat-session-learned-dismiss"
-                onClick={() => setLearnedDismissedCount(sessionLearned.count)}
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
-            </div>
-          ) : null}
-          {skillChecklist ? (
-            <details className="hb-chat-skill-checklist">
-              <summary className="hb-chat-skill-checklist-summary">
-                <span className="hb-chat-skill-checklist-kicker t-pixel">Your skills</span>
-                <span className="hb-chat-skill-checklist-count">{skillChecklist.summary}</span>
-              </summary>
-              <ul className="hb-chat-skill-list">
-                {skillChecklist.items.map((item) => (
-                  <li
-                    key={item.id}
-                    className={`hb-chat-skill-item hb-chat-skill-item-${item.status}`}
-                  >
-                    <span className="hb-chat-skill-icon" aria-hidden="true">
-                      {item.status === "done" ? "✓" : item.status === "next" ? "→" : "○"}
-                    </span>
-                    <span className="hb-chat-skill-label">{item.titleKid}</span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : dreamProgress ? (
-            <span className="hb-chat-dream-progress t-pixel">
-              <span className="hb-chat-dream-progress-kicker">{dreamProgress.kicker}</span>
-              <span className="hb-chat-dream-progress-text">{dreamProgress.text}</span>
-            </span>
           ) : null}
         </div>
         <div className="hb-chat-header-actions">

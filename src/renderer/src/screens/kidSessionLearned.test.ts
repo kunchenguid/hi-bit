@@ -91,7 +91,7 @@ describe("buildKidSessionLearned", () => {
     const result = buildKidSessionLearned(graph, progress, snapshot);
     expect(result?.count).toBe(1);
     expect(result?.items).toEqual([{ id: "a", titleKid: "the frame" }]);
-    expect(result?.text).toBe("You just learned 1 new skill: the frame.");
+    expect(result?.text).toBe("New skill learned: the frame.");
   });
 
   it("renders 2 newly-learned KPs with 'X and Y' conjunction", () => {
@@ -100,7 +100,7 @@ describe("buildKidSessionLearned", () => {
     const snapshot = new Set<string>();
     const result = buildKidSessionLearned(graph, progress, snapshot);
     expect(result?.count).toBe(2);
-    expect(result?.text).toBe("You just learned 2 new skills: the frame and a big heading.");
+    expect(result?.text).toBe("New skills learned: the frame and a big heading.");
   });
 
   it("renders 3+ newly-learned KPs with Oxford comma", () => {
@@ -113,9 +113,7 @@ describe("buildKidSessionLearned", () => {
     const snapshot = new Set<string>();
     const result = buildKidSessionLearned(graph, progress, snapshot);
     expect(result?.count).toBe(3);
-    expect(result?.text).toBe(
-      "You just learned 3 new skills: the frame, a big heading, and a paragraph.",
-    );
+    expect(result?.text).toBe("New skills learned: the frame, a big heading, and a paragraph.");
   });
 
   it("only includes KPs that became done after the snapshot", () => {

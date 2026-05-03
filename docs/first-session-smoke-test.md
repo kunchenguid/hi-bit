@@ -67,6 +67,7 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 - [ ] Bit leads the kid to the editor with a fill-in-the-blank or change-a-line task via `CodeEditor.tsx`.
 - [ ] When the latest Bit message includes fenced code blocks, each block shows its own `Show me where` button. Clicking one calls `window.hibit.requestCursorMarker` with that snippet, opens or focuses the editor as needed, and displays a marker at the intended location for that snippet. Plain text instructions should not show this button.
 - [ ] Docked workspaces start in `Code` view. Typing in the editor updates the buffer; clicking `See my page` renders via `buildPreviewSrcdoc` from `src/renderer/src/preview/buildPreview.ts`, switches to `Page` view, and shows the kid's actual change inside the iframe.
+- [ ] In `Page` view, the preview shows `See my code`. Clicking it returns to `Code` view.
 - [ ] After clicking `See my page`, `progress.json` records `run-and-preview` as `did_with_help` with the live-preview evidence, even if Bit did not emit a hidden progress block.
 - [ ] The `Split` view shows the code editor and live preview together. If `Show me where` is used while in `Page` view, the workspace switches to `Split` and shows the cursor marker, using Bit's snippet-specific label when provided and `Type here` as the fallback.
 - [ ] After another edit, clicking `Refresh` in the live preview header updates the iframe from the latest buffer content. Clicking `Refresh` again without editing reloads the iframe.
@@ -79,7 +80,8 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 - [ ] Total cost (LLM tokens for the arc) is reasonable - check `contextTokensUsed` / `contextTokensSize` in the session log if the agent reports them.
 - [ ] No console errors in the Electron DevTools during the arc. Warnings are acceptable; red errors are not.
 - [ ] `~/.hi-bit/profiles/<kid_id>/session-log.jsonl` records at least one agent turn, and `progress.json` records at least one `knowledgePoints[]` status update reflecting what Bit covered.
-  If Bit emits a hidden `<hi-bit:progress>` block, it does not appear in the kid-visible chat or transcript, and the learned-skill UI updates after the turn.
+  If Bit emits a hidden `<hi-bit:progress>` block, it does not appear in the kid-visible chat or transcript, and the learning strip updates after the turn with `New skill learned` or `New skills learned`.
+  For a one-skill dream, the learning strip keeps `Up next` visible when there is still a next step and does not show old aggregate skill counts like `0 of 1 done` or `1 learned`.
 
 ## Failure modes to watch for
 
