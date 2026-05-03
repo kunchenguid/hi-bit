@@ -193,6 +193,7 @@ export function KidChat({
     const greeting = buildKidGreetingText({
       profileName: profile.name,
       dreamTitleKid: dream.title_kid,
+      dreamMode: dream.mode,
       nextUpText: nextUp?.text ?? null,
     });
     seedKidGreeting(kidSessionId, greeting);

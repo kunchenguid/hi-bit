@@ -57,6 +57,8 @@ const DIFFICULTY_LABELS: Record<Dream["difficulty"], string> = {
   5: "5 bits",
 };
 
+const PLAYGROUND_DREAM_ID = "playground";
+
 type Props = {
   profile: Profile;
   onCancel?: () => void;
@@ -127,6 +129,9 @@ export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element
     const matchScore = (d: Dream) => scoreDreamInterestMatch(d, profile.interests);
     const greatFirst = (d: Dream) => (isFirstTimer && greatFirstDreamIds.has(d.id) ? 1 : 0);
     return [...library.dreams].sort((a, b) => {
+      const byPlayground =
+        Number(b.id === PLAYGROUND_DREAM_ID) - Number(a.id === PLAYGROUND_DREAM_ID);
+      if (byPlayground !== 0) return byPlayground;
       const byGreatFirst = greatFirst(b) - greatFirst(a);
       if (byGreatFirst !== 0) return byGreatFirst;
       if (greatFirst(a) > 0 && greatFirst(b) > 0) {
@@ -149,14 +154,14 @@ export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element
     [isFirstTimer, recommendedDreamIds, greatFirstDreamIds],
   );
 
-  const collapseRecommendedIds = useMemo<Set<string>>(
-    () =>
-      mergeRecommendedDreamIds(
-        isFirstTimer ? greatFirstDreamIds : fallbackDreamIds,
-        recommendedDreamIds,
-      ),
-    [isFirstTimer, greatFirstDreamIds, fallbackDreamIds, recommendedDreamIds],
-  );
+  const collapseRecommendedIds = useMemo<Set<string>>(() => {
+    const ids = mergeRecommendedDreamIds(
+      isFirstTimer ? greatFirstDreamIds : fallbackDreamIds,
+      recommendedDreamIds,
+    );
+    if (library?.byId[PLAYGROUND_DREAM_ID]) ids.add(PLAYGROUND_DREAM_ID);
+    return ids;
+  }, [isFirstTimer, greatFirstDreamIds, fallbackDreamIds, recommendedDreamIds, library]);
 
   const collapsible = useMemo(
     () =>
@@ -322,6 +327,7 @@ export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element
               );
               const greatFirstDream =
                 isFirstTimer && greatFirstDreamIds.has(dream.id) ? describeGreatFirstDream() : null;
+              const playgroundDream = dream.id === PLAYGROUND_DREAM_ID;
               const recommendedDream = recommendedDreamIds.has(dream.id)
                 ? describeRecommendedDream()
                 : null;
@@ -336,6 +342,7 @@ export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element
                     currentMarker={currentMarker}
                     triedBefore={triedBefore}
                     greatFirstDream={greatFirstDream}
+                    playgroundDream={playgroundDream}
                     recommendedDream={recommendedDream}
                     disabled={picking !== null}
                     pending={picking === dream.id}
@@ -375,6 +382,7 @@ function DreamCard({
   currentMarker,
   triedBefore,
   greatFirstDream,
+  playgroundDream,
   recommendedDream,
   disabled,
   pending,
@@ -388,6 +396,7 @@ function DreamCard({
   currentMarker: DreamCurrentMarker | null;
   triedBefore: DreamTriedBeforeMarker | null;
   greatFirstDream: GreatFirstDreamMarker | null;
+  playgroundDream: boolean;
   recommendedDream: RecommendedDreamMarker | null;
   disabled: boolean;
   pending: boolean;
@@ -400,7 +409,9 @@ function DreamCard({
       type="button"
       className={`hb-dream-choice${currentMarker ? " hb-dream-choice-current" : ""}${
         greatFirstDream ? " hb-dream-choice-great-first" : ""
-      }${recommendedDream ? " hb-dream-choice-picked-for-you" : ""}`}
+      }${playgroundDream ? " hb-dream-choice-playground" : ""}${
+        recommendedDream ? " hb-dream-choice-picked-for-you" : ""
+      }`}
       onClick={onPick}
       disabled={disabled}
     >
@@ -421,6 +432,14 @@ function DreamCard({
             <span className="hb-dream-picked-for-you">
               <span className="hb-dream-picked-for-you-kicker">{recommendedDream.kicker}</span>
               <span className="hb-dream-picked-for-you-text">{recommendedDream.text}</span>
+            </span>
+          ) : null}
+          {playgroundDream ? (
+            <span className="hb-dream-playground">
+              <span className="hb-dream-playground-kicker">Not sure yet?</span>
+              <span className="hb-dream-playground-text">
+                talk with Bit before picking a project
+              </span>
             </span>
           ) : null}
           {dream.categories.map((c) => (

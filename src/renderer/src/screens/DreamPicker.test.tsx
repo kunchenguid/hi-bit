@@ -21,7 +21,7 @@ const profile: Profile = {
   dreamHistory: [],
 };
 
-function makeDream(difficulty: number): Dream {
+function makeDream(difficulty: number, overrides: Partial<Dream> = {}): Dream {
   return {
     id: "pet-page",
     title_parent: "Pet page",
@@ -32,6 +32,7 @@ function makeDream(difficulty: number): Dream {
     requires: ["html-doc-shell"],
     style_hints: [],
     emoji: "🐶",
+    ...overrides,
     difficulty,
   } as unknown as Dream;
 }
@@ -91,5 +92,42 @@ describe("DreamPicker difficulty", () => {
       expect(icon.alt).toBe("");
       expect(icon.getAttribute("aria-hidden")).toBe("true");
     }
+  });
+
+  it("pins playground first with a not-sure-yet cue", async () => {
+    const playground = makeDream(1, {
+      id: "playground",
+      mode: "conversation",
+      title_parent: "Playground",
+      title_kid: "playground",
+      summary_kid: "chat with Bit about anything you are curious about",
+      categories: ["creative"],
+      requires: [],
+      emoji: "💬",
+    });
+    const petPage = makeDream(1, { id: "pet-page", title_kid: "pet page" });
+    const snake = makeDream(2, {
+      id: "snake",
+      title_kid: "snake game",
+      categories: ["arcade"],
+      requires: ["canvas-setup"],
+    });
+    useGraphStore.setState({
+      library: {
+        dreams: [petPage, snake, playground],
+        byId: { [petPage.id]: petPage, [snake.id]: snake, [playground.id]: playground },
+      },
+    });
+
+    await act(async () => {
+      root.render(<DreamPicker profile={profile} />);
+    });
+
+    const titles = Array.from(host.querySelectorAll(".hb-dream-title")).map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(titles[0]).toBe("Playground.");
+    expect(host.textContent).toContain("Not sure yet?");
+    expect(host.textContent).toContain("talk with Bit before picking a project");
   });
 });

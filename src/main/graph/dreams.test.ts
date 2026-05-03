@@ -85,6 +85,21 @@ requires: [html-doc-shell]
     expect(dream.style_hints).toEqual([]);
   });
 
+  it("parses a conversation dream mode", () => {
+    const yaml = `id: playground
+title_parent: Playground
+title_kid: playground
+summary_kid: chat with Bit about anything you are curious about
+emoji: "💬"
+mode: conversation
+categories: [creative]
+requires: []
+`;
+    const dream = parseDream(yaml);
+    expect(dream.mode).toBe("conversation");
+    expect(dream.requires).toEqual([]);
+  });
+
   it("rejects a missing emoji", () => {
     const yaml = `id: snake
 title_parent: Snake
@@ -249,6 +264,25 @@ describe("validateDreams", () => {
     if (!result.ok) {
       expect(result.errors).toContainEqual({ kind: "empty-categories", id: "a" });
       expect(result.errors).toContainEqual({ kind: "empty-requires", id: "a" });
+    }
+  });
+
+  it("allows conversation dreams to have no required KPs", () => {
+    const graph = graphOf([]);
+    const dreams = [
+      makeDream({
+        id: "playground",
+        mode: "conversation",
+        categories: ["creative"],
+        requires: [],
+      }),
+    ];
+
+    const result = validateDreams(dreams, graph);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.library.byId.playground?.difficulty).toBe(1);
     }
   });
 });

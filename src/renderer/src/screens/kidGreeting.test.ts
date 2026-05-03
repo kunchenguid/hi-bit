@@ -57,6 +57,16 @@ describe("buildKidGreetingText", () => {
     expect(text).not.toContain("Ready to build show me around?");
   });
 
+  it("uses a freeform prompt for conversation dreams", () => {
+    const text = buildKidGreetingText({
+      profileName: "Ada",
+      dreamTitleKid: "playground",
+      dreamMode: "conversation",
+      nextUpText: null,
+    });
+    expect(text).toBe("Hey Ada! What would you like to do?");
+  });
+
   it("never produces ALL CAPS", () => {
     const text = buildKidGreetingText({
       profileName: "Eddie",

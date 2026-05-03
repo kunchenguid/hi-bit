@@ -275,11 +275,25 @@ describe("shipped dream library content", () => {
     const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
     if (!dreamValidation.ok) throw new Error("expected dreams to validate");
     for (const dream of dreamValidation.library.dreams) {
-      expect(dream.requires.length).toBeGreaterThan(0);
+      if (dream.mode !== "conversation") {
+        expect(dream.requires.length).toBeGreaterThan(0);
+      }
       for (const req of dream.requires) {
         expect(graphValidation.graph.byId[req]).toBeDefined();
       }
     }
+  });
+
+  it("includes a playground conversation dream with no required KPs", async () => {
+    const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!graphValidation.ok) throw new Error("expected graph to validate");
+    const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
+    if (!dreamValidation.ok) throw new Error("expected dreams to validate");
+    expect(dreamValidation.library.byId.playground).toMatchObject({
+      mode: "conversation",
+      requires: [],
+      difficulty: 1,
+    });
   });
 
   it("includes hello-card, pet-page, and click-me starter dreams", async () => {
@@ -310,6 +324,7 @@ describe("shipped dream library content", () => {
       "type-mirror",
       "random-picker",
       "canvas-rectangle",
+      "playground",
     ];
     for (const id of expected) {
       expect(dreamValidation.library.byId[id], `missing dream ${id}`).toBeDefined();
@@ -450,6 +465,7 @@ describe("shipped dream library content", () => {
       "type-mirror",
       "random-picker",
       "canvas-rectangle",
+      "playground",
     ];
     for (const id of expected) {
       expect(dreamValidation.library.byId[id], `missing dream ${id}`).toBeDefined();

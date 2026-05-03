@@ -347,7 +347,8 @@ async function projectFilesForCurrentDream(
   profile: Parameters<typeof withSessionContext>[0]["profile"],
 ): Promise<string[] | undefined> {
   if (!profile.currentDreamId) return undefined;
-  return listProjectFiles(paths, profile.currentDreamId);
+  const files = await listProjectFiles(paths, profile.currentDreamId);
+  return files.length > 0 ? files : undefined;
 }
 
 async function learningPlanForCurrentDream(
@@ -363,6 +364,7 @@ async function learningPlanForCurrentDream(
   if (!dreamResult.ok) return undefined;
   const dream = dreamResult.library.byId[profile.currentDreamId];
   if (!dream) return undefined;
+  if (dream.mode === "conversation") return undefined;
 
   const progress = await readProgress(layout, profileId);
   const nextUpKpId = pickNextKP(graph, dream, progress);

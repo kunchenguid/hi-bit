@@ -1,0 +1,13 @@
+id: playground
+mode: conversation
+title_parent: Playground
+title_kid: playground
+summary_kid: chat with Bit about anything you are curious about, without starting a project
+emoji: "💬"
+categories: [creative, personal]
+interest_tags: [chat, questions, ideas, exploring]
+requires: []
+style_hints:
+  - follow the kid's curiosity
+  - ask one small question at a time
+  - offer to switch to a buildable dream when they want to make something

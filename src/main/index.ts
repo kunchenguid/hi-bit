@@ -264,7 +264,9 @@ function registerIpc(layout: HiBitLayout): void {
     if (dream) {
       await scaffoldProject(paths, dream, { profileName: profile.name });
       await updateStateMdCurrentDream(paths, dream);
-      await upsertProjectEntry(layout, profileId, dream.id, dream.id);
+      if (dream.mode !== "conversation") {
+        await upsertProjectEntry(layout, profileId, dream.id, dream.id);
+      }
     }
     return profile;
   });

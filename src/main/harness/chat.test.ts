@@ -421,6 +421,41 @@ describe("ACP-backed chat", () => {
     expect(prompts[0]).toContain('project_files: ["index.html"]');
   });
 
+  it("keeps conversation dreams out of project and learning-plan context", async () => {
+    await writeFile(
+      join(layout.graphDreamsDir, "playground.yml"),
+      [
+        "id: playground",
+        "title_parent: Playground",
+        "title_kid: playground",
+        "summary_kid: chat with Bit about anything you are curious about",
+        'emoji: "💬"',
+        "mode: conversation",
+        "categories: [creative]",
+        "interest_tags: [chat, questions, ideas]",
+        "requires: []",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await setCurrentDream(layout, profile.id, "playground");
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "let's chat" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "start",
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain("current_dream: playground");
+    expect(prompts[0]).not.toContain("project_dir:");
+    expect(prompts[0]).not.toContain("project_files:");
+    expect(prompts[0]).not.toContain("<hi-bit:learning-plan>");
+  });
+
   it("runs parent turns against the parent session and role", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "Parent summary." }]);

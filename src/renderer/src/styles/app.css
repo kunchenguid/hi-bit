@@ -715,6 +715,10 @@ pre,
   border-color: var(--info, var(--brand));
   box-shadow: var(--shadow-pixel), var(--shadow-glow-brand);
 }
+.hb-dream-choice-playground {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-pixel), var(--shadow-glow-brand);
+}
 .hb-dream-picked-for-you {
   display: inline-flex;
   align-items: center;
@@ -732,6 +736,25 @@ pre,
   font-weight: 600;
 }
 .hb-dream-picked-for-you-text {
+  color: var(--ink, var(--ink-64));
+}
+.hb-dream-playground {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--brand-wash, var(--paper));
+  border: 1px solid var(--brand);
+  color: var(--brand);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.hb-dream-playground-kicker {
+  color: var(--brand);
+  font-weight: 600;
+}
+.hb-dream-playground-text {
   color: var(--ink, var(--ink-64));
 }
 .hb-dream-tried {

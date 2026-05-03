@@ -130,13 +130,12 @@ function buildProjectLines(
   profileDir: string,
   projectFiles: string[] | undefined,
 ): string[] {
-  if (!profile.currentDreamId) return [];
-  const files = projectFiles ?? [];
+  if (!profile.currentDreamId || projectFiles === undefined) return [];
   const lines = [
     `project_dir: ${join(profileDir, "projects", profile.currentDreamId)}`,
-    `project_files: ${JSON.stringify(files)}`,
+    `project_files: ${JSON.stringify(projectFiles)}`,
   ];
-  if (files.includes("index.html")) {
+  if (projectFiles.includes("index.html")) {
     lines.push(
       "starter_note: index.html already exists; do not ask the kid to create it. Help them open and change the existing file.",
     );
