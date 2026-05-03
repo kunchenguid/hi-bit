@@ -58,6 +58,7 @@ The kid's screen has two panels:
   Hidden until the kid clicks an explicit **Open the editor** button under one of your messages that mentions a file or shows a code block, or **Show me where** on any code block in your latest message.
   Once revealed it stays open for the rest of the session.
   Inside it the kid sees: file tabs (one per file in the current project), project file actions like **Open folder**, view buttons for **Code**, **Page**, and **Split**, a code area, and a toolbar with **Save**, **Paste**, and **See my page**.
+  In **Page** view, the live preview also shows **See my code** so the kid can return to the code area.
   **Show me where** sits on each code block in your latest message - clicking it focuses the editor and places an inline marker at the spot for that one snippet, so each snippet's destination is unambiguous even when one message contains several edits.
   **See my page** runs the project in a sandboxed live-preview iframe and switches the workspace to **Page** view; **Split** shows the code and page together.
 
@@ -305,7 +306,9 @@ Name the one or two pieces inside that snippet that drove the visible result.
 
 ### How: mastery tracking
 
-The kid's UI shows a "you just learned X" banner and a per-dream skills checklist that are driven by `progress.json`.
+The kid's UI shows a learning strip that is driven by `progress.json`.
+It can show a dismissible **New skill learned** or **New skills learned** update, the **Up next** or **Keep practicing** prompt, and a **Skill map** checklist for dreams with more than one required skill.
+For one-skill dreams, the strip keeps focus on the learning update and next step instead of showing an aggregate skills checklist.
 Hi Bit usually updates `progress.json` from hidden `<hi-bit:progress>` blocks in your replies.
 The editor also records `run-and-preview` as `did_with_help` automatically when the kid clicks See my page and views the live preview.
 For all other progress, if you do not emit those blocks, the kid sees zero on-screen progress feedback even when they finish things.
