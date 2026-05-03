@@ -13,6 +13,8 @@ import {
 } from "@shared/profile";
 import type { KnowledgePointStatus, Progress } from "@shared/progress";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { assertAcpAgentLauncherAvailable } from "./agent/acpxAgentAvailability";
+import { hydrateShellPath } from "./agent/shellPath";
 import { loadDreams } from "./graph/dreams";
 import { loadKnowledgeGraph } from "./graph/load";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./harness/chat";
@@ -202,6 +204,10 @@ function registerIpc(layout: HiBitLayout): void {
   ipcMain.handle("hibit:get-config", () => loadOrInitConfig(layout));
 
   ipcMain.handle("hibit:update-config", async (_event, config: HiBitConfig) => {
+    const current = await loadOrInitConfig(layout);
+    if (config.defaultAgent && config.defaultAgent !== current.defaultAgent) {
+      await assertAcpAgentLauncherAvailable(config.defaultAgent);
+    }
     await writeConfig(layout, config);
     return loadOrInitConfig(layout);
   });
@@ -442,6 +448,7 @@ function registerIpc(layout: HiBitLayout): void {
 }
 
 void app.whenReady().then(async () => {
+  await hydrateShellPath();
   const layout = await bootstrapLayout(hiBitRootFor());
   await seedBitPrompt(layout, shippedBitPromptPath());
   await seedGraph(layout, shippedGraphDir());
