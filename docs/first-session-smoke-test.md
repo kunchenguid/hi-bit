@@ -47,7 +47,7 @@ PRD: "Bit shows a dream menu filtered by the kid's interests. Each dream is a re
 
 - [ ] Bit proactively offers the dream menu, or the kid can click through to `DreamPicker.tsx` from the workspace nav.
 - [ ] The top of the dream list contains interest-matched dreams (e.g. cats + drawing surfaces `doodle-pad`, `pixel-painter`, `photo-scrapbook`, `sticker-gallery`). See `dreamInterestMatch.ts` for the ranking function.
-- [ ] Every rendered dream card has a kid-facing title, category chip(s), and an interest-tag preview. No empty, broken, or duplicate cards.
+- [ ] Every rendered dream card has a kid-facing title, category chip(s), a bit difficulty rating with mascot icons, and an interest-tag preview. No empty, broken, or duplicate cards.
 
 ### Step 5 - Kid picks a dream, Bit commits
 
