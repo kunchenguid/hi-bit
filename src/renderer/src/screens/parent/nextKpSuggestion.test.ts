@@ -31,6 +31,7 @@ function makeDream(id: string, requires: string[]): Dream {
     requires,
     style_hints: [],
     emoji: "✨",
+    difficulty: 1,
   };
 }
 

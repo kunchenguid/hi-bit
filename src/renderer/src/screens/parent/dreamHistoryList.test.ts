@@ -17,6 +17,7 @@ function makeDream(
     requires: [],
     style_hints: [],
     emoji: "✨",
+    difficulty: 1,
   };
 }
 

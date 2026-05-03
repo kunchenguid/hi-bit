@@ -14,6 +14,7 @@ function makeDream(id: string, parentTitle: string): Dream {
     requires: [],
     style_hints: [],
     emoji: "✨",
+    difficulty: 1,
   };
 }
 

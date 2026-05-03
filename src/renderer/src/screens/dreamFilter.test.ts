@@ -13,6 +13,7 @@ function makeDream(id: string, categories: DreamCategory[]): Dream {
     requires: [],
     style_hints: [],
     emoji: "✨",
+    difficulty: 1,
   };
 }
 

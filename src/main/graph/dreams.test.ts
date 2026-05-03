@@ -22,13 +22,13 @@ style_hints:
   - fruit shape
 `;
 
-function makeKp(id: string): KnowledgePoint {
+function makeKp(id: string, prereqs: string[] = []): KnowledgePoint {
   return {
     id,
     title_parent: id,
     title_kid: id,
     area: "html",
-    prereqs: [],
+    prereqs,
     introduces: [],
     mastery_signals: {
       saw_it: "s",
@@ -39,8 +39,8 @@ function makeKp(id: string): KnowledgePoint {
   };
 }
 
-function graphOf(ids: string[]): KnowledgeGraph {
-  const nodes = ids.map(makeKp);
+function graphOf(ids: string[], prereqs: Record<string, string[]> = {}): KnowledgeGraph {
+  const nodes = ids.map((id) => makeKp(id, prereqs[id] ?? []));
   return { nodes, byId: Object.fromEntries(nodes.map((n) => [n.id, n])) };
 }
 
@@ -56,6 +56,7 @@ function makeDream(overrides: Partial<Dream> = {}): Dream {
     style_hints: [],
     emoji: "🐶",
     ...overrides,
+    difficulty: overrides.difficulty ?? 1,
   };
 }
 
@@ -146,6 +147,31 @@ describe("validateDreams", () => {
     if (result.ok) {
       expect(result.library.dreams).toHaveLength(2);
       expect(result.library.byId.a?.requires).toEqual(["html-doc-shell"]);
+    }
+  });
+
+  it("adds a five-bit difficulty from required KP depth and count", () => {
+    const graph = graphOf(["a", "b", "c", "d", "e", "f", "g", "h", "i"], {
+      b: ["a"],
+      c: ["b"],
+      d: ["c"],
+      e: ["d"],
+      f: ["e"],
+      g: ["f"],
+      h: ["g"],
+      i: ["h"],
+    });
+    const dreams = [
+      makeDream({ id: "first", requires: ["a"] }),
+      makeDream({ id: "advanced", requires: ["i"] }),
+    ];
+
+    const result = validateDreams(dreams, graph);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.library.byId.first?.difficulty).toBe(1);
+      expect(result.library.byId.advanced?.difficulty).toBe(5);
     }
   });
 

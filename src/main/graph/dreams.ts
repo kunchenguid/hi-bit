@@ -4,6 +4,8 @@ import {
   DREAM_CATEGORIES,
   type Dream,
   type DreamCategory,
+  type DreamDefinition,
+  type DreamDifficulty,
   type DreamValidation,
   type DreamValidationError,
 } from "@shared/dreams";
@@ -41,7 +43,7 @@ function asCategoryArray(value: unknown): DreamCategory[] {
   return out;
 }
 
-export function parseDream(yaml: string): Dream {
+export function parseDream(yaml: string): DreamDefinition {
   const raw = parseYaml(yaml);
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new Error("Dream file must be a YAML object at the top level");
@@ -69,9 +71,65 @@ export function parseDream(yaml: string): Dream {
   };
 }
 
-export function validateDreams(dreams: Dream[], graph: KnowledgeGraph): DreamValidation {
+function scoreKpDepth(depth: number): DreamDifficulty {
+  if (depth <= 1) return 1;
+  if (depth <= 3) return 2;
+  if (depth <= 5) return 3;
+  if (depth <= 7) return 4;
+  return 5;
+}
+
+function scoreKpCount(count: number): DreamDifficulty {
+  if (count <= 2) return 1;
+  if (count <= 4) return 2;
+  if (count <= 7) return 3;
+  if (count <= 10) return 4;
+  return 5;
+}
+
+export function computeDreamDifficulty(
+  dream: DreamDefinition,
+  graph: KnowledgeGraph,
+): DreamDifficulty {
+  const depthMemo = new Map<string, number>();
+  const depthStack = new Set<string>();
+  const closure = new Set<string>();
+
+  function kpDepth(id: string): number {
+    const memoized = depthMemo.get(id);
+    if (memoized !== undefined) return memoized;
+    if (depthStack.has(id)) return 1;
+    const node = graph.byId[id];
+    if (!node) return 1;
+
+    depthStack.add(id);
+    const prereqDepth = node.prereqs.reduce((max, prereq) => Math.max(max, kpDepth(prereq)), 0);
+    depthStack.delete(id);
+
+    const depth = prereqDepth + 1;
+    depthMemo.set(id, depth);
+    return depth;
+  }
+
+  function collectClosure(id: string): void {
+    if (closure.has(id)) return;
+    const node = graph.byId[id];
+    if (!node) return;
+    closure.add(id);
+    for (const prereq of node.prereqs) collectClosure(prereq);
+  }
+
+  let maxDepth = 1;
+  for (const id of dream.requires) {
+    maxDepth = Math.max(maxDepth, kpDepth(id));
+    collectClosure(id);
+  }
+
+  return Math.max(scoreKpDepth(maxDepth), scoreKpCount(closure.size)) as DreamDifficulty;
+}
+
+export function validateDreams(dreams: DreamDefinition[], graph: KnowledgeGraph): DreamValidation {
   const errors: DreamValidationError[] = [];
-  const byId: Record<string, Dream> = {};
   const seen = new Set<string>();
 
   for (const dream of dreams) {
@@ -80,7 +138,6 @@ export function validateDreams(dreams: Dream[], graph: KnowledgeGraph): DreamVal
       continue;
     }
     seen.add(dream.id);
-    byId[dream.id] = dream;
   }
 
   for (const dream of dreams) {
@@ -100,7 +157,12 @@ export function validateDreams(dreams: Dream[], graph: KnowledgeGraph): DreamVal
   if (errors.length > 0) {
     return { ok: false, errors };
   }
-  return { ok: true, library: { dreams, byId } };
+  const enrichedDreams: Dream[] = dreams.map((dream) => ({
+    ...dream,
+    difficulty: computeDreamDifficulty(dream, graph),
+  }));
+  const byId: Record<string, Dream> = Object.fromEntries(enrichedDreams.map((d) => [d.id, d]));
+  return { ok: true, library: { dreams: enrichedDreams, byId } };
 }
 
 export async function loadDreams(dir: string, graph: KnowledgeGraph): Promise<DreamValidation> {
@@ -115,7 +177,7 @@ export async function loadDreams(dir: string, graph: KnowledgeGraph): Promise<Dr
   }
 
   const ymlFiles = entries.filter((f) => f.endsWith(".yml") || f.endsWith(".yaml")).sort();
-  const dreams: Dream[] = [];
+  const dreams: DreamDefinition[] = [];
   for (const file of ymlFiles) {
     const path = join(dir, file);
     const text = await readFile(path, "utf8");
