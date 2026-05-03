@@ -356,6 +356,27 @@ describe("shipped dream library content", () => {
     expect(dreamValidation.library.byId["bouncing-ball"].requires).toContain("canvas-circle");
   });
 
+  it("does not ask kids to type emoji for the smiley-face button dream", async () => {
+    const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!graphValidation.ok) throw new Error("expected graph to validate");
+    const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
+    if (!dreamValidation.ok) throw new Error("expected dreams to validate");
+    const dream = dreamValidation.library.byId["emoji-button"];
+    expect(dream).toBeDefined();
+    expect(dream.title_kid).toBe("a button with a smiley face");
+    expect(dream.summary_kid).toBe(
+      "make a page with a button that uses a smiley you can type, like :) or :D, plus a label you choose",
+    );
+    const kidFacingText = [
+      dream.title_kid,
+      dream.summary_kid,
+      ...dream.interest_tags,
+      ...dream.style_hints,
+    ].join("\n");
+    expect(kidFacingText).not.toMatch(/emoji/i);
+    expect(kidFacingText).toMatch(/smiley/i);
+  });
+
   it("covers the expanded v1 dream library spanning all five categories", async () => {
     const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
     if (!graphValidation.ok) throw new Error("expected graph to validate");

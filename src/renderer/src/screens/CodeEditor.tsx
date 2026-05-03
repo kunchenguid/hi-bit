@@ -559,6 +559,17 @@ export function CodeEditor({
               sandbox="allow-scripts allow-modals"
               srcDoc={srcdoc}
             />
+            {viewMode === "preview" ? (
+              <div className="hb-editor-toolbar hb-editor-preview-toolbar">
+                <button
+                  type="button"
+                  className="hb-btn hb-btn-primary"
+                  onClick={() => setViewMode("code")}
+                >
+                  See my code
+                </button>
+              </div>
+            ) : null}
           </section>
         </div>
       ) : null}

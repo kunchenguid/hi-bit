@@ -138,6 +138,39 @@ describe("CodeEditor cursor marker", () => {
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Page");
   });
 
+  it("shows a matching See my code button in page mode", async () => {
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const codeButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my code",
+    );
+    expect(codeButton).toBeDefined();
+
+    await act(async () => {
+      codeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const editorPane = host.querySelector('[aria-label="Code editor"]');
+    const previewPane = host.querySelector('[aria-label="Live preview"]');
+
+    expect(editorPane?.hasAttribute("hidden")).toBe(false);
+    expect((editorPane as HTMLElement | null)?.style.display).toBe("");
+    expect(previewPane?.hasAttribute("hidden")).toBe(true);
+    expect((previewPane as HTMLElement | null)?.style.display).toBe("none");
+    expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Code");
+  });
+
   it("records run-and-preview progress when the kid clicks See my page", async () => {
     const updateStatus = vi.fn(async () => {});
     useProgressStore.setState({ updateStatus });

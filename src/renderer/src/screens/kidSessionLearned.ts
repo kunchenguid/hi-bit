@@ -54,6 +54,6 @@ export function buildKidSessionLearned(
   return {
     count,
     items,
-    text: `You just learned ${count} new ${noun}: ${titlesText}.`,
+    text: `New ${noun} learned: ${titlesText}.`,
   };
 }
