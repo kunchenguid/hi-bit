@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AcpRuntimeTurnResult } from "acpx/runtime";
+import type { AcpRuntimeOptions, AcpRuntimeTurnResult } from "acpx/runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { executeAcpTurn } from "./acpxTurn";
+import { closeAcpRuntimeSessions, closeAllAcpRuntimes, executeAcpTurn } from "./acpxTurn";
 
 type FakeEvent =
   | { type: "text_delta"; text: string; stream?: "output" | "thought" }
@@ -23,9 +23,10 @@ function createFakeRuntime(
 ) {
   const calls: {
     ensureSession: unknown[];
+    setConfigOption: unknown[];
     startTurn: unknown[];
     close: unknown[];
-  } = { ensureSession: [], startTurn: [], close: [] };
+  } = { ensureSession: [], setConfigOption: [], startTurn: [], close: [] };
   const handle = {
     sessionKey: "ada:kid:s1:claude",
     backend: "acpx",
@@ -36,6 +37,9 @@ function createFakeRuntime(
     ensureSession: vi.fn(async (input: unknown) => {
       calls.ensureSession.push(input);
       return handle;
+    }),
+    setConfigOption: vi.fn(async (input: unknown) => {
+      calls.setConfigOption.push(input);
     }),
     startTurn: vi.fn((input: unknown) => {
       calls.startTurn.push(input);
@@ -69,17 +73,18 @@ afterEach(async () => {
 
 describe("executeAcpTurn", () => {
   it("creates an approve-all ACPX runtime and submits a persistent prompt turn", async () => {
+    const stateDir = await createTempDir();
     const { runtime, calls, handle } = createFakeRuntime([
       { type: "text_delta", text: "Hi " },
       { type: "text_delta", text: "Ada." },
     ]);
-    const runtimeFactory = vi.fn(() => runtime);
+    const runtimeFactory = vi.fn((_: AcpRuntimeOptions) => runtime);
 
     const result = await executeAcpTurn({
       agent: "claude",
       sessionKey: "ada:kid:s1:claude",
       cwd: "/profiles/ada",
-      stateDir: "/profiles/ada/.acpx-sessions",
+      stateDir,
       prompt: "hello",
       runtimeFactory,
     });
@@ -91,6 +96,11 @@ describe("executeAcpTurn", () => {
         nonInteractivePermissions: "deny",
       }),
     );
+    const runtimeOptions = runtimeFactory.mock.calls[0][0];
+    expect(runtimeOptions.agentRegistry.resolve("claude")).toContain(
+      "clean-acp-agent-launcher.cjs",
+    );
+    expect(runtimeOptions.agentRegistry.resolve("claude")).toContain("claude.json");
     expect(calls.ensureSession).toEqual([
       {
         sessionKey: "ada:kid:s1:claude",
@@ -99,6 +109,7 @@ describe("executeAcpTurn", () => {
         cwd: "/profiles/ada",
       },
     ]);
+    expect(calls.setConfigOption).toEqual([{ handle, key: "effort", value: "low" }]);
     expect(calls.startTurn[0]).toMatchObject({
       handle,
       text: "hello",
@@ -111,35 +122,176 @@ describe("executeAcpTurn", () => {
     });
   });
 
-  it("closes the runtime handle after consuming the turn", async () => {
+  it("continues the turn when low-effort config is unsupported", async () => {
+    const stateDir = await createTempDir();
+    const { runtime, calls, handle } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
+    runtime.setConfigOption.mockImplementationOnce(async (input: unknown) => {
+      calls.setConfigOption.push(input);
+      throw new Error("unknown config option");
+    });
+
+    const result = await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      prompt: "hello",
+      runtimeFactory: () => runtime,
+    });
+
+    expect(calls.setConfigOption).toEqual([{ handle, key: "effort", value: "low" }]);
+    expect(calls.startTurn[0]).toMatchObject({ handle, text: "hello" });
+    expect(result).toEqual({ status: "completed", text: "Done.", usage: null });
+  });
+
+  it("uses clean provider launch specs for built-in agents", async () => {
+    const stateDir = await createTempDir();
+    const { runtime } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
+    const runtimeFactory = vi.fn((_: AcpRuntimeOptions) => runtime);
+
+    await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      prompt: "hello",
+      runtimeFactory,
+    });
+
+    const agentRegistry = runtimeFactory.mock.calls[0][0].agentRegistry;
+    const claudeSpec = JSON.parse(
+      await readFile(join(stateDir, "clean-agent-launch", "claude.json"), "utf8"),
+    );
+    const codexSpec = JSON.parse(
+      await readFile(join(stateDir, "clean-agent-launch", "codex.json"), "utf8"),
+    );
+    const opencodeSpec = JSON.parse(
+      await readFile(join(stateDir, "clean-agent-launch", "opencode.json"), "utf8"),
+    );
+
+    expect(agentRegistry.resolve("claude")).toContain("clean-acp-agent-launcher.cjs");
+    expect(claudeSpec.env.CLAUDE_CODE_EXECUTABLE).toBe(
+      join(stateDir, "clean-agent-launch", "clean-claude-code.cjs"),
+    );
+    expect(claudeSpec.env).not.toHaveProperty("CLAUDE_CONFIG_DIR");
+    expect(codexSpec.args).toContain("ignore_user_config=true");
+    expect(opencodeSpec.env.XDG_CONFIG_HOME).toBe(
+      join(stateDir, "clean-agent-config", "xdg-config"),
+    );
+    expect(opencodeSpec.args).toContain("--pure");
+  });
+
+  it("keeps the runtime handle alive after consuming a regular turn", async () => {
+    const stateDir = await createTempDir();
+    const { runtime, calls } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
+
+    await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      prompt: "hello",
+      runtimeFactory: () => runtime,
+    });
+
+    expect(calls.close).toEqual([]);
+  });
+
+  it("reuses the warm runtime handle for later regular turns in the same session", async () => {
+    const stateDir = await createTempDir();
+    const { runtime, calls, handle } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
+    const runtimeFactory = vi.fn((_: AcpRuntimeOptions) => runtime);
+    const options = {
+      agent: "claude" as const,
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      runtimeFactory,
+    };
+
+    await executeAcpTurn({ ...options, prompt: "first" });
+    await executeAcpTurn({ ...options, prompt: "second" });
+
+    expect(runtimeFactory).toHaveBeenCalledTimes(1);
+    expect(calls.ensureSession).toHaveLength(1);
+    expect(calls.startTurn).toHaveLength(2);
+    expect(calls.startTurn[1]).toMatchObject({ handle, text: "second" });
+    expect(calls.close).toEqual([]);
+  });
+
+  it("closes warm runtime handles when their Hi-Bit session ends", async () => {
+    const stateDir = await createTempDir();
     const { runtime, calls, handle } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
 
     await executeAcpTurn({
       agent: "claude",
       sessionKey: "ada:kid:s1:claude",
       cwd: "/profiles/ada",
-      stateDir: "/profiles/ada/.acpx-sessions",
+      stateDir,
       prompt: "hello",
       runtimeFactory: () => runtime,
     });
 
+    await closeAcpRuntimeSessions({ profileId: "ada", role: "kid", sessionId: "s1" });
+
     expect(calls.close).toEqual([
       {
         handle,
-        reason: "turn complete",
+        reason: "Hi-Bit session ended",
+        discardPersistentState: false,
+      },
+    ]);
+  });
+
+  it("closes every warm runtime handle on app shutdown", async () => {
+    const stateDir = await createTempDir();
+    const first = createFakeRuntime([{ type: "text_delta", text: "One." }]);
+    const second = createFakeRuntime([{ type: "text_delta", text: "Two." }]);
+
+    await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      prompt: "hello",
+      runtimeFactory: () => first.runtime,
+    });
+    await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "bea:kid:s1:claude",
+      cwd: "/profiles/bea",
+      stateDir,
+      prompt: "hello",
+      runtimeFactory: () => second.runtime,
+    });
+
+    await closeAllAcpRuntimes("app quit");
+
+    expect(first.calls.close).toEqual([
+      {
+        handle: first.handle,
+        reason: "app quit",
+        discardPersistentState: false,
+      },
+    ]);
+    expect(second.calls.close).toEqual([
+      {
+        handle: second.handle,
+        reason: "app quit",
         discardPersistentState: false,
       },
     ]);
   });
 
   it("can discard persistent state after helper turns", async () => {
+    const stateDir = await createTempDir();
     const { runtime, calls, handle } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
 
     await executeAcpTurn({
       agent: "claude",
       sessionKey: "ada:kid:cursor-marker:claude",
       cwd: "/profiles/ada",
-      stateDir: "/profiles/ada/.acpx-sessions",
+      stateDir,
       prompt: "hello",
       discardPersistentState: true,
       runtimeFactory: () => runtime,
@@ -155,6 +307,7 @@ describe("executeAcpTurn", () => {
   });
 
   it("returns a completed turn when runtime close fails after success", async () => {
+    const stateDir = await createTempDir();
     const { runtime } = createFakeRuntime([{ type: "text_delta", text: "Done." }], {
       close: async () => {
         throw new Error("close unsupported");
@@ -165,7 +318,7 @@ describe("executeAcpTurn", () => {
       agent: "claude",
       sessionKey: "ada:kid:cursor-marker:claude",
       cwd: "/profiles/ada",
-      stateDir: "/profiles/ada/.acpx-sessions",
+      stateDir,
       prompt: "hello",
       discardPersistentState: true,
       runtimeFactory: () => runtime,
@@ -203,6 +356,7 @@ describe("executeAcpTurn", () => {
   });
 
   it("returns a failed turn when runtime close fails after agent failure", async () => {
+    const stateDir = await createTempDir();
     const { runtime } = createFakeRuntime([{ type: "text_delta", text: "Nope." }], {
       result: Promise.resolve({ status: "failed" as const, error: { message: "agent failed" } }),
       close: async () => {
@@ -214,7 +368,7 @@ describe("executeAcpTurn", () => {
       agent: "claude",
       sessionKey: "ada:kid:cursor-marker:claude",
       cwd: "/profiles/ada",
-      stateDir: "/profiles/ada/.acpx-sessions",
+      stateDir,
       prompt: "hello",
       discardPersistentState: true,
       runtimeFactory: () => runtime,
@@ -229,6 +383,7 @@ describe("executeAcpTurn", () => {
   });
 
   it("adds agent context when ACPX cannot start the selected agent", async () => {
+    const stateDir = await createTempDir();
     const runtime = {
       ensureSession: vi.fn(async () => {
         throw new Error("spawn npx ENOENT");
@@ -242,7 +397,7 @@ describe("executeAcpTurn", () => {
         agent: "claude",
         sessionKey: "ada:kid:s1:claude",
         cwd: "/profiles/ada",
-        stateDir: "/profiles/ada/.acpx-sessions",
+        stateDir,
         prompt: "hello",
         runtimeFactory: () => runtime,
       }),
@@ -250,6 +405,7 @@ describe("executeAcpTurn", () => {
   });
 
   it("streams only visible output text to onDelta", async () => {
+    const stateDir = await createTempDir();
     const { runtime } = createFakeRuntime([
       { type: "text_delta", text: "thinking", stream: "thought" },
       { type: "tool_call", text: "read file" },
@@ -263,7 +419,7 @@ describe("executeAcpTurn", () => {
       agent: "codex",
       sessionKey: "ada:kid:s1:codex",
       cwd: "/profiles/ada",
-      stateDir: "/profiles/ada/.acpx-sessions",
+      stateDir,
       prompt: "hello",
       onDelta,
       runtimeFactory: () => runtime,

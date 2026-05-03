@@ -25,6 +25,9 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
 
 Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
 
+Manual E2E testing should use Claude Code as the configured Hi-Bit agent unless the task explicitly asks to validate another ACP provider.
+Before testing Bit chat, confirm `config.json` under Electron `userData` has `defaultAgent: "claude"`, or switch the app's selected agent to Claude through the setup UI.
+
 ### One-time understanding
 
 - `npm run dev` runs `electron-vite dev`, which builds main + preload into `out/`, starts a Vite dev server on `http://localhost:5173` for the renderer, and launches Electron pointing at it.

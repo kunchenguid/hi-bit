@@ -8,6 +8,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
+import { useProfileStore } from "../state/profileStore";
 import { useProgressStore } from "../state/progressStore";
 import { KidChat } from "./KidChat";
 
@@ -71,6 +72,7 @@ function progressWith(mastered: string[]): Progress {
 describe("KidChat cursor target action", () => {
   let host: HTMLDivElement;
   let root: Root;
+  let endKidSession: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     host = document.createElement("div");
@@ -95,8 +97,13 @@ describe("KidChat cursor target action", () => {
     useGraphStore.setState({ status: "ready", graph: null, library: null });
     useProgressStore.setState({ status: "ready", profileId: profile.id, progress: null });
 
-    (globalThis as unknown as { window: { hibit: { onBitDelta: () => () => void } } }).window = {
-      hibit: { onBitDelta: () => () => {} },
+    endKidSession = vi.fn(async () => {});
+    (
+      globalThis as unknown as {
+        window: { hibit: { onBitDelta: () => () => void; endKidSession: typeof endKidSession } };
+      }
+    ).window = {
+      hibit: { onBitDelta: () => () => {}, endKidSession },
     };
   });
 
@@ -104,6 +111,7 @@ describe("KidChat cursor target action", () => {
     act(() => root.unmount());
     host.remove();
     useChatStore.getState().reset();
+    useProfileStore.setState({ activeProfileId: null });
     useProgressStore.getState().reset();
   });
 
@@ -230,6 +238,33 @@ describe("KidChat cursor target action", () => {
 
     expect(host.querySelectorAll(".hb-chat-row-bit .hb-chat-avatar")).toHaveLength(1);
     expect(host.querySelectorAll(".hb-chat-row-kid .hb-chat-avatar")).toHaveLength(0);
+  });
+
+  it("ends the warm kid runtime before returning to profiles", async () => {
+    useProfileStore.setState({ activeProfileId: profile.id });
+
+    await act(async () => {
+      root.render(<KidChat profile={profile} />);
+    });
+
+    const done = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent === "I'm done for now",
+    );
+    if (!done) throw new Error("missing done button");
+    await act(async () => {
+      done.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    const back = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent === "Back to profiles",
+    );
+    if (!back) throw new Error("missing back button");
+
+    await act(async () => {
+      back.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(endKidSession).toHaveBeenCalledWith(profile.id);
+    expect(useProfileStore.getState().activeProfileId).toBeNull();
   });
 
   it("hides Show me where when the latest Bit message has no code block", async () => {

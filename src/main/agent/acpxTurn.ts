@@ -8,12 +8,26 @@ import {
   type AcpRuntimeTurnResult,
   type AcpxRuntime,
   createAcpRuntime,
-  createAgentRegistry,
   createFileSessionStore,
 } from "acpx/runtime";
+import { createCleanAgentRegistry } from "./cleanAcpAgentConfig";
 
-type AcpxRuntimeLike = Pick<AcpxRuntime, "ensureSession" | "startTurn" | "close">;
+type AcpxRuntimeLike = Pick<AcpxRuntime, "ensureSession" | "startTurn" | "close"> &
+  Partial<Pick<AcpxRuntime, "setConfigOption">>;
 type AcpxRuntimeHandleLike = Awaited<ReturnType<AcpxRuntimeLike["ensureSession"]>>;
+type RuntimeFactoryLike = (options: AcpRuntimeOptions) => AcpxRuntimeLike;
+type SessionRoleLike = "kid" | "parent";
+type WarmRuntimeEntry = {
+  runtime: AcpxRuntimeLike;
+  handle: AcpxRuntimeHandleLike;
+  sessionKey: string;
+};
+type WarmRuntimeEntryRecord = {
+  sessionKey: string;
+  entry: Promise<WarmRuntimeEntry>;
+};
+
+const warmRuntimeEntries = new Map<string, WarmRuntimeEntryRecord>();
 
 export type AcpTurnUsage = {
   contextTokensUsed: number;
@@ -36,8 +50,19 @@ export type ExecuteAcpTurnOptions = {
   signal?: AbortSignal;
   onDelta?: (text: string) => void;
   discardPersistentState?: boolean;
-  runtimeFactory?: (options: AcpRuntimeOptions) => AcpxRuntimeLike;
+  runtimeFactory?: RuntimeFactoryLike;
 };
+
+export type CloseAcpRuntimeSessionsOptions = {
+  profileId: string;
+  role: SessionRoleLike;
+  sessionId: string;
+  reason?: string;
+};
+
+function warmRuntimeKey(opts: ExecuteAcpTurnOptions): string {
+  return JSON.stringify([opts.stateDir, opts.cwd, opts.agent, opts.sessionKey]);
+}
 
 async function removeLocalSessionRecord(stateDir: string, sessionId: string): Promise<void> {
   await rm(join(stateDir, "sessions", `${encodeURIComponent(sessionId)}.json`), { force: true });
@@ -52,31 +77,11 @@ function acpxAgentError(agent: AgentId, err: unknown): Error {
 
 export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTurnResult> {
   const runtimeFactory = opts.runtimeFactory ?? ((options) => createAcpRuntime(options));
-  let runtime: AcpxRuntimeLike;
+  const entry = opts.discardPersistentState
+    ? await createWarmRuntimeEntry(opts, runtimeFactory)
+    : await getWarmRuntimeEntry(opts, runtimeFactory);
+  const { runtime, handle } = entry;
   try {
-    runtime = runtimeFactory({
-      cwd: opts.cwd,
-      sessionStore: createFileSessionStore({ stateDir: opts.stateDir }),
-      agentRegistry: createAgentRegistry(),
-      permissionMode: "approve-all",
-      nonInteractivePermissions: "deny",
-    });
-  } catch (err) {
-    throw acpxAgentError(opts.agent, err);
-  }
-
-  let handle: AcpxRuntimeHandleLike | undefined;
-  try {
-    try {
-      handle = await runtime.ensureSession({
-        sessionKey: opts.sessionKey,
-        agent: opts.agent,
-        mode: "persistent",
-        cwd: opts.cwd,
-      });
-    } catch (err) {
-      throw acpxAgentError(opts.agent, err);
-    }
     const turn = runtime.startTurn({
       handle,
       text: opts.prompt,
@@ -115,12 +120,12 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
     }
     return { status: result.status, text, usage };
   } finally {
-    if (handle) {
+    if (opts.discardPersistentState) {
       try {
         await runtime.close({
           handle,
           reason: "turn complete",
-          discardPersistentState: opts.discardPersistentState ?? false,
+          discardPersistentState: true,
         });
       } catch (err) {
         if (opts.discardPersistentState) {
@@ -133,5 +138,101 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
         void err;
       }
     }
+  }
+}
+
+export async function closeAcpRuntimeSessions(opts: CloseAcpRuntimeSessionsOptions): Promise<void> {
+  const sessionKeyPrefix = `${opts.profileId}:${opts.role}:${opts.sessionId}:`;
+  const closeReason = opts.reason ?? "Hi-Bit session ended";
+  const matching = Array.from(warmRuntimeEntries.entries()).filter(([, record]) =>
+    record.sessionKey.startsWith(sessionKeyPrefix),
+  );
+
+  await closeWarmRuntimeRecords(matching, closeReason);
+}
+
+export async function closeAllAcpRuntimes(reason = "Hi-Bit shutdown"): Promise<void> {
+  await closeWarmRuntimeRecords(Array.from(warmRuntimeEntries.entries()), reason);
+}
+
+async function closeWarmRuntimeRecords(
+  records: Array<[string, WarmRuntimeEntryRecord]>,
+  reason: string,
+): Promise<void> {
+  await Promise.all(
+    records.map(async ([key, record]) => {
+      warmRuntimeEntries.delete(key);
+      const entry = await record.entry;
+      try {
+        await entry.runtime.close({
+          handle: entry.handle,
+          reason,
+          discardPersistentState: false,
+        });
+      } catch (err) {
+        void err;
+      }
+    }),
+  );
+}
+
+async function getWarmRuntimeEntry(
+  opts: ExecuteAcpTurnOptions,
+  runtimeFactory: RuntimeFactoryLike,
+): Promise<WarmRuntimeEntry> {
+  const key = warmRuntimeKey(opts);
+  const existing = warmRuntimeEntries.get(key);
+  if (existing) return existing.entry;
+  const created = createWarmRuntimeEntry(opts, runtimeFactory);
+  warmRuntimeEntries.set(key, { sessionKey: opts.sessionKey, entry: created });
+  try {
+    return await created;
+  } catch (err) {
+    warmRuntimeEntries.delete(key);
+    throw err;
+  }
+}
+
+async function createWarmRuntimeEntry(
+  opts: ExecuteAcpTurnOptions,
+  runtimeFactory: RuntimeFactoryLike,
+): Promise<WarmRuntimeEntry> {
+  let runtime: AcpxRuntimeLike;
+  try {
+    runtime = runtimeFactory({
+      cwd: opts.cwd,
+      sessionStore: createFileSessionStore({ stateDir: opts.stateDir }),
+      agentRegistry: await createCleanAgentRegistry(opts.stateDir),
+      permissionMode: "approve-all",
+      nonInteractivePermissions: "deny",
+    });
+  } catch (err) {
+    throw acpxAgentError(opts.agent, err);
+  }
+
+  let handle: AcpxRuntimeHandleLike;
+  try {
+    handle = await runtime.ensureSession({
+      sessionKey: opts.sessionKey,
+      agent: opts.agent,
+      mode: "persistent",
+      cwd: opts.cwd,
+    });
+  } catch (err) {
+    throw acpxAgentError(opts.agent, err);
+  }
+  await applyLowEffortConfig(runtime, handle);
+  return { runtime, handle, sessionKey: opts.sessionKey };
+}
+
+async function applyLowEffortConfig(
+  runtime: AcpxRuntimeLike,
+  handle: AcpxRuntimeHandleLike,
+): Promise<void> {
+  if (!runtime.setConfigOption) return;
+  try {
+    await runtime.setConfigOption({ handle, key: "effort", value: "low" });
+  } catch (err) {
+    void err;
   }
 }

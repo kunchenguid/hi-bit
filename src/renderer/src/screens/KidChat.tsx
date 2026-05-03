@@ -229,6 +229,15 @@ export function KidChat({
     await retry(profile.id);
   }
 
+  async function handleBackToProfiles(): Promise<void> {
+    try {
+      await window.hibit.endKidSession(profile.id);
+    } finally {
+      setWrapUpOpen(false);
+      selectProfile(null);
+    }
+  }
+
   const Shell = docked ? "section" : "main";
   const shellClass = `hb-chat-shell${docked ? " hb-chat-shell-docked" : ""}`;
 
@@ -539,10 +548,7 @@ export function KidChat({
               <button
                 type="button"
                 className="hb-btn hb-btn-primary"
-                onClick={() => {
-                  setWrapUpOpen(false);
-                  selectProfile(null);
-                }}
+                onClick={() => void handleBackToProfiles()}
               >
                 Back to profiles
               </button>

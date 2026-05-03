@@ -42,6 +42,8 @@ const api: HiBitApi = {
     requestId?: string,
   ): Promise<SendMessageResult> =>
     ipcRenderer.invoke("hibit:send-kid-message", profileId, prompt, requestId),
+  endKidSession: (profileId: string): Promise<void> =>
+    ipcRenderer.invoke("hibit:end-kid-session", profileId),
   cancelKidMessage: (requestId: string): Promise<void> =>
     ipcRenderer.invoke("hibit:cancel-kid-message", requestId),
   requestCursorMarker: (

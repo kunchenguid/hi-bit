@@ -14,6 +14,7 @@ import {
 import type { KnowledgePointStatus, Progress } from "@shared/progress";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { assertAcpAgentLauncherAvailable } from "./agent/acpxAgentAvailability";
+import { closeAcpRuntimeSessions, closeAllAcpRuntimes } from "./agent/acpxTurn";
 import { hydrateShellPath } from "./agent/shellPath";
 import { loadDreams } from "./graph/dreams";
 import { loadKnowledgeGraph } from "./graph/load";
@@ -183,9 +184,16 @@ function registerIpc(layout: HiBitLayout): void {
     createProfile(layout, input),
   );
 
-  ipcMain.handle("hibit:delete-profile", (_event, profileId: string) =>
-    deleteProfile(layout, profileId),
-  );
+  ipcMain.handle("hibit:delete-profile", async (_event, profileId: string) => {
+    const profile = await readProfile(layout, profileId);
+    if (profile) {
+      await Promise.all([
+        closeAcpRuntimeSessions({ profileId, role: "kid", sessionId: profile.sessions.kid }),
+        closeAcpRuntimeSessions({ profileId, role: "parent", sessionId: profile.sessions.parent }),
+      ]);
+    }
+    await deleteProfile(layout, profileId);
+  });
 
   ipcMain.handle(
     "hibit:export-profile",
@@ -213,6 +221,7 @@ function registerIpc(layout: HiBitLayout): void {
     const current = await loadOrInitConfig(layout);
     if (config.defaultAgent && config.defaultAgent !== current.defaultAgent) {
       await assertAcpAgentLauncherAvailable(config.defaultAgent);
+      await closeAllAcpRuntimes("default agent changed");
     }
     await writeConfig(layout, config);
     return loadOrInitConfig(layout);
@@ -255,7 +264,9 @@ function registerIpc(layout: HiBitLayout): void {
   ipcMain.handle("hibit:set-current-dream", async (_event, profileId: string, dreamId: string) => {
     const prior = await readProfile(layout, profileId);
     const profile = await setCurrentDream(layout, profileId, dreamId);
-    void prior;
+    if (prior && prior.sessions.kid !== profile.sessions.kid) {
+      await closeAcpRuntimeSessions({ profileId, role: "kid", sessionId: prior.sessions.kid });
+    }
     const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);
     const graph = graphResult.ok ? graphResult.graph : { nodes: [], byId: {} };
     const dreamResult = await loadDreams(layout.graphDreamsDir, graph);
@@ -315,6 +326,12 @@ function registerIpc(layout: HiBitLayout): void {
     const active = activeKidTurns.get(requestId);
     if (!active || active.senderId !== event.sender.id) return;
     active.controller.abort();
+  });
+
+  ipcMain.handle("hibit:end-kid-session", async (_event, profileId: string): Promise<void> => {
+    const profile = await readProfile(layout, profileId);
+    if (!profile) return;
+    await closeAcpRuntimeSessions({ profileId, role: "kid", sessionId: profile.sessions.kid });
   });
 
   ipcMain.handle(
@@ -503,4 +520,14 @@ app.on("window-all-closed", () => {
   if (isDev || process.platform !== "darwin") {
     app.quit();
   }
+});
+
+let isQuittingAfterRuntimeClose = false;
+app.on("before-quit", (event) => {
+  if (isQuittingAfterRuntimeClose) return;
+  event.preventDefault();
+  void closeAllAcpRuntimes("app quit").finally(() => {
+    isQuittingAfterRuntimeClose = true;
+    app.quit();
+  });
 });
