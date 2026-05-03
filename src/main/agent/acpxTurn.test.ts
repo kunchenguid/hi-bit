@@ -219,6 +219,41 @@ describe("executeAcpTurn", () => {
     expect(calls.close).toEqual([]);
   });
 
+  it("evicts and closes a warm runtime when a regular turn throws", async () => {
+    const stateDir = await createTempDir();
+    const broken = createFakeRuntime([]);
+    broken.runtime.startTurn.mockImplementationOnce(() => {
+      throw new Error("runtime disconnected");
+    });
+    const recovered = createFakeRuntime([{ type: "text_delta", text: "Recovered." }]);
+    const runtimeFactory = vi
+      .fn((_: AcpRuntimeOptions) => broken.runtime)
+      .mockImplementationOnce((_: AcpRuntimeOptions) => broken.runtime)
+      .mockImplementationOnce((_: AcpRuntimeOptions) => recovered.runtime);
+    const options = {
+      agent: "claude" as const,
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      runtimeFactory,
+    };
+
+    await expect(executeAcpTurn({ ...options, prompt: "first" })).rejects.toThrow(
+      "runtime disconnected",
+    );
+    const result = await executeAcpTurn({ ...options, prompt: "second" });
+
+    expect(broken.calls.close).toEqual([
+      {
+        handle: broken.handle,
+        reason: "turn failed",
+        discardPersistentState: false,
+      },
+    ]);
+    expect(runtimeFactory).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ status: "completed", text: "Recovered.", usage: null });
+  });
+
   it("closes warm runtime handles when their Hi-Bit session ends", async () => {
     const stateDir = await createTempDir();
     const { runtime, calls, handle } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
@@ -241,6 +276,38 @@ describe("executeAcpTurn", () => {
         discardPersistentState: false,
       },
     ]);
+  });
+
+  it("ignores warm runtime startup failures while closing a Hi-Bit session", async () => {
+    const stateDir = await createTempDir();
+    let rejectEnsureSession: (err: Error) => void = () => {};
+    const runtime = {
+      ensureSession: vi.fn(
+        () =>
+          new Promise<never>((_, reject) => {
+            rejectEnsureSession = reject;
+          }),
+      ),
+      startTurn: vi.fn(),
+      close: vi.fn(),
+    };
+    const turnPromise = executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:s1:claude",
+      cwd: "/profiles/ada",
+      stateDir,
+      prompt: "hello",
+      runtimeFactory: () => runtime,
+    });
+    turnPromise.catch(() => {});
+    await vi.waitFor(() => expect(runtime.ensureSession).toHaveBeenCalled());
+
+    const closePromise = closeAcpRuntimeSessions({ profileId: "ada", role: "kid", sessionId: "s1" });
+    rejectEnsureSession(new Error("spawn failed"));
+
+    await expect(closePromise).resolves.toBeUndefined();
+    await expect(turnPromise).rejects.toThrow("Failed to start claude through ACPX: spawn failed");
+    expect(runtime.close).not.toHaveBeenCalled();
   });
 
   it("closes every warm runtime handle on app shutdown", async () => {

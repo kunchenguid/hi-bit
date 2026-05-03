@@ -116,9 +116,17 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
     const result = await turn.result;
 
     if (result.status === "failed") {
+      if (!opts.discardPersistentState) {
+        await evictWarmRuntimeEntry(opts, entry, "turn failed");
+      }
       return { status: result.status, text, usage, error: result.error.message };
     }
     return { status: result.status, text, usage };
+  } catch (err) {
+    if (!opts.discardPersistentState) {
+      await evictWarmRuntimeEntry(opts, entry, "turn failed");
+    }
+    throw err;
   } finally {
     if (opts.discardPersistentState) {
       try {
@@ -162,8 +170,8 @@ async function closeWarmRuntimeRecords(
   await Promise.all(
     records.map(async ([key, record]) => {
       warmRuntimeEntries.delete(key);
-      const entry = await record.entry;
       try {
+        const entry = await record.entry;
         await entry.runtime.close({
           handle: entry.handle,
           reason,
@@ -174,6 +182,23 @@ async function closeWarmRuntimeRecords(
       }
     }),
   );
+}
+
+async function evictWarmRuntimeEntry(
+  opts: ExecuteAcpTurnOptions,
+  entry: WarmRuntimeEntry,
+  reason: string,
+): Promise<void> {
+  warmRuntimeEntries.delete(warmRuntimeKey(opts));
+  try {
+    await entry.runtime.close({
+      handle: entry.handle,
+      reason,
+      discardPersistentState: false,
+    });
+  } catch (err) {
+    void err;
+  }
 }
 
 async function getWarmRuntimeEntry(
