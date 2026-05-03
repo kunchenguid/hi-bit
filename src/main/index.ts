@@ -1,4 +1,3 @@
-import { spawn as nodeSpawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
@@ -14,12 +13,11 @@ import {
 } from "@shared/profile";
 import type { KnowledgePointStatus, Progress } from "@shared/progress";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { assertAcpAgentLauncherAvailable } from "./agent/acpxAgentAvailability";
+import { hydrateShellPath } from "./agent/shellPath";
 import { loadDreams } from "./graph/dreams";
 import { loadKnowledgeGraph } from "./graph/load";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./harness/chat";
-import type { ClaudeSession } from "./harness/claudeSession";
-import { ClaudeSessionRegistry } from "./harness/claudeSessionRegistry";
-import { detectHarnesses } from "./harness/detect";
 import { loadOrInitConfig, writeConfig } from "./storage/config";
 import { deleteFlag, loadFlags, writeFlag } from "./storage/flags";
 import { seedGraph } from "./storage/graphSeed";
@@ -164,8 +162,6 @@ export function projectFileChangeChannel(id: number): string {
 
 function registerIpc(layout: HiBitLayout): void {
   const projectWatchers = createProjectWatcherRegistry();
-  const claudeRegistry = new ClaudeSessionRegistry<ClaudeSession>();
-  app.on("before-quit", () => claudeRegistry.closeAll());
   ipcMain.handle("hibit:get-app-info", (): AppInfo => {
     return {
       version: app.getVersion(),
@@ -181,10 +177,9 @@ function registerIpc(layout: HiBitLayout): void {
     createProfile(layout, input),
   );
 
-  ipcMain.handle("hibit:delete-profile", (_event, profileId: string) => {
-    claudeRegistry.closeProfile(profileId);
-    return deleteProfile(layout, profileId);
-  });
+  ipcMain.handle("hibit:delete-profile", (_event, profileId: string) =>
+    deleteProfile(layout, profileId),
+  );
 
   ipcMain.handle(
     "hibit:export-profile",
@@ -209,11 +204,13 @@ function registerIpc(layout: HiBitLayout): void {
   ipcMain.handle("hibit:get-config", () => loadOrInitConfig(layout));
 
   ipcMain.handle("hibit:update-config", async (_event, config: HiBitConfig) => {
+    const current = await loadOrInitConfig(layout);
+    if (config.defaultAgent && config.defaultAgent !== current.defaultAgent) {
+      await assertAcpAgentLauncherAvailable(config.defaultAgent);
+    }
     await writeConfig(layout, config);
     return loadOrInitConfig(layout);
   });
-
-  ipcMain.handle("hibit:detect-harnesses", () => detectHarnesses());
 
   ipcMain.handle(
     "hibit:get-knowledge-graph",
@@ -251,15 +248,8 @@ function registerIpc(layout: HiBitLayout): void {
 
   ipcMain.handle("hibit:set-current-dream", async (_event, profileId: string, dreamId: string) => {
     const prior = await readProfile(layout, profileId);
-    const priorKidSessionId = prior?.sessions.kid ?? null;
     const profile = await setCurrentDream(layout, profileId, dreamId);
-    // setCurrentDream rotates profile.sessions.kid when the dream changes.
-    // The long-lived Claude subprocess is still bound to the prior sessionId,
-    // so we tear it down here so the next kid message spawns a fresh process
-    // against the rotated sessionId and re-injects the system preamble.
-    if (priorKidSessionId && priorKidSessionId !== profile.sessions.kid) {
-      claudeRegistry.closeProfileRole(profileId, "kid");
-    }
+    void prior;
     const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);
     const graph = graphResult.ok ? graphResult.graph : { nodes: [], byId: {} };
     const dreamResult = await loadDreams(layout.graphDreamsDir, graph);
@@ -277,15 +267,11 @@ function registerIpc(layout: HiBitLayout): void {
     "hibit:send-kid-message",
     async (event, profileId: string, prompt: string): Promise<SendMessageResult> => {
       const config = await loadOrInitConfig(layout);
-      const detection = await detectHarnesses();
       const result = await sendKidMessage({
         layout,
         config,
-        detection,
         profileId,
         prompt,
-        spawn: nodeSpawn,
-        claudeRegistry,
         onDelta: (text) => {
           if (!event.sender.isDestroyed()) {
             event.sender.send("hibit:bit-delta", { role: "kid", profileId, text });
@@ -302,14 +288,11 @@ function registerIpc(layout: HiBitLayout): void {
     "hibit:request-cursor-marker",
     async (_event, profileId: string, request: CursorMarkerRequest): Promise<SendMessageResult> => {
       const config = await loadOrInitConfig(layout);
-      const detection = await detectHarnesses();
       return requestCursorMarker({
         layout,
         config,
-        detection,
         profileId,
         request,
-        spawn: nodeSpawn,
       });
     },
   );
@@ -318,15 +301,11 @@ function registerIpc(layout: HiBitLayout): void {
     "hibit:send-parent-message",
     async (event, profileId: string, prompt: string): Promise<SendMessageResult> => {
       const config = await loadOrInitConfig(layout);
-      const detection = await detectHarnesses();
       const result = await sendParentMessage({
         layout,
         config,
-        detection,
         profileId,
         prompt,
-        spawn: nodeSpawn,
-        claudeRegistry,
         onDelta: (text) => {
           if (!event.sender.isDestroyed()) {
             event.sender.send("hibit:bit-delta", { role: "parent", profileId, text });
@@ -469,6 +448,7 @@ function registerIpc(layout: HiBitLayout): void {
 }
 
 void app.whenReady().then(async () => {
+  await hydrateShellPath();
   const layout = await bootstrapLayout(hiBitRootFor());
   await seedBitPrompt(layout, shippedBitPromptPath());
   await seedGraph(layout, shippedGraphDir());

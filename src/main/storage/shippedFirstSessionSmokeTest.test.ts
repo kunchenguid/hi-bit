@@ -33,7 +33,7 @@ describe("shipped first-session smoke test docs", () => {
     expect(text).toMatch(/KidChat\.tsx/);
     expect(text).toMatch(/CodeEditor\.tsx/);
     expect(text).toMatch(/buildPreview/);
-    expect(text).toMatch(/REFERENCE_HARNESS/);
+    expect(text).toMatch(/REFERENCE_AGENT/);
   });
 
   it("docs/first-session-smoke-test.md pins the 5-minute PRD budget", async () => {

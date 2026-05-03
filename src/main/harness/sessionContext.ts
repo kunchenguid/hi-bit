@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import type { Profile } from "@shared/profile";
 import type { SessionRole } from "@shared/sessionLog";
-import type { HarnessInvocationMode } from "./command";
+
+export type HarnessInvocationMode = "start" | "resume";
 
 export type BuildSessionContextOptions = {
   role: SessionRole;

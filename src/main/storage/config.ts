@@ -1,8 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import {
+  AGENT_IDS,
+  type AgentId,
   defaultConfig,
-  HARNESS_IDS,
-  type HarnessId,
   type HiBitConfig,
   type ParentPinRecord,
   THEME_PREFERENCES,
@@ -46,24 +46,14 @@ function normalizeConfig(value: unknown): HiBitConfig {
   const base = defaultConfig();
   if (!value || typeof value !== "object") return base;
   const raw = value as Record<string, unknown>;
-  const harness: HiBitConfig["harness"] = {};
-  const rawHarness = (raw.harness as Record<string, unknown>) ?? {};
-  for (const id of HARNESS_IDS) {
-    const entry = rawHarness[id];
-    if (typeof entry === "string" && entry.length > 0) {
-      harness[id] = entry;
-    }
-  }
-  const defaultHarness =
-    typeof raw.defaultHarness === "string" && isHarnessId(raw.defaultHarness)
-      ? raw.defaultHarness
-      : undefined;
+  const rawDefaultAgent = raw.defaultAgent ?? raw.defaultHarness;
+  const defaultAgent =
+    typeof rawDefaultAgent === "string" && isAgentId(rawDefaultAgent) ? rawDefaultAgent : undefined;
   const parentPin = normalizeParentPin(raw.parentPin);
   const theme = normalizeTheme(raw.theme);
   return {
-    version: 1,
-    harness,
-    ...(defaultHarness ? { defaultHarness } : {}),
+    version: 2,
+    ...(defaultAgent ? { defaultAgent } : {}),
     ...(parentPin ? { parentPin } : {}),
     ...(theme ? { theme } : {}),
   };
@@ -98,6 +88,6 @@ function normalizeParentPin(value: unknown): ParentPinRecord | undefined {
   return { algorithm: "pbkdf2-sha256", iterations, keyLength, salt, hash };
 }
 
-function isHarnessId(value: string): value is HarnessId {
-  return (HARNESS_IDS as readonly string[]).includes(value);
+function isAgentId(value: string): value is AgentId {
+  return (AGENT_IDS as readonly string[]).includes(value);
 }

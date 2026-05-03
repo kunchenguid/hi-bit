@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Probe whether prompt caching is hitting on Hi-Bit's claude invocation pattern.
+// Legacy standalone probe for Claude prompt caching behavior.
 //
-// Spawns claude N times against a fixture profile dir with the same flags
-// command.ts uses, parses each turn's stream-json output, and prints the
-// cache-creation / cache-read tokens per turn.
+// Spawns claude N times against a fixture profile dir with the historical
+// direct CLI flags Hi-Bit used before ACPX, parses each turn's stream-json
+// output, and prints the cache-creation / cache-read tokens per turn.
 //
 // Usage:
 //   node scripts/probe-claude-cache.mjs                # 3 turns, default flags

@@ -1,10 +1,10 @@
-import type { HarnessId } from "./config";
+import type { AgentId } from "./config";
 
 export type SessionRole = "kid" | "parent";
 
 export type HarnessInvocationLogEntry = {
   timestamp: string;
-  harness: HarnessId;
+  harness: AgentId;
   role: SessionRole;
   sessionId: string;
   mode: "start" | "resume";
@@ -15,4 +15,6 @@ export type HarnessInvocationLogEntry = {
   tokensOutput?: number;
   cacheCreationInputTokens?: number;
   cacheReadInputTokens?: number;
+  contextTokensUsed?: number;
+  contextTokensSize?: number;
 };

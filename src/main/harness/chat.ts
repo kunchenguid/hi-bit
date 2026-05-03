@@ -1,10 +1,10 @@
-import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
-import type { HarnessDetection, HarnessId, HiBitConfig } from "@shared/config";
+import type { AgentId, HiBitConfig } from "@shared/config";
 import type { KnowledgePointStatus } from "@shared/progress";
 import { collectRequiredKps, pickNextKP } from "@shared/scheduler";
 import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog";
+import { type ExecuteAcpTurnOptions, executeAcpTurn } from "../agent/acpxTurn";
 import { loadDreams } from "../graph/dreams";
 import { loadKnowledgeGraph } from "../graph/load";
 import type { HiBitLayout, ProfilePaths } from "../storage/layout";
@@ -18,10 +18,6 @@ import {
 import { listProjectFiles } from "../storage/projects";
 import { appendSessionLogEntry, readSessionLogEntries } from "../storage/sessionLog";
 import { appendTranscriptEvent } from "../storage/transcript";
-import { ClaudeSession, type ClaudeSessionSpawnFn, type ClaudeTurnEvent } from "./claudeSession";
-import { ClaudeSessionRegistry } from "./claudeSessionRegistry";
-import { buildClaudeStreamArgs } from "./claudeStreamArgs";
-import type { HarnessInvocationMode } from "./command";
 import { buildCursorMarkerPrompt } from "./cursorMarkerPrompt";
 import {
   createHiBitControlStreamFilter,
@@ -29,32 +25,28 @@ import {
   type HiBitControlBlock,
   stripHiBitControlBlocks,
 } from "./hiBitControl";
-import type { HarnessRunEvent, HarnessSpawnFn } from "./run";
-import type { LearningPlanContext, SessionMemoryContext } from "./sessionContext";
+import type {
+  HarnessInvocationMode,
+  LearningPlanContext,
+  SessionMemoryContext,
+} from "./sessionContext";
 import { withSessionContext } from "./sessionContext";
-import { executeHarnessTurn } from "./turn";
 
 export type SendMessageOptions = {
   layout: HiBitLayout;
   config: HiBitConfig;
-  detection: HarnessDetection;
   profileId: string;
   prompt: string;
-  spawn: HarnessSpawnFn;
   now?: () => number;
-  onEvent?: (event: HarnessRunEvent) => void;
   onDelta?: (text: string) => void;
   signal?: AbortSignal;
-  claudeRegistry?: ClaudeSessionRegistry<ClaudeSession>;
+  runtimeFactory?: ExecuteAcpTurnOptions["runtimeFactory"];
 };
 
 export type SendKidMessageOptions = SendMessageOptions;
 export type SendParentMessageOptions = SendMessageOptions;
 
-export type RequestCursorMarkerOptions = Omit<
-  SendMessageOptions,
-  "prompt" | "onDelta" | "claudeRegistry"
-> & {
+export type RequestCursorMarkerOptions = Omit<SendMessageOptions, "prompt" | "onDelta"> & {
   request: CursorMarkerRequest;
 };
 
@@ -75,18 +67,9 @@ export async function requestCursorMarker(
     return { ok: false, error: `Profile not found: ${opts.profileId}`, durationMs: 0 };
   }
 
-  const harnessId = opts.config.defaultHarness;
-  if (!harnessId) {
+  const agent = opts.config.defaultAgent;
+  if (!agent) {
     return { ok: false, error: "No default agent is configured", durationMs: 0 };
-  }
-
-  const binary = resolveBinary(harnessId, opts.config, opts.detection);
-  if (!binary) {
-    return {
-      ok: false,
-      error: `No binary found for default agent: ${harnessId}`,
-      durationMs: 0,
-    };
   }
 
   const paths = profilePathsFor(opts.layout, opts.profileId);
@@ -104,35 +87,24 @@ export async function requestCursorMarker(
       mode: "start",
     });
 
-    const result = await executeHarnessTurn({
-      paths,
-      harness: harnessId,
-      binary,
-      sessionId: randomUUID(),
-      mode: "start",
-      prompt,
-      agentPrompt,
-      role: "kid",
+    const result = await executeAcpTurn({
+      agent,
+      sessionKey: sessionKeyFor(opts.profileId, "kid", "cursor-marker", agent),
       cwd: paths.root,
-      spawn: opts.spawn,
-      now: opts.now,
-      onEvent: opts.onEvent,
+      stateDir: paths.acpxSessionsDir,
+      prompt: agentPrompt,
       signal: opts.signal,
-      recordTranscript: false,
-      recordSessionLog: false,
+      discardPersistentState: true,
+      runtimeFactory: opts.runtimeFactory,
     });
-    const exitedCleanly = result.run.exitCode === 0 && result.run.signal === null;
-    if (exitedCleanly && result.errorMessage === null) {
-      return { ok: true, text: result.text, durationMs: result.durationMs };
+    const durationMs = (opts.now ?? Date.now)() - startMs;
+    if (result.status === "completed") {
+      return { ok: true, text: result.text, durationMs };
     }
-    const stderr = result.run.stderr.trim();
-    const exitMessage = exitedCleanly
-      ? null
-      : `Agent exited with code=${result.run.exitCode ?? "null"} signal=${result.run.signal ?? "null"}`;
     return {
       ok: false,
-      error: stderr || exitMessage || result.errorMessage || "Agent failed",
-      durationMs: result.durationMs,
+      error: result.error || "Agent failed",
+      durationMs,
     };
   } catch (err) {
     const endMs = (opts.now ?? Date.now)();
@@ -148,7 +120,8 @@ async function sendMessage(
   opts: SendMessageOptions,
   role: SessionRole,
 ): Promise<SendMessageResult> {
-  const startMs = (opts.now ?? Date.now)();
+  const now = opts.now ?? Date.now;
+  const startMs = now();
   const prompt = opts.prompt.trim();
   if (prompt.length === 0) {
     return { ok: false, error: "Prompt must not be empty", durationMs: 0 };
@@ -159,45 +132,19 @@ async function sendMessage(
     return { ok: false, error: `Profile not found: ${opts.profileId}`, durationMs: 0 };
   }
 
-  const harnessId = opts.config.defaultHarness;
-  if (!harnessId) {
+  const agent = opts.config.defaultAgent;
+  if (!agent) {
     return { ok: false, error: "No default agent is configured", durationMs: 0 };
-  }
-
-  const binary = resolveBinary(harnessId, opts.config, opts.detection);
-  if (!binary) {
-    return {
-      ok: false,
-      error: `No binary found for default agent: ${harnessId}`,
-      durationMs: 0,
-    };
   }
 
   const paths = profilePathsFor(opts.layout, opts.profileId);
   await ensureProfileScaffold(opts.layout, paths, profile);
   const sessionId = role === "kid" ? profile.sessions.kid : profile.sessions.parent;
-
-  if (harnessId === "claude" && opts.claudeRegistry) {
-    return sendClaudeStreaming({
-      registry: opts.claudeRegistry,
-      layout: opts.layout,
-      paths,
-      profileId: opts.profileId,
-      profile,
-      role,
-      sessionId,
-      binary,
-      prompt,
-      spawn: opts.spawn,
-      onDelta: opts.onDelta,
-      now: opts.now,
-      signal: opts.signal,
-      startMs,
-    });
-  }
+  const startedAt = new Date(startMs).toISOString();
+  let mode: HarnessInvocationMode = "start";
 
   try {
-    const mode = await resolveMode(paths, sessionId);
+    mode = await resolveMode(paths, sessionId, agent);
     const injectSessionContext = shouldInjectSessionContext(role, profile, mode);
     const projectFiles =
       role === "kid" && injectSessionContext
@@ -208,7 +155,6 @@ async function sendMessage(
       role === "kid" && injectSessionContext
         ? await learningPlanForCurrentDream(opts.layout, opts.profileId, profile)
         : undefined;
-    let controlBlocks: HiBitControlBlock[] = [];
     const agentPrompt = withSessionContext({
       userPrompt: prompt,
       role,
@@ -220,214 +166,152 @@ async function sendMessage(
       mode: injectSessionContext ? "start" : mode,
     });
 
-    const result = await executeHarnessTurn({
-      paths,
-      harness: harnessId,
-      binary,
-      sessionId,
-      mode,
-      prompt,
-      agentPrompt,
+    await appendTranscriptEvent(paths, {
+      timestamp: startedAt,
       role,
-      cwd: paths.root,
-      spawn: opts.spawn,
-      now: opts.now,
-      onEvent: opts.onEvent,
-      signal: opts.signal,
-      transformAssistantText: (text) => {
-        controlBlocks = extractHiBitControlBlocks(text);
-        return stripHiBitControlBlocks(text);
-      },
+      sessionId,
+      kind: "user_message",
+      text: prompt,
     });
-    const exitedCleanly = result.run.exitCode === 0 && result.run.signal === null;
-    if (exitedCleanly && result.errorMessage === null) {
-      await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
-      return { ok: true, text: result.text, durationMs: result.durationMs };
-    }
-    const stderr = result.run.stderr.trim();
-    const exitMessage = exitedCleanly
-      ? null
-      : `Agent exited with code=${result.run.exitCode ?? "null"} signal=${result.run.signal ?? "null"}`;
-    return {
-      ok: false,
-      error: stderr || exitMessage || result.errorMessage || "Agent failed",
-      durationMs: result.durationMs,
-    };
-  } catch (err) {
-    const endMs = (opts.now ?? Date.now)();
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-      durationMs: endMs - startMs,
-    };
-  }
-}
-
-type SendClaudeStreamingOptions = {
-  registry: ClaudeSessionRegistry<ClaudeSession>;
-  layout: HiBitLayout;
-  paths: ProfilePaths;
-  profileId: string;
-  profile: Parameters<typeof withSessionContext>[0]["profile"];
-  role: SessionRole;
-  sessionId: string;
-  binary: string;
-  prompt: string;
-  spawn: HarnessSpawnFn;
-  onDelta?: (text: string) => void;
-  now?: () => number;
-  signal?: AbortSignal;
-  startMs: number;
-};
-
-async function sendClaudeStreaming(opts: SendClaudeStreamingOptions): Promise<SendMessageResult> {
-  const now = opts.now ?? Date.now;
-  const startedAt = new Date(opts.startMs).toISOString();
-  let mode: HarnessInvocationMode = "start";
-  let session: ClaudeSession | null = null;
-
-  await appendTranscriptEvent(opts.paths, {
-    timestamp: startedAt,
-    role: opts.role,
-    sessionId: opts.sessionId,
-    kind: "user_message",
-    text: opts.prompt,
-  });
-
-  const onAbort = () => session?.close();
-
-  try {
-    const key = ClaudeSessionRegistry.makeKey(opts.profileId, opts.role, opts.sessionId);
-    const isProcessFresh = !opts.registry.has(key);
-    mode = isProcessFresh ? await resolveMode(opts.paths, opts.sessionId) : "resume";
-    const injectSessionContext = shouldInjectSessionContext(opts.role, opts.profile, mode);
-    const projectFiles =
-      opts.role === "kid" && injectSessionContext
-        ? await projectFilesForCurrentDream(opts.paths, opts.profile)
-        : undefined;
-    const memory = injectSessionContext ? await readSessionMemory(opts.paths) : undefined;
-    const learningPlan =
-      opts.role === "kid" && injectSessionContext
-        ? await learningPlanForCurrentDream(opts.layout, opts.profileId, opts.profile)
-        : undefined;
-    session = opts.registry.getOrCreate(
-      key,
-      () =>
-        new ClaudeSession({
-          binary: opts.binary,
-          args: buildClaudeStreamArgs({ sessionId: opts.sessionId, mode }),
-          cwd: opts.paths.root,
-          sessionId: opts.sessionId,
-          spawn: opts.spawn as unknown as ClaudeSessionSpawnFn,
-        }),
-    );
-
-    const messageText = injectSessionContext
-      ? withSessionContext({
-          userPrompt: opts.prompt,
-          role: opts.role,
-          profile: opts.profile,
-          profileDir: opts.paths.root,
-          projectFiles,
-          memory,
-          learningPlan,
-          mode: "start",
-        })
-      : opts.prompt;
-
-    const turn = session.sendMessage(messageText);
-
-    if (opts.signal) {
-      if (opts.signal.aborted) session.close();
-      else opts.signal.addEventListener("abort", onAbort, { once: true });
-    }
 
     const streamFilter = opts.onDelta ? createHiBitControlStreamFilter(opts.onDelta) : null;
-    const drain = async () => {
-      for await (const ev of turn.events as AsyncIterable<ClaudeTurnEvent>) {
-        if (ev.kind === "delta") streamFilter?.push(ev.text);
-      }
-      streamFilter?.finish();
-    };
+    const result = await executeAcpTurn({
+      agent,
+      sessionKey: sessionKeyFor(opts.profileId, role, sessionId, agent),
+      cwd: paths.root,
+      stateDir: paths.acpxSessionsDir,
+      prompt: agentPrompt,
+      signal: opts.signal,
+      runtimeFactory: opts.runtimeFactory,
+      onDelta: (text) => streamFilter?.push(text),
+    });
+    streamFilter?.finish();
 
-    const [_drained, result] = await Promise.all([drain(), turn.complete]);
     const endMs = now();
     const endedAt = new Date(endMs).toISOString();
-
+    const durationMs = endMs - startMs;
     const controlBlocks = extractHiBitControlBlocks(result.text);
     const visibleText = stripHiBitControlBlocks(result.text);
-    await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
 
-    await appendTranscriptEvent(opts.paths, {
+    if (result.status === "completed") {
+      await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
+      await appendTranscriptEvent(paths, {
+        timestamp: endedAt,
+        role,
+        sessionId,
+        kind: "assistant_message",
+        text: visibleText,
+      });
+      await appendSessionLogEntry(
+        paths,
+        buildInvocationLogEntry({
+          timestamp: startedAt,
+          agent,
+          role,
+          sessionId,
+          mode,
+          durationMs,
+          success: true,
+          usage: result.usage,
+        }),
+      );
+      return { ok: true, text: visibleText, durationMs };
+    }
+
+    const error = result.error || "Agent failed";
+    await appendTranscriptEvent(paths, {
       timestamp: endedAt,
-      role: opts.role,
-      sessionId: opts.sessionId,
-      kind: "assistant_message",
-      text: visibleText,
+      role,
+      sessionId,
+      kind: "error",
+      text: error,
     });
-
-    const logEntry: HarnessInvocationLogEntry = {
-      timestamp: startedAt,
-      harness: "claude",
-      role: opts.role,
-      sessionId: opts.sessionId,
-      mode,
-      durationMs: endMs - opts.startMs,
-      exitCode: 0,
-      signal: null,
-      ...(result.usage
-        ? {
-            tokensInput: result.usage.inputTokens,
-            tokensOutput: result.usage.outputTokens,
-            cacheCreationInputTokens: result.usage.cacheCreationInputTokens,
-            cacheReadInputTokens: result.usage.cacheReadInputTokens,
-          }
-        : {}),
-    };
-    await appendSessionLogEntry(opts.paths, logEntry);
-
-    opts.signal?.removeEventListener("abort", onAbort);
-    return { ok: true, text: visibleText, durationMs: endMs - opts.startMs };
+    await appendSessionLogEntry(
+      paths,
+      buildInvocationLogEntry({
+        timestamp: startedAt,
+        agent,
+        role,
+        sessionId,
+        mode,
+        durationMs,
+        success: false,
+        usage: result.usage,
+      }),
+    );
+    return { ok: false, error, durationMs };
   } catch (err) {
-    opts.signal?.removeEventListener("abort", onAbort);
     const endMs = now();
     const message = err instanceof Error ? err.message : String(err);
-    await appendTranscriptEvent(opts.paths, {
+    await appendTranscriptEvent(paths, {
       timestamp: new Date(endMs).toISOString(),
-      role: opts.role,
-      sessionId: opts.sessionId,
+      role,
+      sessionId,
       kind: "error",
       text: message,
     });
-    await appendSessionLogEntry(opts.paths, {
+    await appendSessionLogEntry(paths, {
       timestamp: startedAt,
-      harness: "claude",
-      role: opts.role,
-      sessionId: opts.sessionId,
+      harness: agent,
+      role,
+      sessionId,
       mode,
-      durationMs: endMs - opts.startMs,
+      durationMs: endMs - startMs,
       exitCode: null,
       signal: null,
     });
-    return { ok: false, error: message, durationMs: endMs - opts.startMs };
+    return { ok: false, error: message, durationMs: endMs - startMs };
   }
 }
 
-function resolveBinary(
-  harness: HarnessId,
-  config: HiBitConfig,
-  detection: HarnessDetection,
-): string | null {
-  const configured = config.harness[harness]?.trim();
-  if (configured) return configured;
-  const detected = detection[harness];
-  return detected ?? null;
+function buildInvocationLogEntry(opts: {
+  timestamp: string;
+  agent: AgentId;
+  role: SessionRole;
+  sessionId: string;
+  mode: HarnessInvocationMode;
+  durationMs: number;
+  success: boolean;
+  usage: Awaited<ReturnType<typeof executeAcpTurn>>["usage"];
+}): HarnessInvocationLogEntry {
+  return {
+    timestamp: opts.timestamp,
+    harness: opts.agent,
+    role: opts.role,
+    sessionId: opts.sessionId,
+    mode: opts.mode,
+    durationMs: opts.durationMs,
+    exitCode: opts.success ? 0 : null,
+    signal: null,
+    ...(opts.usage
+      ? {
+          contextTokensUsed: opts.usage.contextTokensUsed,
+          ...(typeof opts.usage.contextTokensSize === "number"
+            ? { contextTokensSize: opts.usage.contextTokensSize }
+            : {}),
+        }
+      : {}),
+  };
 }
 
-async function resolveMode(paths: ProfilePaths, sessionId: string): Promise<HarnessInvocationMode> {
+function sessionKeyFor(
+  profileId: string,
+  role: SessionRole,
+  sessionId: string,
+  agent: AgentId,
+): string {
+  return `${profileId}:${role}:${sessionId}:${agent}`;
+}
+
+async function resolveMode(
+  paths: ProfilePaths,
+  sessionId: string,
+  agent: AgentId,
+): Promise<HarnessInvocationMode> {
   const entries = await readSessionLogEntries(paths);
   const hasPriorSuccess = entries.some(
-    (e) => e.sessionId === sessionId && e.exitCode === 0 && e.signal === null,
+    (e) =>
+      e.sessionId === sessionId && e.harness === agent && e.exitCode === 0 && e.signal === null,
   );
   return hasPriorSuccess ? "resume" : "start";
 }

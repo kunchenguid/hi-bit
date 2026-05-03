@@ -2,14 +2,18 @@
 
 ## What this project is
 
-Hi-Bit is a local-first Electron app that teaches kids (7-12) to build real web apps with an AI tutor called Bit. The parent brings their own agent harness (Claude Code, Codex, OpenCode); Hi-Bit shells out to it per kid-session. Everything - profiles, transcripts, progress, saved projects - lives on disk under Electron's `userData` dir. No telemetry, no cloud. MIT.
+Hi-Bit is a local-first Electron app that teaches kids (7-12) to build real web apps with an AI tutor called Bit.
+The parent picks a supported ACP agent (Claude Code, Codex, OpenCode), and Hi-Bit runs turns through ACPX per kid-session.
+Everything - profiles, transcripts, progress, saved projects - lives on disk under Electron's `userData` dir.
+No telemetry, no cloud.
+MIT.
 
 Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisions, `V1_GAPS.md` for what's tracked as still-open vs. resolved. `CONTRIBUTING.md` governs changes to the knowledge graph and dream library.
 
 ## Stack and layout
 
 - Electron 41, electron-vite, React 19, Zustand, CodeMirror 6, Vitest, Biome. TypeScript throughout.
-- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk profile layout (`state.md`, `progress.json`, transcripts, flags, project files, per-profile harness permission config); `harness/` detects and invokes the parent's agent harness; `graph/` loads the knowledge graph + dream library from `graph/` at the repo root.
+- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk profile layout (`state.md`, `progress.json`, transcripts, flags, project files, session logs, per-profile agent permission config); `agent/` owns ACPX availability and turn execution; `harness/` builds Bit chat turns around that agent layer; `graph/` loads the knowledge graph + dream library from `graph/` at the repo root.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds top-level views (kid home, dream picker, tutor chat, editor + live preview, parent gate, parent home with audit/mastery/directives/settings). `state/` is Zustand stores; `editor/` and `preview/` are the CodeMirror + iframe pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
@@ -88,7 +92,7 @@ Do not leave background dev apps, CDP endpoints, or AXI bridge processes running
 
 - Can: full renderer flow (navigation, forms, live preview, CodeMirror input, parent-mode PIN, mastery grid rendering).
 - Can: IPC round-trips through the preload bridge, since those run in the real main process against the real profile layout under Electron's `userData` dir.
-- Cannot directly: main-process internals (file writes, harness detection, spawn) except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
+- Cannot directly: main-process internals (file writes, ACPX agent start/turn execution) except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
 - Note: `npm run dev` uses the real userData dir, so E2E runs will create/modify profiles there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).
 
 ## Project conventions

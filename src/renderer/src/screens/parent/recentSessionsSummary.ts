@@ -1,10 +1,10 @@
-import type { HarnessId } from "@shared/config";
+import type { AgentId } from "@shared/config";
 import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog";
 
 export type RecentSessionsOverviewEntry = {
   sessionId: string;
   role: SessionRole;
-  harness: HarnessId;
+  harness: AgentId;
   firstAt: string;
   lastAt: string;
   turnCount: number;

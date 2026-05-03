@@ -13,7 +13,6 @@ function mockHiBit(partial: Partial<HiBitApi>): void {
       createProfile: vi.fn(),
       getConfig: vi.fn(),
       updateConfig: vi.fn(),
-      detectHarnesses: vi.fn(),
       getKnowledgeGraph: vi.fn(),
       getDreams: vi.fn(),
       setCurrentDream: vi.fn(),
