@@ -102,11 +102,15 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
     return { status: result.status, text, usage };
   } finally {
     if (handle) {
-      await runtime.close({
-        handle,
-        reason: "turn complete",
-        discardPersistentState: opts.discardPersistentState ?? false,
-      });
+      try {
+        await runtime.close({
+          handle,
+          reason: "turn complete",
+          discardPersistentState: opts.discardPersistentState ?? false,
+        });
+      } catch (err) {
+        void err;
+      }
     }
   }
 }

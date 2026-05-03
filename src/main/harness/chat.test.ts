@@ -184,6 +184,35 @@ describe("ACP-backed chat", () => {
     expect(log.map((entry) => entry.mode)).toEqual(["start", "resume"]);
   });
 
+  it("injects the full preamble when the default agent changes", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "one" }, { text: "two" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "first",
+      runtimeFactory,
+    });
+    await sendKidMessage({
+      layout,
+      config: { version: 2, defaultAgent: "codex" },
+      profileId: profile.id,
+      prompt: "second",
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain("<hi-bit:context>");
+    expect(prompts[1]).toContain("<hi-bit:context>");
+    expect(prompts[1]).toMatch(/second$/);
+    const log = await readSessionLogEntries(profilePathsFor(layout, profile.id));
+    expect(log.map((entry) => [entry.harness, entry.mode])).toEqual([
+      ["claude", "start"],
+      ["codex", "start"],
+    ]);
+  });
+
   it("records resume mode when a resumed turn throws", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     await sendKidMessage({

@@ -144,7 +144,7 @@ async function sendMessage(
   let mode: HarnessInvocationMode = "start";
 
   try {
-    mode = await resolveMode(paths, sessionId);
+    mode = await resolveMode(paths, sessionId, agent);
     const injectSessionContext = shouldInjectSessionContext(role, profile, mode);
     const projectFiles =
       role === "kid" && injectSessionContext
@@ -289,10 +289,15 @@ function sessionKeyFor(
   return `${profileId}:${role}:${sessionId}:${agent}`;
 }
 
-async function resolveMode(paths: ProfilePaths, sessionId: string): Promise<HarnessInvocationMode> {
+async function resolveMode(
+  paths: ProfilePaths,
+  sessionId: string,
+  agent: AgentId,
+): Promise<HarnessInvocationMode> {
   const entries = await readSessionLogEntries(paths);
   const hasPriorSuccess = entries.some(
-    (e) => e.sessionId === sessionId && e.exitCode === 0 && e.signal === null,
+    (e) =>
+      e.sessionId === sessionId && e.harness === agent && e.exitCode === 0 && e.signal === null,
   );
   return hasPriorSuccess ? "resume" : "start";
 }

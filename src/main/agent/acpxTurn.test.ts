@@ -1,3 +1,4 @@
+import type { AcpRuntimeTurnResult } from "acpx/runtime";
 import { describe, expect, it, vi } from "vitest";
 import { executeAcpTurn } from "./acpxTurn";
 
@@ -10,7 +11,13 @@ async function* asyncEvents(events: FakeEvent[]): AsyncGenerator<FakeEvent, void
   for (const event of events) yield event;
 }
 
-function createFakeRuntime(events: FakeEvent[]) {
+function createFakeRuntime(
+  events: FakeEvent[],
+  options: {
+    close?: (input: unknown) => Promise<void>;
+    result?: Promise<AcpRuntimeTurnResult>;
+  } = {},
+) {
   const calls: {
     ensureSession: unknown[];
     startTurn: unknown[];
@@ -31,13 +38,14 @@ function createFakeRuntime(events: FakeEvent[]) {
       return {
         requestId: (input as { requestId: string }).requestId,
         events: asyncEvents(events),
-        result: Promise.resolve({ status: "completed" as const }),
+        result: options.result ?? Promise.resolve({ status: "completed" as const }),
         cancel: vi.fn(async () => {}),
         closeStream: vi.fn(async () => {}),
       };
     }),
     close: vi.fn(async (input: unknown) => {
       calls.close.push(input);
+      await options.close?.(input);
     }),
   };
   return { runtime, calls, handle };
@@ -128,6 +136,52 @@ describe("executeAcpTurn", () => {
         discardPersistentState: true,
       },
     ]);
+  });
+
+  it("returns a completed turn when runtime close fails after success", async () => {
+    const { runtime } = createFakeRuntime([{ type: "text_delta", text: "Done." }], {
+      close: async () => {
+        throw new Error("close unsupported");
+      },
+    });
+
+    const result = await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:cursor-marker:claude",
+      cwd: "/profiles/ada",
+      stateDir: "/profiles/ada/.acpx-sessions",
+      prompt: "hello",
+      discardPersistentState: true,
+      runtimeFactory: () => runtime,
+    });
+
+    expect(result).toEqual({ status: "completed", text: "Done.", usage: null });
+  });
+
+  it("returns a failed turn when runtime close fails after agent failure", async () => {
+    const { runtime } = createFakeRuntime([{ type: "text_delta", text: "Nope." }], {
+      result: Promise.resolve({ status: "failed" as const, error: { message: "agent failed" } }),
+      close: async () => {
+        throw new Error("close unsupported");
+      },
+    });
+
+    const result = await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:cursor-marker:claude",
+      cwd: "/profiles/ada",
+      stateDir: "/profiles/ada/.acpx-sessions",
+      prompt: "hello",
+      discardPersistentState: true,
+      runtimeFactory: () => runtime,
+    });
+
+    expect(result).toEqual({
+      status: "failed",
+      text: "Nope.",
+      usage: null,
+      error: "agent failed",
+    });
   });
 
   it("streams only visible output text to onDelta", async () => {
