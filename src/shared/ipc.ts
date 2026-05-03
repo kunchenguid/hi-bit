@@ -12,6 +12,7 @@ import type { TranscriptEvent } from "./transcript";
 export type BitDeltaEvent = {
   role: SessionRole;
   profileId: string;
+  requestId?: string;
   text: string;
 };
 
@@ -55,7 +56,12 @@ export type HiBitApi = {
   getDreams: () => Promise<DreamValidation>;
   setCurrentDream: (profileId: string, dreamId: string) => Promise<Profile>;
   updateProfileSettings: (profileId: string, settings: ProfileSettingsInput) => Promise<Profile>;
-  sendKidMessage: (profileId: string, prompt: string) => Promise<SendMessageResult>;
+  sendKidMessage: (
+    profileId: string,
+    prompt: string,
+    requestId?: string,
+  ) => Promise<SendMessageResult>;
+  cancelKidMessage: (requestId: string) => Promise<void>;
   requestCursorMarker: (
     profileId: string,
     request: CursorMarkerRequest,

@@ -180,6 +180,17 @@ describe("describeDreamReadiness", () => {
     ).toBe("Bit will teach 4 new skills");
   });
 
+  it("uses singular skill copy when one skill is required", () => {
+    expect(
+      describeDreamReadiness({
+        requiredCount: 1,
+        readyCount: 0,
+        unknownCount: 0,
+        allReady: false,
+      }),
+    ).toBe("Bit will teach 1 new skill");
+  });
+
   it("returns a 'You know X of Y skills' message for partial readiness", () => {
     expect(
       describeDreamReadiness({

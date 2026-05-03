@@ -3,7 +3,7 @@ title_parent: Function declarations
 title_kid: teaching the computer a new trick
 why_kid: this is how you teach the computer a new move once and then use it again and again just by saying its name - it saves you from copying the same lines over and over.
 area: js
-prereqs: [js-if-else]
+prereqs: [events-click]
 introduces: [function-declaration, function-body, reusable-code]
 mastery_signals:
   saw_it: Bit declared a function in the kid's code, called it a couple of times, and pointed out that the body is the trick and the name is how the kid tells the computer to do it.

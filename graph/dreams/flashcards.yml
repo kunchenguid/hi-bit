@@ -6,7 +6,6 @@ emoji: "🃏"
 categories: [utility]
 interest_tags: [learning, studying, school, quizzes]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-div-span
   - html-buttons

@@ -6,11 +6,11 @@ emoji: "🎂"
 categories: [creative, personal]
 interest_tags: [family, friends, holidays, party]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-images
   - html-div-span
+  - css-colors
 style_hints:
   - whose birthday it is
   - the big message at the top

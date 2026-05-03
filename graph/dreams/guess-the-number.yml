@@ -6,7 +6,6 @@ emoji: "🎯"
 categories: [arcade, utility]
 interest_tags: [games, numbers, guessing, logic, chance]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-inputs-number

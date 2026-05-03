@@ -1,0 +1,12 @@
+id: html-id-attribute
+title_parent: id attribute
+title_kid: one special name for one thing
+why_kid: an id gives one exact page thing a special name so styles or code can find it later.
+area: html
+prereqs: [html-attributes-basics]
+introduces: [id-attribute, unique-element-name, element-identifier]
+mastery_signals:
+  saw_it: Bit gave one element an id and used that id to point to the exact element later.
+  did_with_help: Kid added an id to one element with Bit reminding them that the name should belong to only one thing on the page.
+  did_unprompted: Kid added an id when they needed code or a style rule to find one specific element.
+  explained_it: Kid said an id is a special name for one exact element.

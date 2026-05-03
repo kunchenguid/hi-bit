@@ -6,7 +6,6 @@ emoji: "🏷️"
 categories: [utility, creative]
 interest_tags: [school, events, names, labels]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-inputs-text
   - html-labels

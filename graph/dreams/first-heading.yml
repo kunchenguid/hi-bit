@@ -1,0 +1,13 @@
+id: first-heading
+title_parent: First heading
+title_kid: one big title
+summary_kid: make a page with one big title about anything you like
+emoji: "🏷️"
+categories: [creative, personal]
+interest_tags: [first, names, writing]
+requires:
+  - html-text-headings
+style_hints:
+  - what the title should say
+  - who the page is for
+  - whether the title should be silly or serious

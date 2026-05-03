@@ -6,18 +6,9 @@ emoji: "🌟"
 categories: [art, creative]
 interest_tags: [stars, night, space, animation, drawing]
 requires:
-  - html-doc-shell
-  - run-and-preview
-  - js-attach
-  - dom-query-selector
-  - canvas-setup
-  - canvas-fillrect
-  - canvas-clear
   - canvas-circle
   - canvas-text
-  - animation-raf
   - project-game-loop
-  - js-arrays
   - js-for-of
   - js-math-random
 style_hints:

@@ -19,6 +19,8 @@ export function isFirstDreamPicker(progress: Progress | null): boolean {
 export function pickGreatFirstDreamIds(dreams: readonly Dream[]): Set<string> {
   const candidates = dreams.filter((d) => d.requires.length > 0);
   const sorted = [...candidates].sort((a, b) => {
+    const byDifficulty = a.difficulty - b.difficulty;
+    if (byDifficulty !== 0) return byDifficulty;
     const byCount = a.requires.length - b.requires.length;
     if (byCount !== 0) return byCount;
     return a.id.localeCompare(b.id);

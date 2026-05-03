@@ -6,17 +6,9 @@ emoji: "🐍"
 categories: [arcade]
 interest_tags: [games, snake, keyboard, canvas]
 requires:
-  - html-doc-shell
-  - run-and-preview
-  - js-attach
-  - dom-query-selector
-  - canvas-setup
-  - canvas-fillrect
-  - canvas-clear
   - canvas-keyboard-move
   - canvas-collision-bounds
   - timers-setinterval
-  - js-arrays
   - js-array-push
   - js-array-length
   - js-math-random

@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import type { Profile } from "@shared/profile";
+import { emptyProgress } from "@shared/progress";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CodeMirrorCursorMarker } from "../editor/CodeMirrorEditor";
 import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
+import { useProgressStore } from "../state/progressStore";
 import { useProjectsStore } from "../state/projectsStore";
 import { CodeEditor } from "./CodeEditor";
 
@@ -58,6 +60,7 @@ describe("CodeEditor cursor marker", () => {
       subscriptionId: null,
     });
     useGraphStore.setState({ status: "ready", graph: null, library: null });
+    useProgressStore.setState({ profileId: profile.id, status: "ready", progress: null });
     window.hibit = {
       subscribeProjectFiles: vi.fn(async () => ({ id: "sub-1", close: vi.fn() })),
       openProjectFolder: vi.fn(async () => ({ ok: true, path: "/tmp/project" })),
@@ -77,6 +80,7 @@ describe("CodeEditor cursor marker", () => {
       error: null,
     });
     useChatStore.getState().reset();
+    useProgressStore.getState().reset();
     vi.restoreAllMocks();
   });
 
@@ -132,6 +136,120 @@ describe("CodeEditor cursor marker", () => {
     expect(previewPane?.hasAttribute("hidden")).toBe(false);
     expect((previewPane as HTMLElement | null)?.style.display).toBe("");
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Page");
+  });
+
+  it("records run-and-preview progress when the kid clicks See my page", async () => {
+    const updateStatus = vi.fn(async () => {});
+    useProgressStore.setState({ updateStatus });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).toHaveBeenCalledWith(
+      "run-and-preview",
+      "did_with_help",
+      "Clicked See my page and viewed the live preview.",
+    );
+  });
+
+  it("does not downgrade stronger run-and-preview progress", async () => {
+    const updateStatus = vi.fn(async () => {});
+    useProgressStore.setState({
+      updateStatus,
+      progress: {
+        ...emptyProgress(),
+        knowledgePoints: {
+          "run-and-preview": {
+            status: "did_unprompted",
+            firstSeenAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        },
+      },
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("does not unskip skipped run-and-preview progress", async () => {
+    const updateStatus = vi.fn(async () => {});
+    useProgressStore.setState({
+      updateStatus,
+      progress: {
+        ...emptyProgress(),
+        knowledgePoints: {
+          "run-and-preview": {
+            status: "saw_it",
+            firstSeenAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+            skipped: true,
+          },
+        },
+      },
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("does not record run-and-preview against a different loaded profile", async () => {
+    const updateStatus = vi.fn(async () => {});
+    useProgressStore.setState({
+      profileId: "kid-2",
+      status: "ready",
+      progress: emptyProgress(),
+      updateStatus,
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).not.toHaveBeenCalled();
   });
 
   it("reveals the editor when a cursor target arrives in page mode", async () => {

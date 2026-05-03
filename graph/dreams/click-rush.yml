@@ -6,17 +6,8 @@ emoji: "⏱️"
 categories: [arcade]
 interest_tags: [games, speed, numbers, buttons]
 requires:
-  - html-doc-shell
-  - html-text-headings
-  - html-div-span
   - html-buttons
-  - css-attach
   - css-colors
-  - js-attach
-  - dom-query-selector
-  - dom-text-content
-  - events-click
-  - state-counter
   - timers-settimeout
   - project-score
   - project-reset

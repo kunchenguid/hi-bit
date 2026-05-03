@@ -3,7 +3,7 @@ title_parent: HTML document shell
 title_kid: the frame that holds your page
 why_kid: every page on the web needs this outside wrapper before anything else can show up.
 area: html
-prereqs: []
+prereqs: [html-head-title]
 introduces: [doctype, html-root, head, body, page-title]
 mastery_signals:
   saw_it: Bit wrote the first index.html with <!doctype html>, <html>, <head>, <title>, <body>, and named each part in plain language.

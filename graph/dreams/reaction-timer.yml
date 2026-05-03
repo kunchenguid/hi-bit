@@ -6,7 +6,6 @@ emoji: "⚡"
 categories: [arcade]
 interest_tags: [games, speed, reflex, numbers]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-div-span
   - html-buttons

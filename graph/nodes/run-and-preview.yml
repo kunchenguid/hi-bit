@@ -1,7 +1,7 @@
 id: run-and-preview
 title_parent: Using See my page and the live preview
 title_kid: running your code and seeing what happens
-why_kid: this is how you watch your page come to life - press See my page and your code turns into a real page.
+why_kid: this is how you watch your page come to life - See my page turns your code into a real page.
 area: html
 prereqs: []
 introduces: [see-my-page, page-view, split-view, live-preview, edit-preview-loop]

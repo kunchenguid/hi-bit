@@ -6,7 +6,6 @@ emoji: "✅"
 categories: [utility]
 interest_tags: [lists, organizing, homework, planning]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-labels
   - html-inputs-text

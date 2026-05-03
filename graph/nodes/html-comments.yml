@@ -3,7 +3,7 @@ title_parent: HTML comments
 title_kid: notes that don't show up on the page
 why_kid: you can leave little reminders for yourself right in the code, and nobody else sees them.
 area: html
-prereqs: [html-doc-shell]
+prereqs: [html-page-body]
 introduces: [comment-syntax, hidden-notes]
 mastery_signals:
   saw_it: Bit left an HTML comment in the kid's file and showed them that the comment text does not appear in the preview.

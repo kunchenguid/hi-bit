@@ -9,6 +9,12 @@ const shippedNodesDir = resolve(__dirname, "../../../graph/nodes");
 const shippedDreamsDir = resolve(__dirname, "../../../graph/dreams");
 
 describe("shipped knowledge graph content", () => {
+  function depthOf(id: string, byId: Record<string, { prereqs: string[] }>): number {
+    const node = byId[id];
+    if (!node || node.prereqs.length === 0) return 0;
+    return 1 + Math.max(...node.prereqs.map((prereq) => depthOf(prereq, byId)));
+  }
+
   it("parses and validates without errors", async () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) {
@@ -17,16 +23,46 @@ describe("shipped knowledge graph content", () => {
     expect(validation.graph.nodes.length).toBeGreaterThan(0);
   });
 
-  it("includes html-doc-shell as a foundations node with no prereqs", async () => {
+  it("starts zero-knowledge kids with the preview loop before code concepts", async () => {
+    const validation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!validation.ok) throw new Error("expected ok");
+    const roots = validation.graph.nodes.filter((node) => node.prereqs.length === 0);
+    expect(roots.map((node) => node.id)).toEqual(["run-and-preview"]);
+  });
+
+  it("ramps HTML through page parts, tags, visible body content, and attributes", async () => {
+    const validation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!validation.ok) throw new Error("expected ok");
+    expect(validation.graph.byId["web-page-parts"]?.prereqs).toEqual(["run-and-preview"]);
+    expect(validation.graph.byId["html-tags-basics"]?.prereqs).toEqual(["web-page-parts"]);
+    expect(validation.graph.byId["html-page-body"]?.prereqs).toEqual(["html-tags-basics"]);
+    expect(validation.graph.byId["html-attributes-basics"]?.prereqs).toEqual(["html-page-body"]);
+    expect(validation.graph.byId["html-doc-shell"]?.prereqs).toEqual(["html-head-title"]);
+  });
+
+  it("keeps click interactivity reachable before full branching and reusable functions", async () => {
+    const validation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!validation.ok) throw new Error("expected ok");
+    expect(validation.graph.byId["events-click"]?.prereqs).toEqual([
+      "dom-query-selector",
+      "event-callback-basics",
+      "html-buttons",
+    ]);
+    expect(depthOf("events-click", validation.graph.byId)).toBeLessThan(
+      depthOf("js-functions-define", validation.graph.byId),
+    );
+  });
+
+  it("includes html-doc-shell after visible page basics", async () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) throw new Error("expected ok");
     const shell = validation.graph.byId["html-doc-shell"];
     expect(shell).toBeDefined();
-    expect(shell.prereqs).toEqual([]);
+    expect(shell.prereqs).toEqual(["html-head-title"]);
     expect(shell.area).toBe("html");
   });
 
-  it("includes run-and-preview as a second foundations node with no prereqs", async () => {
+  it("includes run-and-preview as the foundations node with no prereqs", async () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) throw new Error("expected ok");
     const preview = validation.graph.byId["run-and-preview"];
@@ -38,6 +74,12 @@ describe("shipped knowledge graph content", () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) throw new Error("expected ok");
     const expected = [
+      "web-page-parts",
+      "html-tags-basics",
+      "html-page-body",
+      "html-head-title",
+      "html-attributes-basics",
+      "html-id-attribute",
       "html-doc-shell",
       "html-text-headings",
       "html-text-paragraphs",
@@ -63,6 +105,7 @@ describe("shipped knowledge graph content", () => {
     if (!validation.ok) throw new Error("expected ok");
     const expected = [
       "css-attach",
+      "css-rule-basics",
       "css-selectors-element",
       "css-selectors-class-id",
       "css-colors",
@@ -92,6 +135,8 @@ describe("shipped knowledge graph content", () => {
     if (!validation.ok) throw new Error("expected ok");
     const expected = [
       "js-attach",
+      "js-instructions-basics",
+      "js-function-call-basics",
       "js-console-log",
       "js-variables-let-const",
       "js-strings",
@@ -125,6 +170,7 @@ describe("shipped knowledge graph content", () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) throw new Error("expected ok");
     const expected = [
+      "dom-page-tree-basics",
       "dom-query-selector",
       "dom-text-content",
       "dom-change-style",
@@ -143,7 +189,13 @@ describe("shipped knowledge graph content", () => {
   it("covers the full v1 Events node set from docs/knowledge-graph.md", async () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) throw new Error("expected ok");
-    const expected = ["events-click", "events-keydown", "events-input", "events-change"];
+    const expected = [
+      "event-callback-basics",
+      "events-click",
+      "events-keydown",
+      "events-input",
+      "events-change",
+    ];
     for (const id of expected) {
       const kp = validation.graph.byId[id];
       expect(kp, `missing KP ${id}`).toBeDefined();
@@ -240,6 +292,70 @@ describe("shipped dream library content", () => {
     expect(dreamValidation.library.byId["click-me"]).toBeDefined();
   });
 
+  it("includes starter and bridge dreams for the revised zero-knowledge ramp", async () => {
+    const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!graphValidation.ok) throw new Error("expected graph to validate");
+    const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
+    if (!dreamValidation.ok) throw new Error("expected dreams to validate");
+    const expected = [
+      "show-me-around",
+      "web-page-map",
+      "tag-sandwich",
+      "page-frame",
+      "first-heading",
+      "tiny-poster",
+      "emoji-button",
+      "style-rule-practice",
+      "message-button",
+      "type-mirror",
+      "random-picker",
+      "canvas-rectangle",
+    ];
+    for (const id of expected) {
+      expect(dreamValidation.library.byId[id], `missing dream ${id}`).toBeDefined();
+    }
+  });
+
+  it("spreads shipped dreams across beginner, middle, and advanced difficulties", async () => {
+    const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!graphValidation.ok) throw new Error("expected graph to validate");
+    const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
+    if (!dreamValidation.ok) throw new Error("expected dreams to validate");
+    const byDifficulty = new Map<number, number>();
+    for (const dream of dreamValidation.library.dreams) {
+      byDifficulty.set(dream.difficulty, (byDifficulty.get(dream.difficulty) ?? 0) + 1);
+    }
+    expect(byDifficulty.get(1) ?? 0).toBeGreaterThanOrEqual(1);
+    expect(byDifficulty.get(2) ?? 0).toBeGreaterThanOrEqual(2);
+    expect(byDifficulty.get(3) ?? 0).toBeGreaterThanOrEqual(4);
+    expect(byDifficulty.get(4) ?? 0).toBeGreaterThanOrEqual(4);
+    expect(byDifficulty.get(5) ?? 0).toBeLessThan(36);
+  });
+
+  it("only the explicit page-frame dream directly requires the full HTML shell", async () => {
+    const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!graphValidation.ok) throw new Error("expected graph to validate");
+    const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
+    if (!dreamValidation.ok) throw new Error("expected dreams to validate");
+    const shellDreams = dreamValidation.library.dreams
+      .filter((dream) => dream.requires.includes("html-doc-shell"))
+      .map((dream) => dream.id)
+      .sort();
+    expect(shellDreams).toEqual(["page-frame"]);
+  });
+
+  it("keeps dream requirements aligned with kid-facing summaries", async () => {
+    const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!graphValidation.ok) throw new Error("expected graph to validate");
+    const dreamValidation = await loadDreams(shippedDreamsDir, graphValidation.graph);
+    if (!dreamValidation.ok) throw new Error("expected dreams to validate");
+    expect(dreamValidation.library.byId["pet-page"].requires).toContain("html-images");
+    expect(dreamValidation.library.byId["pet-page"].requires).not.toContain("html-comments");
+    expect(dreamValidation.library.byId["birthday-card"].requires).toContain("css-colors");
+    expect(dreamValidation.library.byId["style-card"].requires).toContain("css-text-font");
+    expect(dreamValidation.library.byId["bouncing-ball"].requires).toContain("canvas-circle");
+  });
+
   it("covers the expanded v1 dream library spanning all five categories", async () => {
     const graphValidation = await loadKnowledgeGraph(shippedNodesDir);
     if (!graphValidation.ok) throw new Error("expected graph to validate");
@@ -286,6 +402,18 @@ describe("shipped dream library content", () => {
       "mad-libs",
       "starry-sky",
       "photo-scrapbook",
+      "show-me-around",
+      "web-page-map",
+      "tag-sandwich",
+      "page-frame",
+      "first-heading",
+      "tiny-poster",
+      "emoji-button",
+      "style-rule-practice",
+      "message-button",
+      "type-mirror",
+      "random-picker",
+      "canvas-rectangle",
     ];
     for (const id of expected) {
       expect(dreamValidation.library.byId[id], `missing dream ${id}`).toBeDefined();

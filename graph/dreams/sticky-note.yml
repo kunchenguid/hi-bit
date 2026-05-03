@@ -6,7 +6,6 @@ emoji: "📝"
 categories: [personal, utility]
 interest_tags: [writing, notes, journal, memory, secrets]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-labels
   - html-inputs-text

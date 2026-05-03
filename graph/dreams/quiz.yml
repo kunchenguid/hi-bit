@@ -6,7 +6,6 @@ emoji: "❓"
 categories: [utility, arcade]
 interest_tags: [games, questions, learning, school]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-div-span

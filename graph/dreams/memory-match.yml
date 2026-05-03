@@ -6,24 +6,14 @@ emoji: "🧠"
 categories: [arcade]
 interest_tags: [games, memory, cards, matching]
 requires:
-  - html-doc-shell
   - html-div-span
-  - css-attach
-  - css-selectors-class-id
-  - css-colors
   - css-background
-  - css-box-model
   - css-border-radius
   - css-grid-basics
-  - js-attach
-  - dom-query-selector
-  - dom-text-content
   - dom-class-toggle
   - dom-create-append
   - events-click
   - timers-settimeout
-  - js-arrays
-  - js-array-length
   - js-math-random
   - js-if-else
   - state-counter

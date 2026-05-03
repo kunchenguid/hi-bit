@@ -6,18 +6,10 @@ emoji: "🚦"
 categories: [utility, art]
 interest_tags: [cars, traffic, colors, timers]
 requires:
-  - html-doc-shell
   - html-div-span
-  - css-attach
-  - css-selectors-class-id
-  - css-colors
   - css-background
-  - css-box-model
   - css-border-radius
   - css-width-height
-  - css-flex-basics
-  - js-attach
-  - dom-query-selector
   - dom-class-toggle
   - timers-setinterval
 style_hints:

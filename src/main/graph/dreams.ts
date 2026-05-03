@@ -74,16 +74,16 @@ export function parseDream(yaml: string): DreamDefinition {
 function scoreKpDepth(depth: number): DreamDifficulty {
   if (depth <= 1) return 1;
   if (depth <= 3) return 2;
-  if (depth <= 5) return 3;
-  if (depth <= 7) return 4;
+  if (depth <= 6) return 3;
+  if (depth <= 10) return 4;
   return 5;
 }
 
 function scoreKpCount(count: number): DreamDifficulty {
   if (count <= 2) return 1;
   if (count <= 4) return 2;
-  if (count <= 7) return 3;
-  if (count <= 10) return 4;
+  if (count <= 8) return 3;
+  if (count <= 24) return 4;
   return 5;
 }
 

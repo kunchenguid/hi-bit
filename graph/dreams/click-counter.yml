@@ -6,7 +6,6 @@ emoji: "🔢"
 categories: [arcade, utility]
 interest_tags: [games, numbers, buttons]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-buttons
   - js-attach

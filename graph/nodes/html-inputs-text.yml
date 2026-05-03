@@ -3,7 +3,7 @@ title_parent: Text input
 title_kid: a place where the kid types
 why_kid: inputs are how a visitor types something into your page, like their name or a guess.
 area: html
-prereqs: [html-doc-shell]
+prereqs: [html-attributes-basics]
 introduces: [input-tag, type-attribute, text-input]
 mastery_signals:
   saw_it: Bit added an input of type text to the kid's page and pointed out the typing box in the preview.

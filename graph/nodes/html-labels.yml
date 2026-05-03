@@ -3,7 +3,7 @@ title_parent: Form labels
 title_kid: telling inputs what they are
 why_kid: this tells a visitor what each box is for, like name or age, so they don't have to guess what to type.
 area: html
-prereqs: [html-inputs-text]
+prereqs: [html-inputs-text, html-id-attribute]
 introduces: [label-tag, for-attribute, input-id-pairing]
 mastery_signals:
   saw_it: Bit added a label tag next to the kid's input and pointed out how clicking the label focuses the input.

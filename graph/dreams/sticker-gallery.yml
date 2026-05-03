@@ -6,7 +6,6 @@ emoji: "✨"
 categories: [art, creative]
 interest_tags: [stickers, art, design, collecting]
 requires:
-  - html-doc-shell
   - html-div-span
   - css-attach
   - css-colors

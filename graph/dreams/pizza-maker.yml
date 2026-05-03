@@ -6,7 +6,6 @@ emoji: "🍕"
 categories: [creative, utility]
 interest_tags: [food, cooking, pizza, choices, building]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-div-span
   - html-labels

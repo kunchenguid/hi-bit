@@ -1,0 +1,15 @@
+id: message-button
+title_parent: Message button
+title_kid: a button that changes a message
+summary_kid: click a button and make the words on the page change to a message you picked
+emoji: "💬"
+categories: [arcade, creative]
+interest_tags: [buttons, jokes, messages]
+requires:
+  - html-buttons
+  - dom-text-content
+  - events-click
+style_hints:
+  - the button label
+  - the starting message
+  - the message after the click

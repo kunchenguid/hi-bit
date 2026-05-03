@@ -3,7 +3,7 @@ title_parent: id and class attributes
 title_kid: names and categories for your elements
 why_kid: giving things names lets you find one exact piece of your page later or grab a whole group of things at once to style them or change them.
 area: html
-prereqs: [html-div-span]
+prereqs: [html-div-span, html-id-attribute]
 introduces: [id-attribute, class-attribute, element-identifier, element-group]
 mastery_signals:
   saw_it: Bit added an id to one element and a class to a group of elements on the kid's page and pointed out how each attribute is a way to find those elements later.

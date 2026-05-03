@@ -129,6 +129,12 @@ export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element
     return [...library.dreams].sort((a, b) => {
       const byGreatFirst = greatFirst(b) - greatFirst(a);
       if (byGreatFirst !== 0) return byGreatFirst;
+      if (greatFirst(a) > 0 && greatFirst(b) > 0) {
+        const byDifficulty = a.difficulty - b.difficulty;
+        if (byDifficulty !== 0) return byDifficulty;
+        const byRequiredCount = a.requires.length - b.requires.length;
+        if (byRequiredCount !== 0) return byRequiredCount;
+      }
       return matchScore(b) - matchScore(a);
     });
   }, [library, profile.interests, isFirstTimer, greatFirstDreamIds]);

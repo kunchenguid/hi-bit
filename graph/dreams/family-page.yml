@@ -6,7 +6,6 @@ emoji: "👨‍👩‍👧"
 categories: [personal, creative]
 interest_tags: [family, relatives, people, photos]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-images

@@ -1,0 +1,14 @@
+id: canvas-rectangle
+title_parent: Canvas rectangle
+title_kid: draw one rectangle
+summary_kid: make a drawing area and draw one colorful rectangle on it
+emoji: "▭"
+categories: [art, creative]
+interest_tags: [drawing, shapes, colors]
+requires:
+  - canvas-setup
+  - canvas-fillrect
+style_hints:
+  - the rectangle color
+  - where the rectangle goes
+  - how big the rectangle should be

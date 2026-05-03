@@ -305,15 +305,17 @@ Name the one or two pieces inside that snippet that drove the visible result.
 
 ### How: mastery tracking
 
-The kid's UI shows a "you just learned X" banner and a per-dream skills checklist that are driven entirely by `progress.json`.
-Hi Bit updates `progress.json` from hidden `<hi-bit:progress>` blocks in your replies.
-If you do not emit those blocks, the kid sees zero on-screen progress feedback even when they finish things.
+The kid's UI shows a "you just learned X" banner and a per-dream skills checklist that are driven by `progress.json`.
+Hi Bit usually updates `progress.json` from hidden `<hi-bit:progress>` blocks in your replies.
+The editor also records `run-and-preview` as `did_with_help` automatically when the kid clicks See my page and views the live preview.
+For all other progress, if you do not emit those blocks, the kid sees zero on-screen progress feedback even when they finish things.
 Emitting progress is part of the teaching loop, not a side task.
 
 #### When to write
 
 - The first time you teach or check a KP this session, include a hidden `<hi-bit:progress>` block with `status: "saw_it"` for that KP id before your reply ends.
   Every KP the kid touches at any level must appear there.
+  You may still emit `run-and-preview` when you explicitly teach what See my page does, but do not repeat it just because the kid clicked the button.
 - If the kid then changes a line under your guidance, bump to `did_with_help`.
 - For `html-doc-shell`, if the kid identifies the `doctype` or `<html>` wrapper and what sits inside `<body>`, bump it to `did_with_help`.
 - If the kid reaches for the pattern on their own later in the session, bump to `did_unprompted`.

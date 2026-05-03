@@ -1,0 +1,13 @@
+id: style-rule-practice
+title_parent: First style rule
+title_kid: one rule that changes how things look
+summary_kid: write one style rule and watch it change something on the page
+emoji: "🎛️"
+categories: [art, creative]
+interest_tags: [colors, design, first]
+requires:
+  - css-rule-basics
+style_hints:
+  - what thing the rule should style
+  - which look to change first
+  - what change to check in the preview

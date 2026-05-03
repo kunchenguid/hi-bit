@@ -6,7 +6,6 @@ emoji: "📖"
 categories: [creative, arcade]
 interest_tags: [writing, stories, silly, words, games]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-div-span

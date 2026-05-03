@@ -6,7 +6,6 @@ emoji: "👉"
 categories: [creative, arcade]
 interest_tags: [games, silly, buttons]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-buttons
 style_hints:

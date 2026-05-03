@@ -1,5 +1,6 @@
 import type { Dream } from "@shared/dreams";
 import type { Profile } from "@shared/profile";
+import type { KnowledgePointProgress, KnowledgePointStatus } from "@shared/progress";
 import {
   type FormEvent,
   type JSX,
@@ -13,6 +14,7 @@ import { CodeMirrorEditor, type CodeMirrorHandle } from "../editor/CodeMirrorEdi
 import { buildPreviewSrcdoc } from "../preview/buildPreview";
 import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
+import { useProgressStore } from "../state/progressStore";
 import { useProjectsStore } from "../state/projectsStore";
 import { buildSavedFilePrompt } from "../state/saveReaction";
 import { validateNewFilename } from "./newFileValidation";
@@ -22,6 +24,18 @@ type NewFileStatus = "closed" | "open" | "creating";
 type EditorViewMode = "code" | "preview" | "split";
 
 const EMPTY_PREVIEW = "<!doctype html><html><body></body></html>";
+
+const KP_STATUS_RANK: Record<KnowledgePointStatus, number> = {
+  saw_it: 1,
+  did_with_help: 2,
+  did_unprompted: 3,
+  explained_it: 4,
+};
+
+function shouldRecordRunAndPreview(progress: KnowledgePointProgress | null | undefined): boolean {
+  if (progress?.skipped) return false;
+  return !progress?.status || KP_STATUS_RANK[progress.status] < KP_STATUS_RANK.did_with_help;
+}
 
 type Props = {
   profile: Profile;
@@ -60,6 +74,12 @@ export function CodeEditor({
   const unsubscribe = useProjectsStore((s) => s.unsubscribe);
   const openFolder = useProjectsStore((s) => s.openFolder);
   const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
+  const updateProgressStatus = useProgressStore((s) => s.updateStatus);
+  const progressProfileId = useProgressStore((s) => s.profileId);
+  const progressStatus = useProgressStore((s) => s.status);
+  const runAndPreviewProgress = useProgressStore(
+    (s) => s.progress?.knowledgePoints["run-and-preview"],
+  );
 
   const library = useGraphStore((s) => s.library);
   const graphStatus = useGraphStore((s) => s.status);
@@ -245,6 +265,17 @@ export function CodeEditor({
   function handleRun(): void {
     rebuildPreview();
     setViewMode("preview");
+    if (
+      progressProfileId === profile.id &&
+      progressStatus === "ready" &&
+      shouldRecordRunAndPreview(runAndPreviewProgress)
+    ) {
+      void updateProgressStatus(
+        "run-and-preview",
+        "did_with_help",
+        "Clicked See my page and viewed the live preview.",
+      );
+    }
   }
 
   useEffect(() => {

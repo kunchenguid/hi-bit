@@ -30,6 +30,7 @@ export type ChatStore = {
   hydratedSessionId: string | null;
   greetingForSessionId: string | null;
   streamingText: string | null;
+  activeRequestId: string | null;
   hydrate: (profileId: string, sessionId: string) => Promise<void>;
   send: (profileId: string, prompt: string) => Promise<SendMessageResult | null>;
   sendSystemPrompt: (
@@ -38,7 +39,7 @@ export type ChatStore = {
   ) => Promise<SendMessageResult | null>;
   retry: (profileId: string) => Promise<SendMessageResult | null>;
   seedKidGreeting: (sessionId: string, text: string) => void;
-  appendStreamingDelta: (text: string) => void;
+  appendStreamingDelta: (requestId: string | null | undefined, text: string) => void;
   reset: () => void;
 };
 
@@ -50,6 +51,11 @@ export function canRetryLastKidMessage(messages: ChatMessage[]): boolean {
 
 export const KID_FRIENDLY_ERROR = "Bit went to grab a snack. Try again in a minute.";
 export const KID_EMPTY_REPLY = "Bit got quiet there. Tap try again to wake him up.";
+export const KID_REPLY_TIMEOUT_MS = 45_000;
+const KID_CANCEL_ACK_TIMEOUT_MS = 3_000;
+export const KID_REPLY_TIMEOUT_ERROR = "Bit timed out waiting for the agent harness";
+export const KID_TIMEOUT_REPLY =
+  "Bit is taking too long. Tap try again and we'll give it another shot.";
 
 export function isBlankAssistantText(text: string): boolean {
   return text.trim().length === 0;
@@ -61,6 +67,47 @@ async function refreshLoadedProgress(profileId: string): Promise<void> {
   await progressState.load(profileId);
 }
 
+function friendlyErrorText(message: string): string {
+  return /timed out/i.test(message) ? KID_TIMEOUT_REPLY : KID_FRIENDLY_ERROR;
+}
+
+async function waitForKidCancellationAck(requestId: string): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      window.hibit.cancelKidMessage(requestId).catch(() => {}),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, KID_CANCEL_ACK_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function sendKidMessageWithTimeout(
+  profileId: string,
+  prompt: string,
+  requestId: string,
+): Promise<SendMessageResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const sendPromise = window.hibit.sendKidMessage(profileId, prompt, requestId);
+  try {
+    const result = await Promise.race<SendMessageResult | "timeout">([
+      sendPromise,
+      new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), KID_REPLY_TIMEOUT_MS);
+      }),
+    ]);
+    if (result !== "timeout") return result;
+    void sendPromise.catch(() => {});
+    await waitForKidCancellationAck(requestId);
+    throw new Error(KID_REPLY_TIMEOUT_ERROR);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   status: "idle",
@@ -70,8 +117,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   hydratedSessionId: null,
   greetingForSessionId: null,
   streamingText: null,
+  activeRequestId: null,
 
-  appendStreamingDelta: (text) => set((s) => ({ streamingText: (s.streamingText ?? "") + text })),
+  appendStreamingDelta: (requestId, text) =>
+    set((s) => {
+      if (!s.activeRequestId || requestId !== s.activeRequestId) return {};
+      return { streamingText: (s.streamingText ?? "") + text };
+    }),
 
   hydrate: async (profileId, sessionId) => {
     set({ hydrateStatus: "loading", hydrateError: null });
@@ -114,6 +166,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (trimmed.length === 0) return null;
     if (get().status === "sending") return null;
 
+    const requestId = messageId();
     const kidMessage: ChatMessage = {
       id: messageId(),
       role: "kid",
@@ -126,10 +179,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       status: "sending",
       error: null,
       streamingText: null,
+      activeRequestId: requestId,
     }));
 
     try {
-      const result = await window.hibit.sendKidMessage(profileId, trimmed);
+      const result = await sendKidMessageWithTimeout(profileId, trimmed, requestId);
       const blank = result.ok && isBlankAssistantText(result.text);
       const reply: ChatMessage = {
         id: messageId(),
@@ -143,6 +197,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         status: "idle",
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
+        activeRequestId: null,
       }));
       if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
@@ -155,13 +210,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             id: messageId(),
             role: "bit",
             kind: "error",
-            text: KID_FRIENDLY_ERROR,
+            text: friendlyErrorText(message),
             timestamp: new Date().toISOString(),
           },
         ],
         status: "idle",
         error: message,
         streamingText: null,
+        activeRequestId: null,
       }));
       return null;
     }
@@ -172,6 +228,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     if (trimmed.length === 0) return null;
     if (get().status === "sending") return null;
 
+    const requestId = messageId();
     const divider: ChatMessage = {
       id: messageId(),
       role: "system",
@@ -184,10 +241,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       status: "sending",
       error: null,
       streamingText: null,
+      activeRequestId: requestId,
     }));
 
     try {
-      const result = await window.hibit.sendKidMessage(profileId, trimmed);
+      const result = await sendKidMessageWithTimeout(profileId, trimmed, requestId);
       const blank = result.ok && isBlankAssistantText(result.text);
       const reply: ChatMessage = {
         id: messageId(),
@@ -201,6 +259,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         status: "idle",
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
+        activeRequestId: null,
       }));
       if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
@@ -213,13 +272,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             id: messageId(),
             role: "bit",
             kind: "error",
-            text: KID_FRIENDLY_ERROR,
+            text: friendlyErrorText(messageText),
             timestamp: new Date().toISOString(),
           },
         ],
         status: "idle",
         error: messageText,
         streamingText: null,
+        activeRequestId: null,
       }));
       return null;
     }
@@ -234,15 +294,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       .find((m) => m.role === "kid" && m.kind === "text");
     if (!lastKid) return null;
 
+    const requestId = messageId();
     set((s) => ({
       messages: s.messages.slice(0, -1),
       status: "sending",
       error: null,
       streamingText: null,
+      activeRequestId: requestId,
     }));
 
     try {
-      const result = await window.hibit.sendKidMessage(profileId, lastKid.text);
+      const result = await sendKidMessageWithTimeout(profileId, lastKid.text, requestId);
       const blank = result.ok && isBlankAssistantText(result.text);
       const reply: ChatMessage = {
         id: messageId(),
@@ -256,6 +318,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         status: "idle",
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
+        activeRequestId: null,
       }));
       if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
@@ -268,13 +331,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             id: messageId(),
             role: "bit",
             kind: "error",
-            text: KID_FRIENDLY_ERROR,
+            text: friendlyErrorText(message),
             timestamp: new Date().toISOString(),
           },
         ],
         status: "idle",
         error: message,
         streamingText: null,
+        activeRequestId: null,
       }));
       return null;
     }
@@ -290,6 +354,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       hydratedSessionId: null,
       greetingForSessionId: null,
       streamingText: null,
+      activeRequestId: null,
     });
   },
 }));

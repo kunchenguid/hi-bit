@@ -43,7 +43,7 @@ One file per KP under `graph/nodes/<id>.yml`, following the shape in `docs/knowl
 
 ## Adding a dream
 
-Dreams are buildable projects the kid can pick from Bit's dream menu. PRD target is 30-50 shipped dreams. Schema lives in `src/shared/dreams.ts`.
+Dreams are buildable projects the kid can pick from Bit's dream menu. The current v1 library ships 52 dreams. Schema lives in `src/shared/dreams.ts`.
 
 Review criteria:
 

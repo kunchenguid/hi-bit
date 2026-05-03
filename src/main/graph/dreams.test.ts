@@ -151,7 +151,7 @@ describe("validateDreams", () => {
   });
 
   it("adds a five-bit difficulty from required KP depth and count", () => {
-    const graph = graphOf(["a", "b", "c", "d", "e", "f", "g", "h", "i"], {
+    const graph = graphOf(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"], {
       b: ["a"],
       c: ["b"],
       d: ["c"],
@@ -160,10 +160,12 @@ describe("validateDreams", () => {
       g: ["f"],
       h: ["g"],
       i: ["h"],
+      j: ["i"],
+      k: ["j"],
     });
     const dreams = [
       makeDream({ id: "first", requires: ["a"] }),
-      makeDream({ id: "advanced", requires: ["i"] }),
+      makeDream({ id: "advanced", requires: ["k"] }),
     ];
 
     const result = validateDreams(dreams, graph);

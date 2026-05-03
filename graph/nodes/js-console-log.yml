@@ -3,7 +3,7 @@ title_parent: console.log and the dev console
 title_kid: how to print something so only you see it
 why_kid: this is your secret message channel with the computer - you use it to peek inside your code and see what it's actually doing while it runs, without your visitors ever seeing it.
 area: js
-prereqs: [js-attach]
+prereqs: [js-instructions-basics]
 introduces: [console-log, dev-tools-console, debug-output]
 mastery_signals:
   saw_it: Bit wrote a console.log call in the kid's code, opened the dev console, and showed the kid the printed value appearing there instead of on the page.

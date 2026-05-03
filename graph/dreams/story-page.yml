@@ -6,7 +6,6 @@ emoji: "📚"
 categories: [creative]
 interest_tags: [writing, stories, reading]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-text-paragraphs
   - html-lists

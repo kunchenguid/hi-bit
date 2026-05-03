@@ -6,7 +6,6 @@ emoji: "🎴"
 categories: [creative, utility]
 interest_tags: [collections, cards, characters, design, games]
 requires:
-  - html-doc-shell
   - html-text-headings
   - html-div-span
   - css-attach

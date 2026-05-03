@@ -1,4 +1,4 @@
-import { copyFile, readdir, stat } from "node:fs/promises";
+import { copyFile, readdir, readFile, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { HiBitLayout } from "./layout";
 
@@ -33,11 +33,26 @@ async function listYamlFiles(dir: string): Promise<string[]> {
 
 async function seedDir(sourceDir: string, destDir: string): Promise<string[]> {
   const copied: string[] = [];
+  if (!(await pathExists(sourceDir))) return copied;
   const files = await listYamlFiles(sourceDir);
+  const sourceFileSet = new Set(files);
+  const existingFiles = await listYamlFiles(destDir);
+  await Promise.all(
+    existingFiles
+      .filter((file) => !sourceFileSet.has(file))
+      .map((file) => unlink(join(destDir, file))),
+  );
   for (const file of files) {
     const dest = join(destDir, file);
-    if (await pathExists(dest)) continue;
-    await copyFile(join(sourceDir, file), dest);
+    const source = join(sourceDir, file);
+    if (await pathExists(dest)) {
+      const [sourceText, destText] = await Promise.all([
+        readFile(source, "utf8"),
+        readFile(dest, "utf8"),
+      ]);
+      if (sourceText === destText) continue;
+    }
+    await copyFile(source, dest);
     copied.push(file);
   }
   return copied;

@@ -17,7 +17,7 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds top-level views (kid home, dream picker, tutor chat, editor + live preview, parent gate, parent home with audit/mastery/directives/settings). `state/` is Zustand stores; `editor/` and `preview/` are the CodeMirror + iframe pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
-- `graph/nodes/` - hand-authored knowledge points. `graph/dreams/` - hand-authored dream projects. Both are seeded into the user's profile dir on first run by `src/main/storage/graphSeed.ts`.
+- `graph/nodes/` - hand-authored knowledge points. `graph/dreams/` - hand-authored dream projects. `src/main/storage/graphSeed.ts` mirrors shipped YAML into the user's profile dir on startup, including overwriting changed bundled files and deleting stale bundled YAML.
 - `prompts/bit.md` - Bit's system prompt. Product content, not code; edit it like you'd edit docs.
 - `design/` - design tokens and the shared stylesheet the renderer consumes.
 
