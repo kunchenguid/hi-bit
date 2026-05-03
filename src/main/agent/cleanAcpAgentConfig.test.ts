@@ -46,4 +46,16 @@ describe("createCleanAgentRegistry", () => {
       'shell: process.platform === "win32"',
     );
   });
+
+  it("uses a shell when the Claude Code wrapper starts Windows command scripts", async () => {
+    const stateDir = await createTempDir();
+    await mkdir(stateDir, { recursive: true });
+
+    await createCleanAgentRegistry(stateDir);
+    const wrapperPath = join(stateDir, "clean-agent-launch", "clean-claude-code.cjs");
+
+    await expect(readFile(wrapperPath, "utf8")).resolves.toContain(
+      'shell: process.platform === "win32"',
+    );
+  });
 });
