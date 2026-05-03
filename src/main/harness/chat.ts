@@ -193,20 +193,6 @@ async function sendMessage(
     const controlBlocks = extractHiBitControlBlocks(result.text);
     const visibleText = stripHiBitControlBlocks(result.text);
 
-    await appendSessionLogEntry(
-      paths,
-      buildInvocationLogEntry({
-        timestamp: startedAt,
-        agent,
-        role,
-        sessionId,
-        mode,
-        durationMs,
-        success: result.status === "completed",
-        usage: result.usage,
-      }),
-    );
-
     if (result.status === "completed") {
       await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
       await appendTranscriptEvent(paths, {
@@ -216,6 +202,19 @@ async function sendMessage(
         kind: "assistant_message",
         text: visibleText,
       });
+      await appendSessionLogEntry(
+        paths,
+        buildInvocationLogEntry({
+          timestamp: startedAt,
+          agent,
+          role,
+          sessionId,
+          mode,
+          durationMs,
+          success: true,
+          usage: result.usage,
+        }),
+      );
       return { ok: true, text: visibleText, durationMs };
     }
 
@@ -227,6 +226,19 @@ async function sendMessage(
       kind: "error",
       text: error,
     });
+    await appendSessionLogEntry(
+      paths,
+      buildInvocationLogEntry({
+        timestamp: startedAt,
+        agent,
+        role,
+        sessionId,
+        mode,
+        durationMs,
+        success: false,
+        usage: result.usage,
+      }),
+    );
     return { ok: false, error, durationMs };
   } catch (err) {
     const endMs = now();

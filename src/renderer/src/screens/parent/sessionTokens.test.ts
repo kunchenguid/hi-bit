@@ -60,6 +60,20 @@ describe("describeSessionTokens", () => {
     });
   });
 
+  it("reports ACP context usage when input and output token fields are absent", () => {
+    const entries = [
+      makeEntry({ contextTokensUsed: 100, contextTokensSize: 1000 }),
+      makeEntry({ contextTokensUsed: 250, contextTokensSize: 1000 }),
+    ];
+    expect(describeSessionTokens(entries)).toEqual({
+      tokensInput: 0,
+      tokensOutput: 0,
+      total: 250,
+      contextTokensUsed: 250,
+      contextTokensSize: 1000,
+    });
+  });
+
   it("treats negative values as zero but still considers the field recorded", () => {
     const entries = [makeEntry({ tokensInput: -5, tokensOutput: 10 })];
     expect(describeSessionTokens(entries)).toEqual({

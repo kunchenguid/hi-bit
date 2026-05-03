@@ -65,6 +65,27 @@ function runtimeFactoryFor(outputs: RuntimeOutput[]) {
 
 const config: HiBitConfig = { version: 2, defaultAgent: "claude" };
 
+async function writeGraphNode(layout: HiBitLayout, id: string): Promise<void> {
+  await writeFile(
+    join(layout.graphNodesDir, `${id}.yml`),
+    [
+      `id: ${id}`,
+      "title_parent: Headings",
+      "title_kid: big titles",
+      "area: html",
+      "prereqs: []",
+      "introduces: []",
+      "mastery_signals:",
+      "  saw_it: saw",
+      "  did_with_help: did",
+      "  did_unprompted: unprompted",
+      "  explained_it: explained",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
 describe("ACP-backed chat", () => {
   let root: string;
   let layout: HiBitLayout;
@@ -127,24 +148,7 @@ describe("ACP-backed chat", () => {
   });
 
   it("strips hidden progress blocks from replies and applies valid progress updates", async () => {
-    await writeFile(
-      join(layout.graphNodesDir, "html-text-headings.yml"),
-      [
-        "id: html-text-headings",
-        "title_parent: Headings",
-        "title_kid: big titles",
-        "area: html",
-        "prereqs: []",
-        "introduces: []",
-        "mastery_signals:",
-        "  saw_it: saw",
-        "  did_with_help: did",
-        "  did_unprompted: unprompted",
-        "  explained_it: explained",
-        "",
-      ].join("\n"),
-      "utf8",
-    );
+    await writeGraphNode(layout, "html-text-headings");
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const rawReply =
       'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1."}]</hi-bit:progress>';
@@ -166,6 +170,37 @@ describe("ACP-backed chat", () => {
       status: "did_with_help",
       evidence: "Changed the h1.",
     });
+  });
+
+  it("records one failed log when a post-turn progress write throws", async () => {
+    await writeGraphNode(layout, "html-text-headings");
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const paths = profilePathsFor(layout, profile.id);
+    await writeFile(paths.progressFile, "not json", "utf8");
+    const rawReply =
+      'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1."}]</hi-bit:progress>';
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "done",
+      runtimeFactory,
+    });
+
+    expect(result.ok).toBe(false);
+    const log = await readSessionLogEntries(paths);
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({
+      harness: "claude",
+      sessionId: profile.sessions.kid,
+      mode: "start",
+      exitCode: null,
+      signal: null,
+    });
+    const events = await readTranscript(paths, profile.sessions.kid);
+    expect(events.map((event) => event.kind)).toEqual(["user_message", "error"]);
   });
 
   it("does not inject the full preamble on resume turns", async () => {

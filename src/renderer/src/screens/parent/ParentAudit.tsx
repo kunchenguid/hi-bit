@@ -216,12 +216,38 @@ export function ParentAudit({ profileId }: ParentAuditProps): JSX.Element {
                 {tokens ? (
                   <span
                     className="t-pixel hb-audit-session-tokens"
-                    title={`${tokens.tokensInput.toLocaleString()} input + ${tokens.tokensOutput.toLocaleString()} output = ${tokens.total.toLocaleString()} tokens across ${entries.length} turn${
-                      entries.length === 1 ? "" : "s"
-                    }`}
+                    title={
+                      typeof tokens.contextTokensUsed === "number" &&
+                      tokens.tokensInput === 0 &&
+                      tokens.tokensOutput === 0
+                        ? `${tokens.contextTokensUsed.toLocaleString()}${
+                            typeof tokens.contextTokensSize === "number"
+                              ? ` of ${tokens.contextTokensSize.toLocaleString()}`
+                              : ""
+                          } context tokens used across ${entries.length} turn${
+                            entries.length === 1 ? "" : "s"
+                          }`
+                        : `${tokens.tokensInput.toLocaleString()} input + ${tokens.tokensOutput.toLocaleString()} output = ${tokens.total.toLocaleString()} tokens across ${entries.length} turn${
+                            entries.length === 1 ? "" : "s"
+                          }`
+                    }
                   >
-                    {formatTokenCount(tokens.tokensInput)} in /{" "}
-                    {formatTokenCount(tokens.tokensOutput)} out
+                    {typeof tokens.contextTokensUsed === "number" &&
+                    tokens.tokensInput === 0 &&
+                    tokens.tokensOutput === 0 ? (
+                      <>
+                        {formatTokenCount(tokens.contextTokensUsed)}
+                        {typeof tokens.contextTokensSize === "number"
+                          ? ` / ${formatTokenCount(tokens.contextTokensSize)}`
+                          : ""}{" "}
+                        ctx
+                      </>
+                    ) : (
+                      <>
+                        {formatTokenCount(tokens.tokensInput)} in /{" "}
+                        {formatTokenCount(tokens.tokensOutput)} out
+                      </>
+                    )}
                   </span>
                 ) : null}
                 <span className="hb-audit-session-meta">
