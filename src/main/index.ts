@@ -121,7 +121,6 @@ const SESSION_SUMMARIES_LIMIT = 5;
 type ActiveKidTurn = {
   senderId: number;
   controller: AbortController;
-  settled: Promise<void>;
 };
 
 async function syncParentDirectivesToStateMd(
@@ -302,10 +301,6 @@ function registerIpc(layout: HiBitLayout): void {
         activeKidTurns.set(requestId, {
           senderId: event.sender.id,
           controller,
-          settled: promise.then(
-            () => undefined,
-            () => undefined,
-          ),
         });
       }
       try {
@@ -320,7 +315,6 @@ function registerIpc(layout: HiBitLayout): void {
     const active = activeKidTurns.get(requestId);
     if (!active || active.senderId !== event.sender.id) return;
     active.controller.abort();
-    await active.settled;
   });
 
   ipcMain.handle(

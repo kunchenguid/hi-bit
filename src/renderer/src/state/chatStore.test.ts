@@ -217,6 +217,27 @@ describe("useChatStore", () => {
     expect(state.activeRequestId).toBeNull();
   });
 
+  it("returns to idle when cancellation IPC hangs after timeout", async () => {
+    vi.useFakeTimers();
+    const cancelKidMessage = vi.fn(() => new Promise<void>(() => {}));
+    mockHiBit({
+      sendKidMessage: vi.fn(() => new Promise<SendMessageResult>(() => {})),
+      cancelKidMessage,
+    });
+
+    const sendPromise = useChatStore.getState().send("ada", "ready");
+    const requestId = useChatStore.getState().activeRequestId;
+
+    await vi.advanceTimersByTimeAsync(KID_REPLY_TIMEOUT_MS);
+
+    const state = useChatStore.getState();
+    expect(cancelKidMessage).toHaveBeenCalledWith(requestId);
+    expect(state.status).toBe("idle");
+    expect(state.error).toMatch(/timed out/i);
+    expect(state.activeRequestId).toBeNull();
+    await sendPromise;
+  });
+
   it("ignores streaming deltas that do not match the active kid turn", async () => {
     let resolveSend: (v: SendMessageResult) => void = () => {};
     const pending = new Promise<SendMessageResult>((r) => {

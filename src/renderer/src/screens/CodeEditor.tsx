@@ -1,5 +1,6 @@
 import type { Dream } from "@shared/dreams";
 import type { Profile } from "@shared/profile";
+import type { KnowledgePointStatus } from "@shared/progress";
 import {
   type FormEvent,
   type JSX,
@@ -23,6 +24,17 @@ type NewFileStatus = "closed" | "open" | "creating";
 type EditorViewMode = "code" | "preview" | "split";
 
 const EMPTY_PREVIEW = "<!doctype html><html><body></body></html>";
+
+const KP_STATUS_RANK: Record<KnowledgePointStatus, number> = {
+  saw_it: 1,
+  did_with_help: 2,
+  did_unprompted: 3,
+  explained_it: 4,
+};
+
+function shouldRecordRunAndPreview(status: KnowledgePointStatus | null | undefined): boolean {
+  return !status || KP_STATUS_RANK[status] < KP_STATUS_RANK.did_with_help;
+}
 
 type Props = {
   profile: Profile;
@@ -62,6 +74,9 @@ export function CodeEditor({
   const openFolder = useProjectsStore((s) => s.openFolder);
   const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
   const updateProgressStatus = useProgressStore((s) => s.updateStatus);
+  const runAndPreviewStatus = useProgressStore(
+    (s) => s.progress?.knowledgePoints["run-and-preview"]?.status,
+  );
 
   const library = useGraphStore((s) => s.library);
   const graphStatus = useGraphStore((s) => s.status);
@@ -247,11 +262,13 @@ export function CodeEditor({
   function handleRun(): void {
     rebuildPreview();
     setViewMode("preview");
-    void updateProgressStatus(
-      "run-and-preview",
-      "did_with_help",
-      "Clicked See my page and viewed the live preview.",
-    );
+    if (shouldRecordRunAndPreview(runAndPreviewStatus)) {
+      void updateProgressStatus(
+        "run-and-preview",
+        "did_with_help",
+        "Clicked See my page and viewed the live preview.",
+      );
+    }
   }
 
   useEffect(() => {

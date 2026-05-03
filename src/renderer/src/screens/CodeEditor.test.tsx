@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import type { Profile } from "@shared/profile";
+import { emptyProgress } from "@shared/progress";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -159,6 +160,38 @@ describe("CodeEditor cursor marker", () => {
       "did_with_help",
       "Clicked See my page and viewed the live preview.",
     );
+  });
+
+  it("does not downgrade stronger run-and-preview progress", async () => {
+    const updateStatus = vi.fn(async () => {});
+    useProgressStore.setState({
+      updateStatus,
+      progress: {
+        ...emptyProgress(),
+        knowledgePoints: {
+          "run-and-preview": {
+            status: "did_unprompted",
+            firstSeenAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        },
+      },
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).not.toHaveBeenCalled();
   });
 
   it("reveals the editor when a cursor target arrives in page mode", async () => {

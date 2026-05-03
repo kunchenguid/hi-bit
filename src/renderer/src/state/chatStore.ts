@@ -86,7 +86,7 @@ async function sendKidMessageWithTimeout(
     ]);
     if (result !== "timeout") return result;
     void sendPromise.catch(() => {});
-    await window.hibit.cancelKidMessage(requestId);
+    void window.hibit.cancelKidMessage(requestId).catch(() => {});
     throw new Error(KID_REPLY_TIMEOUT_ERROR);
   } finally {
     if (timer) clearTimeout(timer);
