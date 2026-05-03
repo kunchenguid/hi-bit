@@ -72,18 +72,18 @@ export function parseDream(yaml: string): DreamDefinition {
 }
 
 function scoreKpDepth(depth: number): DreamDifficulty {
-  if (depth <= 1) return 1;
-  if (depth <= 3) return 2;
-  if (depth <= 6) return 3;
-  if (depth <= 10) return 4;
+  if (depth <= 5) return 1;
+  if (depth <= 8) return 2;
+  if (depth <= 12) return 3;
+  if (depth <= 18) return 4;
   return 5;
 }
 
-function scoreKpCount(count: number): DreamDifficulty {
-  if (count <= 2) return 1;
-  if (count <= 4) return 2;
-  if (count <= 8) return 3;
-  if (count <= 24) return 4;
+function scoreDirectRequiresCount(count: number): DreamDifficulty {
+  if (count <= 1) return 1;
+  if (count <= 2) return 2;
+  if (count <= 4) return 3;
+  if (count <= 7) return 4;
   return 5;
 }
 
@@ -93,7 +93,6 @@ export function computeDreamDifficulty(
 ): DreamDifficulty {
   const depthMemo = new Map<string, number>();
   const depthStack = new Set<string>();
-  const closure = new Set<string>();
 
   function kpDepth(id: string): number {
     const memoized = depthMemo.get(id);
@@ -111,21 +110,15 @@ export function computeDreamDifficulty(
     return depth;
   }
 
-  function collectClosure(id: string): void {
-    if (closure.has(id)) return;
-    const node = graph.byId[id];
-    if (!node) return;
-    closure.add(id);
-    for (const prereq of node.prereqs) collectClosure(prereq);
-  }
-
   let maxDepth = 1;
   for (const id of dream.requires) {
     maxDepth = Math.max(maxDepth, kpDepth(id));
-    collectClosure(id);
   }
 
-  return Math.max(scoreKpDepth(maxDepth), scoreKpCount(closure.size)) as DreamDifficulty;
+  return Math.max(
+    scoreKpDepth(maxDepth),
+    scoreDirectRequiresCount(dream.requires.length),
+  ) as DreamDifficulty;
 }
 
 export function validateDreams(dreams: DreamDefinition[], graph: KnowledgeGraph): DreamValidation {

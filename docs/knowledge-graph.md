@@ -42,9 +42,10 @@ A dream is "doable" when all its required KPs are at `did_with_help` or above fo
 ### Dream difficulty
 
 Dream files author direct `requires:` only, then validation computes the runtime 1-5 bit difficulty rating from the graph.
-The score is the higher of two measures: maximum required-KP depth and the count of required KPs plus their transitive prereqs.
-Depth scores map to 1 bit for depth 1, 2 bits for depths 2-3, 3 bits for depths 4-6, 4 bits for depths 7-10, and 5 bits for deeper chains.
-Count scores map to 1 bit for 1-2 KPs, 2 bits for 3-4, 3 bits for 5-8, 4 bits for 9-24, and 5 bits for larger closures.
+The score is the higher of two measures: maximum direct required-KP depth and the count of direct required KPs.
+Transitive prereqs still matter for readiness and scheduling, but they are not counted as visible dream difficulty.
+Depth scores map to 1 bit for depths 1-5, 2 bits for depths 6-8, 3 bits for depths 9-12, 4 bits for depths 13-18, and 5 bits for deeper chains.
+Direct required-KP count scores map to 1 bit for 1 KP, 2 bits for 2 KPs, 3 bits for 3-4 KPs, 4 bits for 5-7 KPs, and 5 bits for 8 or more KPs.
 
 ## v1 scope
 

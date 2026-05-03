@@ -150,7 +150,24 @@ describe("validateDreams", () => {
     }
   });
 
-  it("adds a five-bit difficulty from required KP depth and count", () => {
+  it("scores difficulty from direct requirements instead of transitive prereq count", () => {
+    const graph = graphOf(["a", "b", "c", "d", "e"], {
+      b: ["a"],
+      c: ["b"],
+      d: ["c"],
+      e: ["d"],
+    });
+    const dreams = [makeDream({ id: "simple", requires: ["e"] })];
+
+    const result = validateDreams(dreams, graph);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.library.byId.simple?.difficulty).toBe(1);
+    }
+  });
+
+  it("softens a deep single direct requirement", () => {
     const graph = graphOf(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"], {
       b: ["a"],
       c: ["b"],
@@ -173,7 +190,30 @@ describe("validateDreams", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.library.byId.first?.difficulty).toBe(1);
-      expect(result.library.byId.advanced?.difficulty).toBe(5);
+      expect(result.library.byId.advanced?.difficulty).toBe(3);
+    }
+  });
+
+  it("uses direct requirement count bands for project size", () => {
+    const ids = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const graph = graphOf(ids);
+    const dreams = [
+      makeDream({ id: "one", requires: ["a"] }),
+      makeDream({ id: "two", requires: ["a", "b"] }),
+      makeDream({ id: "four", requires: ["a", "b", "c", "d"] }),
+      makeDream({ id: "seven", requires: ["a", "b", "c", "d", "e", "f", "g"] }),
+      makeDream({ id: "eight", requires: ids }),
+    ];
+
+    const result = validateDreams(dreams, graph);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.library.byId.one?.difficulty).toBe(1);
+      expect(result.library.byId.two?.difficulty).toBe(2);
+      expect(result.library.byId.four?.difficulty).toBe(3);
+      expect(result.library.byId.seven?.difficulty).toBe(4);
+      expect(result.library.byId.eight?.difficulty).toBe(5);
     }
   });
 
