@@ -58,4 +58,18 @@ describe("createCleanAgentRegistry", () => {
       'shell: process.platform === "win32"',
     );
   });
+
+  it("terminates launcher wrappers when children exit from a signal", async () => {
+    const stateDir = await createTempDir();
+    await mkdir(stateDir, { recursive: true });
+
+    await createCleanAgentRegistry(stateDir);
+    const launcherPath = join(stateDir, "clean-agent-launch", "clean-acp-agent-launcher.cjs");
+    const claudeWrapperPath = join(stateDir, "clean-agent-launch", "clean-claude-code.cjs");
+
+    await expect(readFile(launcherPath, "utf8")).resolves.toContain("process.exit(128 + signalNumber)");
+    await expect(readFile(claudeWrapperPath, "utf8")).resolves.toContain(
+      "process.exit(128 + signalNumber)",
+    );
+  });
 });

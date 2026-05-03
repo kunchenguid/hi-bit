@@ -30,6 +30,7 @@ const child = spawn(spec.command, spec.args || [], {
   shell: process.platform === "win32",
   windowsHide: true,
 });
+const signalNumbers = { SIGHUP: 1, SIGINT: 2, SIGTERM: 15 };
 
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(signal, () => {
@@ -44,7 +45,8 @@ child.on("error", (error) => {
 
 child.on("exit", (code, signal) => {
   if (signal) {
-    process.kill(process.pid, signal);
+    const signalNumber = signalNumbers[signal] || -127;
+    process.exit(128 + signalNumber);
     return;
   }
   process.exit(code ?? 1);
@@ -69,6 +71,7 @@ const child = spawn(command, args, {
   shell: process.platform === "win32",
   windowsHide: true,
 });
+const signalNumbers = { SIGHUP: 1, SIGINT: 2, SIGTERM: 15 };
 
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(signal, () => {
@@ -83,7 +86,8 @@ child.on("error", (error) => {
 
 child.on("exit", (code, signal) => {
   if (signal) {
-    process.kill(process.pid, signal);
+    const signalNumber = signalNumbers[signal] || -127;
+    process.exit(128 + signalNumber);
     return;
   }
   process.exit(code ?? 1);

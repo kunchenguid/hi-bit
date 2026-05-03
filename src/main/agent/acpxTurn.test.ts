@@ -98,7 +98,7 @@ describe("executeAcpTurn", () => {
     );
     const runtimeOptions = runtimeFactory.mock.calls[0][0];
     expect(runtimeOptions.agentRegistry.resolve("claude")).toContain(
-      "clean-acp-agent-launcher.cjs",
+      process.platform === "win32" ? "clean-acp-agent-launcher.cmd" : "clean-acp-agent-launcher",
     );
     expect(runtimeOptions.agentRegistry.resolve("claude")).toContain("claude.json");
     expect(calls.ensureSession).toEqual([
@@ -169,7 +169,9 @@ describe("executeAcpTurn", () => {
       await readFile(join(stateDir, "clean-agent-launch", "opencode.json"), "utf8"),
     );
 
-    expect(agentRegistry.resolve("claude")).toContain("clean-acp-agent-launcher.cjs");
+    expect(agentRegistry.resolve("claude")).toContain(
+      process.platform === "win32" ? "clean-acp-agent-launcher.cmd" : "clean-acp-agent-launcher",
+    );
     expect(claudeSpec.env.CLAUDE_CODE_EXECUTABLE).toBe(
       join(stateDir, "clean-agent-launch", "clean-claude-code.cjs"),
     );
