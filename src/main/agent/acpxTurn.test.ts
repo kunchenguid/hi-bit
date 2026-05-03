@@ -8,7 +8,7 @@ import { executeAcpTurn } from "./acpxTurn";
 type FakeEvent =
   | { type: "text_delta"; text: string; stream?: "output" | "thought" }
   | { type: "tool_call"; text: string }
-  | { type: "status"; text: string; used?: number; size?: number };
+  | { type: "status"; text: string; tag?: string; used?: number; size?: number };
 
 async function* asyncEvents(events: FakeEvent[]): AsyncGenerator<FakeEvent, void, unknown> {
   for (const event of events) yield event;
@@ -232,7 +232,7 @@ describe("executeAcpTurn", () => {
     const { runtime } = createFakeRuntime([
       { type: "text_delta", text: "thinking", stream: "thought" },
       { type: "tool_call", text: "read file" },
-      { type: "status", text: "usage", used: 20, size: 100 },
+      { type: "status", text: "usage", tag: "usage_update", used: 20, size: 100 },
       { type: "text_delta", text: "Visible " },
       { type: "text_delta", text: "reply." },
     ]);
@@ -251,9 +251,8 @@ describe("executeAcpTurn", () => {
     expect(onDelta.mock.calls.map((args) => args[0])).toEqual(["Visible ", "reply."]);
     expect(result.text).toBe("Visible reply.");
     expect(result.usage).toEqual({
-      inputTokens: 20,
-      outputTokens: expect.any(Number),
-      estimated: false,
+      contextTokensUsed: 20,
+      contextTokensSize: 100,
     });
   });
 });

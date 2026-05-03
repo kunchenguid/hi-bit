@@ -16,9 +16,8 @@ type AcpxRuntimeLike = Pick<AcpxRuntime, "ensureSession" | "startTurn" | "close"
 type AcpxRuntimeHandleLike = Awaited<ReturnType<AcpxRuntimeLike["ensureSession"]>>;
 
 export type AcpTurnUsage = {
-  inputTokens: number;
-  outputTokens: number;
-  estimated: boolean;
+  contextTokensUsed: number;
+  contextTokensSize?: number;
 };
 
 export type AcpTurnResult = {
@@ -39,10 +38,6 @@ export type ExecuteAcpTurnOptions = {
   discardPersistentState?: boolean;
   runtimeFactory?: (options: AcpRuntimeOptions) => AcpxRuntimeLike;
 };
-
-function estimateTokens(chars: number): number {
-  return chars <= 0 ? 0 : Math.ceil(chars / 4);
-}
 
 async function removeLocalSessionRecord(stateDir: string, sessionId: string): Promise<void> {
   await rm(join(stateDir, "sessions", `${encodeURIComponent(sessionId)}.json`), { force: true });
@@ -75,8 +70,7 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
     });
 
     let text = "";
-    let outputChars = 0;
-    let latestUsed: number | null = null;
+    let usage: AcpTurnUsage | null = null;
 
     for await (const event of turn.events as AsyncIterable<AcpRuntimeEvent>) {
       if (event.type === "text_delta") {
@@ -84,23 +78,21 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
           text += event.text;
           opts.onDelta?.(event.text);
         }
-        outputChars += event.text.length;
         continue;
       }
-      if (event.type === "status" && typeof event.used === "number") {
-        latestUsed = event.used;
+      if (
+        event.type === "status" &&
+        event.tag === "usage_update" &&
+        typeof event.used === "number"
+      ) {
+        usage = {
+          contextTokensUsed: event.used,
+          ...(typeof event.size === "number" ? { contextTokensSize: event.size } : {}),
+        };
       }
     }
 
     const result = await turn.result;
-    const usage =
-      latestUsed === null
-        ? null
-        : {
-            inputTokens: latestUsed,
-            outputTokens: estimateTokens(outputChars),
-            estimated: false,
-          };
 
     if (result.status === "failed") {
       return { status: result.status, text, usage, error: result.error.message };

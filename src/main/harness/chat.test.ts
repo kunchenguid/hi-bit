@@ -13,12 +13,18 @@ import { readTranscript } from "../storage/transcript";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./chat";
 
 type RuntimeOutput =
-  | { status?: "completed"; text: string; used?: number }
+  | { status?: "completed"; text: string; used?: number; size?: number }
   | { status: "failed"; text?: string; error: string };
 
 async function* asyncEvents(output: RuntimeOutput): AsyncGenerator<AcpRuntimeEvent, void, unknown> {
   if ("used" in output && typeof output.used === "number") {
-    yield { type: "status", text: "usage", used: output.used, size: 1000 };
+    yield {
+      type: "status",
+      text: "usage",
+      tag: "usage_update",
+      used: output.used,
+      size: output.size ?? 1000,
+    };
   }
   if (output.text) yield { type: "text_delta", text: output.text };
 }
@@ -113,8 +119,11 @@ describe("ACP-backed chat", () => {
       sessionId: profile.sessions.kid,
       mode: "start",
       exitCode: 0,
-      tokensInput: 42,
+      contextTokensUsed: 42,
+      contextTokensSize: 1000,
     });
+    expect(log[0]).not.toHaveProperty("tokensInput");
+    expect(log[0]).not.toHaveProperty("tokensOutput");
   });
 
   it("strips hidden progress blocks from replies and applies valid progress updates", async () => {

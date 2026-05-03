@@ -273,8 +273,10 @@ function buildInvocationLogEntry(opts: {
     signal: null,
     ...(opts.usage
       ? {
-          tokensInput: opts.usage.inputTokens,
-          tokensOutput: opts.usage.outputTokens,
+          contextTokensUsed: opts.usage.contextTokensUsed,
+          ...(typeof opts.usage.contextTokensSize === "number"
+            ? { contextTokensSize: opts.usage.contextTokensSize }
+            : {}),
         }
       : {}),
   };

@@ -15,4 +15,6 @@ export type HarnessInvocationLogEntry = {
   tokensOutput?: number;
   cacheCreationInputTokens?: number;
   cacheReadInputTokens?: number;
+  contextTokensUsed?: number;
+  contextTokensSize?: number;
 };
