@@ -49,7 +49,8 @@ Schema lives in `src/shared/dreams.ts`.
 
 Review criteria:
 
-1. **Real and achievable.** A dream is a real web project a 7-12 year old would actually want to build and could finish in one to a handful of sessions.
+1. **Real and achievable.** A `mode: project` dream is a real web project a 7-12 year old would actually want to build and could finish in one to a handful of sessions.
+   A `mode: freeform` dream is an open-ended space for exploring, asking questions, or deciding what to build, not a disguised fixed project.
 2. **Coverable by shipped KPs.** Every id in `requires:` must resolve to an existing `graph/nodes/*.yml`. If you need a KP that does not exist yet, add the KP in the same PR - but prefer reusing KPs. Only `mode: freeform` dreams may have an empty `requires:` list.
 3. **Direct-use prereqs only.** Like KP prereqs, list the KPs the dream directly exercises. The scheduler resolves transitive prereqs from the graph; you do not need to include them.
 4. **Difficulty is computed.** Do not author `difficulty` in `graph/dreams/*.yml`. Validation computes the 1-5 bit rating shown in the picker from the direct `requires:` count and the graph depth of those direct requirements.
