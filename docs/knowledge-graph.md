@@ -48,7 +48,7 @@ Count scores map to 1 bit for 1-2 KPs, 2 bits for 3-4, 3 bits for 5-8, 4 bits fo
 
 ## v1 scope
 
-Coverage target: everything needed to build any dream on the v1 dream menu (30-50 projects: snake, pong, pet page, birthday card, quiz, drawing app, clicker, typing game, story page, and relatives).
+Coverage target: everything needed to build any dream on the shipped v1 dream menu (currently 52 projects: snake, pong, pet page, birthday card, quiz, drawing app, clicker, typing game, story page, and relatives).
 
 Out of scope for v1:
 
@@ -261,7 +261,7 @@ mastery_signals:
 
 ## Graph storage layout
 
-Proposed runtime layout; not binding.
+The repo ships the canonical graph and dream library here:
 
 ```
 graph/
@@ -269,10 +269,13 @@ graph/
     events-click.yml
     js-for-of.yml
     ...
-  README.md        # links back to this doc
+  dreams/
+    beat-pad.yml
+    snake.yml
+    ...
 ```
 
-One file per node. CI validates ids are unique, prereqs resolve, and the graph is acyclic.
+One file per node or dream. On startup, `src/main/storage/graphSeed.ts` mirrors shipped YAML into the user's `graph/nodes/` and `graph/dreams/` dirs under Electron `userData`: changed bundled files are overwritten, and YAML files absent from the bundled source are removed when that source dir exists. CI validates ids are unique, prereqs resolve, dreams reference shipped KPs, and the graph is acyclic.
 
 ## Open authoring questions
 
