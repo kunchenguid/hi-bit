@@ -18,6 +18,7 @@ function makeDream(id: string, requiresCount: number): Dream {
     requires: Array.from({ length: requiresCount }, (_, i) => `kp-${id}-${i}`),
     style_hints: [],
     emoji: "✨",
+    difficulty: 1,
   };
 }
 

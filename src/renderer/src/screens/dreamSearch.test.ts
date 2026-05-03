@@ -13,6 +13,7 @@ function makeDream(id: string, overrides: Partial<Dream> = {}): Dream {
     requires: overrides.requires ?? [],
     style_hints: overrides.style_hints ?? [],
     emoji: overrides.emoji ?? "✨",
+    difficulty: overrides.difficulty ?? 1,
   };
 }
 

@@ -164,6 +164,7 @@ function makeDream(overrides: Partial<Dream> = {}): Dream {
     style_hints: [],
     emoji: "🐶",
     ...overrides,
+    difficulty: overrides.difficulty ?? 1,
   };
 }
 

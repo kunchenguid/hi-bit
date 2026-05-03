@@ -8,7 +8,9 @@ export const DREAM_CATEGORIES = [
   "art",
 ] as const satisfies readonly DreamCategory[];
 
-export type Dream = {
+export type DreamDifficulty = 1 | 2 | 3 | 4 | 5;
+
+export type DreamDefinition = {
   id: string;
   title_parent: string;
   title_kid: string;
@@ -18,6 +20,10 @@ export type Dream = {
   requires: string[];
   style_hints: string[];
   emoji: string;
+};
+
+export type Dream = DreamDefinition & {
+  difficulty: DreamDifficulty;
 };
 
 export type DreamLibrary = {

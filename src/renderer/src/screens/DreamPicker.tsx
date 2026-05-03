@@ -1,3 +1,4 @@
+import mascotAvatarUrl from "@design/assets/logo-mark.svg";
 import type { Dream, DreamCategory } from "@shared/dreams";
 import type { Profile } from "@shared/profile";
 import { type JSX, useEffect, useMemo, useState } from "react";
@@ -46,6 +47,14 @@ const CATEGORY_LABELS: Record<DreamCategory, string> = {
 const FILTER_LABELS: Record<DreamFilter, string> = {
   all: "all",
   ...CATEGORY_LABELS,
+};
+
+const DIFFICULTY_LABELS: Record<Dream["difficulty"], string> = {
+  1: "1 bit",
+  2: "2 bits",
+  3: "3 bits",
+  4: "4 bits",
+  5: "5 bits",
 };
 
 type Props = {
@@ -378,6 +387,8 @@ function DreamCard({
   pending: boolean;
   onPick: () => void;
 }): JSX.Element {
+  const difficultyBits = [1, 2, 3, 4, 5].slice(0, dream.difficulty);
+
   return (
     <button
       type="button"
@@ -411,6 +422,20 @@ function DreamCard({
               {CATEGORY_LABELS[c]}
             </span>
           ))}
+          <span className="hb-dream-difficulty t-pixel">
+            <span className="hb-dream-difficulty-icons" aria-hidden="true">
+              {difficultyBits.map((level) => (
+                <img
+                  key={`bit-${level}`}
+                  className="hb-dream-difficulty-icon"
+                  src={mascotAvatarUrl}
+                  alt=""
+                  aria-hidden="true"
+                />
+              ))}
+            </span>
+            <span className="hb-dream-difficulty-label">{DIFFICULTY_LABELS[dream.difficulty]}</span>
+          </span>
           <span className={`hb-dream-ready${readinessReady ? " hb-dream-ready-all" : ""} t-pixel`}>
             {readinessLabel}
           </span>

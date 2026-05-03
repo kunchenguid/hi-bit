@@ -39,6 +39,13 @@ Mastery signals on each KP describe what counts as the transition into each leve
 
 A dream is "doable" when all its required KPs are at `did_with_help` or above for the current kid.
 
+### Dream difficulty
+
+Dream files author direct `requires:` only, then validation computes the runtime 1-5 bit difficulty rating from the graph.
+The score is the higher of two measures: maximum required-KP depth and the count of required KPs plus their transitive prereqs.
+Depth scores map to 1 bit for depth 1, 2 bits for depths 2-3, 3 bits for depths 4-5, 4 bits for depths 6-7, and 5 bits for deeper chains.
+Count scores map to 1 bit for 1-2 KPs, 2 bits for 3-4, 3 bits for 5-7, 4 bits for 8-10, and 5 bits for larger closures.
+
 ## v1 scope
 
 Coverage target: everything needed to build any dream on the v1 dream menu (30-50 projects: snake, pong, pet page, birthday card, quiz, drawing app, clicker, typing game, story page, and relatives).

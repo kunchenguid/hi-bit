@@ -597,6 +597,33 @@ pre,
   border-color: var(--success, var(--brand));
   color: var(--success, var(--brand));
 }
+.hb-dream-difficulty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--brand-wash, var(--paper));
+  border: 1px solid var(--brand);
+  color: var(--brand);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hb-dream-difficulty-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.hb-dream-difficulty-icon {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+.hb-dream-difficulty-label {
+  color: var(--ink);
+}
 .hb-dream-interest {
   display: inline-flex;
   align-items: center;
