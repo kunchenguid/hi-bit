@@ -26,6 +26,7 @@ async function* asyncEvents(output: RuntimeOutput): AsyncGenerator<AcpRuntimeEve
 function runtimeFactoryFor(outputs: RuntimeOutput[]) {
   const prompts: string[] = [];
   const ensureSessionInputs: unknown[] = [];
+  const closeInputs: unknown[] = [];
   let index = 0;
   const runtimeFactory = vi.fn(() => ({
     ensureSession: vi.fn(async (input: unknown) => {
@@ -49,9 +50,11 @@ function runtimeFactoryFor(outputs: RuntimeOutput[]) {
         closeStream: vi.fn(async () => {}),
       };
     }),
-    close: vi.fn(async () => {}),
+    close: vi.fn(async (input: unknown) => {
+      closeInputs.push(input);
+    }),
   }));
-  return { runtimeFactory, prompts, ensureSessionInputs };
+  return { runtimeFactory, prompts, ensureSessionInputs, closeInputs };
 }
 
 const config: HiBitConfig = { version: 2, defaultAgent: "claude" };
@@ -239,6 +242,32 @@ describe("ACP-backed chat", () => {
     const paths = profilePathsFor(layout, profile.id);
     await expect(readTranscript(paths, profile.sessions.kid)).resolves.toEqual([]);
     await expect(readSessionLogEntries(paths)).resolves.toEqual([]);
+  });
+
+  it("requestCursorMarker uses a reusable discarded helper ACP session", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, ensureSessionInputs, closeInputs } = runtimeFactoryFor([
+      { text: JSON.stringify({ surrounding_content_with_marker: "<h1>[[BIT-CURSOR]]</h1>" }) },
+      { text: JSON.stringify({ surrounding_content_with_marker: "<p>[[BIT-CURSOR]]</p>" }) },
+    ]);
+    const request = {
+      filename: "index.html",
+      editorContent: "<h1>Hello</h1>",
+      latestBitMessage: "Change the title.",
+      snippet: "<h1>Ada</h1>",
+    };
+
+    await requestCursorMarker({ layout, config, profileId: profile.id, request, runtimeFactory });
+    await requestCursorMarker({ layout, config, profileId: profile.id, request, runtimeFactory });
+
+    expect(
+      ensureSessionInputs.map((input) => (input as { sessionKey: string }).sessionKey),
+    ).toEqual([`${profile.id}:kid:cursor-marker:claude`, `${profile.id}:kid:cursor-marker:claude`]);
+    expect(
+      closeInputs.map(
+        (input) => (input as { discardPersistentState: boolean }).discardPersistentState,
+      ),
+    ).toEqual([true, true]);
   });
 
   it("injects current dream project files on a fresh dream session", async () => {

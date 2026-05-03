@@ -34,6 +34,7 @@ export type ExecuteAcpTurnOptions = {
   prompt: string;
   signal?: AbortSignal;
   onDelta?: (text: string) => void;
+  discardPersistentState?: boolean;
   runtimeFactory?: (options: AcpRuntimeOptions) => AcpxRuntimeLike;
 };
 
@@ -104,7 +105,7 @@ export async function executeAcpTurn(opts: ExecuteAcpTurnOptions): Promise<AcpTu
       await runtime.close({
         handle,
         reason: "turn complete",
-        discardPersistentState: false,
+        discardPersistentState: opts.discardPersistentState ?? false,
       });
     }
   }

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
 import type { AgentId, HiBitConfig } from "@shared/config";
@@ -90,11 +89,12 @@ export async function requestCursorMarker(
 
     const result = await executeAcpTurn({
       agent,
-      sessionKey: sessionKeyFor(opts.profileId, "kid", randomUUID(), agent),
+      sessionKey: sessionKeyFor(opts.profileId, "kid", "cursor-marker", agent),
       cwd: paths.root,
       stateDir: paths.acpxSessionsDir,
       prompt: agentPrompt,
       signal: opts.signal,
+      discardPersistentState: true,
       runtimeFactory: opts.runtimeFactory,
     });
     const durationMs = (opts.now ?? Date.now)() - startMs;

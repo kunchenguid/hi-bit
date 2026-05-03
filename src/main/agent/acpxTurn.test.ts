@@ -108,6 +108,28 @@ describe("executeAcpTurn", () => {
     ]);
   });
 
+  it("can discard persistent state after helper turns", async () => {
+    const { runtime, calls, handle } = createFakeRuntime([{ type: "text_delta", text: "Done." }]);
+
+    await executeAcpTurn({
+      agent: "claude",
+      sessionKey: "ada:kid:cursor-marker:claude",
+      cwd: "/profiles/ada",
+      stateDir: "/profiles/ada/.acpx-sessions",
+      prompt: "hello",
+      discardPersistentState: true,
+      runtimeFactory: () => runtime,
+    });
+
+    expect(calls.close).toEqual([
+      {
+        handle,
+        reason: "turn complete",
+        discardPersistentState: true,
+      },
+    ]);
+  });
+
   it("streams only visible output text to onDelta", async () => {
     const { runtime } = createFakeRuntime([
       { type: "text_delta", text: "thinking", stream: "thought" },
