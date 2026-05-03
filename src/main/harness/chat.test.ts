@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { HiBitConfig } from "@shared/config";
 import type { AcpRuntimeEvent } from "acpx/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { closeAcpRuntimeSessions, closeAllAcpRuntimes } from "../agent/acpxTurn";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
 import { createProfile, readProgress, setCurrentDream } from "../storage/profiles";
 import { scaffoldProject } from "../storage/projects";
@@ -101,6 +102,7 @@ describe("ACP-backed chat", () => {
   });
 
   afterEach(async () => {
+    await closeAllAcpRuntimes("test cleanup");
     await rm(root, { recursive: true, force: true });
   });
 
@@ -289,6 +291,11 @@ describe("ACP-backed chat", () => {
       profileId: profile.id,
       prompt: "first",
       runtimeFactory: runtimeFactoryFor([{ text: "one" }]).runtimeFactory,
+    });
+    await closeAcpRuntimeSessions({
+      profileId: profile.id,
+      role: "kid",
+      sessionId: profile.sessions.kid,
     });
     const throwingRuntimeFactory = vi.fn(() => ({
       ensureSession: vi.fn(async () => ({

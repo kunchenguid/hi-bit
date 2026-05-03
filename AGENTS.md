@@ -14,6 +14,8 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
 
 - Electron 41, electron-vite, React 19, Zustand, CodeMirror 6, Vitest, Biome. TypeScript throughout.
 - `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk profile layout (`state.md`, `progress.json`, transcripts, flags, project files, session logs, per-profile agent permission config); `agent/` owns ACPX availability and turn execution; `harness/` builds Bit chat turns around that agent layer; `graph/` loads the knowledge graph + dream library from `graph/` at the repo root.
+  Regular ACP turns reuse a warm runtime keyed by session; helper turns discard their runtime state.
+  Warm runtimes are closed when a kid session ends, a profile is deleted, a dream change rotates the kid session, the default agent changes, or the app quits.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds top-level views (kid home, dream picker, tutor chat, editor + live preview, parent gate, parent home with audit/mastery/directives/settings). `state/` is Zustand stores; `editor/` and `preview/` are the CodeMirror + iframe pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
@@ -24,6 +26,9 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
 ## E2E testing the Electron app via chrome-devtools-axi
 
 Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
+
+Manual E2E testing should use Claude Code as the configured Hi-Bit agent unless the task explicitly asks to validate another ACP provider.
+Before testing Bit chat, confirm `config.json` under Electron `userData` has `defaultAgent: "claude"`, or switch the app's selected agent to Claude through the setup UI.
 
 ### One-time understanding
 

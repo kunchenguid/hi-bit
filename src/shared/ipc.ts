@@ -61,6 +61,7 @@ export type HiBitApi = {
     prompt: string,
     requestId?: string,
   ) => Promise<SendMessageResult>;
+  endKidSession: (profileId: string) => Promise<void>;
   cancelKidMessage: (requestId: string) => Promise<void>;
   requestCursorMarker: (
     profileId: string,
