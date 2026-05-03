@@ -1,6 +1,7 @@
 # First-session smoke test
 
-A scripted walkthrough for validating the PRD §"The first session" 5-minute arc on a fresh install before shipping a release build. This is deliberately a manual checklist rather than an automated E2E harness: the arc crosses renderer UI, typed IPC, the installed external harness (Claude Code / Codex / OpenCode), the filesystem, and Bit's LLM - none of which a unit-test mock can faithfully cover end to end.
+A scripted walkthrough for validating the PRD §"The first session" 5-minute arc on a fresh install before shipping a release build.
+This is deliberately a manual checklist rather than an automated E2E harness: the arc crosses renderer UI, typed IPC, the selected ACP agent (Claude Code / Codex / OpenCode), the filesystem, and Bit's LLM - none of which a unit-test mock can faithfully cover end to end.
 
 Unit tests under `src/**/*.test.ts` already regression-pin the individual pieces (chat hydrate, profile create, preview build, workspace reducer, etc.). This doc is the composite pass that proves the pieces hold together as a real first session.
 
@@ -14,7 +15,7 @@ Run this before every alpha release build and after any change that touches onbo
 
 ## The 5-minute arc
 
-Timings are ideal-case; the arc should close inside 5 minutes on a reasonably fast machine with a warm harness cache.
+Timings are ideal-case; the arc should close inside 5 minutes on a reasonably fast machine with a warm agent cache.
 
 ### Step 1 - Parent installs, configures agent, creates kid profile
 
@@ -72,9 +73,10 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 ## Wrap-up
 
 - [ ] Total elapsed time from "app launches" to "saved file opens outside the app" is under 5 minutes.
-- [ ] Total cost (LLM tokens for the arc) is reasonable - check the session log for token fields if the agent reports them.
+- [ ] Total cost (LLM tokens for the arc) is reasonable - check `contextTokensUsed` / `contextTokensSize` in the session log if the agent reports them.
 - [ ] No console errors in the Electron DevTools during the arc. Warnings are acceptable; red errors are not.
-- [ ] The session log in `~/.hi-bit/profiles/<kid_id>/progress.json` records a `sessions[]` entry and at least one `knowledgePoints[]` status update reflecting what Bit covered. If Bit emits a hidden `<hi-bit:progress>` block, it does not appear in the kid-visible chat or transcript, and the learned-skill UI updates after the turn.
+- [ ] `~/.hi-bit/profiles/<kid_id>/session-log.jsonl` records at least one agent turn, and `progress.json` records at least one `knowledgePoints[]` status update reflecting what Bit covered.
+  If Bit emits a hidden `<hi-bit:progress>` block, it does not appear in the kid-visible chat or transcript, and the learned-skill UI updates after the turn.
 
 ## Failure modes to watch for
 

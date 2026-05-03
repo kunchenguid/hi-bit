@@ -1,5 +1,5 @@
 // Single source of truth for the tools Bit may use inside a kid session.
-// Each harness translates this list into its own config format. If you add
+// Each supported agent translates this list into its own config format. If you add
 // a tool here, also confirm the kid-session prompt actually needs it - the
 // blast radius widens for every entry.
 
