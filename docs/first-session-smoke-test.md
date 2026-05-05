@@ -28,6 +28,8 @@ PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profi
 - [ ] After the first agent turn, `.acpx-sessions/clean-agent-launch` contains generated launch specs for the selected provider.
   Codex specs include `ignore_user_config=true`; OpenCode specs use `--pure` and an isolated `XDG_CONFIG_HOME` under `.acpx-sessions/clean-agent-config`.
 - [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_AGENT` in `src/shared/config.ts`). Select the agent you installed above.
+- [ ] Returning to `ProfileGate.tsx` with at least one profile shows a `For grown-ups` entry point next to `+ Add a new learner`.
+- [ ] Clicking `For grown-ups`, unlocking `ParentGate.tsx`, and choosing `Open parent mode` opens `ParentHome.tsx` for that learner; `Switch profile` returns to the parent learner picker without dropping back to kid sign-in.
 - [ ] `DreamPicker.tsx` opens next, with `playground` pinned first and labeled `Not sure yet?`.
   The `Great first dream` starter projects follow before interest-tag matches for a brand-new profile.
 
