@@ -20,8 +20,8 @@ import { contextBridge, ipcRenderer } from "electron";
 const api: HiBitApi = {
   getAppInfo: (): Promise<AppInfo> => ipcRenderer.invoke("hibit:get-app-info"),
   listProfiles: (): Promise<Profile[]> => ipcRenderer.invoke("hibit:list-profiles"),
-  createProfile: (input: ProfileInput): Promise<Profile> =>
-    ipcRenderer.invoke("hibit:create-profile", input),
+  createProfile: (input: ProfileInput, parentPin: string): Promise<Profile> =>
+    ipcRenderer.invoke("hibit:create-profile", input, parentPin),
   deleteProfile: (profileId: string): Promise<void> =>
     ipcRenderer.invoke("hibit:delete-profile", profileId),
   exportProfile: (profileId: string): Promise<string | null> =>

@@ -100,6 +100,121 @@ describe("ProfileGate mascot", () => {
     expect(buttons.some((button) => button.textContent?.trim() === "For grown-ups")).toBe(true);
   });
 
+  it("requires parent unlock before adding another learner", async () => {
+    await act(async () => {
+      root.render(<ProfileGate />);
+    });
+
+    const addLearnerButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "+ Add a new learner",
+    );
+    expect(addLearnerButton).toBeDefined();
+
+    await act(async () => {
+      addLearnerButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.querySelector<HTMLInputElement>('input[type="password"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("Add a new learner");
+
+    const pinInput = host.querySelector<HTMLInputElement>('input[type="password"]');
+    await act(async () => {
+      if (!pinInput) return;
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(pinInput, "1234");
+      pinInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host
+        .querySelector("form")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(host.textContent).toContain("Add a new learner");
+    expect(host.querySelector<HTMLInputElement>('input[type="text"]')).not.toBeNull();
+  });
+
+  it("requires parent unlock before creating the first learner", async () => {
+    useProfileStore.setState({ profiles: [] });
+
+    await act(async () => {
+      root.render(<ProfileGate />);
+    });
+
+    expect(host.querySelector<HTMLInputElement>('input[type="password"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("Create profile");
+
+    const pinInput = host.querySelector<HTMLInputElement>('input[type="password"]');
+    await act(async () => {
+      if (!pinInput) return;
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(pinInput, "1234");
+      pinInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host
+        .querySelector("form")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(host.textContent).toContain("Who's using Hi Bit?");
+    expect(host.textContent).toContain("Create profile");
+  });
+
+  it("passes the unlocked parent PIN when creating a learner", async () => {
+    const createProfile = vi.fn(async () => ({
+      ...profile,
+      id: "kid-2",
+      name: "Bea",
+      age: 10,
+    }));
+    useProfileStore.setState({ createProfile });
+
+    await act(async () => {
+      root.render(<ProfileGate />);
+    });
+
+    const addLearnerButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "+ Add a new learner",
+    );
+    await act(async () => {
+      addLearnerButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const pinInput = host.querySelector<HTMLInputElement>('input[type="password"]');
+    await act(async () => {
+      if (!pinInput) return;
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(pinInput, "1234");
+      pinInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host
+        .querySelector("form")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    const nameInput = host.querySelector<HTMLInputElement>('input[type="text"]');
+    const ageInput = host.querySelector<HTMLInputElement>('input[type="number"]');
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(nameInput, "Bea");
+      nameInput?.dispatchEvent(new Event("input", { bubbles: true }));
+      valueSetter?.call(ageInput, "10");
+      ageInput?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host
+        .querySelector("form")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(createProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Bea", age: 10 }),
+      "1234",
+    );
+  });
+
   it("unlocks parent mode from the profile picker before choosing a learner to manage", async () => {
     await act(async () => {
       root.render(<ProfileGate />);

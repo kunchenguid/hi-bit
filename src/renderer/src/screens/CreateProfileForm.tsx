@@ -8,11 +8,12 @@ import {
 } from "./createProfileValidation";
 
 type Props = {
+  parentPin: string;
   onCreated: (profileId: string) => void;
   onCancel?: () => void;
 };
 
-export function CreateProfileForm({ onCreated, onCancel }: Props): JSX.Element {
+export function CreateProfileForm({ parentPin, onCreated, onCancel }: Props): JSX.Element {
   const nameId = useId();
   const ageId = useId();
   const interestsId = useId();
@@ -79,7 +80,7 @@ export function CreateProfileForm({ onCreated, onCancel }: Props): JSX.Element {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const profile = await createProfile(input);
+      const profile = await createProfile(input, parentPin);
       onCreated(profile.id);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Could not save the profile.");

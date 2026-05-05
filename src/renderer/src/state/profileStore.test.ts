@@ -84,9 +84,9 @@ describe("useProfileStore", () => {
     mockHiBit({ createProfile });
 
     const input: ProfileInput = { name: "Bea", age: 10 };
-    const result = await useProfileStore.getState().createProfile(input);
+    const result = await useProfileStore.getState().createProfile(input, "1234");
 
-    expect(createProfile).toHaveBeenCalledWith(input);
+    expect(createProfile).toHaveBeenCalledWith(input, "1234");
     expect(result).toEqual(newer);
     expect(useProfileStore.getState().profiles.map((p) => p.id)).toEqual(["ada", "bea"]);
   });

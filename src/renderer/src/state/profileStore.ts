@@ -11,7 +11,7 @@ export type ProfileStore = {
   error: string | null;
   activeProfileId: string | null;
   loadProfiles: () => Promise<void>;
-  createProfile: (input: ProfileInput) => Promise<Profile>;
+  createProfile: (input: ProfileInput, parentPin: string) => Promise<Profile>;
   deleteProfile: (profileId: string) => Promise<void>;
   exportProfile: (profileId: string) => Promise<string | null>;
   selectProfile: (profileId: string | null) => void;
@@ -39,8 +39,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }
   },
 
-  createProfile: async (input) => {
-    const profile = await window.hibit.createProfile(input);
+  createProfile: async (input, parentPin) => {
+    const profile = await window.hibit.createProfile(input, parentPin);
     set((state) => ({
       profiles: [...state.profiles, profile].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     }));
