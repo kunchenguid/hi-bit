@@ -19,6 +19,7 @@ import { hydrateShellPath } from "./agent/shellPath";
 import { loadDreams } from "./graph/dreams";
 import { loadKnowledgeGraph } from "./graph/load";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./harness/chat";
+import { requireParentPinForProfileCreation } from "./profileCreationAuth";
 import { loadOrInitConfig, writeConfig } from "./storage/config";
 import { deleteFlag, loadFlags, writeFlag } from "./storage/flags";
 import { seedGraph } from "./storage/graphSeed";
@@ -180,9 +181,10 @@ function registerIpc(layout: HiBitLayout): void {
 
   ipcMain.handle("hibit:list-profiles", () => listProfiles(layout));
 
-  ipcMain.handle("hibit:create-profile", (_event, input: ProfileInput) =>
-    createProfile(layout, input),
-  );
+  ipcMain.handle("hibit:create-profile", async (_event, input: ProfileInput, parentPin: string) => {
+    await requireParentPinForProfileCreation(layout, parentPin);
+    return createProfile(layout, input);
+  });
 
   ipcMain.handle("hibit:delete-profile", async (_event, profileId: string) => {
     const profile = await readProfile(layout, profileId);

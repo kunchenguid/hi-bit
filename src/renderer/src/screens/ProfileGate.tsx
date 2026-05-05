@@ -18,6 +18,7 @@ export function ProfileGate(): JSX.Element {
 
   const [view, setView] = useState<View>("picker");
   const [parentProfileId, setParentProfileId] = useState<string | null>(null);
+  const [createParentPin, setCreateParentPin] = useState<string | null>(null);
 
   useEffect(() => {
     void loadProfiles();
@@ -100,7 +101,18 @@ export function ProfileGate(): JSX.Element {
   }
 
   if (view === "create-parent-gate") {
-    return <ParentGate onUnlock={() => setView("create")} onCancel={() => setView("picker")} />;
+    return (
+      <ParentGate
+        onUnlock={(pin) => {
+          setCreateParentPin(pin);
+          setView("create");
+        }}
+        onCancel={() => {
+          setCreateParentPin(null);
+          setView("picker");
+        }}
+      />
+    );
   }
 
   if (view === "parent-picker") {
@@ -159,11 +171,20 @@ export function ProfileGate(): JSX.Element {
             Bit uses this to greet them by name and pick dreams they'd actually build.
           </p>
           <CreateProfileForm
+            parentPin={createParentPin ?? ""}
             onCreated={(profileId) => {
               selectProfile(profileId);
+              setCreateParentPin(null);
               setView("picker");
             }}
-            onCancel={profiles.length > 0 ? () => setView("picker") : undefined}
+            onCancel={
+              profiles.length > 0
+                ? () => {
+                    setCreateParentPin(null);
+                    setView("picker");
+                  }
+                : undefined
+            }
           />
         </div>
       </main>

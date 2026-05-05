@@ -3,7 +3,7 @@ import { useConfigStore } from "../state/configStore";
 import { validatePinEntry, validatePinSetup } from "./parent/pinValidation";
 
 export type ParentGateProps = {
-  onUnlock: () => void;
+  onUnlock: (pin: string) => void;
   onCancel: () => void;
 };
 
@@ -86,7 +86,7 @@ export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element
           setRefocusToken((n) => n + 1);
           return;
         }
-        onUnlock();
+        onUnlock(pin);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Couldn't verify your PIN.");
       } finally {
@@ -102,7 +102,7 @@ export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element
     setBusy(true);
     try {
       await setParentPin(pin);
-      onUnlock();
+      onUnlock(pin);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save your PIN.");
     } finally {
