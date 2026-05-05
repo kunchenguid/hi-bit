@@ -215,7 +215,16 @@ export function KidChat({
     const trimmed = input.trim();
     if (trimmed.length === 0 || status === "sending") return;
     setInput("");
-    await send(profile.id, trimmed);
+    await send(
+      profile.id,
+      trimmed,
+      docked
+        ? {
+            uiContext:
+              "The editor is already open next to chat. Do not ask the kid to click Open the editor; guide them using the visible editor controls instead.",
+          }
+        : undefined,
+    );
   }
 
   const disabled = status === "sending" || input.trim().length === 0;

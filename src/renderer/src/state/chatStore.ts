@@ -32,7 +32,11 @@ export type ChatStore = {
   streamingText: string | null;
   activeRequestId: string | null;
   hydrate: (profileId: string, sessionId: string) => Promise<void>;
-  send: (profileId: string, prompt: string) => Promise<SendMessageResult | null>;
+  send: (
+    profileId: string,
+    prompt: string,
+    options?: { uiContext?: string },
+  ) => Promise<SendMessageResult | null>;
   sendSystemPrompt: (
     profileId: string,
     message: { prompt: string; label: string },
@@ -108,6 +112,12 @@ async function sendKidMessageWithTimeout(
   }
 }
 
+function promptWithUiContext(prompt: string, uiContext?: string): string {
+  const trimmedContext = uiContext?.trim();
+  if (!trimmedContext) return prompt;
+  return `<hi-bit:ui-context>\n${trimmedContext}\n</hi-bit:ui-context>\n\n${prompt}`;
+}
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   status: "idle",
@@ -161,7 +171,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
   },
 
-  send: async (profileId, prompt) => {
+  send: async (profileId, prompt, options) => {
     const trimmed = prompt.trim();
     if (trimmed.length === 0) return null;
     if (get().status === "sending") return null;
@@ -183,7 +193,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
 
     try {
-      const result = await sendKidMessageWithTimeout(profileId, trimmed, requestId);
+      const result = await sendKidMessageWithTimeout(
+        profileId,
+        promptWithUiContext(trimmed, options?.uiContext),
+        requestId,
+      );
       const blank = result.ok && isBlankAssistantText(result.text);
       const reply: ChatMessage = {
         id: messageId(),

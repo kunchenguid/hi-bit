@@ -111,6 +111,24 @@ describe("useChatStore", () => {
     ]);
   });
 
+  it("can send hidden UI context without showing it as the kid message", async () => {
+    const sendKidMessage = vi
+      .fn()
+      .mockResolvedValue({ ok: true, text: "Use See my page.", durationMs: 5 });
+    mockHiBit({ sendKidMessage });
+
+    await useChatStore.getState().send("ada", "yes", {
+      uiContext: "The editor is already open next to chat.",
+    });
+
+    expect(sendKidMessage).toHaveBeenCalledWith(
+      "ada",
+      "<hi-bit:ui-context>\nThe editor is already open next to chat.\n</hi-bit:ui-context>\n\nyes",
+      expect.any(String),
+    );
+    expect(useChatStore.getState().messages[0]).toMatchObject({ role: "kid", text: "yes" });
+  });
+
   it("shows a kid-friendly error bubble and records the raw error on ok=false", async () => {
     const result: SendMessageResult = { ok: false, error: "boom", durationMs: 50 };
     mockHiBit({ sendKidMessage: vi.fn().mockResolvedValue(result) });
