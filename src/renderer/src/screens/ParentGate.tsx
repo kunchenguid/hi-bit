@@ -8,6 +8,9 @@ export type ParentGateProps = {
 };
 
 export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element {
+  const status = useConfigStore((s) => s.status);
+  const configError = useConfigStore((s) => s.error);
+  const load = useConfigStore((s) => s.load);
   const hasParentPin = useConfigStore((s) => s.hasParentPin);
   const setParentPin = useConfigStore((s) => s.setParentPin);
   const verifyParentPin = useConfigStore((s) => s.verifyParentPin);
@@ -20,10 +23,42 @@ export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element
   const [refocusToken, setRefocusToken] = useState(0);
 
   useEffect(() => {
+    if (status === "idle") void load();
+  }, [status, load]);
+
+  useEffect(() => {
     if (refocusToken === 0) return;
     if (busy) return;
     pinInputRef.current?.focus();
   }, [refocusToken, busy]);
+
+  if (status === "idle" || status === "loading") {
+    return (
+      <main className="hb-gate">
+        <p className="hb-gate-loading">Waking parent mode up...</p>
+      </main>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <main className="hb-gate">
+        <div className="hb-gate-card">
+          <div className="t-pixel hb-gate-kicker">Parent mode</div>
+          <h1>Parent mode is still locked.</h1>
+          <p className="hb-gate-sub">{configError ?? "Couldn't read parent PIN settings."}</p>
+          <div className="hb-parent-actions">
+            <button type="button" className="hb-btn hb-btn-ghost" onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="button" className="hb-btn hb-btn-primary" onClick={() => void load()}>
+              Try again
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   function handleKeyDown(e: KeyboardEvent<HTMLFormElement>): void {
     if (e.key === "Escape" && !busy) {

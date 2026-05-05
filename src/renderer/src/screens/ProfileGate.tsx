@@ -80,6 +80,10 @@ export function ProfileGate(): JSX.Element {
       return (
         <ParentHome
           profile={parentProfile}
+          onSwitchProfile={() => {
+            setParentProfileId(null);
+            setView("parent-picker");
+          }}
           onLock={() => {
             setParentProfileId(null);
             setView("picker");

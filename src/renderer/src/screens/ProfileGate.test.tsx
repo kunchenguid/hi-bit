@@ -7,6 +7,23 @@ import { useConfigStore } from "../state/configStore";
 import { useProfileStore } from "../state/profileStore";
 import { ProfileGate } from "./ProfileGate";
 
+vi.mock("./ParentHome", () => ({
+  ParentHome: ({
+    profile,
+    onSwitchProfile,
+  }: {
+    profile: Profile;
+    onSwitchProfile?: () => void;
+  }) => (
+    <main>
+      <h1>{profile.name}'s Hi Bit</h1>
+      <button type="button" onClick={onSwitchProfile}>
+        Switch profile
+      </button>
+    </main>
+  ),
+}));
+
 const profile: Profile = {
   id: "kid-1",
   name: "Ada",
@@ -115,5 +132,76 @@ describe("ProfileGate mascot", () => {
     expect(host.textContent).toContain("Pick a learner to manage.");
     expect(host.textContent).toContain("Ada");
     expect(host.textContent).toContain("Open parent mode");
+  });
+
+  it("does not show parent PIN setup while config is loading", async () => {
+    useConfigStore.setState({ status: "loading", hasParentPin: false });
+
+    await act(async () => {
+      root.render(<ProfileGate />);
+    });
+
+    const grownUpsButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "For grown-ups",
+    );
+    expect(grownUpsButton).toBeDefined();
+
+    await act(async () => {
+      grownUpsButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Waking parent mode up...");
+    expect(host.textContent).not.toContain("Set a parent PIN.");
+  });
+
+  it("returns from parent home to the parent learner picker", async () => {
+    await act(async () => {
+      root.render(<ProfileGate />);
+    });
+
+    const grownUpsButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "For grown-ups",
+    );
+    expect(grownUpsButton).toBeDefined();
+
+    await act(async () => {
+      grownUpsButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const pinInput = host.querySelector<HTMLInputElement>('input[type="password"]');
+    expect(pinInput).not.toBeNull();
+
+    await act(async () => {
+      if (!pinInput) return;
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(pinInput, "1234");
+      pinInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host
+        .querySelector("form")
+        ?.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    const openParentModeButton = Array.from(host.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Open parent mode"),
+    );
+    expect(openParentModeButton).toBeDefined();
+
+    await act(async () => {
+      openParentModeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(host.textContent).toContain("Ada's Hi Bit");
+
+    const switchProfileButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Switch profile",
+    );
+    expect(switchProfileButton).toBeDefined();
+
+    await act(async () => {
+      switchProfileButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Pick a learner to manage.");
   });
 });
