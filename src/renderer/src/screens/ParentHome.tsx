@@ -17,9 +17,10 @@ import { ParentSettings } from "./parent/ParentSettings";
 export type ParentHomeProps = {
   profile: Profile;
   onLock: () => void;
+  onSwitchProfile?: () => void;
 };
 
-export function ParentHome({ profile, onLock }: ParentHomeProps): JSX.Element {
+export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps): JSX.Element {
   const graph = useGraphStore((s) => s.graph);
   const library = useGraphStore((s) => s.library);
   const graphStatus = useGraphStore((s) => s.status);
@@ -53,7 +54,11 @@ export function ParentHome({ profile, onLock }: ParentHomeProps): JSX.Element {
           <h1 className="hb-parent-title">{profile.name}'s Hi Bit</h1>
         </div>
         <div className="hb-parent-header-actions">
-          <button type="button" className="hb-btn hb-btn-ghost" onClick={() => selectProfile(null)}>
+          <button
+            type="button"
+            className="hb-btn hb-btn-ghost"
+            onClick={onSwitchProfile ?? (() => selectProfile(null))}
+          >
             Switch profile
           </button>
           <button type="button" className="hb-btn hb-btn-ghost" onClick={onLock}>

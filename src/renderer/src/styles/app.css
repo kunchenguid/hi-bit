@@ -135,6 +135,7 @@ pre,
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 .hb-profile-name {
   font-weight: 600;
@@ -147,8 +148,21 @@ pre,
   white-space: nowrap;
 }
 .hb-profile-add {
-  margin-top: var(--s-1);
   align-self: flex-start;
+}
+
+.hb-profile-action {
+  color: var(--brand);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.hb-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
 }
 
 /* ---------- Form ---------- */
