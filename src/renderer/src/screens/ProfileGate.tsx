@@ -3,8 +3,10 @@ import type { Profile } from "@shared/profile";
 import { type JSX, useEffect, useState } from "react";
 import { useProfileStore } from "../state/profileStore";
 import { CreateProfileForm } from "./CreateProfileForm";
+import { ParentGate } from "./ParentGate";
+import { ParentHome } from "./ParentHome";
 
-type View = "picker" | "create";
+type View = "picker" | "create" | "parent-gate" | "parent-picker";
 
 export function ProfileGate(): JSX.Element {
   const status = useProfileStore((s) => s.status);
@@ -15,6 +17,7 @@ export function ProfileGate(): JSX.Element {
   const activeProfileId = useProfileStore((s) => s.activeProfileId);
 
   const [view, setView] = useState<View>("picker");
+  const [parentProfileId, setParentProfileId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadProfiles();
@@ -65,6 +68,63 @@ export function ProfileGate(): JSX.Element {
           <p className="hb-gate-sub">{dreamLine} (Tutor chat ships in a future step.)</p>
           <button type="button" className="hb-btn hb-btn-ghost" onClick={() => selectProfile(null)}>
             Switch profile
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (parentProfileId) {
+    const parentProfile = profiles.find((p) => p.id === parentProfileId);
+    if (parentProfile) {
+      return (
+        <ParentHome
+          profile={parentProfile}
+          onLock={() => {
+            setParentProfileId(null);
+            setView("picker");
+          }}
+        />
+      );
+    }
+  }
+
+  if (view === "parent-gate") {
+    return (
+      <ParentGate onUnlock={() => setView("parent-picker")} onCancel={() => setView("picker")} />
+    );
+  }
+
+  if (view === "parent-picker") {
+    return (
+      <main className="hb-gate">
+        <div className="hb-gate-card">
+          <img
+            className="hb-gate-mascot"
+            src={mascotBooUrl}
+            alt=""
+            aria-hidden="true"
+            width={120}
+            height={120}
+          />
+          <div className="t-pixel hb-gate-kicker">Parent mode</div>
+          <h1>Pick a learner to manage.</h1>
+          <p className="hb-gate-sub">
+            Open settings, progress, exports, and profile deletion behind the parent PIN.
+          </p>
+          <ul className="hb-profile-list">
+            {profiles.map((profile) => (
+              <li key={profile.id}>
+                <ProfileChoice
+                  profile={profile}
+                  onPick={() => setParentProfileId(profile.id)}
+                  actionLabel="Open parent mode"
+                />
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="hb-btn hb-btn-ghost" onClick={() => setView("picker")}>
+            Back to learner sign-in
           </button>
         </div>
       </main>
@@ -122,19 +182,36 @@ export function ProfileGate(): JSX.Element {
             </li>
           ))}
         </ul>
-        <button
-          type="button"
-          className="hb-btn hb-btn-ghost hb-profile-add"
-          onClick={() => setView("create")}
-        >
-          + Add a new learner
-        </button>
+        <div className="hb-profile-actions">
+          <button
+            type="button"
+            className="hb-btn hb-btn-ghost hb-profile-add"
+            onClick={() => setView("create")}
+          >
+            + Add a new learner
+          </button>
+          <button
+            type="button"
+            className="hb-btn hb-btn-ghost"
+            onClick={() => setView("parent-gate")}
+          >
+            For grown-ups
+          </button>
+        </div>
       </div>
     </main>
   );
 }
 
-function ProfileChoice({ profile, onPick }: { profile: Profile; onPick: () => void }): JSX.Element {
+function ProfileChoice({
+  profile,
+  onPick,
+  actionLabel,
+}: {
+  profile: Profile;
+  onPick: () => void;
+  actionLabel?: string;
+}): JSX.Element {
   const initials = profile.name
     .split(/\s+/)
     .map((part) => part[0]?.toUpperCase() ?? "")
@@ -153,6 +230,7 @@ function ProfileChoice({ profile, onPick }: { profile: Profile; onPick: () => vo
           {profile.interests.length > 0 ? ` · ${profile.interests.slice(0, 3).join(", ")}` : ""}
         </span>
       </span>
+      {actionLabel ? <span className="hb-profile-action t-pixel">{actionLabel}</span> : null}
     </button>
   );
 }
