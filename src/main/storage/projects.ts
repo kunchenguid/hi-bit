@@ -106,6 +106,44 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
   const title = escapeHtml(rawTitle);
   const sentenceTitle = escapeHtml(sentenceCase(rawTitle));
   const name = escapeHtml(profileName);
+  if (dream.id === "emoji-button") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #fff7d6;
+      }
+
+      button {
+        font-size: 2rem;
+        padding: 1rem 1.5rem;
+        border-radius: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s smiley button</h1>
+    <p>${sentenceTitle}. Change the words or the smiley to make it yours.</p>
+    <button id="smiley-button">Click me :D</button>
+    <p id="message">Press the button to see what happens.</p>
+
+    <script>
+      const button = document.getElementById("smiley-button");
+      const message = document.getElementById("message");
+
+      button.addEventListener("click", () => {
+        message.textContent = "The smiley button worked!";
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   return `<!doctype html>
 <html lang="en">
   <head>
