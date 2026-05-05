@@ -6,7 +6,7 @@ import { CreateProfileForm } from "./CreateProfileForm";
 import { ParentGate } from "./ParentGate";
 import { ParentHome } from "./ParentHome";
 
-type View = "picker" | "create" | "parent-gate" | "parent-picker";
+type View = "picker" | "create" | "parent-gate" | "create-parent-gate" | "parent-picker";
 
 export function ProfileGate(): JSX.Element {
   const status = useProfileStore((s) => s.status);
@@ -25,7 +25,7 @@ export function ProfileGate(): JSX.Element {
 
   useEffect(() => {
     if (status === "ready" && profiles.length === 0) {
-      setView("create");
+      setView("create-parent-gate");
     }
   }, [status, profiles.length]);
 
@@ -97,6 +97,10 @@ export function ProfileGate(): JSX.Element {
     return (
       <ParentGate onUnlock={() => setView("parent-picker")} onCancel={() => setView("picker")} />
     );
+  }
+
+  if (view === "create-parent-gate") {
+    return <ParentGate onUnlock={() => setView("create")} onCancel={() => setView("picker")} />;
   }
 
   if (view === "parent-picker") {
@@ -190,7 +194,7 @@ export function ProfileGate(): JSX.Element {
           <button
             type="button"
             className="hb-btn hb-btn-ghost hb-profile-add"
-            onClick={() => setView("create")}
+            onClick={() => setView("create-parent-gate")}
           >
             + Add a new learner
           </button>
