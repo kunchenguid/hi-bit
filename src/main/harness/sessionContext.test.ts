@@ -56,6 +56,20 @@ describe("buildSessionContextPreamble", () => {
     );
   });
 
+  it("prominently forbids vague placeholder-name replacement wording", () => {
+    const text = buildSessionContextPreamble({
+      role: "kid",
+      profile: { ...baseProfile, name: "Ada Lovelace" },
+      profileDir: "/tmp/profiles/ada",
+    });
+
+    expect(text).toContain(
+      'If a starter page says "My Name", say the exact replacement "Ada Lovelace" immediately.',
+    );
+    expect(text).toContain('Do not say "your real name"');
+    expect(text).toContain('Do not say "your actual name"');
+  });
+
   it("includes injected memory with relative source paths when memory is provided", () => {
     const text = buildSessionContextPreamble({
       role: "kid",
