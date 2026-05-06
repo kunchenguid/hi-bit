@@ -1072,6 +1072,67 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "bouncing-ball") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #eef7ff;
+      }
+
+      canvas {
+        background: white;
+        border: 4px solid #25304f;
+        border-radius: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s bouncing ball</h1>
+    <p>${sentenceTitle}. Watch the ball bounce, then change the color or speed to make it yours.</p>
+    <canvas id="ball-canvas" width="360" height="220"></canvas>
+
+    <script>
+      const canvas = document.getElementById("ball-canvas");
+      const ctx = canvas.getContext("2d");
+      let x = 80;
+      let y = 80;
+      let speedX = 3;
+      let speedY = 2;
+      const radius = 18;
+
+      function drawBall() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "tomato";
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        x += speedX;
+        y += speedY;
+
+        if (x <= radius || x >= canvas.width - radius) {
+          speedX *= -1;
+        }
+
+        if (y <= radius || y >= canvas.height - radius) {
+          speedY *= -1;
+        }
+
+        requestAnimationFrame(drawBall);
+      }
+
+      drawBall();
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "show-me-around" || dream.id === "pet-page") {
     return `<!doctype html>
 <html lang="en">

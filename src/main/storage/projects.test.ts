@@ -654,6 +654,32 @@ describe("projects storage", () => {
       expect(raw).toContain("fillRect");
     });
 
+    it("gives the bouncing ball dream a starter page with a canvas and animation behavior", async () => {
+      const dream = makeDream({
+        id: "bouncing-ball",
+        title_kid: "a ball that bounces around the screen",
+        requires: [
+          "canvas-setup",
+          "canvas-circle",
+          "canvas-clear",
+          "animation-raf",
+          "canvas-collision-bounds",
+        ],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "bouncing-ball", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's bouncing ball");
+      expect(raw).toContain('<canvas id="ball-canvas"');
+      expect(raw).toContain('getContext("2d")');
+      expect(raw).toContain("arc(");
+      expect(raw).toContain("clearRect");
+      expect(raw).toContain("requestAnimationFrame");
+      expect(raw).toContain("speedX *= -1");
+      expect(raw).toContain("speedY *= -1");
+    });
+
     it("html-escapes the profile name so it can't break out of the h1", async () => {
       const dream = makeDream({ id: "hello-card" });
       await scaffoldProject(paths, dream, { profileName: "<script>Mallory</script>" });
