@@ -249,8 +249,8 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
     <h1>${name}'s type mirror</h1>
     <p>${sentenceTitle}. Type in the box and watch the page copy your words.</p>
     <label for="mirror-input">Type some words here:</label>
-    <input id="mirror-input" type="text" value="hello" />
-    <p id="mirror-output">hello</p>
+    <input id="mirror-input" type="text" />
+    <p id="mirror-output">Your words will show here.</p>
 
     <script>
       const input = document.getElementById("mirror-input");

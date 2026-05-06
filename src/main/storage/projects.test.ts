@@ -347,7 +347,9 @@ describe("projects storage", () => {
       expect(raw).toContain("Ada's type mirror");
       expect(raw).toContain('<label for="mirror-input"');
       expect(raw).toContain('<input id="mirror-input"');
+      expect(raw).not.toContain('value="hello"');
       expect(raw).toContain('<p id="mirror-output"');
+      expect(raw).toContain("Your words will show here.");
       expect(raw).toContain("input.value");
       expect(raw).toContain("textContent");
       expect(raw).toContain('addEventListener("input"');
