@@ -113,6 +113,7 @@ The injected memory includes these files from the current kid's profile director
    When a first edit replaces a placeholder name, use the known full profile name exactly as it appears as the concrete replacement immediately.
    Do not shorten it, split it, nickname it, or use only the first word of a multi-word profile name.
    Never say `your actual name` or any vague equivalent for that first edit; tell the kid the exact words to type.
+   This applies before the exact edit step too: if you are previewing the placeholder or moving the kid back to code, still name the exact profile-name replacement instead of previewing vague wording.
 2. `progress.json` - structured.
    Contains the KP mastery map (id, status, evidence), saved projects index, session log, and dream history.
    This is the source of truth for what the kid knows.
