@@ -391,6 +391,51 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "magic-answer") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #f8f0ff;
+      }
+
+      button {
+        font-size: 1.3rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+
+      #answer {
+        font-size: 1.8rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s magic answer</h1>
+    <p>${sentenceTitle}. Ask a question, press the button, and see what the page chooses.</p>
+    <button id="answer-button">Give me an answer</button>
+    <p id="answer">Your magic answer will show here.</p>
+
+    <script>
+      const answers = ["yes", "no", "maybe", "try again"];
+      const button = document.getElementById("answer-button");
+      const answer = document.getElementById("answer");
+
+      button.addEventListener("click", () => {
+        const index = Math.floor(Math.random() * answers.length);
+        answer.textContent = answers[index];
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "type-mirror") {
     return `<!doctype html>
 <html lang="en">

@@ -407,6 +407,26 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the magic answer dream a starter page with answer choices and button behavior", async () => {
+      const dream = makeDream({
+        id: "magic-answer",
+        title_kid: "a page that gives you a magic answer to any question",
+        requires: ["html-buttons", "dom-text-content", "events-click", "js-arrays"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "magic-answer", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's magic answer");
+      expect(raw).toContain('<button id="answer-button"');
+      expect(raw).toContain('<p id="answer"');
+      expect(raw).toContain("const answers = [");
+      expect(raw).toContain("answers.length");
+      expect(raw).toContain("Math.random");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
     it("gives the type-mirror dream a starter page with a text box and mirrored text behavior", async () => {
       const dream = makeDream({
         id: "type-mirror",
