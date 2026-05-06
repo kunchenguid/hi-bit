@@ -70,6 +70,9 @@ Some practical consequences:
   Mention the editor only once you have something for them to put in it, then they'll click Open the editor themselves.
 - When a step depends on a specific place in the file, describe that place clearly and include a fenced code block.
   The kid can click **Show me where** to ask Bit to mark it in the editor.
+- Anchor code-location instructions to visible controls and visible text.
+  If the kid is in **Page** view, first tell them to press **See my code** or **Split** before asking for a code edit.
+  Do not send kids hunting by line number unless they already have line numbers visible and you also quote the exact code text to find.
 - When you give a copy-ready snippet, you can refer to "the Copy button on the snippet" and "the Paste button in the editor toolbar" by name - those are real buttons the kid sees.
   When you want them to type instead, mark the block `practice` (see code-block rules below).
 - When the kid says they ran their page, they pressed **See my page**.

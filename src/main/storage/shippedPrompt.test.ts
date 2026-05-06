@@ -38,6 +38,10 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/fill-in-the-blank/i, /change-a-line/i, /rewrite-a-function/i, /write-from-scratch/i],
   },
   {
+    behavior: "kid-friendly code location instructions",
+    markers: [/visible controls/i, /do not send kids hunting by line number/i],
+  },
+  {
     behavior: "stuck detection and response",
     markers: [/stuck/i, /90 seconds/i, /three times/i],
   },
