@@ -220,6 +220,45 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "color-changer") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: peachpuff;
+      }
+
+      button {
+        font-size: 1.3rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s color changer</h1>
+    <p>${sentenceTitle}. Press the button and watch the page paint itself.</p>
+    <button id="color-button">Change the color</button>
+
+    <script>
+      const button = document.getElementById("color-button");
+      const colors = ["peachpuff", "lightblue", "lightgreen", "lavender", "mistyrose"];
+      let colorIndex = 0;
+
+      button.addEventListener("click", () => {
+        colorIndex = (colorIndex + 1) % colors.length;
+        document.body.style.backgroundColor = colors[colorIndex];
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "dice-roller") {
     return `<!doctype html>
 <html lang="en">

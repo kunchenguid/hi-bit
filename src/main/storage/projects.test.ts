@@ -336,6 +336,22 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the color changer dream a starter page with a button that changes the page color", async () => {
+      const dream = makeDream({
+        id: "color-changer",
+        title_kid: "a page that changes color when you click",
+        requires: ["html-buttons", "css-attach", "events-click"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "color-changer", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's color changer");
+      expect(raw).toContain('<button id="color-button"');
+      expect(raw).toContain("backgroundColor");
+      expect(raw).toContain("addEventListener");
+    });
+
     it("gives the dice roller dream a starter page with a working dice button", async () => {
       const dream = makeDream({
         id: "dice-roller",
