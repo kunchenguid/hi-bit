@@ -53,6 +53,8 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
       "<hi-bit:context>",
       "mode: kid",
       `kid: { name: ${JSON.stringify(profile.name)}, age: ${profile.age}, interests: [${interests}] }`,
+      `exact_kid_name: ${JSON.stringify(profile.name)}`,
+      `Use exact_kid_name exactly when you write the kid's name; do not shorten it to ${JSON.stringify(profile.name.split(/\s+/)[0] ?? profile.name)}.`,
       `profile_dir: ${profileDir}`,
       `current_dream: ${currentDream}`,
       ...projectLines,

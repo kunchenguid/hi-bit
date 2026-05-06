@@ -43,6 +43,19 @@ describe("buildSessionContextPreamble", () => {
     expect(text).toMatch(/drawing/);
   });
 
+  it("keeps the exact full profile name prominent for kid-mode turns", () => {
+    const text = buildSessionContextPreamble({
+      role: "kid",
+      profile: { ...baseProfile, name: "Ada Lovelace" },
+      profileDir: "/tmp/profiles/ada",
+    });
+
+    expect(text).toContain('exact_kid_name: "Ada Lovelace"');
+    expect(text).toContain(
+      'Use exact_kid_name exactly when you write the kid\'s name; do not shorten it to "Ada".',
+    );
+  });
+
   it("includes injected memory with relative source paths when memory is provided", () => {
     const text = buildSessionContextPreamble({
       role: "kid",
