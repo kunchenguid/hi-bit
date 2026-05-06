@@ -328,6 +328,80 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "beat-pad") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #1d1836;
+        color: white;
+      }
+
+      .pads {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(5rem, 1fr));
+        gap: 1rem;
+        max-width: 34rem;
+        margin: 1.5rem auto;
+      }
+
+      .pad {
+        padding: 1.4rem 0.8rem;
+        border: 0.25rem solid white;
+        border-radius: 1rem;
+        background: #ff8a3d;
+        color: #24102f;
+        font-size: 1.4rem;
+        font-weight: bold;
+      }
+
+      .pad.active {
+        background: #ffd166;
+        transform: scale(1.08);
+      }
+
+      #hit-count {
+        font-size: 1.3rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s beat pad</h1>
+    <p>${sentenceTitle}. Press A, S, D, or F and watch a pad flash.</p>
+    <div class="pads">
+      <div class="pad" data-key="a">A<br />Kick</div>
+      <div class="pad" data-key="s">S<br />Clap</div>
+      <div class="pad" data-key="d">D<br />Hat</div>
+      <div class="pad" data-key="f">F<br />Boom</div>
+    </div>
+    <p id="hit-count">Hits: 0</p>
+
+    <script>
+      const pads = document.querySelectorAll(".pad");
+      const hitCount = document.getElementById("hit-count");
+      let hits = 0;
+
+      document.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        const pad = document.querySelector('[data-key="' + key + '"]');
+        if (pad === null) return;
+
+        hits += 1;
+        hitCount.textContent = "Hits: " + hits;
+        pads.forEach((item) => item.classList.remove("active"));
+        pad.classList.add("active");
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "dice-roller") {
     return `<!doctype html>
 <html lang="en">

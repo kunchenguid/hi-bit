@@ -371,6 +371,27 @@ describe("projects storage", () => {
       expect(raw).toContain("classList");
     });
 
+    it("gives the beat pad dream a starter page with keyboard drum pads", async () => {
+      const dream = makeDream({
+        id: "beat-pad",
+        title_kid: "four drum pads you play with the keyboard",
+        requires: ["html-div-span", "events-keydown", "state-counter"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "beat-pad", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's beat pad");
+      expect(raw).toContain('class="pad"');
+      expect(raw).toContain('data-key="a"');
+      expect(raw).toContain('data-key="s"');
+      expect(raw).toContain('data-key="d"');
+      expect(raw).toContain('data-key="f"');
+      expect(raw).toContain("keydown");
+      expect(raw).toContain("classList");
+      expect(raw).toContain("textContent");
+    });
+
     it("gives the dice roller dream a starter page with a working dice button", async () => {
       const dream = makeDream({
         id: "dice-roller",
