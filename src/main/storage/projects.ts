@@ -175,6 +175,51 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "click-counter") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #fff4e8;
+      }
+
+      button {
+        font-size: 1.4rem;
+        padding: 0.9rem 1.4rem;
+        border-radius: 999px;
+      }
+
+      #count-display {
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s click counter</h1>
+    <p>${sentenceTitle}. Press the button and watch the number go up.</p>
+    <button id="count-button">Click me</button>
+    <p id="count-display">Clicks: 0</p>
+
+    <script>
+      const button = document.getElementById("count-button");
+      const display = document.getElementById("count-display");
+      let count = 0;
+
+      button.addEventListener("click", () => {
+        count += 1;
+        display.textContent = "Clicks: " + count;
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "message-button") {
     return `<!doctype html>
 <html lang="en">

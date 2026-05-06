@@ -317,6 +317,25 @@ describe("projects storage", () => {
       expect(raw).toContain("Dance");
     });
 
+    it("gives the click counter dream a starter page with a working counter button", async () => {
+      const dream = makeDream({
+        id: "click-counter",
+        title_kid: "a page with a button that counts your clicks",
+        requires: ["html-buttons", "dom-text-content", "events-click", "state-counter"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "click-counter", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's click counter");
+      expect(raw).toContain('<button id="count-button"');
+      expect(raw).toContain('<p id="count-display"');
+      expect(raw).toContain("let count = 0");
+      expect(raw).toContain("count += 1");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
     it("gives the message-button dream a starter page with a button and message behavior", async () => {
       const dream = makeDream({
         id: "message-button",
