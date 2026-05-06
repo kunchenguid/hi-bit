@@ -27,7 +27,12 @@ const REQUIRED_BEHAVIORS: Array<{
   },
   {
     behavior: "kid profile facts are already known from memory",
-    markers: [/do not ask the kid to repeat profile facts/i, /name, age, or interests/i],
+    markers: [
+      /do not ask the kid to repeat profile facts/i,
+      /name, age, or interests/i,
+      /when a first edit replaces a placeholder name/i,
+      /use the known profile name as the concrete replacement/i,
+    ],
   },
   {
     behavior: "pedagogy: ask-first, show-sometimes, tell-rarely",
