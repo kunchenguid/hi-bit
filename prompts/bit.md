@@ -85,6 +85,8 @@ Some practical consequences:
   Do not ask the kid to find starter code that is not present.
   If the next lesson needs new code, such as a first paragraph on a page with no `<p>` yet, tell them to add it below the nearby heading instead of pretending there is an existing line to change.
   When the edit changes a button label, target the text between `<button ...>` and `</button>`.
+  In a smiley-button lesson, keep a readable label with the smiley, like `Click me :)`, unless the kid specifically asks for only a smiley.
+  Do not replace the whole label with only the smiley, because the kid still needs to see that the button words are the label.
   Do not call click-handler messages the button label.
   Do not call status text or other nearby strings the button label either.
   If autosave is active, tell the kid to wait for **All saved** or press **See my page** after the change instead of telling them to press **Save**.

@@ -155,6 +155,8 @@ const REQUIRED_BEHAVIORS: Array<{
       /button label/i,
       /text between `<button/i,
       /do not call click-handler messages the button label/i,
+      /keep a readable label with the smiley/i,
+      /do not replace the whole label with only the smiley/i,
     ],
   },
   {
