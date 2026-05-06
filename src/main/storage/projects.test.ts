@@ -428,6 +428,26 @@ describe("projects storage", () => {
       expect(raw).toContain('addEventListener("input"');
     });
 
+    it("gives the name badge dream a starter page with a text box and live badge text", async () => {
+      const dream = makeDream({
+        id: "name-badge",
+        title_kid: "a name badge you can type into",
+        requires: ["html-inputs-text", "dom-input-value", "dom-text-content", "events-input"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "name-badge", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's name badge");
+      expect(raw).toContain('<label for="name-input"');
+      expect(raw).toContain('<input id="name-input"');
+      expect(raw).toContain('<p id="badge-name"');
+      expect(raw).toContain("Ada");
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain('addEventListener("input"');
+    });
+
     it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
       const dream = makeDream({
         id: "canvas-rectangle",

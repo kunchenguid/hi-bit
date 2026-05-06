@@ -437,6 +437,65 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "name-badge") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #fff7f0;
+      }
+
+      input {
+        display: block;
+        font-size: 1.2rem;
+        margin: 1rem auto;
+        padding: 0.7rem 1rem;
+        border-radius: 0.8rem;
+      }
+
+      .badge {
+        display: inline-block;
+        min-width: 12rem;
+        padding: 1rem 1.5rem;
+        border: 0.25rem solid #ff8a3d;
+        border-radius: 1rem;
+        background: white;
+      }
+
+      #badge-name {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s name badge</h1>
+    <p>${sentenceTitle}. Type a name and watch the badge change.</p>
+    <label for="name-input">Type a name here:</label>
+    <input id="name-input" type="text" value="${name}" />
+    <div class="badge">
+      <p>Hello, my name is</p>
+      <p id="badge-name">${name}</p>
+    </div>
+
+    <script>
+      const input = document.getElementById("name-input");
+      const badgeName = document.getElementById("badge-name");
+
+      input.addEventListener("input", () => {
+        badgeName.textContent = input.value;
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "canvas-rectangle") {
     return `<!doctype html>
 <html lang="en">
