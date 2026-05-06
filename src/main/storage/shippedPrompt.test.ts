@@ -46,6 +46,14 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/quote the current code/i, /quote the replacement code/i, /autosaves/i],
   },
   {
+    behavior: "kid-friendly preview instructions open the editor before naming hidden controls",
+    markers: [
+      /editor is hidden/i,
+      /Open the editor/i,
+      /before asking them to press \*\*See my page\*\*/i,
+    ],
+  },
+  {
     behavior: "stuck detection and response",
     markers: [/stuck/i, /90 seconds/i, /three times/i],
   },
