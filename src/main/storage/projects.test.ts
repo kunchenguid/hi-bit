@@ -448,6 +448,35 @@ describe("projects storage", () => {
       expect(raw).toContain('addEventListener("input"');
     });
 
+    it("gives the typing game dream a starter page with a word box and score behavior", async () => {
+      const dream = makeDream({
+        id: "typing-game",
+        title_kid: "a game where you type words as fast as you can",
+        requires: [
+          "html-inputs-text",
+          "dom-input-value",
+          "dom-text-content",
+          "events-input",
+          "js-arrays",
+          "state-counter",
+        ],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "typing-game", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's typing game");
+      expect(raw).toContain('<p id="word-to-type"');
+      expect(raw).toContain('<label for="typing-input"');
+      expect(raw).toContain('<input id="typing-input"');
+      expect(raw).toContain('<p id="score"');
+      expect(raw).toContain("const words = [");
+      expect(raw).toContain("let score = 0");
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("score += 1");
+      expect(raw).toContain('addEventListener("input"');
+    });
+
     it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
       const dream = makeDream({
         id: "canvas-rectangle",

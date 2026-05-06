@@ -496,6 +496,69 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "typing-game") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #f2f7ff;
+      }
+
+      input {
+        display: block;
+        font-size: 1.2rem;
+        margin: 1rem auto;
+        padding: 0.7rem 1rem;
+        border-radius: 0.8rem;
+      }
+
+      #word-to-type {
+        font-size: 2rem;
+        font-weight: bold;
+      }
+
+      #score {
+        font-size: 1.3rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s typing game</h1>
+    <p>${sentenceTitle}. Type the shown word to score a point.</p>
+    <p>Word to type:</p>
+    <p id="word-to-type">cat</p>
+    <label for="typing-input">Type the word here:</label>
+    <input id="typing-input" type="text" />
+    <p id="score">Score: 0</p>
+
+    <script>
+      const words = ["cat", "sun", "game", "jump"];
+      const wordToType = document.getElementById("word-to-type");
+      const input = document.getElementById("typing-input");
+      const scoreDisplay = document.getElementById("score");
+      let score = 0;
+      let wordIndex = 0;
+
+      input.addEventListener("input", () => {
+        if (input.value === words[wordIndex]) {
+          score += 1;
+          wordIndex = (wordIndex + 1) % words.length;
+          wordToType.textContent = words[wordIndex];
+          scoreDisplay.textContent = "Score: " + score;
+          input.value = "";
+        }
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "canvas-rectangle") {
     return `<!doctype html>
 <html lang="en">
