@@ -42,6 +42,10 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/visible controls/i, /do not send kids hunting by line number/i],
   },
   {
+    behavior: "kid-friendly edit instructions use current text and autosave-aware wording",
+    markers: [/quote the current code/i, /quote the replacement code/i, /autosaves/i],
+  },
+  {
     behavior: "stuck detection and response",
     markers: [/stuck/i, /90 seconds/i, /three times/i],
   },
