@@ -212,6 +212,20 @@ describe("projects storage", () => {
       expect(raw).toContain("A hello card page");
     });
 
+    it("seeds show me around with the generic first-edit name target", async () => {
+      const dream = makeDream({
+        id: "show-me-around",
+        title_kid: "show me around",
+        requires: ["run-and-preview"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "show-me-around", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>My Name</h1>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+    });
+
     it("gives the smiley button dream a starter page with stuff, look, and action", async () => {
       const dream = makeDream({
         id: "emoji-button",

@@ -211,6 +211,20 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "show-me-around") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+  </head>
+  <body>
+    <h1>My Name</h1>
+    <p>${sentenceTitle}. Change anything to make it yours.</p>
+  </body>
+</html>
+`;
+  }
   return `<!doctype html>
 <html lang="en">
   <head>
