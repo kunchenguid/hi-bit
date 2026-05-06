@@ -56,6 +56,7 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
       `exact_kid_name: ${JSON.stringify(profile.name)}`,
       `Use exact_kid_name exactly when you write the kid's name; do not shorten it to ${JSON.stringify(profile.name.split(/\s+/)[0] ?? profile.name)}.`,
       `If a starter page says "My Name", say the exact replacement ${JSON.stringify(profile.name)} immediately. Do not say "your real name" first. Do not say "your actual name" first.`,
+      `For any visible reply about changing "My Name", never write "your actual name", "your real name", or similar placeholder wording anywhere in the reply. Say ${JSON.stringify(profile.name)} every time you describe that replacement.`,
       `profile_dir: ${profileDir}`,
       `current_dream: ${currentDream}`,
       ...projectLines,

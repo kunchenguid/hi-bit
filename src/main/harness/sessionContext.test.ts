@@ -70,6 +70,19 @@ describe("buildSessionContextPreamble", () => {
     expect(text).toContain('Do not say "your actual name"');
   });
 
+  it("forbids vague name wording anywhere in first My Name edit replies", () => {
+    const text = buildSessionContextPreamble({
+      role: "kid",
+      profile: { ...baseProfile, name: "Ada Lovelace" },
+      profileDir: "/tmp/profiles/ada",
+    });
+
+    expect(text).toContain(
+      'For any visible reply about changing "My Name", never write "your actual name", "your real name", or similar placeholder wording anywhere in the reply.',
+    );
+    expect(text).toContain('Say "Ada Lovelace" every time you describe that replacement.');
+  });
+
   it("includes injected memory with relative source paths when memory is provided", () => {
     const text = buildSessionContextPreamble({
       role: "kid",
