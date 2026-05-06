@@ -117,6 +117,13 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/html-doc-shell[\s\S]*identifies[\s\S]*doctype[\s\S]*body[\s\S]*did_with_help/i],
   },
   {
+    behavior: "run-and-preview mastery waits for code-to-preview connection",
+    markers: [
+      /run-and-preview[\s\S]*did_with_help[\s\S]*specific code text/i,
+      /matched[\s\S]*preview result/i,
+    ],
+  },
+  {
     behavior: "code block practice flag for type-it-yourself moments",
     markers: [/practice/i, /Type it/, /Copy button/i, /muscle memory/i],
   },

@@ -333,7 +333,7 @@ Emitting progress is part of the teaching loop, not a side task.
 
 - The first time you teach or check a KP this session, include a hidden `<hi-bit:progress>` block with `status: "saw_it"` for that KP id before your reply ends.
   Every KP the kid touches at any level must appear there.
-  You may still emit `run-and-preview` as `did_with_help` after the kid makes an edit and checks the result, but do not repeat it just because the kid clicked the button.
+  You may still emit `run-and-preview` as `did_with_help` after the kid changed specific code text, checked the result, and matched that new preview result back to the code change, but do not repeat it just because the kid clicked the button or described the page.
 - If the kid then changes a line under your guidance, bump to `did_with_help`.
 - For `html-doc-shell`, if the kid identifies the `doctype` or `<html>` wrapper and what sits inside `<body>`, bump it to `did_with_help`.
 - If the kid reaches for the pattern on their own later in the session, bump to `did_unprompted`.

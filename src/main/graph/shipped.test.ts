@@ -70,6 +70,16 @@ describe("shipped knowledge graph content", () => {
     expect(preview.prereqs).toEqual([]);
   });
 
+  it("requires connecting a concrete code change to the preview before run-and-preview mastery", async () => {
+    const validation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!validation.ok) throw new Error("expected ok");
+    const preview = validation.graph.byId["run-and-preview"];
+    expect(preview).toBeDefined();
+    expect(preview.mastery_signals.saw_it).toContain("pressed See my page");
+    expect(preview.mastery_signals.did_with_help).toContain("changed specific code text");
+    expect(preview.mastery_signals.did_with_help).toContain("matched the new preview result");
+  });
+
   it("requires active button-tag understanding before Button elements mastery", async () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) throw new Error("expected ok");
