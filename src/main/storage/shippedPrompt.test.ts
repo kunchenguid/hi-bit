@@ -58,7 +58,13 @@ const REQUIRED_BEHAVIORS: Array<{
   },
   {
     behavior: "kid-friendly edit instructions use current text and autosave-aware wording",
-    markers: [/quote the current code/i, /quote the replacement code/i, /autosaves/i],
+    markers: [
+      /quote the current code/i,
+      /quote the replacement code/i,
+      /autosaves/i,
+      /Split view preview does not update automatically while the kid types/i,
+      /press \*\*See my page\*\* or \*\*Refresh\*\*/i,
+    ],
   },
   {
     behavior: "kid-friendly preview instructions open the editor before naming hidden controls",
