@@ -257,13 +257,13 @@ describe("projects storage", () => {
 
     it("seeds one big title with an obvious editable title placeholder", async () => {
       const dream = makeDream({
-        id: "big-title",
+        id: "first-heading",
         title_kid: "one big title",
         requires: ["html-text-headings"],
       });
       await scaffoldProject(paths, dream, { profileName: "Ada" });
 
-      const raw = await readFile(join(paths.projectsDir, "big-title", "index.html"), "utf8");
+      const raw = await readFile(join(paths.projectsDir, "first-heading", "index.html"), "utf8");
 
       expect(raw).toContain("<h1>My Big Title</h1>");
       expect(raw).not.toContain("<h1>Ada's page</h1>");

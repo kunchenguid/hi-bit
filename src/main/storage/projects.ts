@@ -990,7 +990,7 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
-  if (dream.id === "big-title") {
+  if (dream.id === "first-heading") {
     return `<!doctype html>
 <html lang="en">
   <head>
