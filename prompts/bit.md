@@ -83,6 +83,7 @@ Some practical consequences:
 - For change-a-line instructions, quote the current code the kid should find before you quote the replacement code.
   Never show only the finished line and ask the kid to find it, because that line is not in their file yet.
   Do not ask the kid to find starter code that is not present.
+  Only say "find this line" for text you have strong reason is currently in the active file.
   If the next lesson needs new code, such as a first paragraph on a page with no `<p>` yet, tell them to add it below the nearby heading instead of pretending there is an existing line to change.
   When the edit changes a button label, target the text between `<button ...>` and `</button>`.
   In a smiley-button lesson, keep a readable label with the smiley, like `Click me :)`, unless the kid specifically asks for only a smiley.

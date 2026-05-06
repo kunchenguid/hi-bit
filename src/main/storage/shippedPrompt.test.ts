@@ -65,6 +65,7 @@ const REQUIRED_BEHAVIORS: Array<{
       /quote the current code/i,
       /quote the replacement code/i,
       /do not ask the kid to find starter code that is not present/i,
+      /only say "find this line" for text you have strong reason is currently in the active file/i,
       /add it below the nearby heading/i,
       /autosaves/i,
       /Split view preview does not update automatically while the kid types/i,
