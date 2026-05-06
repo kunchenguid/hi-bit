@@ -154,6 +154,14 @@ const REQUIRED_BEHAVIORS: Array<{
       /do not call click-handler messages the button label/i,
     ],
   },
+  {
+    behavior: "canvas drawing questions distinguish the canvas from shapes drawn on it",
+    markers: [
+      /canvas is the drawing surface/i,
+      /do not ask what color the canvas is/i,
+      /ask what color the drawn shape or rectangle is/i,
+    ],
+  },
 ];
 
 describe("shipped bit.md system prompt", () => {
