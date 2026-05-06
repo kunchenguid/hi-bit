@@ -406,6 +406,15 @@ const KP_STATUS_RANK: Record<KnowledgePointStatus, number> = {
   explained_it: 4,
 };
 
+function isAllowedProgressUpdate(candidate: ProgressControlEntry): boolean {
+  if (candidate.kpId !== "run-and-preview" || candidate.status !== "did_with_help") return true;
+  if (typeof candidate.evidence !== "string") return false;
+  const evidence = candidate.evidence.toLowerCase();
+  const mentionsCodeChange = /\b(changed|edited|replaced|typed|updated)\b/.test(evidence);
+  const mentionsPreviewCheck = /\b(preview|page|saw|checked)\b/.test(evidence);
+  return mentionsCodeChange && mentionsPreviewCheck;
+}
+
 async function applyProgressControlBlocks(
   layout: HiBitLayout,
   profileId: string,
@@ -436,6 +445,7 @@ async function applyProgressControlBlocks(
       if (!validKpIds.has(candidate.kpId)) continue;
       if (typeof candidate.status !== "string") continue;
       if (!VALID_KP_STATUSES.has(candidate.status as KnowledgePointStatus)) continue;
+      if (!isAllowedProgressUpdate(candidate)) continue;
       const nextStatus = candidate.status as KnowledgePointStatus;
       if (progress.knowledgePoints[candidate.kpId]?.skipped) continue;
       const currentStatus = currentStatuses.get(candidate.kpId);

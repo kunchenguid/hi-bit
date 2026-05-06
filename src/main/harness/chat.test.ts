@@ -6,7 +6,7 @@ import type { AcpRuntimeEvent } from "acpx/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeAcpRuntimeSessions, closeAllAcpRuntimes } from "../agent/acpxTurn";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import { createProfile, readProgress, setCurrentDream } from "../storage/profiles";
+import { createProfile, readProgress, setCurrentDream, updateKpStatus } from "../storage/profiles";
 import { scaffoldProject } from "../storage/projects";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
@@ -195,6 +195,32 @@ describe("ACP-backed chat", () => {
     expect(progress.knowledgePoints["html-text-headings"]).toMatchObject({
       status: "did_with_help",
       evidence: "Changed the h1.",
+    });
+  });
+
+  it("does not promote run-and-preview from a hidden block unless the evidence includes a code change", async () => {
+    await writeGraphNode(layout, "run-and-preview");
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await updateKpStatus(layout, profile.id, "run-and-preview", "saw_it", {
+      evidence: "Clicked See my page and saw the live preview.",
+    });
+    const rawReply =
+      'Nice page.<hi-bit:progress>[{"kpId":"run-and-preview","status":"did_with_help","evidence":"Pressed See my page and saw My Name."}]</hi-bit:progress>';
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "I see My Name",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Nice page.", durationMs: expect.any(Number) });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["run-and-preview"]).toMatchObject({
+      status: "saw_it",
+      evidence: "Clicked See my page and saw the live preview.",
     });
   });
 
