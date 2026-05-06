@@ -317,6 +317,23 @@ describe("projects storage", () => {
       expect(raw).toContain("Dance");
     });
 
+    it("gives the message-button dream a starter page with a button and message behavior", async () => {
+      const dream = makeDream({
+        id: "message-button",
+        title_kid: "a button that changes a message",
+        requires: ["html-buttons", "dom-text-content", "events-click"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "message-button", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's message button");
+      expect(raw).toContain('<button id="message-button"');
+      expect(raw).toContain('<p id="message"');
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
     it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
       const dream = makeDream({
         id: "canvas-rectangle",

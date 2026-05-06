@@ -175,6 +175,49 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "message-button") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #f6f0ff;
+      }
+
+      button {
+        font-size: 1.3rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+
+      #message {
+        font-size: 1.4rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s message button</h1>
+    <p>${sentenceTitle}. Change the button or message words to make it yours.</p>
+    <button id="message-button">Show the message</button>
+    <p id="message">Press the button to change this message.</p>
+
+    <script>
+      const button = document.getElementById("message-button");
+      const message = document.getElementById("message");
+
+      button.addEventListener("click", () => {
+        message.textContent = "You changed the message!";
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "canvas-rectangle") {
     return `<!doctype html>
 <html lang="en">
