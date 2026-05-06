@@ -46,6 +46,8 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [
       /visible controls/i,
       /next action should only be to switch back to code/i,
+      /\*\*Split\*\* view[\s\S]*use \*\*Code\*\*/i,
+      /reserve \*\*See my code\*\*[\s\S]*\*\*Page\*\* view/i,
       /do not send kids hunting by line number/i,
     ],
   },
