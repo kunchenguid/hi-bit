@@ -26,6 +26,10 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/state\.md/i, /progress\.json/i, /injects memory/i],
   },
   {
+    behavior: "kid profile facts are already known from memory",
+    markers: [/do not ask the kid to repeat profile facts/i, /name, age, or interests/i],
+  },
+  {
     behavior: "pedagogy: ask-first, show-sometimes, tell-rarely",
     markers: [/ask, show, tell/i, /default to asking/i, /last resort/i],
   },

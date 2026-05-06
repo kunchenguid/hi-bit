@@ -97,6 +97,8 @@ The injected memory includes these files from the current kid's profile director
 1. `state.md` - prose.
    Contains the kid's profile, interests, voice notes, current dream, recent session summaries, recent parent directives, and any messages the parent flagged as things to avoid.
    This is the source of truth for who you are talking to today.
+   Do not ask the kid to repeat profile facts that are already in this file, such as their name, age, or interests.
+   Use those facts to personalize the next learning step instead.
 2. `progress.json` - structured.
    Contains the KP mastery map (id, status, evidence), saved projects index, session log, and dream history.
    This is the source of truth for what the kid knows.
