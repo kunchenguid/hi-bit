@@ -673,6 +673,62 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "to-do-list") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 34rem;
+        margin: 2rem auto;
+        background: #f5fbff;
+      }
+
+      input,
+      button {
+        font-size: 1.1rem;
+        padding: 0.7rem 1rem;
+        border-radius: 0.8rem;
+      }
+
+      li {
+        margin: 0.5rem 0;
+        font-size: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s to-do list</h1>
+    <p>${sentenceTitle}. Type one thing, press the button, and watch it join the list.</p>
+    <label for="todo-input">Type a thing to do:</label>
+    <input id="todo-input" type="text" />
+    <button id="add-todo">Add it</button>
+    <ul id="todo-list">
+      <li>Try Hi-Bit</li>
+    </ul>
+
+    <script>
+      const input = document.getElementById("todo-input");
+      const button = document.getElementById("add-todo");
+      const list = document.getElementById("todo-list");
+
+      button.addEventListener("click", () => {
+        const text = input.value.trim();
+        if (text === "") return;
+
+        const item = document.createElement("li");
+        item.textContent = text;
+        list.append(item);
+        input.value = "";
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "canvas-rectangle") {
     return `<!doctype html>
 <html lang="en">

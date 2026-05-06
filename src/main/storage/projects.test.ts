@@ -516,6 +516,27 @@ describe("projects storage", () => {
       expect(raw).toContain('addEventListener("input"');
     });
 
+    it("gives the to-do list dream a starter page with a text box and add behavior", async () => {
+      const dream = makeDream({
+        id: "to-do-list",
+        title_kid: "a to do list where you type things and they show up",
+        requires: ["html-inputs-text", "dom-input-value", "events-click", "dom-create-append"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "to-do-list", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's to-do list");
+      expect(raw).toContain('<label for="todo-input"');
+      expect(raw).toContain('<input id="todo-input"');
+      expect(raw).toContain('<button id="add-todo"');
+      expect(raw).toContain('<ul id="todo-list"');
+      expect(raw).toContain("document.createElement");
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("append");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
     it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
       const dream = makeDream({
         id: "canvas-rectangle",
