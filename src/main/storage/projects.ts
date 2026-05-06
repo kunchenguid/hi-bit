@@ -303,6 +303,51 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "random-picker") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #fff9e8;
+      }
+
+      button {
+        font-size: 1.3rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+
+      #pick-result {
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s surprise picker</h1>
+    <p>${sentenceTitle}. Press the button and let the page choose one surprise.</p>
+    <button id="pick-button">Pick a surprise</button>
+    <p id="pick-result">Your surprise will show here.</p>
+
+    <script>
+      const choices = ["dragon", "rainbow", "robot", "pizza"];
+      const button = document.getElementById("pick-button");
+      const result = document.getElementById("pick-result");
+
+      button.addEventListener("click", () => {
+        const index = Math.floor(Math.random() * choices.length);
+        result.textContent = choices[index];
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "message-button") {
     return `<!doctype html>
 <html lang="en">

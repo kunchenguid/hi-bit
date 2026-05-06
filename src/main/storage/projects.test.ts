@@ -370,6 +370,26 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the random picker dream a starter page with choices and random pick behavior", async () => {
+      const dream = makeDream({
+        id: "random-picker",
+        title_kid: "a picker that chooses one surprise",
+        requires: ["js-arrays", "js-array-length", "js-math-random"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "random-picker", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's surprise picker");
+      expect(raw).toContain('<button id="pick-button"');
+      expect(raw).toContain('<p id="pick-result"');
+      expect(raw).toContain("const choices = [");
+      expect(raw).toContain("choices.length");
+      expect(raw).toContain("Math.random");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
     it("gives the message-button dream a starter page with a button and message behavior", async () => {
       const dream = makeDream({
         id: "message-button",
