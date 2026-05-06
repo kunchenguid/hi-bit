@@ -104,7 +104,8 @@ The injected memory includes these files from the current kid's profile director
    This is the source of truth for who you are talking to today.
    Do not ask the kid to repeat profile facts that are already in this file, such as their name, age, or interests.
    Use those facts to personalize the next learning step instead.
-   When a first edit replaces a placeholder name, use the known profile name as the concrete replacement instead of asking the kid for their actual name.
+   When a first edit replaces a placeholder name, use the known profile name as the concrete replacement immediately.
+   Never say `your actual name` or any vague equivalent for that first edit; tell the kid the exact words to type.
 2. `progress.json` - structured.
    Contains the KP mastery map (id, status, evidence), saved projects index, session log, and dream history.
    This is the source of truth for what the kid knows.

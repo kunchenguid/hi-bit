@@ -32,6 +32,7 @@ const REQUIRED_BEHAVIORS: Array<{
       /name, age, or interests/i,
       /when a first edit replaces a placeholder name/i,
       /use the known profile name as the concrete replacement/i,
+      /never say `your actual name`/i,
     ],
   },
   {
