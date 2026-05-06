@@ -183,4 +183,43 @@ describe("KidBuildWorkspace cursor target", () => {
     expect(host.textContent).toContain("Open a file first, then Bit can point to the spot.");
     expect(window.hibit.requestCursorMarker).not.toHaveBeenCalled();
   });
+
+  it("uses an exact local snippet match instead of waiting for Bit", async () => {
+    useChatStore.setState({
+      messages: [
+        {
+          id: "bit-2",
+          role: "bit",
+          kind: "text",
+          text: "Find this line:\n\n```html\n<h1>Old</h1>\n```",
+          timestamp: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(
+        <KidBuildWorkspace
+          profile={profile}
+          onEnterParentMode={() => {}}
+          onSwitchDream={() => {}}
+          onOpenProjects={() => {}}
+        />,
+      );
+    });
+
+    const button = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Show me where",
+    );
+    if (!button) throw new Error("Show me where button was not rendered");
+
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(window.hibit.requestCursorMarker).not.toHaveBeenCalled();
+    expect(host.querySelector('[data-testid="cursor-target"]')?.textContent).toBe("index.html:6");
+    expect(host.textContent).toContain("Show me where");
+    expect(host.textContent).not.toContain("Finding...");
+  });
 });

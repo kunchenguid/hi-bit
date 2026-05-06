@@ -19,6 +19,15 @@ type Props = {
 
 type PendingCursorRequest = { snippet: string; latestBitMessage: string };
 
+function findExactSnippetPosition(editorContent: string, snippet: string): number | null {
+  const trimmedSnippet = snippet.trim();
+  if (trimmedSnippet.length === 0) return null;
+  const position = editorContent.indexOf(trimmedSnippet);
+  if (position === -1) return null;
+  if (editorContent.indexOf(trimmedSnippet, position + trimmedSnippet.length) !== -1) return null;
+  return position;
+}
+
 export function KidBuildWorkspace({
   profile,
   onEnterParentMode,
@@ -72,6 +81,16 @@ export function KidBuildWorkspace({
         });
         return true;
       };
+      const exactSnippetPosition = findExactSnippetPosition(activeBuffer.content, snippet);
+      if (exactSnippetPosition !== null) {
+        setCursorTarget({
+          filename: activeBuffer.name,
+          position: exactSnippetPosition,
+          requestId: Date.now(),
+        });
+        setCursorTargetStatus("idle");
+        return;
+      }
       try {
         const result = await window.hibit.requestCursorMarker(profile.id, {
           filename: activeBuffer.name,
