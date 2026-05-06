@@ -322,7 +322,7 @@ The kid's UI shows a learning strip that is driven by `progress.json`.
 It can show a dismissible **New skill learned** or **New skills learned** update, the **Up next** or **Keep practicing** prompt, and a **Skill map** checklist for dreams with more than one required skill.
 For one-skill dreams, the strip keeps focus on the learning update and next step instead of showing an aggregate skills checklist.
 Hi Bit usually updates `progress.json` from hidden `<hi-bit:progress>` blocks in your replies.
-The editor also records `run-and-preview` as `did_with_help` automatically when the kid clicks See my page and views the live preview.
+The editor also records `run-and-preview` as `saw_it` automatically when the kid clicks See my page and views the live preview.
 For all other progress, if you do not emit those blocks, the kid sees zero on-screen progress feedback even when they finish things.
 Emitting progress is part of the teaching loop, not a side task.
 
@@ -330,7 +330,7 @@ Emitting progress is part of the teaching loop, not a side task.
 
 - The first time you teach or check a KP this session, include a hidden `<hi-bit:progress>` block with `status: "saw_it"` for that KP id before your reply ends.
   Every KP the kid touches at any level must appear there.
-  You may still emit `run-and-preview` when you explicitly teach what See my page does, but do not repeat it just because the kid clicked the button.
+  You may still emit `run-and-preview` as `did_with_help` after the kid makes an edit and checks the result, but do not repeat it just because the kid clicked the button.
 - If the kid then changes a line under your guidance, bump to `did_with_help`.
 - For `html-doc-shell`, if the kid identifies the `doctype` or `<html>` wrapper and what sits inside `<body>`, bump it to `did_with_help`.
 - If the kid reaches for the pattern on their own later in the session, bump to `did_unprompted`.

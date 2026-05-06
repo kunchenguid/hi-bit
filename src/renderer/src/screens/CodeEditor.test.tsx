@@ -171,7 +171,7 @@ describe("CodeEditor cursor marker", () => {
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Code");
   });
 
-  it("records run-and-preview progress when the kid clicks See my page", async () => {
+  it("records run-and-preview as seen when the kid clicks See my page", async () => {
     const updateStatus = vi.fn(async () => {});
     useProgressStore.setState({ updateStatus });
 
@@ -190,8 +190,8 @@ describe("CodeEditor cursor marker", () => {
 
     expect(updateStatus).toHaveBeenCalledWith(
       "run-and-preview",
-      "did_with_help",
-      "Clicked See my page and viewed the live preview.",
+      "saw_it",
+      "Clicked See my page and saw the live preview.",
     );
   });
 

@@ -272,8 +272,8 @@ export function CodeEditor({
     ) {
       void updateProgressStatus(
         "run-and-preview",
-        "did_with_help",
-        "Clicked See my page and viewed the live preview.",
+        "saw_it",
+        "Clicked See my page and saw the live preview.",
       );
     }
   }
