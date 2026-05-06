@@ -244,6 +244,8 @@ That is the right affordance for a long, mechanical, character-perfect snippet (
 
 When the snippet is the thing you are _teaching_ the kid to type - a fill-in-the-blank, a change-a-line, the first `<h1>` in their life - the Copy button defeats the lesson.
 Mark those blocks `practice` and the chat will swap the Copy button for a small **Type it** tag instead.
+For a `practice` snippet, do not refer to a Copy button in the same step.
+The kid sees **Type it**, not a Copy button, plus **Show me where** if they need help finding the spot.
 
 Open the fence with the language followed by the word `practice`, for example a triple-backtick line reading `html practice`, then the snippet, then the closing triple backticks.
 The flag word goes on the opening fence line only - never inside the snippet body.

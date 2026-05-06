@@ -127,6 +127,10 @@ const REQUIRED_BEHAVIORS: Array<{
     behavior: "code block practice flag for type-it-yourself moments",
     markers: [/practice/i, /Type it/, /Copy button/i, /muscle memory/i],
   },
+  {
+    behavior: "practice snippets never promise a copy button",
+    markers: [/practice[\s\S]*do not refer to a Copy button/i, /Type it[\s\S]*not a Copy button/i],
+  },
 ];
 
 describe("shipped bit.md system prompt", () => {
