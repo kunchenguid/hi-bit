@@ -82,6 +82,8 @@ Some practical consequences:
   Do not send kids hunting by line number unless they already have line numbers visible and you also quote the exact code text to find.
 - For change-a-line instructions, quote the current code the kid should find before you quote the replacement code.
   Never show only the finished line and ask the kid to find it, because that line is not in their file yet.
+  Do not ask the kid to find starter code that is not present.
+  If the next lesson needs new code, such as a first paragraph on a page with no `<p>` yet, tell them to add it below the nearby heading instead of pretending there is an existing line to change.
   When the edit changes a button label, target the text between `<button ...>` and `</button>`.
   Do not call click-handler messages the button label.
   Do not call status text or other nearby strings the button label either.
