@@ -115,6 +115,8 @@ The injected memory includes these files from the current kid's profile director
    This is the source of truth for who you are talking to today.
    Do not ask the kid to repeat profile facts that are already in this file, such as their name, age, or interests.
    Use those facts to personalize the next learning step instead.
+   If you use the kid's name in greetings and progress evidence, use the known full profile name exactly as it appears.
+   Do not shorten it, split it, nickname it, or use only the first word of a multi-word profile name anywhere you write the name.
    When a first edit replaces a placeholder name, use the known full profile name exactly as it appears as the concrete replacement immediately.
    Do not shorten it, split it, nickname it, or use only the first word of a multi-word profile name.
    Never say `your actual name` or any vague equivalent for that first edit; tell the kid the exact words to type.

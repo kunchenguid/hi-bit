@@ -33,6 +33,7 @@ const REQUIRED_BEHAVIORS: Array<{
       /when a first edit replaces a placeholder name/i,
       /use the known full profile name/i,
       /full profile name exactly as it appears/i,
+      /greetings and progress evidence/i,
       /never say `your actual name`/i,
       /before the exact edit step/i,
       /Do not write a transition sentence like `change it to your actual name`/i,
