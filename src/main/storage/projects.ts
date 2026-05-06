@@ -218,6 +218,52 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "type-mirror") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #eefbf7;
+      }
+
+      input {
+        display: block;
+        font-size: 1.2rem;
+        margin: 1rem auto;
+        padding: 0.7rem 1rem;
+        border-radius: 0.8rem;
+      }
+
+      #mirror-output {
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s type mirror</h1>
+    <p>${sentenceTitle}. Type in the box and watch the page copy your words.</p>
+    <label for="mirror-input">Type some words here:</label>
+    <input id="mirror-input" type="text" value="hello" />
+    <p id="mirror-output">hello</p>
+
+    <script>
+      const input = document.getElementById("mirror-input");
+      const output = document.getElementById("mirror-output");
+
+      input.addEventListener("input", () => {
+        output.textContent = input.value;
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "canvas-rectangle") {
     return `<!doctype html>
 <html lang="en">

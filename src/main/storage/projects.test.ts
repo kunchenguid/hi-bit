@@ -334,6 +334,25 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the type-mirror dream a starter page with a text box and mirrored text behavior", async () => {
+      const dream = makeDream({
+        id: "type-mirror",
+        title_kid: "words that copy what you type",
+        requires: ["html-inputs-text", "dom-input-value", "dom-text-content", "events-input"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "type-mirror", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's type mirror");
+      expect(raw).toContain('<label for="mirror-input"');
+      expect(raw).toContain('<input id="mirror-input"');
+      expect(raw).toContain('<p id="mirror-output"');
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain('addEventListener("input"');
+    });
+
     it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
       const dream = makeDream({
         id: "canvas-rectangle",
