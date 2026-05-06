@@ -446,6 +446,24 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the secret message dream a starter page with a hidden message and reveal button", async () => {
+      const dream = makeDream({
+        id: "secret-message",
+        title_kid: "a page with a hidden message you reveal with a button",
+        requires: ["html-buttons", "css-attach", "dom-class-toggle", "events-click"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "secret-message", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's secret message");
+      expect(raw).toContain('<button id="reveal-button"');
+      expect(raw).toContain('<p id="secret-message"');
+      expect(raw).toContain("hidden");
+      expect(raw).toContain("classList");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
     it("gives the type-mirror dream a starter page with a text box and mirrored text behavior", async () => {
       const dream = makeDream({
         id: "type-mirror",

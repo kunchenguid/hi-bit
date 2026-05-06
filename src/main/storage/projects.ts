@@ -505,6 +505,53 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "secret-message") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #f2f7ff;
+      }
+
+      button {
+        font-size: 1.3rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      #secret-message {
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s secret message</h1>
+    <p>${sentenceTitle}. Press the button to reveal the hidden words.</p>
+    <button id="reveal-button">Reveal the secret</button>
+    <p id="secret-message" class="hidden">You found the secret!</p>
+
+    <script>
+      const button = document.getElementById("reveal-button");
+      const message = document.getElementById("secret-message");
+
+      button.addEventListener("click", () => {
+        message.classList.toggle("hidden");
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "type-mirror") {
     return `<!doctype html>
 <html lang="en">
