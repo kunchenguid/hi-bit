@@ -850,6 +850,56 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "stopwatch") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #f0f7ff;
+      }
+
+      #time-display {
+        font-size: 3rem;
+        font-weight: bold;
+      }
+
+      button {
+        font-size: 1.2rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s stopwatch</h1>
+    <p>${sentenceTitle}. Press start and watch the seconds count up.</p>
+    <p id="time-display">0 seconds</p>
+    <button id="start-button">Start</button>
+
+    <script>
+      const display = document.getElementById("time-display");
+      const button = document.getElementById("start-button");
+      let seconds = 0;
+      let timerId = null;
+
+      button.addEventListener("click", () => {
+        if (timerId !== null) return;
+
+        timerId = setInterval(() => {
+          seconds += 1;
+          display.textContent = seconds + " seconds";
+        }, 1000);
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "canvas-rectangle") {
     return `<!doctype html>
 <html lang="en">

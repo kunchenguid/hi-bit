@@ -576,6 +576,25 @@ describe("projects storage", () => {
       expect(raw).toContain('addEventListener("click"');
     });
 
+    it("gives the stopwatch dream a starter page with a startable timer", async () => {
+      const dream = makeDream({
+        id: "stopwatch",
+        title_kid: "a stopwatch that counts up when you press start",
+        requires: ["html-buttons", "dom-text-content", "events-click", "timers-setinterval"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "stopwatch", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's stopwatch");
+      expect(raw).toContain('<p id="time-display"');
+      expect(raw).toContain('<button id="start-button"');
+      expect(raw).toContain("let seconds = 0");
+      expect(raw).toContain("setInterval");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
     it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
       const dream = makeDream({
         id: "canvas-rectangle",
