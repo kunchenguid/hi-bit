@@ -240,6 +240,21 @@ describe("projects storage", () => {
       expect(raw).not.toContain("<h1>Ada's page</h1>");
     });
 
+    it("reserves the first about-me paragraph for the learner to add", async () => {
+      const dream = makeDream({
+        id: "about-me",
+        title_kid: "a page all about you",
+        requires: ["html-text-headings", "html-text-paragraphs"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "about-me", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>Ada's page</h1>");
+      expect(raw).not.toContain("<p>A page all about you. Change anything to make it yours.</p>");
+      expect(raw).not.toContain("<p>");
+    });
+
     it("seeds one big title with an obvious editable title placeholder", async () => {
       const dream = makeDream({
         id: "big-title",
