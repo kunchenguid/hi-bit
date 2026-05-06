@@ -35,6 +35,7 @@ type Props = {
   cursorTargetStatus?: "idle" | "locating";
   cursorTargetError?: string | null;
   docked?: boolean;
+  editorViewMode?: "code" | "preview" | "split";
 };
 
 export function KidChat({
@@ -47,6 +48,7 @@ export function KidChat({
   cursorTargetStatus = "idle",
   cursorTargetError = null,
   docked = false,
+  editorViewMode = "code",
 }: Props): JSX.Element {
   const messages = useChatStore((s) => s.messages);
   const status = useChatStore((s) => s.status);
@@ -215,16 +217,11 @@ export function KidChat({
     const trimmed = input.trim();
     if (trimmed.length === 0 || status === "sending") return;
     setInput("");
-    await send(
-      profile.id,
-      trimmed,
-      docked
-        ? {
-            uiContext:
-              "The editor is already open next to chat. Do not ask the kid to click Open the editor; guide them using the visible editor controls instead.",
-          }
-        : undefined,
-    );
+    const uiContext =
+      editorViewMode === "preview"
+        ? "The editor is already open next to chat. The kid is currently looking at Page view, so code is not visible. Do not ask the kid to click Open the editor; first guide them to press See my code or Split before giving any code-edit instructions."
+        : "The editor is already open next to chat. Do not ask the kid to click Open the editor; guide them using the visible editor controls instead.";
+    await send(profile.id, trimmed, docked ? { uiContext } : undefined);
   }
 
   const disabled = status === "sending" || input.trim().length === 0;

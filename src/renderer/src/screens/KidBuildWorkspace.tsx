@@ -6,7 +6,7 @@ import {
   parseCursorMarkerResponse,
 } from "../editor/cursorMarker";
 import { useProjectsStore } from "../state/projectsStore";
-import type { EditorCursorTarget } from "./CodeEditor";
+import type { EditorCursorTarget, EditorViewMode } from "./CodeEditor";
 import { CodeEditor } from "./CodeEditor";
 import { KidChat } from "./KidChat";
 
@@ -35,6 +35,7 @@ export function KidBuildWorkspace({
   onOpenProjects,
 }: Props): JSX.Element {
   const [editorRevealed, setEditorRevealed] = useState(false);
+  const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>("code");
   const [cursorTarget, setCursorTarget] = useState<EditorCursorTarget | null>(null);
   const [cursorTargetStatus, setCursorTargetStatus] = useState<"idle" | "locating">("idle");
   const [cursorTargetError, setCursorTargetError] = useState<string | null>(null);
@@ -202,6 +203,7 @@ export function KidBuildWorkspace({
           docked
           cursorTarget={cursorTarget}
           onCursorTargetCleared={() => setCursorTarget(null)}
+          onViewModeChange={setEditorViewMode}
         />
       </section>
       <aside className="hb-build-chat" aria-label="Chat with Bit">
@@ -214,6 +216,7 @@ export function KidBuildWorkspace({
           cursorTargetStatus={cursorTargetStatus}
           cursorTargetError={cursorTargetError}
           docked
+          editorViewMode={editorViewMode}
         />
       </aside>
     </main>

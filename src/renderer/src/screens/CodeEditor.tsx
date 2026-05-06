@@ -21,7 +21,7 @@ import { validateNewFilename } from "./newFileValidation";
 import { computeNextTabIndex } from "./tablistNavigation";
 
 type NewFileStatus = "closed" | "open" | "creating";
-type EditorViewMode = "code" | "preview" | "split";
+export type EditorViewMode = "code" | "preview" | "split";
 
 const EMPTY_PREVIEW = "<!doctype html><html><body></body></html>";
 
@@ -44,6 +44,7 @@ type Props = {
   docked?: boolean;
   cursorTarget?: EditorCursorTarget | null;
   onCursorTargetCleared?: () => void;
+  onViewModeChange?: (viewMode: EditorViewMode) => void;
 };
 
 export type EditorCursorTarget = {
@@ -60,6 +61,7 @@ export function CodeEditor({
   docked = false,
   cursorTarget = null,
   onCursorTargetCleared,
+  onViewModeChange,
 }: Props): JSX.Element {
   const status = useProjectsStore((s) => s.status);
   const buffers = useProjectsStore((s) => s.buffers);
@@ -98,6 +100,10 @@ export function CodeEditor({
   const [viewMode, setViewMode] = useState<EditorViewMode>(() => (docked ? "code" : "split"));
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const editorRef = useRef<CodeMirrorHandle | null>(null);
+
+  useEffect(() => {
+    onViewModeChange?.(viewMode);
+  }, [onViewModeChange, viewMode]);
 
   useEffect(() => {
     if (graphStatus === "idle") void loadGraph();

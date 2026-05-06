@@ -13,12 +13,19 @@ import { KidBuildWorkspace } from "./KidBuildWorkspace";
 vi.mock("./CodeEditor", () => ({
   CodeEditor: ({
     cursorTarget,
+    onViewModeChange,
   }: {
     cursorTarget?: { filename: string; position: number } | null;
+    onViewModeChange?: (mode: "code" | "preview" | "split") => void;
   }) => (
-    <div data-testid="cursor-target">
-      {cursorTarget ? `${cursorTarget.filename}:${cursorTarget.position}` : "none"}
-    </div>
+    <>
+      <div data-testid="cursor-target">
+        {cursorTarget ? `${cursorTarget.filename}:${cursorTarget.position}` : "none"}
+      </div>
+      <button type="button" onClick={() => onViewModeChange?.("preview")}>
+        Mock Page View
+      </button>
+    </>
   ),
 }));
 
@@ -221,5 +228,60 @@ describe("KidBuildWorkspace cursor target", () => {
     expect(host.querySelector('[data-testid="cursor-target"]')?.textContent).toBe("index.html:6");
     expect(host.textContent).toContain("Show me where");
     expect(host.textContent).not.toContain("Finding...");
+  });
+
+  it("passes Page view context from the editor into docked chat sends", async () => {
+    const send = vi.fn(async () => ({
+      ok: true as const,
+      text: "Use See my code first.",
+      durationMs: 1,
+    }));
+    useChatStore.setState({ send });
+
+    await act(async () => {
+      root.render(
+        <KidBuildWorkspace
+          profile={profile}
+          onEnterParentMode={() => {}}
+          onSwitchDream={() => {}}
+          onOpenProjects={() => {}}
+        />,
+      );
+    });
+
+    const openEditorButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Open the editor",
+    );
+    if (!openEditorButton) throw new Error("missing open-editor button");
+    await act(async () => {
+      openEditorButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const mockPageViewButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Mock Page View",
+    );
+    if (!mockPageViewButton) throw new Error("missing mock page-view button");
+    await act(async () => {
+      mockPageViewButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="type to Bit..."]');
+    if (!input) throw new Error("missing chat input");
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(input, "yes");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const form = host.querySelector("form");
+    if (!form) throw new Error("missing chat form");
+    await act(async () => {
+      form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(send).toHaveBeenCalledWith(profile.id, "yes", {
+      uiContext:
+        "The editor is already open next to chat. The kid is currently looking at Page view, so code is not visible. Do not ask the kid to click Open the editor; first guide them to press See my code or Split before giving any code-edit instructions.",
+    });
   });
 });

@@ -195,6 +195,44 @@ describe("KidChat cursor target action", () => {
     });
   });
 
+  it("tells Bit when the docked workspace is showing Page view", async () => {
+    const send = vi.fn(async () => ({
+      ok: true as const,
+      text: "Use See my code first.",
+      durationMs: 1,
+    }));
+    useChatStore.setState({ send });
+
+    await act(async () => {
+      root.render(
+        <KidChat
+          profile={{ ...profile, currentDreamId: "show-me-around" }}
+          docked
+          editorViewMode="preview"
+        />,
+      );
+    });
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="type to Bit..."]');
+    if (!input) throw new Error("missing chat input");
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(input, "yes");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const form = host.querySelector("form");
+    if (!form) throw new Error("missing chat form");
+    await act(async () => {
+      form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(send).toHaveBeenCalledWith(profile.id, "yes", {
+      uiContext:
+        "The editor is already open next to chat. The kid is currently looking at Page view, so code is not visible. Do not ask the kid to click Open the editor; first guide them to press See my code or Split before giving any code-edit instructions.",
+    });
+  });
+
   it("seeds the playground greeting as a freeform prompt", async () => {
     const playground = makeDream([]);
     playground.id = "playground";
