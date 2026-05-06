@@ -43,7 +43,11 @@ const REQUIRED_BEHAVIORS: Array<{
   },
   {
     behavior: "kid-friendly code location instructions",
-    markers: [/visible controls/i, /do not send kids hunting by line number/i],
+    markers: [
+      /visible controls/i,
+      /next action should only be to switch back to code/i,
+      /do not send kids hunting by line number/i,
+    ],
   },
   {
     behavior: "kid-friendly edit instructions use current text and autosave-aware wording",
