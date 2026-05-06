@@ -19,13 +19,13 @@ function makeDream(requires: string[]): Dream {
   };
 }
 
-function makeKp(id: string): KnowledgePoint {
+function makeKp(id: string, prereqs: string[] = []): KnowledgePoint {
   return {
     id,
     title_parent: id,
     title_kid: id,
     area: "html",
-    prereqs: [],
+    prereqs,
     introduces: [],
     mastery_signals: {
       saw_it: "",
@@ -85,6 +85,24 @@ describe("computeDreamReadiness", () => {
     expect(computeDreamReadiness(dream, graph, progress)).toEqual({
       requiredCount: 3,
       readyCount: 2,
+      unknownCount: 0,
+      allReady: false,
+    });
+  });
+
+  it("counts prerequisite KPs Bit must teach before the dream's direct requirements", () => {
+    const dream = makeDream(["heading"]);
+    const graph = graphOf([
+      makeKp("run-preview"),
+      makeKp("html-roles", ["run-preview"]),
+      makeKp("tag-basics", ["html-roles"]),
+      makeKp("body-area", ["tag-basics"]),
+      makeKp("heading", ["body-area"]),
+    ]);
+
+    expect(computeDreamReadiness(dream, graph, emptyProgress())).toEqual({
+      requiredCount: 5,
+      readyCount: 0,
       unknownCount: 0,
       allReady: false,
     });
