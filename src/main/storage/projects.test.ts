@@ -336,6 +336,24 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the dice roller dream a starter page with a working dice button", async () => {
+      const dream = makeDream({
+        id: "dice-roller",
+        title_kid: "a page that rolls a dice when you click",
+        requires: ["html-buttons", "dom-text-content", "events-click", "js-math-random"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "dice-roller", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's dice roller");
+      expect(raw).toContain('<button id="roll-button"');
+      expect(raw).toContain('<p id="dice-result"');
+      expect(raw).toContain("Math.random");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
     it("gives the message-button dream a starter page with a button and message behavior", async () => {
       const dream = makeDream({
         id: "message-button",

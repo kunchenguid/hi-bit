@@ -220,6 +220,50 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "dice-roller") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #f0f7ff;
+      }
+
+      button {
+        font-size: 1.4rem;
+        padding: 0.9rem 1.4rem;
+        border-radius: 999px;
+      }
+
+      #dice-result {
+        font-size: 3rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s dice roller</h1>
+    <p>${sentenceTitle}. Press the button and watch the number change.</p>
+    <p id="dice-result">1</p>
+    <button id="roll-button">Roll the dice</button>
+
+    <script>
+      const button = document.getElementById("roll-button");
+      const result = document.getElementById("dice-result");
+
+      button.addEventListener("click", () => {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        result.textContent = roll;
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "message-button") {
     return `<!doctype html>
 <html lang="en">
