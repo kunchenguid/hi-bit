@@ -259,6 +259,75 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "traffic-light") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #eef3ff;
+      }
+
+      .traffic-light {
+        width: 7rem;
+        margin: 1rem auto;
+        padding: 1rem;
+        border-radius: 1.5rem;
+        background: #222;
+      }
+
+      .light {
+        width: 4rem;
+        height: 4rem;
+        margin: 0.6rem auto;
+        border-radius: 50%;
+        opacity: 0.25;
+      }
+
+      .red {
+        background: red;
+      }
+
+      .yellow {
+        background: gold;
+      }
+
+      .green {
+        background: limegreen;
+      }
+
+      .active {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s traffic light</h1>
+    <p>${sentenceTitle}. Watch the active light change by itself.</p>
+    <div class="traffic-light" aria-label="traffic light">
+      <div class="light red active"></div>
+      <div class="light yellow"></div>
+      <div class="light green"></div>
+    </div>
+
+    <script>
+      const lights = document.querySelectorAll(".light");
+      let lightIndex = 0;
+
+      setInterval(() => {
+        lights[lightIndex].classList.remove("active");
+        lightIndex = (lightIndex + 1) % lights.length;
+        lights[lightIndex].classList.add("active");
+      }, 1000);
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "dice-roller") {
     return `<!doctype html>
 <html lang="en">

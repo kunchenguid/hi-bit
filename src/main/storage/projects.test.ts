@@ -352,6 +352,25 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the traffic light dream a starter page with lights and timer behavior", async () => {
+      const dream = makeDream({
+        id: "traffic-light",
+        title_kid: "a traffic light that changes colors by itself",
+        requires: ["html-div-span", "css-background", "css-border-radius", "timers-setinterval"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "traffic-light", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's traffic light");
+      expect(raw).toContain('<div class="traffic-light"');
+      expect(raw).toContain('class="light red active"');
+      expect(raw).toContain('class="light yellow"');
+      expect(raw).toContain('class="light green"');
+      expect(raw).toContain("setInterval");
+      expect(raw).toContain("classList");
+    });
+
     it("gives the dice roller dream a starter page with a working dice button", async () => {
       const dream = makeDream({
         id: "dice-roller",
