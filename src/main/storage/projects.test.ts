@@ -226,6 +226,20 @@ describe("projects storage", () => {
       expect(raw).not.toContain("<h1>Ada's page</h1>");
     });
 
+    it("seeds pet page with the generic first-edit name target", async () => {
+      const dream = makeDream({
+        id: "pet-page",
+        title_kid: "a page about a pet",
+        requires: ["html-css-js-roles", "html-text-headings", "html-images"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "pet-page", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>My Name</h1>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+    });
+
     it("gives the smiley button dream a starter page with stuff, look, and action", async () => {
       const dream = makeDream({
         id: "emoji-button",

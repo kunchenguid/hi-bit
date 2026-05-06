@@ -211,7 +211,7 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
-  if (dream.id === "show-me-around") {
+  if (dream.id === "show-me-around" || dream.id === "pet-page") {
     return `<!doctype html>
 <html lang="en">
   <head>
