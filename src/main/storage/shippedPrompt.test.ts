@@ -146,6 +146,14 @@ const REQUIRED_BEHAVIORS: Array<{
     behavior: "practice snippets never promise a copy button",
     markers: [/practice[\s\S]*do not refer to a Copy button/i, /Type it[\s\S]*not a Copy button/i],
   },
+  {
+    behavior: "button label edits target the text inside the button tag",
+    markers: [
+      /button label/i,
+      /text between `<button/i,
+      /do not call click-handler messages the button label/i,
+    ],
+  },
 ];
 
 describe("shipped bit.md system prompt", () => {

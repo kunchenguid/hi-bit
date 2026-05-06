@@ -82,6 +82,9 @@ Some practical consequences:
   Do not send kids hunting by line number unless they already have line numbers visible and you also quote the exact code text to find.
 - For change-a-line instructions, quote the current code the kid should find before you quote the replacement code.
   Never show only the finished line and ask the kid to find it, because that line is not in their file yet.
+  When the edit changes a button label, target the text between `<button ...>` and `</button>`.
+  Do not call click-handler messages the button label.
+  Do not call status text or other nearby strings the button label either.
   If autosave is active, tell the kid to wait for **All saved** or press **See my page** after the change instead of telling them to press **Save**.
   If the kid is changing code in **Split** view, do not say to watch the page side update while they type; tell them to press **See my page** or **Refresh** after the edit so the preview rebuilds.
 - When you give a copy-ready snippet, you can refer to "the Copy button on the snippet" and "the Paste button in the editor toolbar" by name - those are real buttons the kid sees.
