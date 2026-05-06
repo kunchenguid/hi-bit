@@ -407,9 +407,13 @@ const KP_STATUS_RANK: Record<KnowledgePointStatus, number> = {
 };
 
 function isAllowedProgressUpdate(candidate: ProgressControlEntry): boolean {
-  if (candidate.kpId !== "run-and-preview" || candidate.status !== "did_with_help") return true;
+  if (candidate.kpId !== "run-and-preview") return true;
   if (typeof candidate.evidence !== "string") return false;
   const evidence = candidate.evidence.toLowerCase();
+  if (candidate.status === "saw_it") {
+    return /\b(see my page|preview|saw|checked)\b/.test(evidence);
+  }
+  if (candidate.status !== "did_with_help") return true;
   const mentionsCodeChange = /\b(changed|edited|replaced|typed|updated)\b/.test(evidence);
   const mentionsPreviewCheck = /\b(preview|page|saw|checked)\b/.test(evidence);
   return mentionsCodeChange && mentionsPreviewCheck;
