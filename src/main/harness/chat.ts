@@ -192,7 +192,7 @@ async function sendMessage(
     const durationMs = endMs - startMs;
     const wasCancelled = opts.signal?.aborted === true || result.status === "cancelled";
     const controlBlocks = extractHiBitControlBlocks(result.text);
-    const visibleText = stripHiBitControlBlocks(result.text);
+    const visibleText = cleanVisibleReply(stripHiBitControlBlocks(result.text), role, profile.name);
 
     if (!wasCancelled && result.status === "completed") {
       await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
@@ -269,6 +269,13 @@ async function sendMessage(
     });
     return { ok: false, error: message, durationMs: endMs - startMs };
   }
+}
+
+function cleanVisibleReply(text: string, role: SessionRole, kidName: string): string {
+  if (role !== "kid") return text;
+  if (!text.includes("My Name")) return text;
+  if (!text.includes(kidName)) return text;
+  return text.replace(/\byour (actual|real) name\b/gi, kidName);
 }
 
 function buildInvocationLogEntry(opts: {

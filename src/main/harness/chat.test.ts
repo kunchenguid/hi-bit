@@ -224,6 +224,34 @@ describe("ACP-backed chat", () => {
     });
   });
 
+  it("removes vague name wording from first My Name edit replies", async () => {
+    const profile = await createProfile(layout, { name: "Ada Lovelace", age: 8 });
+    const rawReply = [
+      'That "My Name" on the page came from your code.',
+      "Let's change it to your actual name.",
+      "Change it to:",
+      "```html practice",
+      "Ada Lovelace",
+      "```",
+    ].join("\n\n");
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "I see My Name",
+      runtimeFactory,
+    });
+
+    if (!result.ok) throw new Error(result.error);
+    expect(result.text).not.toMatch(/your actual name|your real name/i);
+    expect(result.text).toContain("Let's change it to Ada Lovelace.");
+
+    const events = await readTranscript(profilePathsFor(layout, profile.id), profile.sessions.kid);
+    expect(events[1]?.text).not.toMatch(/your actual name|your real name/i);
+  });
+
   it("does not mark run-and-preview seen from a hidden block unless the evidence includes seeing the page", async () => {
     await writeGraphNode(layout, "run-and-preview");
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
