@@ -268,7 +268,16 @@ export function CodeEditor({
     }
   }
 
-  function handleRun(): void {
+  async function handleRun(): Promise<void> {
+    if (activeBuffer && isDirty) {
+      setSaveError(null);
+      try {
+        await save(activeBuffer.name);
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Could not save the file.");
+        return;
+      }
+    }
     rebuildPreview();
     setViewMode("preview");
     if (
@@ -525,7 +534,9 @@ export function CodeEditor({
               <button
                 type="button"
                 className="hb-btn hb-btn-primary"
-                onClick={handleRun}
+                onClick={() => {
+                  void handleRun();
+                }}
                 disabled={buffers.length === 0}
               >
                 See my page

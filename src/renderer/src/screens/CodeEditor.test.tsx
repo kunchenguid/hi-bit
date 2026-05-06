@@ -64,6 +64,7 @@ describe("CodeEditor cursor marker", () => {
     window.hibit = {
       subscribeProjectFiles: vi.fn(async () => ({ id: "sub-1", close: vi.fn() })),
       openProjectFolder: vi.fn(async () => ({ ok: true, path: "/tmp/project" })),
+      writeProjectFile: vi.fn(async () => undefined),
     } as unknown as typeof window.hibit;
   });
 
@@ -384,6 +385,32 @@ describe("CodeEditor cursor marker", () => {
 
     const iframe = host.querySelector("iframe");
     expect(iframe?.getAttribute("srcdoc")).toContain("Changed");
+  });
+
+  it("saves a dirty file before showing the page", async () => {
+    useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada</h1>");
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(window.hibit.writeProjectFile).toHaveBeenCalledWith(
+      profile.id,
+      profile.currentDreamId,
+      "index.html",
+      "<h1>Ada</h1>",
+    );
+    expect(host.querySelector('[aria-label="unsaved changes"]')).toBeNull();
+    expect(host.textContent).toContain("All saved");
   });
 
   it("reloads the iframe on Refresh even when no content changed", async () => {
