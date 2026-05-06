@@ -225,6 +225,20 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "big-title") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+  </head>
+  <body>
+    <h1>My Big Title</h1>
+    <p>${sentenceTitle}. Change this title to make it yours.</p>
+  </body>
+</html>
+`;
+  }
   return `<!doctype html>
 <html lang="en">
   <head>

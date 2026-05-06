@@ -240,6 +240,20 @@ describe("projects storage", () => {
       expect(raw).not.toContain("<h1>Ada's page</h1>");
     });
 
+    it("seeds one big title with an obvious editable title placeholder", async () => {
+      const dream = makeDream({
+        id: "big-title",
+        title_kid: "one big title",
+        requires: ["html-text-headings"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "big-title", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>My Big Title</h1>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+    });
+
     it("gives the smiley button dream a starter page with stuff, look, and action", async () => {
       const dream = makeDream({
         id: "emoji-button",
