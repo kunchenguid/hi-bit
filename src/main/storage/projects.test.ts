@@ -269,6 +269,25 @@ describe("projects storage", () => {
       expect(raw).not.toContain("<h1>Ada's page</h1>");
     });
 
+    it("gives the birthday card dream a starter page with a real card message and picture spot", async () => {
+      const dream = makeDream({
+        id: "birthday-card",
+        title_kid: "a birthday card page",
+        requires: ["html-text-headings", "html-text-paragraphs", "html-images", "css-colors"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "birthday-card", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's birthday card");
+      expect(raw).toContain("Happy Birthday!");
+      expect(raw).toContain('<div class="picture-spot"');
+      expect(raw).toContain("🎂");
+      expect(raw).toContain("<style>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+      expect(raw).not.toContain("Change anything to make it yours.");
+    });
+
     it("gives the smiley button dream a starter page with stuff, look, and action", async () => {
       const dream = makeDream({
         id: "emoji-button",

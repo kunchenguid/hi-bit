@@ -106,6 +106,46 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
   const title = escapeHtml(rawTitle);
   const sentenceTitle = escapeHtml(sentenceCase(rawTitle));
   const name = escapeHtml(profileName);
+  if (dream.id === "birthday-card") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #fff0f6;
+        color: #4a1230;
+      }
+
+      .card {
+        max-width: 30rem;
+        margin: 2rem auto;
+        padding: 2rem;
+        border: 0.3rem solid #ff8a3d;
+        border-radius: 1.5rem;
+        background: #fffdf7;
+      }
+
+      .picture-spot {
+        font-size: 4rem;
+        margin: 1rem auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Happy Birthday!</h1>
+      <div class="picture-spot" aria-label="birthday cake picture spot">🎂</div>
+      <p>From ${name}'s birthday card.</p>
+      <p>${sentenceTitle}. Change the message, picture, or colors to make it yours.</p>
+    </main>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "emoji-button") {
     return `<!doctype html>
 <html lang="en">
