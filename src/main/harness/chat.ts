@@ -411,7 +411,12 @@ function isAllowedProgressUpdate(candidate: ProgressControlEntry): boolean {
   if (typeof candidate.evidence !== "string") return false;
   const evidence = candidate.evidence.toLowerCase();
   if (candidate.status === "saw_it") {
-    return /\b(see my page|preview|saw|checked)\b/.test(evidence);
+    if (/\b(about to|going to|will)\b/.test(evidence)) return false;
+    return (
+      /\b(pressed|clicked|tapped)\b.*\bsee my page\b/.test(evidence) ||
+      /\b(saw|checked)\b.*\b(page|preview)\b/.test(evidence) ||
+      /\b(page|preview)\b.*\b(saw|checked)\b/.test(evidence)
+    );
   }
   if (candidate.status !== "did_with_help") return true;
   const mentionsCodeChange = /\b(changed|edited|replaced|typed|updated)\b/.test(evidence);

@@ -244,6 +244,30 @@ describe("ACP-backed chat", () => {
     expect(progress.knowledgePoints["run-and-preview"]).toBeUndefined();
   });
 
+  it("does not mark run-and-preview seen when the evidence only says the kid is about to preview", async () => {
+    await writeGraphNode(layout, "run-and-preview");
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const rawReply =
+      'Press See my page.<hi-bit:progress>[{"kpId":"run-and-preview","status":"saw_it","evidence":"Ada opened the editor and is about to press See my page for the first time."}]</hi-bit:progress>';
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "I see code",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      text: "Press See my page.",
+      durationMs: expect.any(Number),
+    });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["run-and-preview"]).toBeUndefined();
+  });
+
   it("records one failed log when a post-turn progress write throws", async () => {
     await writeGraphNode(layout, "html-text-headings");
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
