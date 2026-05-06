@@ -35,6 +35,7 @@ const REQUIRED_BEHAVIORS: Array<{
       /full profile name exactly as it appears/i,
       /never say `your actual name`/i,
       /before the exact edit step/i,
+      /Do not write a transition sentence like `change it to your actual name`/i,
     ],
   },
   {
