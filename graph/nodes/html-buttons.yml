@@ -6,7 +6,7 @@ area: html
 prereqs: [html-page-body]
 introduces: [button-tag, interactive-element]
 mastery_signals:
-  saw_it: Bit added a button element to the kid's page and pointed out that it looks like a clickable button in the preview.
-  did_with_help: Kid wrote a button element with label text while Bit reminded them of the tag shape.
+  saw_it: Bit pointed to a real <button>...</button> in the kid's code, named it as a clickable button, and showed that the words between the tags are what appear on the button in the preview.
+  did_with_help: Kid changed the label text between <button> tags while Bit reminded them of the tag shape, then checked the preview to see the button update.
   did_unprompted: Kid added a button to their page on a new step without Bit bringing up buttons.
   explained_it: Kid described a button as an element a person can click, and said the words between the tags are what shows up on the button.

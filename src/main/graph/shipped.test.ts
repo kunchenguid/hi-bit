@@ -70,6 +70,17 @@ describe("shipped knowledge graph content", () => {
     expect(preview.prereqs).toEqual([]);
   });
 
+  it("requires active button-tag understanding before Button elements mastery", async () => {
+    const validation = await loadKnowledgeGraph(shippedNodesDir);
+    if (!validation.ok) throw new Error("expected ok");
+    const buttons = validation.graph.byId["html-buttons"];
+    expect(buttons).toBeDefined();
+    expect(buttons.mastery_signals.saw_it).toContain("<button>");
+    expect(buttons.mastery_signals.saw_it).toContain("words between the tags");
+    expect(buttons.mastery_signals.did_with_help).toContain("changed the label text");
+    expect(buttons.mastery_signals.did_with_help).toContain("checked the preview");
+  });
+
   it("covers the full v1 HTML node set from docs/knowledge-graph.md", async () => {
     const validation = await loadKnowledgeGraph(shippedNodesDir);
     if (!validation.ok) throw new Error("expected ok");
