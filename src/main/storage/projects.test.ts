@@ -251,10 +251,24 @@ describe("projects storage", () => {
       const raw = await readFile(join(paths.projectsDir, "emoji-button", "index.html"), "utf8");
 
       expect(raw).toContain("<button");
-      expect(raw).toContain(":D");
+      expect(raw).toContain("Click me");
       expect(raw).toContain("<style>");
       expect(raw).toContain("<script>");
       expect(raw).toContain("addEventListener");
+    });
+
+    it("does not pre-fill the smiley button with the common first-edit choices", async () => {
+      const dream = makeDream({
+        id: "emoji-button",
+        title_kid: "a button with a smiley face",
+        requires: ["html-buttons"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "emoji-button", "index.html"), "utf8");
+
+      expect(raw).not.toContain("Click me :D");
+      expect(raw).not.toContain("Click me :)");
     });
 
     it("gives the click-me dream a starter page that already has buttons", async () => {

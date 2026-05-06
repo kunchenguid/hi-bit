@@ -129,7 +129,7 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
   <body>
     <h1>${name}'s smiley button</h1>
     <p>${sentenceTitle}. Change the words or the smiley to make it yours.</p>
-    <button id="smiley-button">Click me :D</button>
+    <button id="smiley-button">Click me</button>
     <p id="message">Press the button to see what happens.</p>
 
     <script>
