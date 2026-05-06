@@ -144,6 +144,37 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "click-me") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #eef7ff;
+      }
+
+      button {
+        font-size: 1.2rem;
+        margin: 0.5rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s button page</h1>
+    <p>${sentenceTitle}. Change the button words to make them yours.</p>
+    <button>Play</button>
+    <button>Jump</button>
+    <button>Dance</button>
+  </body>
+</html>
+`;
+  }
   return `<!doctype html>
 <html lang="en">
   <head>

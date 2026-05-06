@@ -229,6 +229,23 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the click-me dream a starter page that already has buttons", async () => {
+      const dream = makeDream({
+        id: "click-me",
+        title_kid: "a page with buttons to click",
+        requires: ["html-text-headings", "html-buttons"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "click-me", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's button page");
+      expect(raw).toContain("<button");
+      expect(raw).toContain("Play");
+      expect(raw).toContain("Jump");
+      expect(raw).toContain("Dance");
+    });
+
     it("html-escapes the profile name so it can't break out of the h1", async () => {
       const dream = makeDream({ id: "hello-card" });
       await scaffoldProject(paths, dream, { profileName: "<script>Mallory</script>" });
