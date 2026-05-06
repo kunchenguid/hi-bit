@@ -175,6 +175,42 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "canvas-rectangle") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #fff4ea;
+      }
+
+      canvas {
+        background: white;
+        border: 4px solid #25304f;
+        border-radius: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s drawing page</h1>
+    <p>${sentenceTitle}. Change the color or numbers to make it yours.</p>
+    <canvas id="drawing" width="320" height="220"></canvas>
+
+    <script>
+      const canvas = document.getElementById("drawing");
+      const ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "tomato";
+      ctx.fillRect(70, 50, 180, 110);
+    </script>
+  </body>
+</html>
+`;
+  }
   return `<!doctype html>
 <html lang="en">
   <head>

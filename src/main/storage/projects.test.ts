@@ -246,6 +246,22 @@ describe("projects storage", () => {
       expect(raw).toContain("Dance");
     });
 
+    it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
+      const dream = makeDream({
+        id: "canvas-rectangle",
+        title_kid: "draw one rectangle",
+        requires: ["canvas-setup", "canvas-fillrect"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "canvas-rectangle", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's drawing page");
+      expect(raw).toContain("<canvas");
+      expect(raw).toContain('getContext("2d")');
+      expect(raw).toContain("fillRect");
+    });
+
     it("html-escapes the profile name so it can't break out of the h1", async () => {
       const dream = makeDream({ id: "hello-card" });
       await scaffoldProject(paths, dream, { profileName: "<script>Mallory</script>" });
