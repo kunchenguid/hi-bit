@@ -82,7 +82,8 @@ class CursorMarkerWidget extends WidgetType {
   toDOM(): HTMLElement {
     const el = document.createElement("span");
     el.className = "hb-editor-cursor-marker";
-    el.textContent = this.label;
+    el.setAttribute("aria-hidden", "true");
+    el.dataset.label = this.label;
     return el;
   }
   override ignoreEvent(): boolean {
@@ -188,6 +189,9 @@ export function createEditorExtensions(
       },
       "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
         background: "color-mix(in oklch, var(--brand) 35%, transparent)",
+      },
+      ".hb-editor-cursor-marker::after": {
+        content: "attr(data-label)",
       },
     }),
   ];
