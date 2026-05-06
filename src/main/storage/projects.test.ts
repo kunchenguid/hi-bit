@@ -355,6 +355,30 @@ describe("projects storage", () => {
       expect(raw).toContain("addEventListener");
     });
 
+    it("gives the click rush dream a starter page with a timed mashing game", async () => {
+      const dream = makeDream({
+        id: "click-rush",
+        title_kid: "a 10 second game where you mash a button as fast as you can",
+        requires: ["html-buttons", "dom-text-content", "events-click", "timers-settimeout"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "click-rush", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's click rush");
+      expect(raw).toContain('<button id="start-button"');
+      expect(raw).toContain('<button id="mash-button"');
+      expect(raw).toContain('<p id="score"');
+      expect(raw).toContain('<p id="timer"');
+      expect(raw).toContain('<button id="reset-button"');
+      expect(raw).toContain("let score = 0");
+      expect(raw).toContain("let timeLeft = 10");
+      expect(raw).toContain("setInterval");
+      expect(raw).toContain("clearInterval");
+      expect(raw).toContain("score += 1");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
     it("gives the color changer dream a starter page with a button that changes the page color", async () => {
       const dream = makeDream({
         id: "color-changer",

@@ -260,6 +260,102 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 </html>
 `;
   }
+  if (dream.id === "click-rush") {
+    return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        background: #f5f0ff;
+      }
+
+      button {
+        font-size: 1.2rem;
+        margin: 0.4rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 999px;
+      }
+
+      #mash-button {
+        font-size: 1.8rem;
+        padding: 1.2rem 2rem;
+      }
+
+      #score,
+      #timer {
+        font-size: 1.4rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${name}'s click rush</h1>
+    <p>${sentenceTitle}. Press start, mash the big button, and watch your score climb.</p>
+    <p id="timer">Time: 10</p>
+    <p id="score">Score: 0</p>
+    <button id="start-button">Start 10 seconds</button>
+    <button id="mash-button" disabled>MASH!</button>
+    <button id="reset-button">Reset</button>
+
+    <script>
+      const startButton = document.getElementById("start-button");
+      const mashButton = document.getElementById("mash-button");
+      const resetButton = document.getElementById("reset-button");
+      const scoreDisplay = document.getElementById("score");
+      const timerDisplay = document.getElementById("timer");
+      let score = 0;
+      let timeLeft = 10;
+      let timerId = null;
+
+      function updatePage() {
+        scoreDisplay.textContent = "Score: " + score;
+        timerDisplay.textContent = "Time: " + timeLeft;
+      }
+
+      function stopGame() {
+        clearInterval(timerId);
+        timerId = null;
+        mashButton.disabled = true;
+        startButton.disabled = false;
+      }
+
+      startButton.addEventListener("click", () => {
+        score = 0;
+        timeLeft = 10;
+        updatePage();
+        startButton.disabled = true;
+        mashButton.disabled = false;
+
+        timerId = setInterval(() => {
+          timeLeft -= 1;
+          updatePage();
+
+          if (timeLeft === 0) {
+            stopGame();
+          }
+        }, 1000);
+      });
+
+      mashButton.addEventListener("click", () => {
+        score += 1;
+        updatePage();
+      });
+
+      resetButton.addEventListener("click", () => {
+        stopGame();
+        score = 0;
+        timeLeft = 10;
+        updatePage();
+      });
+    </script>
+  </body>
+</html>
+`;
+  }
   if (dream.id === "color-changer") {
     return `<!doctype html>
 <html lang="en">
