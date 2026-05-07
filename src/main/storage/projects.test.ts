@@ -734,13 +734,18 @@ describe("projects storage", () => {
   describe("watchProjectFiles", () => {
     async function waitFor<T>(
       accessor: () => T | null,
-      { timeoutMs = 4000, intervalMs = 25 }: { timeoutMs?: number; intervalMs?: number } = {},
+      {
+        timeoutMs = 4000,
+        intervalMs = 25,
+        beforeRetry,
+      }: { timeoutMs?: number; intervalMs?: number; beforeRetry?: () => Promise<void> } = {},
     ): Promise<T> {
       const deadline = Date.now() + timeoutMs;
       for (;;) {
         const value = accessor();
         if (value !== null) return value;
         if (Date.now() >= deadline) throw new Error("waitFor timed out");
+        await beforeRetry?.();
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }
     }
@@ -760,8 +765,14 @@ describe("projects storage", () => {
       const events: ProjectFileChange[] = [];
       const watcher = await watchProjectFiles(paths, "snake", (e) => events.push(e));
       try {
+        let writeCount = 0;
         await writeProjectFile(paths, "snake", "index.html", "<!doctype html>");
-        const event = await waitFor(() => events.find((e) => e.filename === "index.html") ?? null);
+        const event = await waitFor(() => events.find((e) => e.filename === "index.html") ?? null, {
+          beforeRetry: async () => {
+            writeCount += 1;
+            await writeProjectFile(paths, "snake", "index.html", `<!doctype html>${writeCount}`);
+          },
+        });
         expect(event.filename).toBe("index.html");
         expect(["changed", "renamed"]).toContain(event.kind);
       } finally {
@@ -773,6 +784,7 @@ describe("projects storage", () => {
       const events: ProjectFileChange[] = [];
       const watcher = await watchProjectFiles(paths, "snake", (e) => events.push(e));
       try {
+        let writeCount = 0;
         await writeProjectFile(paths, "snake", "index.html", "<!doctype html>");
         await writeProjectFile(paths, "snake", "snake.js", "// snake");
         await waitFor(() =>
@@ -780,6 +792,13 @@ describe("projects storage", () => {
           events.some((e) => e.filename === "snake.js")
             ? true
             : null,
+          {
+            beforeRetry: async () => {
+              writeCount += 1;
+              await writeProjectFile(paths, "snake", "index.html", `<!doctype html>${writeCount}`);
+              await writeProjectFile(paths, "snake", "snake.js", `// snake ${writeCount}`);
+            },
+          },
         );
       } finally {
         watcher.close();
@@ -789,8 +808,14 @@ describe("projects storage", () => {
     it("stops emitting events after close()", async () => {
       const events: ProjectFileChange[] = [];
       const watcher = await watchProjectFiles(paths, "snake", (e) => events.push(e));
+      let writeCount = 0;
       await writeProjectFile(paths, "snake", "index.html", "<!doctype html>");
-      await waitFor(() => (events.length > 0 ? true : null));
+      await waitFor(() => (events.length > 0 ? true : null), {
+        beforeRetry: async () => {
+          writeCount += 1;
+          await writeProjectFile(paths, "snake", "index.html", `<!doctype html>${writeCount}`);
+        },
+      });
       watcher.close();
       const countAtClose = events.length;
       await writeProjectFile(paths, "snake", "index.html", "<!doctype html><body>x</body>");
