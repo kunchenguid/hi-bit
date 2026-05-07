@@ -1,3 +1,5 @@
+import { type ExpectedLearnerAction, isLearnerActivityType } from "@shared/learnerActivity";
+
 export type HiBitControlBlock = {
   name: string;
   raw: string;
@@ -20,7 +22,34 @@ export function extractHiBitControlBlocks(text: string): HiBitControlBlock[] {
 }
 
 export function stripHiBitControlBlocks(text: string): string {
-  return text.replace(CONTROL_BLOCK_RE, "");
+  return text.replace(CONTROL_BLOCK_RE, (raw, _name, _body, offset) => {
+    const before = text.slice(0, offset);
+    const after = text.slice(offset + raw.length);
+    return needsControlBlockSeparator(before, after) ? " " : "";
+  });
+}
+
+export function parseExpectedLearnerActions(blocks: HiBitControlBlock[]): ExpectedLearnerAction[] {
+  const actions: ExpectedLearnerAction[] = [];
+  for (const block of blocks) {
+    if (block.name !== "expect-action") continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(block.body);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object") continue;
+    const input = parsed as { type?: unknown; label?: unknown };
+    if (!isLearnerActivityType(input.type)) continue;
+    actions.push({
+      type: input.type,
+      ...(typeof input.label === "string" && input.label.trim().length > 0
+        ? { label: input.label.trim() }
+        : {}),
+    });
+  }
+  return actions;
 }
 
 export function createHiBitControlStreamFilter(onVisible: (text: string) => void): {
@@ -29,9 +58,19 @@ export function createHiBitControlStreamFilter(onVisible: (text: string) => void
 } {
   let buffer = "";
   let hiddenName: string | null = null;
+  let lastVisibleChar = "";
 
   function emit(text: string): void {
-    if (text.length > 0) onVisible(text);
+    if (text.length === 0) return;
+    onVisible(text);
+    const last = text.at(-1);
+    if (last) lastVisibleChar = last;
+  }
+
+  function emitAfterHidden(text: string): void {
+    if (text.length === 0) return;
+    if (needsControlBlockSeparator(lastVisibleChar, text)) emit(" ");
+    processVisible(text);
   }
 
   function processVisible(text: string): void {
@@ -67,7 +106,9 @@ export function createHiBitControlStreamFilter(onVisible: (text: string) => void
         buffer = afterStart.slice(openEnd);
         return;
       }
-      remaining = afterStart.slice(close + closeTag.length);
+      const rest = afterStart.slice(close + closeTag.length);
+      if (needsControlBlockSeparator(remaining.slice(0, start), rest)) emit(" ");
+      remaining = rest;
     }
   }
 
@@ -86,7 +127,7 @@ export function createHiBitControlStreamFilter(onVisible: (text: string) => void
     const rest = text.slice(close + closeTag.length);
     hiddenName = null;
     buffer = "";
-    processVisible(rest);
+    emitAfterHidden(rest);
   }
 
   return {
@@ -102,6 +143,12 @@ export function createHiBitControlStreamFilter(onVisible: (text: string) => void
       hiddenName = null;
     },
   };
+}
+
+function needsControlBlockSeparator(before: string, after: string): boolean {
+  const left = before.at(-1);
+  const right = after.at(0);
+  return left !== undefined && right !== undefined && !/\s/.test(left) && !/\s/.test(right);
 }
 
 function controlPrefixSuffixLength(text: string): number {

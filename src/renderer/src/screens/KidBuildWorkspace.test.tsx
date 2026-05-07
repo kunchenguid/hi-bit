@@ -284,4 +284,53 @@ describe("KidBuildWorkspace cursor target", () => {
         "The editor is already open next to chat. The kid is currently looking at Page view, so code is not visible. Do not ask the kid to click Open the editor; first guide them to press See my code or Split before giving any code-edit instructions.",
     });
   });
+
+  it("tells Bit when the kid opens the editor", async () => {
+    const sendLearnerActivity = vi.fn(async () => null);
+    useChatStore.setState({ sendLearnerActivity });
+
+    await act(async () => {
+      root.render(
+        <KidBuildWorkspace
+          profile={profile}
+          onEnterParentMode={() => {}}
+          onSwitchDream={() => {}}
+          onOpenProjects={() => {}}
+        />,
+      );
+    });
+
+    const openEditorButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Open the editor",
+    );
+    if (!openEditorButton) throw new Error("missing open-editor button");
+
+    await act(async () => {
+      openEditorButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(sendLearnerActivity).toHaveBeenCalledWith(profile.id, { type: "editor.opened" });
+  });
+
+  it("seeds the show-me-around tour to expect opening the editor", async () => {
+    const expectLearnerAction = vi.fn();
+    useChatStore.setState({ expectLearnerAction });
+
+    await act(async () => {
+      root.render(
+        <KidBuildWorkspace
+          profile={{ ...profile, currentDreamId: "show-me-around" }}
+          onEnterParentMode={() => {}}
+          onSwitchDream={() => {}}
+          onOpenProjects={() => {}}
+        />,
+      );
+    });
+
+    expect(expectLearnerAction).toHaveBeenCalledWith({
+      type: "editor.opened",
+      label: "Opened editor",
+      source: "tour",
+    });
+  });
 });

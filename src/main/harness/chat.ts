@@ -23,6 +23,7 @@ import {
   createHiBitControlStreamFilter,
   extractHiBitControlBlocks,
   type HiBitControlBlock,
+  parseExpectedLearnerActions,
   stripHiBitControlBlocks,
 } from "./hiBitControl";
 import type {
@@ -152,7 +153,7 @@ async function sendMessage(
         : undefined;
     const memory = injectSessionContext ? await readSessionMemory(paths) : undefined;
     const learningPlan =
-      role === "kid" && injectSessionContext
+      role === "kid"
         ? await learningPlanForCurrentDream(opts.layout, opts.profileId, profile)
         : undefined;
     const agentPrompt = withSessionContext({
@@ -192,6 +193,7 @@ async function sendMessage(
     const durationMs = endMs - startMs;
     const wasCancelled = opts.signal?.aborted === true || result.status === "cancelled";
     const controlBlocks = extractHiBitControlBlocks(result.text);
+    const expectedActions = parseExpectedLearnerActions(controlBlocks);
     const visibleText = cleanVisibleReply(stripHiBitControlBlocks(result.text), role, profile.name);
 
     if (!wasCancelled && result.status === "completed") {
@@ -202,6 +204,7 @@ async function sendMessage(
         sessionId,
         kind: "assistant_message",
         text: visibleText,
+        ...(expectedActions.length > 0 ? { metadata: { expectedActions } } : {}),
       });
       await appendSessionLogEntry(
         paths,
@@ -216,7 +219,12 @@ async function sendMessage(
           usage: result.usage,
         }),
       );
-      return { ok: true, text: visibleText, durationMs };
+      return {
+        ok: true,
+        text: visibleText,
+        durationMs,
+        ...(expectedActions.length > 0 ? { expectedActions } : {}),
+      };
     }
 
     const error = wasCancelled ? "Turn cancelled" : result.error || "Agent failed";
@@ -272,10 +280,11 @@ async function sendMessage(
 }
 
 function cleanVisibleReply(text: string, role: SessionRole, kidName: string): string {
-  if (role !== "kid") return text;
-  if (!text.includes("My Name")) return text;
-  if (!text.includes(kidName)) return text;
-  return text.replace(/\byour (actual|real) name\b/gi, kidName);
+  const trimmed = text.trimEnd();
+  if (role !== "kid") return trimmed;
+  if (!trimmed.includes("My Name")) return trimmed;
+  if (!trimmed.includes(kidName)) return trimmed;
+  return trimmed.replace(/\byour (actual|real) name\b/gi, kidName);
 }
 
 function buildInvocationLogEntry(opts: {

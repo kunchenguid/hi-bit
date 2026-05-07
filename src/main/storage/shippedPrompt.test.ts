@@ -76,6 +76,17 @@ const REQUIRED_BEHAVIORS: Array<{
     ],
   },
   {
+    behavior: "split-view save reactions do not ask to rerun an already visible preview",
+    markers: [
+      /save event/i,
+      /when the save event says the page is visible in Split view/i,
+      /preview has already refreshed/i,
+      /do not ask the kid to press \*\*See my page\*\* just to see that visible saved change/i,
+      /when the save event says the preview is hidden in Code view/i,
+      /it is okay to ask the kid to press \*\*See my page\*\*/i,
+    ],
+  },
+  {
     behavior: "kid-friendly preview instructions open the editor before naming hidden controls",
     markers: [
       /editor is hidden/i,
@@ -132,6 +143,26 @@ const REQUIRED_BEHAVIORS: Array<{
       /explained_it/,
       /first time you teach or check a KP/i,
       /Emit the hidden block silently/i,
+    ],
+  },
+  {
+    behavior: "hidden expected action protocol for UI instructions",
+    markers: [
+      /<hi-bit:expect-action>/,
+      /workspace\.view\.split/,
+      /preview\.opened/,
+      /when you ask the kid to click, press, or tap a Hi-Bit UI control/i,
+    ],
+  },
+  {
+    behavior: "dream complete state points kids to switch dreams",
+    markers: [
+      /next_up is `none`/i,
+      /current dream path is complete/i,
+      /click \*\*Switch dream\*\*/i,
+      /real app control/i,
+      /completes the last remaining required KP/i,
+      /same visible reply/i,
     ],
   },
   {

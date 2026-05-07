@@ -75,6 +75,19 @@ describe("buildKidChatHistory", () => {
     ]);
   });
 
+  it("trims trailing whitespace from hydrated bit text bubbles", () => {
+    const events = [
+      mkEvent({ timestamp: "t2", kind: "assistant_message", text: "hey Ada, ready?\n\n  " }),
+    ];
+    const result = buildKidChatHistory(events);
+
+    expect(result[0]).toMatchObject({
+      role: "bit",
+      kind: "text",
+      text: "hey Ada, ready?",
+    });
+  });
+
   it("maps kid error events to a kid-friendly error bubble", () => {
     const events = [mkEvent({ timestamp: "t3", kind: "error", text: "harness crashed" })];
     const result = buildKidChatHistory(events);

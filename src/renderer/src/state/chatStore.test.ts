@@ -35,6 +35,7 @@ beforeEach(() => {
     greetingForSessionId: null,
     streamingText: null,
     activeRequestId: null,
+    pendingExpectedAction: null,
   });
   useProgressStore.setState({
     progress: null,
@@ -67,6 +68,19 @@ describe("useChatStore", () => {
     expect(state.messages[1]).toMatchObject({ role: "bit", text: "hi Ada!", kind: "text" });
   });
 
+  it("trims trailing whitespace from visible bit replies", async () => {
+    const result: SendMessageResult = { ok: true, text: "hi Ada!\n\n  \t", durationMs: 123 };
+    mockHiBit({ sendKidMessage: vi.fn().mockResolvedValue(result) });
+
+    await useChatStore.getState().send("ada", "hello");
+
+    expect(useChatStore.getState().messages[1]).toMatchObject({
+      role: "bit",
+      kind: "text",
+      text: "hi Ada!",
+    });
+  });
+
   it("refreshes loaded progress after a successful kid turn", async () => {
     const result: SendMessageResult = { ok: true, text: "next step", durationMs: 123 };
     const refreshed = {
@@ -89,6 +103,30 @@ describe("useChatStore", () => {
     expect(useProgressStore.getState().progress).toEqual(refreshed);
   });
 
+  it("hydrates the latest expected learner action from transcript metadata", async () => {
+    const transcript: TranscriptEvent[] = [
+      {
+        timestamp: "2026-01-01T00:00:00.000Z",
+        role: "kid",
+        sessionId: "kid-session",
+        kind: "assistant_message",
+        text: "Click Split so we can see both sides.",
+        metadata: {
+          expectedActions: [{ type: "workspace.view.split", label: "Clicked Split" }],
+        },
+      },
+    ];
+    mockHiBit({ getTranscript: vi.fn().mockResolvedValue(transcript) });
+
+    await useChatStore.getState().hydrate("ada", "kid-session");
+
+    expect(useChatStore.getState().pendingExpectedAction).toEqual({
+      type: "workspace.view.split",
+      label: "Clicked Split",
+      source: "explicit",
+    });
+  });
+
   it("sendSystemPrompt prompts Bit without showing the prompt as a kid message", async () => {
     const sendKidMessage = vi
       .fn()
@@ -109,6 +147,89 @@ describe("useChatStore", () => {
       ["system", "divider", "Saved index.html"],
       ["bit", "text", "Nice. Add a color next."],
     ]);
+  });
+
+  it("trims trailing whitespace from visible system-triggered replies", async () => {
+    const sendKidMessage = vi
+      .fn()
+      .mockResolvedValue({ ok: true, text: "Nice. Add a color next.\n\n", durationMs: 5 });
+    mockHiBit({ sendKidMessage });
+
+    await useChatStore.getState().sendSystemPrompt("ada", {
+      prompt: "The kid saved index.html.",
+      label: "Saved index.html",
+    });
+
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: "bit",
+      kind: "text",
+      text: "Nice. Add a color next.",
+    });
+  });
+
+  it("sendLearnerActivity ignores semantic UI activity when Bit did not ask for it", async () => {
+    const sendKidMessage = vi
+      .fn()
+      .mockResolvedValue({ ok: true, text: "Nice, that is your code editor.", durationMs: 5 });
+    mockHiBit({ sendKidMessage });
+
+    await useChatStore.getState().sendLearnerActivity("ada", { type: "editor.opened" });
+
+    expect(sendKidMessage).not.toHaveBeenCalled();
+    expect(useChatStore.getState().messages).toEqual([]);
+  });
+
+  it("sendLearnerActivity prompts Bit when the activity matches the pending expected action", async () => {
+    const sendKidMessage = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        text: "Click Split so we can see both sides.",
+        durationMs: 5,
+        expectedActions: [{ type: "workspace.view.split", label: "Clicked Split" }],
+      })
+      .mockResolvedValueOnce({ ok: true, text: "Nice, now you can see both.", durationMs: 5 });
+    mockHiBit({ sendKidMessage });
+
+    await useChatStore.getState().send("ada", "what now?");
+    await useChatStore.getState().sendLearnerActivity("ada", { type: "workspace.view.code" });
+    await useChatStore.getState().sendLearnerActivity("ada", { type: "workspace.view.split" });
+
+    expect(sendKidMessage).toHaveBeenCalledTimes(2);
+    expect(sendKidMessage).toHaveBeenCalledWith(
+      "ada",
+      expect.stringContaining("Activity: workspace.view.split"),
+      expect.any(String),
+    );
+    expect(useChatStore.getState().pendingExpectedAction).toBeNull();
+    expect(useChatStore.getState().messages.map((m) => [m.role, m.kind, m.text])).toEqual([
+      ["kid", "text", "what now?"],
+      ["bit", "text", "Click Split so we can see both sides."],
+      ["system", "divider", "Clicked Split"],
+      ["bit", "text", "Nice, now you can see both."],
+    ]);
+  });
+
+  it("infers a pending expected action from exact Bit UI instructions", async () => {
+    const sendKidMessage = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        text: "Click Split so we can see both sides.",
+        durationMs: 5,
+      })
+      .mockResolvedValueOnce({ ok: true, text: "That is split view.", durationMs: 5 });
+    mockHiBit({ sendKidMessage });
+
+    await useChatStore.getState().send("ada", "what now?");
+    await useChatStore.getState().sendLearnerActivity("ada", { type: "workspace.view.split" });
+
+    expect(sendKidMessage).toHaveBeenCalledTimes(2);
+    expect(sendKidMessage).toHaveBeenLastCalledWith(
+      "ada",
+      expect.stringContaining("Activity: workspace.view.split"),
+      expect.any(String),
+    );
   });
 
   it("can send hidden UI context without showing it as the kid message", async () => {

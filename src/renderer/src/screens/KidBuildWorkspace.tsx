@@ -5,6 +5,7 @@ import {
   findLocalCursorMarkerPosition,
   parseCursorMarkerResponse,
 } from "../editor/cursorMarker";
+import { useChatStore } from "../state/chatStore";
 import { useProjectsStore } from "../state/projectsStore";
 import type { EditorCursorTarget, EditorViewMode } from "./CodeEditor";
 import { CodeEditor } from "./CodeEditor";
@@ -48,6 +49,18 @@ export function KidBuildWorkspace({
   const dreamId = profile.currentDreamId ?? null;
   const projectReadyForProfile =
     projectStatus === "ready" && projectProfileId === profile.id && projectSlug === dreamId;
+  const sendLearnerActivity = useChatStore((s) => s.sendLearnerActivity);
+  const expectLearnerAction = useChatStore((s) => s.expectLearnerAction);
+
+  useEffect(() => {
+    if (editorRevealed || dreamId !== "show-me-around") return;
+    expectLearnerAction({ type: "editor.opened", label: "Opened editor", source: "tour" });
+  }, [dreamId, editorRevealed, expectLearnerAction]);
+
+  function handleOpenEditor(): void {
+    setEditorRevealed(true);
+    void sendLearnerActivity(profile.id, { type: "editor.opened" });
+  }
 
   const locateCursorTarget = useCallback(
     async ({ snippet, latestBitMessage }: PendingCursorRequest): Promise<void> => {
@@ -187,7 +200,7 @@ export function KidBuildWorkspace({
         onEnterParentMode={onEnterParentMode}
         onSwitchDream={onSwitchDream}
         onOpenProjects={onOpenProjects}
-        onOpenEditor={() => setEditorRevealed(true)}
+        onOpenEditor={handleOpenEditor}
         onShowCursorTarget={handleShowCursorTarget}
         cursorTargetStatus={cursorTargetStatus}
         cursorTargetError={cursorTargetError}

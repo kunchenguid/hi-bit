@@ -76,6 +76,7 @@ export function CodeEditor({
   const unsubscribe = useProjectsStore((s) => s.unsubscribe);
   const openFolder = useProjectsStore((s) => s.openFolder);
   const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
+  const sendLearnerActivity = useChatStore((s) => s.sendLearnerActivity);
   const updateProgressStatus = useProgressStore((s) => s.updateStatus);
   const progressProfileId = useProgressStore((s) => s.profileId);
   const progressStatus = useProgressStore((s) => s.status);
@@ -172,7 +173,7 @@ export function CodeEditor({
       rebuildPreview();
       void sendSystemPrompt(profile.id, {
         label: `Saved ${saved.filename}`,
-        prompt: buildSavedFilePrompt(saved),
+        prompt: buildSavedFilePrompt({ ...saved, previewVisible: viewMode === "split" }),
       });
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Could not save the file.");
@@ -268,6 +269,32 @@ export function CodeEditor({
     }
   }
 
+  async function recordShowMeAroundSplitCompletion(): Promise<void> {
+    if (profile.currentDreamId !== "show-me-around") return;
+    if (progressProfileId !== profile.id || progressStatus !== "ready") return;
+    if (runAndPreviewProgress?.skipped) return;
+    if (runAndPreviewProgress?.status !== "saw_it") return;
+    await updateProgressStatus(
+      "run-and-preview",
+      "did_with_help",
+      "Completed the show me around tour by opening the editor, viewing the page, and using Split view.",
+    );
+  }
+
+  async function handleViewModeSelect(nextMode: EditorViewMode): Promise<void> {
+    setViewMode(nextMode);
+    if (nextMode === "split") {
+      await recordShowMeAroundSplitCompletion();
+    }
+    const activityType =
+      nextMode === "code"
+        ? "workspace.view.code"
+        : nextMode === "preview"
+          ? "workspace.view.preview"
+          : "workspace.view.split";
+    await sendLearnerActivity(profile.id, { type: activityType });
+  }
+
   async function handleRun(): Promise<void> {
     if (activeBuffer && isDirty) {
       setSaveError(null);
@@ -280,6 +307,7 @@ export function CodeEditor({
     }
     rebuildPreview();
     setViewMode("preview");
+    void sendLearnerActivity(profile.id, { type: "preview.opened" });
     if (
       progressProfileId === profile.id &&
       progressStatus === "ready" &&
@@ -331,7 +359,9 @@ export function CodeEditor({
               type="button"
               className="hb-editor-view-button"
               aria-pressed={viewMode === "code"}
-              onClick={() => setViewMode("code")}
+              onClick={() => {
+                void handleViewModeSelect("code");
+              }}
             >
               Code
             </button>
@@ -339,7 +369,9 @@ export function CodeEditor({
               type="button"
               className="hb-editor-view-button"
               aria-pressed={viewMode === "preview"}
-              onClick={() => setViewMode("preview")}
+              onClick={() => {
+                void handleViewModeSelect("preview");
+              }}
             >
               Page
             </button>
@@ -347,7 +379,9 @@ export function CodeEditor({
               type="button"
               className="hb-editor-view-button"
               aria-pressed={viewMode === "split"}
-              onClick={() => setViewMode("split")}
+              onClick={() => {
+                void handleViewModeSelect("split");
+              }}
             >
               Split
             </button>
@@ -581,7 +615,9 @@ export function CodeEditor({
                 <button
                   type="button"
                   className="hb-btn hb-btn-primary"
-                  onClick={() => setViewMode("code")}
+                  onClick={() => {
+                    void handleViewModeSelect("code");
+                  }}
                 >
                   See my code
                 </button>

@@ -246,6 +246,7 @@ export function KidChat({
 
   const Shell = docked ? "section" : "main";
   const shellClass = `hb-chat-shell${docked ? " hb-chat-shell-docked" : ""}`;
+  const visibleStreamingText = streamingText?.trimEnd() ?? "";
 
   return (
     <Shell className={shellClass}>
@@ -385,14 +386,14 @@ export function KidChat({
             );
           }
           const isLastError = idx === messages.length - 1 && m.role === "bit" && m.kind === "error";
+          const isLatestBitText =
+            m.id === lastBitTextMessageId && m.role === "bit" && m.kind === "text";
           const showEditorCta =
             !docked &&
             m.role === "bit" &&
             m.kind !== "error" &&
             !!onOpenEditor &&
             messageHasEditorCue(m.text);
-          const isLatestBitText =
-            m.id === lastBitTextMessageId && m.role === "bit" && m.kind === "text";
           const onBlockShowCursor =
             onShowCursorTarget && isLatestBitText && status !== "sending"
               ? (snippet: string) => {
@@ -475,8 +476,8 @@ export function KidChat({
             />
             <div className="hb-chat-msg hb-chat-bit hb-chat-msg-pending">
               <div className="hb-chat-msg-role t-pixel">Bit</div>
-              {streamingText && streamingText.length > 0 ? (
-                <div className="hb-chat-msg-body hb-chat-streaming">{streamingText}</div>
+              {visibleStreamingText.length > 0 ? (
+                <div className="hb-chat-msg-body hb-chat-streaming">{visibleStreamingText}</div>
               ) : (
                 <div className="hb-chat-msg-body hb-chat-thinking">
                   <span className="hb-chat-thinking-label">Bit is thinking</span>

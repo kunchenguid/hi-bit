@@ -87,6 +87,27 @@ async function writeGraphNode(layout: HiBitLayout, id: string): Promise<void> {
   );
 }
 
+async function writeFixedDream(layout: HiBitLayout, id: string, requires: string[]): Promise<void> {
+  await writeFile(
+    join(layout.graphDreamsDir, `${id}.yml`),
+    [
+      `id: ${id}`,
+      "title_parent: Test Dream",
+      "title_kid: test dream",
+      "summary_kid: test the dream path",
+      'emoji: "*"',
+      "mode: project",
+      "categories: [personal]",
+      "interest_tags: []",
+      `requires: [${requires.join(", ")}]`,
+      "style_hints: []",
+      "difficulty: 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
 describe("ACP-backed chat", () => {
   let root: string;
   let layout: HiBitLayout;
@@ -177,7 +198,7 @@ describe("ACP-backed chat", () => {
     await writeGraphNode(layout, "html-text-headings");
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const rawReply =
-      'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1."}]</hi-bit:progress>';
+      'Nice title.\n\n<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1."}]</hi-bit:progress>\n\n';
     const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
 
     const result = await sendKidMessage({
@@ -195,6 +216,30 @@ describe("ACP-backed chat", () => {
     expect(progress.knowledgePoints["html-text-headings"]).toMatchObject({
       status: "did_with_help",
       evidence: "Changed the h1.",
+    });
+  });
+
+  it("returns hidden expected learner actions as structured metadata", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory } = runtimeFactoryFor([
+      {
+        text: 'Click Split so we can see both sides.<hi-bit:expect-action>{"type":"workspace.view.split","label":"Clicked Split"}</hi-bit:expect-action>',
+      },
+    ]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "what next?",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      text: "Click Split so we can see both sides.",
+      durationMs: expect.any(Number),
+      expectedActions: [{ type: "workspace.view.split", label: "Clicked Split" }],
     });
   });
 
@@ -350,6 +395,43 @@ describe("ACP-backed chat", () => {
     expect(prompts[1]).toBe("second");
     const log = await readSessionLogEntries(profilePathsFor(layout, profile.id));
     expect(log.map((entry) => entry.mode)).toEqual(["start", "resume"]);
+  });
+
+  it("injects fresh learning-plan context on resumed kid turns", async () => {
+    await writeGraphNode(layout, "run-and-preview");
+    await writeFixedDream(layout, "show-me-around", ["run-and-preview"]);
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await setCurrentDream(layout, profile.id, "show-me-around");
+    await updateKpStatus(layout, profile.id, "run-and-preview", "did_with_help", {
+      evidence: "Completed the tour by opening Split view.",
+    });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "one" }, { text: "two" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "first",
+      runtimeFactory,
+    });
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "second",
+      runtimeFactory,
+    });
+
+    expect(prompts[1]).toContain("<hi-bit:context>");
+    expect(prompts[1]).toContain("current_dream: show-me-around");
+    expect(prompts[1]).toContain("next_up: none");
+    expect(prompts[1]).toContain(
+      "If next_up is none, the current dream path is complete. Tell the kid to click Switch dream.",
+    );
+    expect(prompts[1]).toContain("- run-and-preview | big titles | status: did_with_help");
+    expect(prompts[1]).not.toContain("<hi-bit:memory>");
+    expect(prompts[1]).not.toContain('<hi-bit:file path="state.md"');
+    expect(prompts[1]).toMatch(/second$/);
   });
 
   it("injects the full preamble when the default agent changes", async () => {

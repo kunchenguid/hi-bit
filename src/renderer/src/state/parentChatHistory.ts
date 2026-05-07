@@ -1,6 +1,10 @@
 import type { TranscriptEvent } from "@shared/transcript";
 import type { ParentChatMessage } from "./parentChatStore";
 
+function trimParentAssistantText(text: string): string {
+  return text.trimEnd();
+}
+
 function toChatMessage(event: TranscriptEvent): ParentChatMessage | null {
   if (event.role !== "parent") return null;
   if (event.kind === "user_message") {
@@ -17,7 +21,7 @@ function toChatMessage(event: TranscriptEvent): ParentChatMessage | null {
       id: `${event.timestamp}-a`,
       role: "bit",
       kind: "text",
-      text: event.text,
+      text: trimParentAssistantText(event.text),
       timestamp: event.timestamp,
     };
   }

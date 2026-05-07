@@ -149,6 +149,30 @@ describe("buildSessionContextPreamble", () => {
     );
   });
 
+  it("marks when completing next_up would complete the whole dream", () => {
+    const text = buildSessionContextPreamble({
+      role: "kid",
+      profile: { ...baseProfile, currentDreamId: "show-me-around" },
+      profileDir: "/tmp/profiles/ada",
+      learningPlan: {
+        dream: { id: "show-me-around", titleKid: "show me around" },
+        nextUpKpId: "run-and-preview",
+        requiredKps: [
+          {
+            id: "run-and-preview",
+            titleKid: "see your page run",
+            status: "saw_it",
+          },
+        ],
+      },
+    });
+
+    expect(text).toContain("completing_next_up_completes_dream: true");
+    expect(text).toContain(
+      "If you emit a hidden progress block that marks next_up as did_with_help, did_unprompted, or explained_it, the current dream path is complete. In that same visible reply, tell the kid to click Switch dream.",
+    );
+  });
+
   it("says no dream chosen yet when currentDreamId is absent", () => {
     const text = buildSessionContextPreamble({
       role: "kid",
@@ -212,5 +236,37 @@ describe("withSessionContext", () => {
       mode: "resume",
     });
     expect(merged).toBe("keep going");
+  });
+
+  it("prefixes resumed kid turns with compact learning-plan context when provided", () => {
+    const merged = withSessionContext({
+      userPrompt: "keep going",
+      role: "kid",
+      profile: { ...baseProfile, currentDreamId: "show-me-around" },
+      profileDir: "/tmp/profiles/ada",
+      mode: "resume",
+      learningPlan: {
+        dream: { id: "show-me-around", titleKid: "show me around" },
+        nextUpKpId: null,
+        requiredKps: [
+          {
+            id: "run-and-preview",
+            titleKid: "see your page run",
+            status: "did_with_help",
+          },
+        ],
+      },
+    });
+
+    expect(merged).not.toBe("keep going");
+    expect(merged).toContain("<hi-bit:context>");
+    expect(merged).toContain("mode: kid");
+    expect(merged).toContain("current_dream: show-me-around");
+    expect(merged).toContain("next_up: none");
+    expect(merged).toContain(
+      "If next_up is none, the current dream path is complete. Tell the kid to click Switch dream.",
+    );
+    expect(merged).toContain("- run-and-preview | see your page run | status: did_with_help");
+    expect(merged.endsWith("keep going")).toBe(true);
   });
 });

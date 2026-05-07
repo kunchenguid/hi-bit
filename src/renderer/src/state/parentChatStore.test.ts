@@ -50,6 +50,19 @@ describe("useParentChatStore", () => {
     expect(sendParentMessage).toHaveBeenCalledWith("ada", "focus on loops");
   });
 
+  it("trims trailing whitespace from live parent-mode bit replies", async () => {
+    const result: SendMessageResult = { ok: true, text: "got it\n\n  ", durationMs: 42 };
+    mockHiBit({ sendParentMessage: vi.fn().mockResolvedValue(result) });
+
+    await useParentChatStore.getState().send("ada", "focus on loops");
+
+    expect(useParentChatStore.getState().messages[1]).toMatchObject({
+      role: "bit",
+      kind: "text",
+      text: "got it",
+    });
+  });
+
   it("surfaces the raw error text to the parent on ok=false", async () => {
     const result: SendMessageResult = { ok: false, error: "harness crashed", durationMs: 10 };
     mockHiBit({ sendParentMessage: vi.fn().mockResolvedValue(result) });
@@ -140,6 +153,27 @@ describe("useParentChatStore", () => {
       "parent:focus on loops",
       "bit:got it",
     ]);
+  });
+
+  it("trims trailing whitespace from hydrated parent-mode bit replies", async () => {
+    const transcript: TranscriptEvent[] = [
+      {
+        timestamp: "t2",
+        role: "parent",
+        sessionId: "sess-1",
+        kind: "assistant_message",
+        text: "got it\n\n  ",
+      },
+    ];
+    mockHiBit({ getTranscript: vi.fn().mockResolvedValue(transcript) });
+
+    await useParentChatStore.getState().hydrate("ada", "sess-1");
+
+    expect(useParentChatStore.getState().messages[0]).toMatchObject({
+      role: "bit",
+      kind: "text",
+      text: "got it",
+    });
   });
 
   it("hydrate records the error when the IPC rejects", async () => {

@@ -310,6 +310,23 @@ describe("KidChat cursor target action", () => {
     expect(host.querySelectorAll(".hb-chat-row-kid .hb-chat-avatar")).toHaveLength(0);
   });
 
+  it("trims trailing whitespace from the visible streaming reply", async () => {
+    useChatStore.setState({
+      messages: [],
+      status: "sending",
+      activeRequestId: "req-1",
+      streamingText: "Visible reply before hidden block.\n\n  ",
+    });
+
+    await act(async () => {
+      root.render(<KidChat profile={profile} />);
+    });
+
+    expect(host.querySelector(".hb-chat-streaming")?.textContent).toBe(
+      "Visible reply before hidden block.",
+    );
+  });
+
   it("ends the warm kid runtime before returning to profiles", async () => {
     useProfileStore.setState({ activeProfileId: profile.id });
 

@@ -17,6 +17,10 @@ function messageId(): string {
   return crypto.randomUUID();
 }
 
+function trimParentAssistantText(text: string): string {
+  return text.trimEnd();
+}
+
 export type ParentChatStatus = "idle" | "sending";
 export type ParentChatHydrateStatus = "idle" | "loading" | "ready" | "error";
 
@@ -88,7 +92,7 @@ export const useParentChatStore = create<ParentChatStore>((set, get) => ({
         id: messageId(),
         role: "bit",
         kind: result.ok ? "text" : "error",
-        text: result.ok ? result.text : result.error,
+        text: result.ok ? trimParentAssistantText(result.text) : result.error,
         timestamp: new Date().toISOString(),
       };
       set((s) => ({
@@ -138,7 +142,7 @@ export const useParentChatStore = create<ParentChatStore>((set, get) => ({
         id: messageId(),
         role: "bit",
         kind: result.ok ? "text" : "error",
-        text: result.ok ? result.text : result.error,
+        text: result.ok ? trimParentAssistantText(result.text) : result.error,
         timestamp: new Date().toISOString(),
       };
       set((s) => ({
