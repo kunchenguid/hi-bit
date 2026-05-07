@@ -62,6 +62,7 @@ Review criteria:
 One file per dream under `graph/dreams/<id>.yml`. Follow existing files (e.g. `graph/dreams/beat-pad.yml`) for shape.
 
 After adding the file, update the expected dream id list in `src/main/graph/shipped.test.ts` or the shipped-library test will fail.
+If a new or materially changed fixed-project dream needs starter code beyond the generic page, add or update its `scaffoldProject` template in `src/main/storage/projects.ts` and cover it in `src/main/storage/projects.test.ts`.
 
 ## Adding to the system prompt
 

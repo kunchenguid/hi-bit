@@ -44,6 +44,8 @@ A fixed-project dream is "doable" when all its required KPs are at `did_with_hel
 Dream files default to `mode: project`.
 Project dreams author direct `requires:` and must list at least one shipped KP.
 Freeform dreams use `mode: freeform`, may leave `requires: []`, and skip the fixed learning plan.
+When a kid starts a fixed-project dream, Hi-Bit scaffolds `projects/<dream_id>/index.html` from `src/main/storage/projects.ts`.
+Selected dream ids have custom starter pages, and the rest use a generic fallback page, so starter content should stay aligned with the dream's promise and required KPs.
 
 ### Dream difficulty
 
