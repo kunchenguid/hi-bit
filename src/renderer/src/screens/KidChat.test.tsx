@@ -163,6 +163,76 @@ describe("KidChat cursor target action", () => {
     expect(host.querySelector(".hb-gate-kicker")?.textContent).not.toBe("Bit");
   });
 
+  it("tells Bit when the editor is already open in docked mode", async () => {
+    const send = vi.fn(async () => ({
+      ok: true as const,
+      text: "Use See my page.",
+      durationMs: 1,
+    }));
+    useChatStore.setState({ send });
+
+    await act(async () => {
+      root.render(<KidChat profile={{ ...profile, currentDreamId: "show-me-around" }} docked />);
+    });
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="type to Bit..."]');
+    if (!input) throw new Error("missing chat input");
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(input, "yes");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const form = host.querySelector("form");
+    if (!form) throw new Error("missing chat form");
+    await act(async () => {
+      form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(send).toHaveBeenCalledWith(profile.id, "yes", {
+      uiContext:
+        "The editor is already open next to chat. Do not ask the kid to click Open the editor; guide them using the visible editor controls instead.",
+    });
+  });
+
+  it("tells Bit when the docked workspace is showing Page view", async () => {
+    const send = vi.fn(async () => ({
+      ok: true as const,
+      text: "Use See my code first.",
+      durationMs: 1,
+    }));
+    useChatStore.setState({ send });
+
+    await act(async () => {
+      root.render(
+        <KidChat
+          profile={{ ...profile, currentDreamId: "show-me-around" }}
+          docked
+          editorViewMode="preview"
+        />,
+      );
+    });
+
+    const input = host.querySelector<HTMLInputElement>('input[placeholder="type to Bit..."]');
+    if (!input) throw new Error("missing chat input");
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(input, "yes");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const form = host.querySelector("form");
+    if (!form) throw new Error("missing chat form");
+    await act(async () => {
+      form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    });
+
+    expect(send).toHaveBeenCalledWith(profile.id, "yes", {
+      uiContext:
+        "The editor is already open next to chat. The kid is currently looking at Page view, so code is not visible. Do not ask the kid to click Open the editor; first guide them to press See my code or Split before giving any code-edit instructions.",
+    });
+  });
+
   it("seeds the playground greeting as a freeform prompt", async () => {
     const playground = makeDream([]);
     playground.id = "playground";
@@ -238,6 +308,23 @@ describe("KidChat cursor target action", () => {
 
     expect(host.querySelectorAll(".hb-chat-row-bit .hb-chat-avatar")).toHaveLength(1);
     expect(host.querySelectorAll(".hb-chat-row-kid .hb-chat-avatar")).toHaveLength(0);
+  });
+
+  it("trims trailing whitespace from the visible streaming reply", async () => {
+    useChatStore.setState({
+      messages: [],
+      status: "sending",
+      activeRequestId: "req-1",
+      streamingText: "Visible reply before hidden block.\n\n  ",
+    });
+
+    await act(async () => {
+      root.render(<KidChat profile={profile} />);
+    });
+
+    expect(host.querySelector(".hb-chat-streaming")?.textContent).toBe(
+      "Visible reply before hidden block.",
+    );
   });
 
   it("ends the warm kid runtime before returning to profiles", async () => {

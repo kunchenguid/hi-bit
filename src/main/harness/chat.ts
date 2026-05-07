@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
+import { type CursorMarkerRequest, type SendMessageResult, visiblePromptText } from "@shared/chat";
 import type { AgentId, HiBitConfig } from "@shared/config";
 import type { KnowledgePointStatus } from "@shared/progress";
 import { collectRequiredKps, pickNextKP } from "@shared/scheduler";
@@ -23,6 +23,7 @@ import {
   createHiBitControlStreamFilter,
   extractHiBitControlBlocks,
   type HiBitControlBlock,
+  parseExpectedLearnerActions,
   stripHiBitControlBlocks,
 } from "./hiBitControl";
 import type {
@@ -152,7 +153,7 @@ async function sendMessage(
         : undefined;
     const memory = injectSessionContext ? await readSessionMemory(paths) : undefined;
     const learningPlan =
-      role === "kid" && injectSessionContext
+      role === "kid"
         ? await learningPlanForCurrentDream(opts.layout, opts.profileId, profile)
         : undefined;
     const agentPrompt = withSessionContext({
@@ -171,7 +172,7 @@ async function sendMessage(
       role,
       sessionId,
       kind: "user_message",
-      text: prompt,
+      text: visiblePromptText(prompt),
     });
 
     const streamFilter = opts.onDelta ? createHiBitControlStreamFilter(opts.onDelta) : null;
@@ -192,7 +193,8 @@ async function sendMessage(
     const durationMs = endMs - startMs;
     const wasCancelled = opts.signal?.aborted === true || result.status === "cancelled";
     const controlBlocks = extractHiBitControlBlocks(result.text);
-    const visibleText = stripHiBitControlBlocks(result.text);
+    const expectedActions = parseExpectedLearnerActions(controlBlocks);
+    const visibleText = cleanVisibleReply(stripHiBitControlBlocks(result.text), role, profile.name);
 
     if (!wasCancelled && result.status === "completed") {
       await applyProgressControlBlocks(opts.layout, opts.profileId, controlBlocks);
@@ -202,6 +204,7 @@ async function sendMessage(
         sessionId,
         kind: "assistant_message",
         text: visibleText,
+        ...(expectedActions.length > 0 ? { metadata: { expectedActions } } : {}),
       });
       await appendSessionLogEntry(
         paths,
@@ -216,7 +219,12 @@ async function sendMessage(
           usage: result.usage,
         }),
       );
-      return { ok: true, text: visibleText, durationMs };
+      return {
+        ok: true,
+        text: visibleText,
+        durationMs,
+        ...(expectedActions.length > 0 ? { expectedActions } : {}),
+      };
     }
 
     const error = wasCancelled ? "Turn cancelled" : result.error || "Agent failed";
@@ -269,6 +277,14 @@ async function sendMessage(
     });
     return { ok: false, error: message, durationMs: endMs - startMs };
   }
+}
+
+function cleanVisibleReply(text: string, role: SessionRole, kidName: string): string {
+  const trimmed = text.trimEnd();
+  if (role !== "kid") return trimmed;
+  if (!trimmed.includes("My Name")) return trimmed;
+  if (!trimmed.includes(kidName)) return trimmed;
+  return trimmed.replace(/\byour (actual|real) name\b/gi, kidName);
 }
 
 function buildInvocationLogEntry(opts: {
@@ -406,6 +422,24 @@ const KP_STATUS_RANK: Record<KnowledgePointStatus, number> = {
   explained_it: 4,
 };
 
+function isAllowedProgressUpdate(candidate: ProgressControlEntry): boolean {
+  if (candidate.kpId !== "run-and-preview") return true;
+  if (typeof candidate.evidence !== "string") return false;
+  const evidence = candidate.evidence.toLowerCase();
+  if (candidate.status === "saw_it") {
+    if (/\b(about to|going to|will)\b/.test(evidence)) return false;
+    return (
+      /\b(pressed|clicked|tapped)\b.*\bsee my page\b/.test(evidence) ||
+      /\b(saw|checked)\b.*\b(page|preview)\b/.test(evidence) ||
+      /\b(page|preview)\b.*\b(saw|checked)\b/.test(evidence)
+    );
+  }
+  if (candidate.status !== "did_with_help") return true;
+  const mentionsCodeChange = /\b(changed|edited|replaced|typed|updated)\b/.test(evidence);
+  const mentionsPreviewCheck = /\b(preview|page|saw|checked)\b/.test(evidence);
+  return mentionsCodeChange && mentionsPreviewCheck;
+}
+
 async function applyProgressControlBlocks(
   layout: HiBitLayout,
   profileId: string,
@@ -436,6 +470,7 @@ async function applyProgressControlBlocks(
       if (!validKpIds.has(candidate.kpId)) continue;
       if (typeof candidate.status !== "string") continue;
       if (!VALID_KP_STATUSES.has(candidate.status as KnowledgePointStatus)) continue;
+      if (!isAllowedProgressUpdate(candidate)) continue;
       const nextStatus = candidate.status as KnowledgePointStatus;
       if (progress.knowledgePoints[candidate.kpId]?.skipped) continue;
       const currentStatus = currentStatuses.get(candidate.kpId);

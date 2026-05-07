@@ -6,7 +6,7 @@ import type { AcpRuntimeEvent } from "acpx/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeAcpRuntimeSessions, closeAllAcpRuntimes } from "../agent/acpxTurn";
 import { bootstrapLayout, type HiBitLayout, profilePathsFor } from "../storage/layout";
-import { createProfile, readProgress, setCurrentDream } from "../storage/profiles";
+import { createProfile, readProgress, setCurrentDream, updateKpStatus } from "../storage/profiles";
 import { scaffoldProject } from "../storage/projects";
 import { promptsBitPath } from "../storage/prompts";
 import { readSessionLogEntries } from "../storage/sessionLog";
@@ -87,6 +87,27 @@ async function writeGraphNode(layout: HiBitLayout, id: string): Promise<void> {
   );
 }
 
+async function writeFixedDream(layout: HiBitLayout, id: string, requires: string[]): Promise<void> {
+  await writeFile(
+    join(layout.graphDreamsDir, `${id}.yml`),
+    [
+      `id: ${id}`,
+      "title_parent: Test Dream",
+      "title_kid: test dream",
+      "summary_kid: test the dream path",
+      'emoji: "*"',
+      "mode: project",
+      "categories: [personal]",
+      "interest_tags: []",
+      `requires: [${requires.join(", ")}]`,
+      "style_hints: []",
+      "difficulty: 1",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
 describe("ACP-backed chat", () => {
   let root: string;
   let layout: HiBitLayout;
@@ -149,6 +170,29 @@ describe("ACP-backed chat", () => {
     expect(log[0]).not.toHaveProperty("tokensOutput");
   });
 
+  it("keeps hidden UI context out of persisted kid user messages", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "Sure." }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: [
+        "<hi-bit:ui-context>",
+        "The editor is already open next to chat.",
+        "</hi-bit:ui-context>",
+        "",
+        "yes",
+      ].join("\n"),
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain("The editor is already open next to chat.");
+    const events = await readTranscript(profilePathsFor(layout, profile.id), profile.sessions.kid);
+    expect(events[0]?.text).toBe("yes");
+  });
+
   it("records an aborted clean ACP turn as cancelled", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const controller = new AbortController();
@@ -177,7 +221,7 @@ describe("ACP-backed chat", () => {
     await writeGraphNode(layout, "html-text-headings");
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const rawReply =
-      'Nice title.<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1."}]</hi-bit:progress>';
+      'Nice title.\n\n<hi-bit:progress>[{"kpId":"html-text-headings","status":"did_with_help","evidence":"Changed the h1."}]</hi-bit:progress>\n\n';
     const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
 
     const result = await sendKidMessage({
@@ -196,6 +240,128 @@ describe("ACP-backed chat", () => {
       status: "did_with_help",
       evidence: "Changed the h1.",
     });
+  });
+
+  it("returns hidden expected learner actions as structured metadata", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory } = runtimeFactoryFor([
+      {
+        text: 'Click Split so we can see both sides.<hi-bit:expect-action>{"type":"workspace.view.split","label":"Clicked Split"}</hi-bit:expect-action>',
+      },
+    ]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "what next?",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      text: "Click Split so we can see both sides.",
+      durationMs: expect.any(Number),
+      expectedActions: [{ type: "workspace.view.split", label: "Clicked Split" }],
+    });
+  });
+
+  it("does not promote run-and-preview from a hidden block unless the evidence includes a code change", async () => {
+    await writeGraphNode(layout, "run-and-preview");
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await updateKpStatus(layout, profile.id, "run-and-preview", "saw_it", {
+      evidence: "Clicked See my page and saw the live preview.",
+    });
+    const rawReply =
+      'Nice page.<hi-bit:progress>[{"kpId":"run-and-preview","status":"did_with_help","evidence":"Pressed See my page and saw My Name."}]</hi-bit:progress>';
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "I see My Name",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Nice page.", durationMs: expect.any(Number) });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["run-and-preview"]).toMatchObject({
+      status: "saw_it",
+      evidence: "Clicked See my page and saw the live preview.",
+    });
+  });
+
+  it("removes vague name wording from first My Name edit replies", async () => {
+    const profile = await createProfile(layout, { name: "Ada Lovelace", age: 8 });
+    const rawReply = [
+      'That "My Name" on the page came from your code.',
+      "Let's change it to your actual name.",
+      "Change it to:",
+      "```html practice",
+      "Ada Lovelace",
+      "```",
+    ].join("\n\n");
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "I see My Name",
+      runtimeFactory,
+    });
+
+    if (!result.ok) throw new Error(result.error);
+    expect(result.text).not.toMatch(/your actual name|your real name/i);
+    expect(result.text).toContain("Let's change it to Ada Lovelace.");
+
+    const events = await readTranscript(profilePathsFor(layout, profile.id), profile.sessions.kid);
+    expect(events[1]?.text).not.toMatch(/your actual name|your real name/i);
+  });
+
+  it("does not mark run-and-preview seen from a hidden block unless the evidence includes seeing the page", async () => {
+    await writeGraphNode(layout, "run-and-preview");
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const rawReply =
+      'Open the editor.<hi-bit:progress>[{"kpId":"run-and-preview","status":"saw_it","evidence":"Ada opened the editor for the first time."}]</hi-bit:progress>';
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "I want to start",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({ ok: true, text: "Open the editor.", durationMs: expect.any(Number) });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["run-and-preview"]).toBeUndefined();
+  });
+
+  it("does not mark run-and-preview seen when the evidence only says the kid is about to preview", async () => {
+    await writeGraphNode(layout, "run-and-preview");
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const rawReply =
+      'Press See my page.<hi-bit:progress>[{"kpId":"run-and-preview","status":"saw_it","evidence":"Ada opened the editor and is about to press See my page for the first time."}]</hi-bit:progress>';
+    const { runtimeFactory } = runtimeFactoryFor([{ text: rawReply }]);
+
+    const result = await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "I see code",
+      runtimeFactory,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      text: "Press See my page.",
+      durationMs: expect.any(Number),
+    });
+    const progress = await readProgress(layout, profile.id);
+    expect(progress.knowledgePoints["run-and-preview"]).toBeUndefined();
   });
 
   it("records one failed log when a post-turn progress write throws", async () => {
@@ -252,6 +418,43 @@ describe("ACP-backed chat", () => {
     expect(prompts[1]).toBe("second");
     const log = await readSessionLogEntries(profilePathsFor(layout, profile.id));
     expect(log.map((entry) => entry.mode)).toEqual(["start", "resume"]);
+  });
+
+  it("injects fresh learning-plan context on resumed kid turns", async () => {
+    await writeGraphNode(layout, "run-and-preview");
+    await writeFixedDream(layout, "show-me-around", ["run-and-preview"]);
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    await setCurrentDream(layout, profile.id, "show-me-around");
+    await updateKpStatus(layout, profile.id, "run-and-preview", "did_with_help", {
+      evidence: "Completed the tour by opening Split view.",
+    });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "one" }, { text: "two" }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "first",
+      runtimeFactory,
+    });
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: "second",
+      runtimeFactory,
+    });
+
+    expect(prompts[1]).toContain("<hi-bit:context>");
+    expect(prompts[1]).toContain("current_dream: show-me-around");
+    expect(prompts[1]).toContain("next_up: none");
+    expect(prompts[1]).toContain(
+      "If next_up is none, the current dream path is complete. Tell the kid to click Switch dream.",
+    );
+    expect(prompts[1]).toContain("- run-and-preview | big titles | status: did_with_help");
+    expect(prompts[1]).not.toContain("<hi-bit:memory>");
+    expect(prompts[1]).not.toContain('<hi-bit:file path="state.md"');
+    expect(prompts[1]).toMatch(/second$/);
   });
 
   it("injects the full preamble when the default agent changes", async () => {

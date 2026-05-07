@@ -1,7 +1,7 @@
 import type { Dream } from "@shared/dreams";
 import type { KnowledgeGraph } from "@shared/knowledgeGraph";
 import type { Progress } from "@shared/progress";
-import { kpMeets } from "@shared/scheduler";
+import { collectRequiredKps, kpMeets } from "@shared/scheduler";
 
 export type DreamReadiness = {
   requiredCount: number;
@@ -15,16 +15,20 @@ export function computeDreamReadiness(
   graph: KnowledgeGraph | null,
   progress: Progress | null,
 ): DreamReadiness {
-  const requiredCount = dream.requires.length;
-  if (requiredCount === 0) {
+  const required = graph ? collectRequiredKps(graph, dream) : null;
+  const requiredKps = required ? required.ordered : dream.requires;
+  const unresolvedKps = required?.unresolved ?? [];
+  const requiredCount = requiredKps.length;
+  const totalRequiredCount = requiredCount + unresolvedKps.length;
+  if (totalRequiredCount === 0) {
     return { requiredCount: 0, readyCount: 0, unknownCount: 0, allReady: true };
   }
   if (!progress) {
-    return { requiredCount, readyCount: 0, unknownCount: 0, allReady: false };
+    return { requiredCount: totalRequiredCount, readyCount: 0, unknownCount: 0, allReady: false };
   }
   let readyCount = 0;
-  let unknownCount = 0;
-  for (const id of dream.requires) {
+  let unknownCount = unresolvedKps.length;
+  for (const id of requiredKps) {
     if (graph && !graph.byId[id]) {
       unknownCount += 1;
       continue;
@@ -32,10 +36,10 @@ export function computeDreamReadiness(
     if (kpMeets(progress, id, "did_with_help")) readyCount += 1;
   }
   return {
-    requiredCount,
+    requiredCount: totalRequiredCount,
     readyCount,
     unknownCount,
-    allReady: readyCount + unknownCount === requiredCount && unknownCount === 0,
+    allReady: readyCount + unknownCount === totalRequiredCount && unknownCount === 0,
   };
 }
 

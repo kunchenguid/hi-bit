@@ -5,8 +5,9 @@ import {
   findLocalCursorMarkerPosition,
   parseCursorMarkerResponse,
 } from "../editor/cursorMarker";
+import { useChatStore } from "../state/chatStore";
 import { useProjectsStore } from "../state/projectsStore";
-import type { EditorCursorTarget } from "./CodeEditor";
+import type { EditorCursorTarget, EditorViewMode } from "./CodeEditor";
 import { CodeEditor } from "./CodeEditor";
 import { KidChat } from "./KidChat";
 
@@ -19,6 +20,15 @@ type Props = {
 
 type PendingCursorRequest = { snippet: string; latestBitMessage: string };
 
+function findExactSnippetPosition(editorContent: string, snippet: string): number | null {
+  const trimmedSnippet = snippet.trim();
+  if (trimmedSnippet.length === 0) return null;
+  const position = editorContent.indexOf(trimmedSnippet);
+  if (position === -1) return null;
+  if (editorContent.indexOf(trimmedSnippet, position + trimmedSnippet.length) !== -1) return null;
+  return position;
+}
+
 export function KidBuildWorkspace({
   profile,
   onEnterParentMode,
@@ -26,6 +36,7 @@ export function KidBuildWorkspace({
   onOpenProjects,
 }: Props): JSX.Element {
   const [editorRevealed, setEditorRevealed] = useState(false);
+  const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>("code");
   const [cursorTarget, setCursorTarget] = useState<EditorCursorTarget | null>(null);
   const [cursorTargetStatus, setCursorTargetStatus] = useState<"idle" | "locating">("idle");
   const [cursorTargetError, setCursorTargetError] = useState<string | null>(null);
@@ -38,6 +49,18 @@ export function KidBuildWorkspace({
   const dreamId = profile.currentDreamId ?? null;
   const projectReadyForProfile =
     projectStatus === "ready" && projectProfileId === profile.id && projectSlug === dreamId;
+  const sendLearnerActivity = useChatStore((s) => s.sendLearnerActivity);
+  const expectLearnerAction = useChatStore((s) => s.expectLearnerAction);
+
+  useEffect(() => {
+    if (editorRevealed || dreamId !== "show-me-around") return;
+    expectLearnerAction({ type: "editor.opened", label: "Opened editor", source: "tour" });
+  }, [dreamId, editorRevealed, expectLearnerAction]);
+
+  function handleOpenEditor(): void {
+    setEditorRevealed(true);
+    void sendLearnerActivity(profile.id, { type: "editor.opened" });
+  }
 
   const locateCursorTarget = useCallback(
     async ({ snippet, latestBitMessage }: PendingCursorRequest): Promise<void> => {
@@ -72,6 +95,16 @@ export function KidBuildWorkspace({
         });
         return true;
       };
+      const exactSnippetPosition = findExactSnippetPosition(activeBuffer.content, snippet);
+      if (exactSnippetPosition !== null) {
+        setCursorTarget({
+          filename: activeBuffer.name,
+          position: exactSnippetPosition,
+          requestId: Date.now(),
+        });
+        setCursorTargetStatus("idle");
+        return;
+      }
       try {
         const result = await window.hibit.requestCursorMarker(profile.id, {
           filename: activeBuffer.name,
@@ -167,7 +200,7 @@ export function KidBuildWorkspace({
         onEnterParentMode={onEnterParentMode}
         onSwitchDream={onSwitchDream}
         onOpenProjects={onOpenProjects}
-        onOpenEditor={() => setEditorRevealed(true)}
+        onOpenEditor={handleOpenEditor}
         onShowCursorTarget={handleShowCursorTarget}
         cursorTargetStatus={cursorTargetStatus}
         cursorTargetError={cursorTargetError}
@@ -183,6 +216,7 @@ export function KidBuildWorkspace({
           docked
           cursorTarget={cursorTarget}
           onCursorTargetCleared={() => setCursorTarget(null)}
+          onViewModeChange={setEditorViewMode}
         />
       </section>
       <aside className="hb-build-chat" aria-label="Chat with Bit">
@@ -195,6 +229,7 @@ export function KidBuildWorkspace({
           cursorTargetStatus={cursorTargetStatus}
           cursorTargetError={cursorTargetError}
           docked
+          editorViewMode={editorViewMode}
         />
       </aside>
     </main>

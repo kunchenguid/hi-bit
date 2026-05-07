@@ -35,6 +35,7 @@ type Props = {
   cursorTargetStatus?: "idle" | "locating";
   cursorTargetError?: string | null;
   docked?: boolean;
+  editorViewMode?: "code" | "preview" | "split";
 };
 
 export function KidChat({
@@ -47,6 +48,7 @@ export function KidChat({
   cursorTargetStatus = "idle",
   cursorTargetError = null,
   docked = false,
+  editorViewMode = "code",
 }: Props): JSX.Element {
   const messages = useChatStore((s) => s.messages);
   const status = useChatStore((s) => s.status);
@@ -215,7 +217,11 @@ export function KidChat({
     const trimmed = input.trim();
     if (trimmed.length === 0 || status === "sending") return;
     setInput("");
-    await send(profile.id, trimmed);
+    const uiContext =
+      editorViewMode === "preview"
+        ? "The editor is already open next to chat. The kid is currently looking at Page view, so code is not visible. Do not ask the kid to click Open the editor; first guide them to press See my code or Split before giving any code-edit instructions."
+        : "The editor is already open next to chat. Do not ask the kid to click Open the editor; guide them using the visible editor controls instead.";
+    await send(profile.id, trimmed, docked ? { uiContext } : undefined);
   }
 
   const disabled = status === "sending" || input.trim().length === 0;
@@ -240,6 +246,7 @@ export function KidChat({
 
   const Shell = docked ? "section" : "main";
   const shellClass = `hb-chat-shell${docked ? " hb-chat-shell-docked" : ""}`;
+  const visibleStreamingText = streamingText?.trimEnd() ?? "";
 
   return (
     <Shell className={shellClass}>
@@ -379,14 +386,14 @@ export function KidChat({
             );
           }
           const isLastError = idx === messages.length - 1 && m.role === "bit" && m.kind === "error";
+          const isLatestBitText =
+            m.id === lastBitTextMessageId && m.role === "bit" && m.kind === "text";
           const showEditorCta =
             !docked &&
             m.role === "bit" &&
             m.kind !== "error" &&
             !!onOpenEditor &&
             messageHasEditorCue(m.text);
-          const isLatestBitText =
-            m.id === lastBitTextMessageId && m.role === "bit" && m.kind === "text";
           const onBlockShowCursor =
             onShowCursorTarget && isLatestBitText && status !== "sending"
               ? (snippet: string) => {
@@ -469,8 +476,8 @@ export function KidChat({
             />
             <div className="hb-chat-msg hb-chat-bit hb-chat-msg-pending">
               <div className="hb-chat-msg-role t-pixel">Bit</div>
-              {streamingText && streamingText.length > 0 ? (
-                <div className="hb-chat-msg-body hb-chat-streaming">{streamingText}</div>
+              {visibleStreamingText.length > 0 ? (
+                <div className="hb-chat-msg-body hb-chat-streaming">{visibleStreamingText}</div>
               ) : (
                 <div className="hb-chat-msg-body hb-chat-thinking">
                   <span className="hb-chat-thinking-label">Bit is thinking</span>

@@ -37,6 +37,8 @@ export type SessionMemoryContext = {
   progressJson: string;
 };
 
+const DREAM_COMPLETING_STATUSES = new Set(["did_with_help", "did_unprompted", "explained_it"]);
+
 export function buildSessionContextPreamble(opts: BuildSessionContextOptions): string {
   const { role, profile, profileDir } = opts;
   const interests =
@@ -53,6 +55,10 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
       "<hi-bit:context>",
       "mode: kid",
       `kid: { name: ${JSON.stringify(profile.name)}, age: ${profile.age}, interests: [${interests}] }`,
+      `exact_kid_name: ${JSON.stringify(profile.name)}`,
+      `Use exact_kid_name exactly when you write the kid's name; do not shorten it to ${JSON.stringify(profile.name.split(/\s+/)[0] ?? profile.name)}.`,
+      `If a starter page says "My Name", say the exact replacement ${JSON.stringify(profile.name)} immediately. Do not say "your real name" first. Do not say "your actual name" first.`,
+      `For any visible reply about changing "My Name", never write "your actual name", "your real name", or similar placeholder wording anywhere in the reply. Say ${JSON.stringify(profile.name)} every time you describe that replacement.`,
       `profile_dir: ${profileDir}`,
       `current_dream: ${currentDream}`,
       ...projectLines,
@@ -80,6 +86,7 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
 }
 
 function buildLearningPlanLines(plan: LearningPlanContext): string[] {
+  const completingNextUpCompletesDream = doesCompletingNextUpCompleteDream(plan);
   const lines = [
     "",
     "<hi-bit:learning-plan>",
@@ -88,9 +95,16 @@ function buildLearningPlanLines(plan: LearningPlanContext): string[] {
     "Use listed ids like html-text-headings, not tag names like h1.",
     "Before your visible reply ends, include a hidden <hi-bit:progress> block when this turn teaches or checks next_up.",
     "If next_up is not_started and you ask the kid to inspect or change related code, mark it saw_it in that hidden block first.",
+    "If next_up is none, the current dream path is complete. Tell the kid to click Switch dream.",
     "Never mention hidden progress blocks to the kid.",
     `dream: ${plan.dream.id} - ${plan.dream.titleKid}`,
     `next_up: ${plan.nextUpKpId ?? "none"}`,
+    `completing_next_up_completes_dream: ${completingNextUpCompletesDream ? "true" : "false"}`,
+    ...(completingNextUpCompletesDream
+      ? [
+          "If you emit a hidden progress block that marks next_up as did_with_help, did_unprompted, or explained_it, the current dream path is complete. In that same visible reply, tell the kid to click Switch dream.",
+        ]
+      : []),
     "required_kps:",
   ];
   for (const kp of plan.requiredKps) {
@@ -104,6 +118,29 @@ function buildLearningPlanLines(plan: LearningPlanContext): string[] {
   }
   lines.push("</hi-bit:learning-plan>");
   return lines;
+}
+
+function doesCompletingNextUpCompleteDream(plan: LearningPlanContext): boolean {
+  if (!plan.nextUpKpId) return false;
+  if (!plan.requiredKps.some((kp) => kp.id === plan.nextUpKpId)) return false;
+  return plan.requiredKps.every(
+    (kp) => kp.id === plan.nextUpKpId || DREAM_COMPLETING_STATUSES.has(kp.status ?? ""),
+  );
+}
+
+function buildCompactResumeContext(opts: BuildSessionContextOptions): string {
+  const { role, profile } = opts;
+  const currentDream = profile.currentDreamId ?? "no dream chosen yet";
+  const learningPlanLines = opts.learningPlan ? buildLearningPlanLines(opts.learningPlan) : [];
+
+  return [
+    "<hi-bit:context>",
+    `mode: ${role}`,
+    `current_dream: ${currentDream}`,
+    ...learningPlanLines,
+    "</hi-bit:context>",
+    "",
+  ].join("\n");
 }
 
 function buildMemoryLines(memory: SessionMemoryContext): string[] {
@@ -149,6 +186,11 @@ export type WithSessionContextOptions = BuildSessionContextOptions & {
 };
 
 export function withSessionContext(opts: WithSessionContextOptions): string {
-  if (opts.mode !== "start") return opts.userPrompt;
+  if (opts.mode !== "start") {
+    if (opts.role === "kid" && opts.learningPlan) {
+      return `${buildCompactResumeContext(opts)}${opts.userPrompt}`;
+    }
+    return opts.userPrompt;
+  }
   return `${buildSessionContextPreamble(opts)}\n${opts.userPrompt}`;
 }

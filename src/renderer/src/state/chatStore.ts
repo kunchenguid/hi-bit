@@ -1,6 +1,15 @@
-import type { SendMessageResult } from "@shared/chat";
+import { promptWithUiContext, type SendMessageResult } from "@shared/chat";
+import { isLearnerActivityType } from "@shared/learnerActivity";
+import type { TranscriptEvent } from "@shared/transcript";
 import { create } from "zustand";
 import { buildKidChatHistory } from "./kidChatHistory";
+import {
+  buildLearnerActivityPrompt,
+  type ExpectedLearnerAction,
+  expectedLearnerActionLabel,
+  inferExpectedLearnerAction,
+  type LearnerActivity,
+} from "./learnerActivity";
 import { useProgressStore } from "./progressStore";
 
 export type ChatMessageRole = "kid" | "bit" | "system";
@@ -31,12 +40,22 @@ export type ChatStore = {
   greetingForSessionId: string | null;
   streamingText: string | null;
   activeRequestId: string | null;
+  pendingExpectedAction: ExpectedLearnerAction | null;
   hydrate: (profileId: string, sessionId: string) => Promise<void>;
-  send: (profileId: string, prompt: string) => Promise<SendMessageResult | null>;
+  send: (
+    profileId: string,
+    prompt: string,
+    options?: { uiContext?: string },
+  ) => Promise<SendMessageResult | null>;
   sendSystemPrompt: (
     profileId: string,
     message: { prompt: string; label: string },
   ) => Promise<SendMessageResult | null>;
+  sendLearnerActivity: (
+    profileId: string,
+    activity: LearnerActivity,
+  ) => Promise<SendMessageResult | null>;
+  expectLearnerAction: (action: ExpectedLearnerAction) => void;
   retry: (profileId: string) => Promise<SendMessageResult | null>;
   seedKidGreeting: (sessionId: string, text: string) => void;
   appendStreamingDelta: (requestId: string | null | undefined, text: string) => void;
@@ -59,6 +78,10 @@ export const KID_TIMEOUT_REPLY =
 
 export function isBlankAssistantText(text: string): boolean {
   return text.trim().length === 0;
+}
+
+export function trimVisibleAssistantText(text: string): string {
+  return text.trimEnd();
 }
 
 async function refreshLoadedProgress(profileId: string): Promise<void> {
@@ -108,6 +131,38 @@ async function sendKidMessageWithTimeout(
   }
 }
 
+function expectedActionFromResult(result: SendMessageResult): ExpectedLearnerAction | null {
+  if (!result.ok) return null;
+  const explicit = result.expectedActions?.at(-1);
+  if (explicit) return { ...explicit, source: "explicit" };
+  return inferExpectedLearnerAction(result.text);
+}
+
+function expectedActionFromTranscript(events: TranscriptEvent[]): ExpectedLearnerAction | null {
+  for (const event of [...events].reverse()) {
+    if (event.role !== "kid") continue;
+    if (event.kind === "user_message") return null;
+    if (event.kind !== "assistant_message") continue;
+    const expectedActions = event.metadata?.expectedActions;
+    if (Array.isArray(expectedActions)) {
+      for (const action of [...expectedActions].reverse()) {
+        if (!action || typeof action !== "object") continue;
+        const input = action as { type?: unknown; label?: unknown };
+        if (!isLearnerActivityType(input.type)) continue;
+        return {
+          type: input.type,
+          source: "explicit",
+          ...(typeof input.label === "string" && input.label.trim().length > 0
+            ? { label: input.label.trim() }
+            : {}),
+        };
+      }
+    }
+    return inferExpectedLearnerAction(event.text);
+  }
+  return null;
+}
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   status: "idle",
@@ -118,6 +173,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   greetingForSessionId: null,
   streamingText: null,
   activeRequestId: null,
+  pendingExpectedAction: null,
 
   appendStreamingDelta: (requestId, text) =>
     set((s) => {
@@ -134,6 +190,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         hydrateStatus: "ready",
         hydratedSessionId: sessionId,
         greetingForSessionId: null,
+        pendingExpectedAction: expectedActionFromTranscript(transcript),
       });
     } catch (err) {
       set({
@@ -158,10 +215,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({
       messages: [greeting],
       greetingForSessionId: sessionId,
+      pendingExpectedAction: inferExpectedLearnerAction(text),
     });
   },
 
-  send: async (profileId, prompt) => {
+  send: async (profileId, prompt, options) => {
     const trimmed = prompt.trim();
     if (trimmed.length === 0) return null;
     if (get().status === "sending") return null;
@@ -180,16 +238,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       error: null,
       streamingText: null,
       activeRequestId: requestId,
+      pendingExpectedAction: null,
     }));
 
     try {
-      const result = await sendKidMessageWithTimeout(profileId, trimmed, requestId);
-      const blank = result.ok && isBlankAssistantText(result.text);
+      const result = await sendKidMessageWithTimeout(
+        profileId,
+        promptWithUiContext(trimmed, options?.uiContext),
+        requestId,
+      );
+      const visibleText = result.ok ? trimVisibleAssistantText(result.text) : "";
+      const blank = result.ok && isBlankAssistantText(visibleText);
       const reply: ChatMessage = {
         id: messageId(),
         role: "bit",
         kind: result.ok && !blank ? "text" : "error",
-        text: result.ok ? (blank ? KID_EMPTY_REPLY : result.text) : KID_FRIENDLY_ERROR,
+        text: result.ok ? (blank ? KID_EMPTY_REPLY : visibleText) : KID_FRIENDLY_ERROR,
         timestamp: new Date().toISOString(),
       };
       set((s) => ({
@@ -198,6 +262,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
         activeRequestId: null,
+        pendingExpectedAction: blank ? null : expectedActionFromResult(result),
       }));
       if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
@@ -218,6 +283,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: message,
         streamingText: null,
         activeRequestId: null,
+        pendingExpectedAction: null,
       }));
       return null;
     }
@@ -242,16 +308,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       error: null,
       streamingText: null,
       activeRequestId: requestId,
+      pendingExpectedAction: null,
     }));
 
     try {
       const result = await sendKidMessageWithTimeout(profileId, trimmed, requestId);
-      const blank = result.ok && isBlankAssistantText(result.text);
+      const visibleText = result.ok ? trimVisibleAssistantText(result.text) : "";
+      const blank = result.ok && isBlankAssistantText(visibleText);
       const reply: ChatMessage = {
         id: messageId(),
         role: "bit",
         kind: result.ok && !blank ? "text" : "error",
-        text: result.ok ? (blank ? KID_EMPTY_REPLY : result.text) : KID_FRIENDLY_ERROR,
+        text: result.ok ? (blank ? KID_EMPTY_REPLY : visibleText) : KID_FRIENDLY_ERROR,
         timestamp: new Date().toISOString(),
       };
       set((s) => ({
@@ -260,6 +328,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
         activeRequestId: null,
+        pendingExpectedAction: blank ? null : expectedActionFromResult(result),
       }));
       if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
@@ -280,9 +349,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: messageText,
         streamingText: null,
         activeRequestId: null,
+        pendingExpectedAction: null,
       }));
       return null;
     }
+  },
+
+  sendLearnerActivity: async (profileId, activity) => {
+    const state = get();
+    if (state.status === "sending") return null;
+    const expected = state.pendingExpectedAction;
+    if (!expected || expected.type !== activity.type) return null;
+
+    set({ pendingExpectedAction: null });
+    return get().sendSystemPrompt(profileId, {
+      label: expectedLearnerActionLabel(expected),
+      prompt: buildLearnerActivityPrompt(activity),
+    });
+  },
+
+  expectLearnerAction: (action) => {
+    set((s) => {
+      if (s.pendingExpectedAction?.source === "explicit") return {};
+      return { pendingExpectedAction: action };
+    });
   },
 
   retry: async (profileId) => {
@@ -301,16 +391,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       error: null,
       streamingText: null,
       activeRequestId: requestId,
+      pendingExpectedAction: null,
     }));
 
     try {
       const result = await sendKidMessageWithTimeout(profileId, lastKid.text, requestId);
-      const blank = result.ok && isBlankAssistantText(result.text);
+      const visibleText = result.ok ? trimVisibleAssistantText(result.text) : "";
+      const blank = result.ok && isBlankAssistantText(visibleText);
       const reply: ChatMessage = {
         id: messageId(),
         role: "bit",
         kind: result.ok && !blank ? "text" : "error",
-        text: result.ok ? (blank ? KID_EMPTY_REPLY : result.text) : KID_FRIENDLY_ERROR,
+        text: result.ok ? (blank ? KID_EMPTY_REPLY : visibleText) : KID_FRIENDLY_ERROR,
         timestamp: new Date().toISOString(),
       };
       set((s) => ({
@@ -319,6 +411,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: result.ok ? (blank ? "Bit returned an empty reply" : null) : result.error,
         streamingText: null,
         activeRequestId: null,
+        pendingExpectedAction: blank ? null : expectedActionFromResult(result),
       }));
       if (result.ok && !blank) await refreshLoadedProgress(profileId);
       return result;
@@ -339,6 +432,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         error: message,
         streamingText: null,
         activeRequestId: null,
+        pendingExpectedAction: null,
       }));
       return null;
     }
@@ -355,6 +449,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       greetingForSessionId: null,
       streamingText: null,
       activeRequestId: null,
+      pendingExpectedAction: null,
     });
   },
 }));

@@ -26,6 +26,21 @@ const REQUIRED_BEHAVIORS: Array<{
     markers: [/state\.md/i, /progress\.json/i, /injects memory/i],
   },
   {
+    behavior: "kid profile facts are already known from memory",
+    markers: [
+      /do not ask the kid to repeat profile facts/i,
+      /name, age, or interests/i,
+      /when a first edit replaces a placeholder name/i,
+      /use the known full profile name/i,
+      /full profile name exactly as it appears/i,
+      /greetings and progress evidence/i,
+      /never say `your actual name`/i,
+      /your real name/i,
+      /before the exact edit step/i,
+      /Do not write a transition sentence like `change it to your actual name`/i,
+    ],
+  },
+  {
     behavior: "pedagogy: ask-first, show-sometimes, tell-rarely",
     markers: [/ask, show, tell/i, /default to asking/i, /last resort/i],
   },
@@ -36,6 +51,48 @@ const REQUIRED_BEHAVIORS: Array<{
   {
     behavior: "progressive input selection",
     markers: [/fill-in-the-blank/i, /change-a-line/i, /rewrite-a-function/i, /write-from-scratch/i],
+  },
+  {
+    behavior: "kid-friendly code location instructions",
+    markers: [
+      /visible controls/i,
+      /next action should only be to switch back to code/i,
+      /\*\*Split\*\* view[\s\S]*use \*\*Code\*\*/i,
+      /reserve \*\*See my code\*\*[\s\S]*\*\*Page\*\* view/i,
+      /do not send kids hunting by line number/i,
+    ],
+  },
+  {
+    behavior: "kid-friendly edit instructions use current text and save-aware wording",
+    markers: [
+      /quote the current code/i,
+      /quote the replacement code/i,
+      /do not ask the kid to find starter code that is not present/i,
+      /only say "find this line" for text you have strong reason is currently in the active file/i,
+      /add it below the nearby heading/i,
+      /press \*\*Save\*\* or \*\*See my page\*\*/i,
+      /Split view preview does not update automatically while the kid types/i,
+      /press \*\*See my page\*\* or \*\*Refresh\*\*/i,
+    ],
+  },
+  {
+    behavior: "split-view save reactions do not ask to rerun an already visible preview",
+    markers: [
+      /save event/i,
+      /when the save event says the page is visible in Split view/i,
+      /preview has already refreshed/i,
+      /do not ask the kid to press \*\*See my page\*\* just to see that visible saved change/i,
+      /when the save event says the preview is hidden in Code view/i,
+      /it is okay to ask the kid to press \*\*See my page\*\*/i,
+    ],
+  },
+  {
+    behavior: "kid-friendly preview instructions open the editor before naming hidden controls",
+    markers: [
+      /editor is hidden/i,
+      /Open the editor/i,
+      /before asking them to press \*\*See my page\*\*/i,
+    ],
   },
   {
     behavior: "stuck detection and response",
@@ -89,12 +146,61 @@ const REQUIRED_BEHAVIORS: Array<{
     ],
   },
   {
+    behavior: "hidden expected action protocol for UI instructions",
+    markers: [
+      /<hi-bit:expect-action>/,
+      /workspace\.view\.split/,
+      /preview\.opened/,
+      /when you ask the kid to click, press, or tap a Hi-Bit UI control/i,
+    ],
+  },
+  {
+    behavior: "dream complete state points kids to switch dreams",
+    markers: [
+      /next_up is `none`/i,
+      /current dream path is complete/i,
+      /click \*\*Switch dream\*\*/i,
+      /real app control/i,
+      /completes the last remaining required KP/i,
+      /same visible reply/i,
+    ],
+  },
+  {
     behavior: "doc shell progress advances when the kid identifies page structure",
     markers: [/html-doc-shell[\s\S]*identifies[\s\S]*doctype[\s\S]*body[\s\S]*did_with_help/i],
   },
   {
+    behavior: "run-and-preview mastery waits for code-to-preview connection",
+    markers: [
+      /run-and-preview[\s\S]*did_with_help[\s\S]*specific code text/i,
+      /matched[\s\S]*preview result/i,
+    ],
+  },
+  {
     behavior: "code block practice flag for type-it-yourself moments",
     markers: [/practice/i, /Type it/, /Copy button/i, /muscle memory/i],
+  },
+  {
+    behavior: "practice snippets never promise a copy button",
+    markers: [/practice[\s\S]*do not refer to a Copy button/i, /Type it[\s\S]*not a Copy button/i],
+  },
+  {
+    behavior: "button label edits target the text inside the button tag",
+    markers: [
+      /button label/i,
+      /text between `<button/i,
+      /do not call click-handler messages the button label/i,
+      /keep a readable label with the smiley/i,
+      /do not replace the whole label with only the smiley/i,
+    ],
+  },
+  {
+    behavior: "canvas drawing questions distinguish the canvas from shapes drawn on it",
+    markers: [
+      /canvas is the drawing surface/i,
+      /do not ask what color the canvas is/i,
+      /ask what color the drawn shape or rectangle is/i,
+    ],
   },
 ];
 

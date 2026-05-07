@@ -21,7 +21,7 @@ import { validateNewFilename } from "./newFileValidation";
 import { computeNextTabIndex } from "./tablistNavigation";
 
 type NewFileStatus = "closed" | "open" | "creating";
-type EditorViewMode = "code" | "preview" | "split";
+export type EditorViewMode = "code" | "preview" | "split";
 
 const EMPTY_PREVIEW = "<!doctype html><html><body></body></html>";
 
@@ -44,6 +44,7 @@ type Props = {
   docked?: boolean;
   cursorTarget?: EditorCursorTarget | null;
   onCursorTargetCleared?: () => void;
+  onViewModeChange?: (viewMode: EditorViewMode) => void;
 };
 
 export type EditorCursorTarget = {
@@ -60,6 +61,7 @@ export function CodeEditor({
   docked = false,
   cursorTarget = null,
   onCursorTargetCleared,
+  onViewModeChange,
 }: Props): JSX.Element {
   const status = useProjectsStore((s) => s.status);
   const buffers = useProjectsStore((s) => s.buffers);
@@ -74,6 +76,7 @@ export function CodeEditor({
   const unsubscribe = useProjectsStore((s) => s.unsubscribe);
   const openFolder = useProjectsStore((s) => s.openFolder);
   const sendSystemPrompt = useChatStore((s) => s.sendSystemPrompt);
+  const sendLearnerActivity = useChatStore((s) => s.sendLearnerActivity);
   const updateProgressStatus = useProgressStore((s) => s.updateStatus);
   const progressProfileId = useProgressStore((s) => s.profileId);
   const progressStatus = useProgressStore((s) => s.status);
@@ -98,6 +101,10 @@ export function CodeEditor({
   const [viewMode, setViewMode] = useState<EditorViewMode>(() => (docked ? "code" : "split"));
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const editorRef = useRef<CodeMirrorHandle | null>(null);
+
+  useEffect(() => {
+    onViewModeChange?.(viewMode);
+  }, [onViewModeChange, viewMode]);
 
   useEffect(() => {
     if (graphStatus === "idle") void loadGraph();
@@ -166,7 +173,7 @@ export function CodeEditor({
       rebuildPreview();
       void sendSystemPrompt(profile.id, {
         label: `Saved ${saved.filename}`,
-        prompt: buildSavedFilePrompt(saved),
+        prompt: buildSavedFilePrompt({ ...saved, previewVisible: viewMode === "split" }),
       });
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Could not save the file.");
@@ -262,9 +269,51 @@ export function CodeEditor({
     }
   }
 
-  function handleRun(): void {
+  async function recordShowMeAroundSplitCompletion(): Promise<void> {
+    if (profile.currentDreamId !== "show-me-around") return;
+    if (progressProfileId !== profile.id || progressStatus !== "ready") return;
+    if (runAndPreviewProgress?.skipped) return;
+    if (runAndPreviewProgress?.status !== "saw_it") return;
+    await updateProgressStatus(
+      "run-and-preview",
+      "did_with_help",
+      "Completed the show me around tour by opening the editor, viewing the page, and using Split view.",
+    );
+  }
+
+  async function handleViewModeSelect(nextMode: EditorViewMode): Promise<void> {
+    setViewMode(nextMode);
+    if (nextMode === "split") {
+      await recordShowMeAroundSplitCompletion();
+    }
+    const activityType =
+      nextMode === "code"
+        ? "workspace.view.code"
+        : nextMode === "preview"
+          ? "workspace.view.preview"
+          : "workspace.view.split";
+    await sendLearnerActivity(profile.id, { type: activityType });
+  }
+
+  async function handleRun(): Promise<void> {
+    const dirtyFileNames = useProjectsStore
+      .getState()
+      .buffers.filter((buffer) => buffer.content !== buffer.savedContent)
+      .map((buffer) => buffer.name);
+    if (dirtyFileNames.length > 0) {
+      setSaveError(null);
+      try {
+        for (const filename of dirtyFileNames) {
+          await save(filename);
+        }
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Could not save the file.");
+        return;
+      }
+    }
     rebuildPreview();
     setViewMode("preview");
+    void sendLearnerActivity(profile.id, { type: "preview.opened" });
     if (
       progressProfileId === profile.id &&
       progressStatus === "ready" &&
@@ -272,8 +321,8 @@ export function CodeEditor({
     ) {
       void updateProgressStatus(
         "run-and-preview",
-        "did_with_help",
-        "Clicked See my page and viewed the live preview.",
+        "saw_it",
+        "Clicked See my page and saw the live preview.",
       );
     }
   }
@@ -316,7 +365,9 @@ export function CodeEditor({
               type="button"
               className="hb-editor-view-button"
               aria-pressed={viewMode === "code"}
-              onClick={() => setViewMode("code")}
+              onClick={() => {
+                void handleViewModeSelect("code");
+              }}
             >
               Code
             </button>
@@ -324,7 +375,9 @@ export function CodeEditor({
               type="button"
               className="hb-editor-view-button"
               aria-pressed={viewMode === "preview"}
-              onClick={() => setViewMode("preview")}
+              onClick={() => {
+                void handleViewModeSelect("preview");
+              }}
             >
               Page
             </button>
@@ -332,7 +385,9 @@ export function CodeEditor({
               type="button"
               className="hb-editor-view-button"
               aria-pressed={viewMode === "split"}
-              onClick={() => setViewMode("split")}
+              onClick={() => {
+                void handleViewModeSelect("split");
+              }}
             >
               Split
             </button>
@@ -519,7 +574,9 @@ export function CodeEditor({
               <button
                 type="button"
                 className="hb-btn hb-btn-primary"
-                onClick={handleRun}
+                onClick={() => {
+                  void handleRun();
+                }}
                 disabled={buffers.length === 0}
               >
                 See my page
@@ -564,7 +621,9 @@ export function CodeEditor({
                 <button
                   type="button"
                   className="hb-btn hb-btn-primary"
-                  onClick={() => setViewMode("code")}
+                  onClick={() => {
+                    void handleViewModeSelect("code");
+                  }}
                 >
                   See my code
                 </button>

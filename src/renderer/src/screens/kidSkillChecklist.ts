@@ -1,7 +1,7 @@
 import type { Dream } from "@shared/dreams";
 import type { KnowledgeGraph } from "@shared/knowledgeGraph";
 import type { Progress } from "@shared/progress";
-import { kpMeets } from "@shared/scheduler";
+import { collectRequiredKps, kpMeets } from "@shared/scheduler";
 
 export type KidSkillStatus = "done" | "next" | "pending";
 
@@ -28,8 +28,11 @@ export function buildKidSkillChecklist(
   if (!graph) return null;
   if (dream.requires.length === 0) return null;
 
+  const requiredKps = collectRequiredKps(graph, dream).ordered;
+  if (requiredKps.length === 0) return null;
+
   const items: KidSkillItem[] = [];
-  for (const id of dream.requires) {
+  for (const id of requiredKps) {
     const kp = graph.byId[id];
     if (!kp) continue;
     const isDone = progress ? kpMeets(progress, id, "did_with_help") : false;

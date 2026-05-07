@@ -64,6 +64,7 @@ describe("CodeEditor cursor marker", () => {
     window.hibit = {
       subscribeProjectFiles: vi.fn(async () => ({ id: "sub-1", close: vi.fn() })),
       openProjectFolder: vi.fn(async () => ({ ok: true, path: "/tmp/project" })),
+      writeProjectFile: vi.fn(async () => undefined),
     } as unknown as typeof window.hibit;
   });
 
@@ -138,6 +139,46 @@ describe("CodeEditor cursor marker", () => {
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Page");
   });
 
+  it("saves every dirty buffer before running the preview", async () => {
+    const writeProjectFile = vi.fn(async () => undefined);
+    window.hibit.writeProjectFile = writeProjectFile;
+    useProjectsStore.setState({
+      activeFileName: "style.css",
+      buffers: [
+        {
+          name: "index.html",
+          savedContent: "<h1>Saved</h1>",
+          content: "<h1>Edited</h1>",
+        },
+        {
+          name: "style.css",
+          savedContent: "body { color: red; }",
+          content: "body { color: red; }",
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(writeProjectFile).toHaveBeenCalledWith(
+      profile.id,
+      profile.currentDreamId,
+      "index.html",
+      "<h1>Edited</h1>",
+    );
+  });
+
   it("shows a matching See my code button in page mode", async () => {
     await act(async () => {
       root.render(<CodeEditor profile={profile} docked />);
@@ -171,7 +212,7 @@ describe("CodeEditor cursor marker", () => {
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Code");
   });
 
-  it("records run-and-preview progress when the kid clicks See my page", async () => {
+  it("records run-and-preview as seen when the kid clicks See my page", async () => {
     const updateStatus = vi.fn(async () => {});
     useProgressStore.setState({ updateStatus });
 
@@ -190,9 +231,29 @@ describe("CodeEditor cursor marker", () => {
 
     expect(updateStatus).toHaveBeenCalledWith(
       "run-and-preview",
-      "did_with_help",
-      "Clicked See my page and viewed the live preview.",
+      "saw_it",
+      "Clicked See my page and saw the live preview.",
     );
+  });
+
+  it("tells Bit when the kid clicks See my page", async () => {
+    const sendLearnerActivity = vi.fn(async () => null);
+    useChatStore.setState({ sendLearnerActivity });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(sendLearnerActivity).toHaveBeenCalledWith(profile.id, { type: "preview.opened" });
   });
 
   it("does not downgrade stronger run-and-preview progress", async () => {
@@ -343,6 +404,118 @@ describe("CodeEditor cursor marker", () => {
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Split");
   });
 
+  it("tells Bit when the kid switches to Split view", async () => {
+    const sendLearnerActivity = vi.fn(async () => null);
+    useChatStore.setState({ sendLearnerActivity });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const splitButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Split",
+    );
+    if (!splitButton) throw new Error("Split button was not rendered");
+
+    await act(async () => {
+      splitButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(sendLearnerActivity).toHaveBeenCalledWith(profile.id, {
+      type: "workspace.view.split",
+    });
+  });
+
+  it("completes show-me-around before telling Bit the kid switched to Split view", async () => {
+    let finishProgressUpdate: (() => void) | null = null;
+    const updateStatus = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishProgressUpdate = resolve;
+        }),
+    );
+    const sendLearnerActivity = vi.fn(async () => null);
+    useProgressStore.setState({
+      updateStatus,
+      progress: {
+        ...emptyProgress(),
+        knowledgePoints: {
+          "run-and-preview": {
+            status: "saw_it",
+            firstSeenAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        },
+      },
+    });
+    useChatStore.setState({ sendLearnerActivity });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={{ ...profile, currentDreamId: "show-me-around" }} docked />);
+    });
+
+    const splitButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Split",
+    );
+    if (!splitButton) throw new Error("Split button was not rendered");
+
+    await act(async () => {
+      splitButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).toHaveBeenCalledWith(
+      "run-and-preview",
+      "did_with_help",
+      "Completed the show me around tour by opening the editor, viewing the page, and using Split view.",
+    );
+    expect(sendLearnerActivity).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishProgressUpdate?.();
+    });
+
+    expect(sendLearnerActivity).toHaveBeenCalledWith(profile.id, {
+      type: "workspace.view.split",
+    });
+  });
+
+  it("does not complete run-and-preview from Split outside show-me-around", async () => {
+    const updateStatus = vi.fn(async () => {});
+    const sendLearnerActivity = vi.fn(async () => null);
+    useProgressStore.setState({
+      updateStatus,
+      progress: {
+        ...emptyProgress(),
+        knowledgePoints: {
+          "run-and-preview": {
+            status: "saw_it",
+            firstSeenAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        },
+      },
+    });
+    useChatStore.setState({ sendLearnerActivity });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const splitButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Split",
+    );
+    if (!splitButton) throw new Error("Split button was not rendered");
+
+    await act(async () => {
+      splitButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(updateStatus).not.toHaveBeenCalled();
+    expect(sendLearnerActivity).toHaveBeenCalledWith(profile.id, {
+      type: "workspace.view.split",
+    });
+  });
+
   it("keeps Open folder with the file actions instead of the bottom toolbar", async () => {
     await act(async () => {
       root.render(<CodeEditor profile={profile} docked />);
@@ -384,6 +557,106 @@ describe("CodeEditor cursor marker", () => {
 
     const iframe = host.querySelector("iframe");
     expect(iframe?.getAttribute("srcdoc")).toContain("Changed");
+  });
+
+  it("saves a dirty file before showing the page", async () => {
+    useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada</h1>");
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(window.hibit.writeProjectFile).toHaveBeenCalledWith(
+      profile.id,
+      profile.currentDreamId,
+      "index.html",
+      "<h1>Ada</h1>",
+    );
+    expect(host.querySelector('[aria-label="unsaved changes"]')).toBeNull();
+    expect(host.textContent).toContain("All saved");
+  });
+
+  it("tells Bit a saved preview is hidden when saving from Code view", async () => {
+    const sendSystemPrompt = vi.fn(async () => null);
+    useChatStore.setState({ sendSystemPrompt });
+    useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada</h1>");
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const saveButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Save",
+    );
+    if (!saveButton) throw new Error("Save button was not rendered");
+
+    await act(async () => {
+      saveButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(sendSystemPrompt).toHaveBeenCalledWith(
+      profile.id,
+      expect.objectContaining({
+        prompt: expect.stringContaining("the preview is hidden in Code view"),
+      }),
+    );
+    expect(sendSystemPrompt).toHaveBeenCalledWith(
+      profile.id,
+      expect.objectContaining({
+        prompt: expect.not.stringContaining(
+          "Do not ask the kid to press See my page just to see this saved change",
+        ),
+      }),
+    );
+  });
+
+  it("tells Bit not to ask for See my page when saving from Split view", async () => {
+    const sendSystemPrompt = vi.fn(async () => null);
+    useChatStore.setState({ sendSystemPrompt });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const splitButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Split",
+    );
+    if (!splitButton) throw new Error("Split button was not rendered");
+
+    await act(async () => {
+      splitButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    await act(async () => {
+      useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada</h1>");
+    });
+
+    const saveButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Save",
+    );
+    if (!saveButton) throw new Error("Save button was not rendered");
+
+    await act(async () => {
+      saveButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(sendSystemPrompt).toHaveBeenCalledWith(
+      profile.id,
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "Do not ask the kid to press See my page just to see this saved change",
+        ),
+      }),
+    );
   });
 
   it("reloads the iframe on Refresh even when no content changed", async () => {

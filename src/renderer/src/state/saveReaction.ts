@@ -4,6 +4,7 @@ export type SavedProjectFile = {
   slug: string;
   before: string;
   after: string;
+  previewVisible?: boolean;
 };
 
 const SYSTEM_NOTE_PREFIX = "[Hi-Bit system note - this is from the editor, not from the kid]";
@@ -16,6 +17,12 @@ export function buildSavedFilePrompt(saved: SavedProjectFile): string {
     SAVE_HEADER,
     `File saved: ${saved.filename}`,
     `Project: ${saved.slug}`,
+    saved.previewVisible
+      ? "Save already refreshed the live preview from the saved file contents. The page is visible in Split view."
+      : "Save refreshed the live preview in the background, but the preview is hidden in Code view.",
+    saved.previewVisible
+      ? "Do not ask the kid to press See my page just to see this saved change. Refer to what is already visible. Only ask for See my page when they need to rerun a later unsaved or newly edited change."
+      : "If the kid needs to inspect the visual result, ask them to press See my page.",
     "Use the diff below instead of reading the file first. React to what changed, name what worked or what looks off, and guide the kid to the next small step.",
     "",
     "```diff",

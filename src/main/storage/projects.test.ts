@@ -212,6 +212,487 @@ describe("projects storage", () => {
       expect(raw).toContain("A hello card page");
     });
 
+    it("seeds show me around with the generic first-edit name target", async () => {
+      const dream = makeDream({
+        id: "show-me-around",
+        title_kid: "show me around",
+        requires: ["run-and-preview"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "show-me-around", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>My Name</h1>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+    });
+
+    it("seeds pet page with the generic first-edit name target", async () => {
+      const dream = makeDream({
+        id: "pet-page",
+        title_kid: "a page about a pet",
+        requires: ["html-css-js-roles", "html-text-headings", "html-images"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "pet-page", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>My Name</h1>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+    });
+
+    it("reserves the first about-me paragraph for the learner to add", async () => {
+      const dream = makeDream({
+        id: "about-me",
+        title_kid: "a page all about you",
+        requires: ["html-text-headings", "html-text-paragraphs"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "about-me", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>Ada's page</h1>");
+      expect(raw).not.toContain("<p>A page all about you. Change anything to make it yours.</p>");
+      expect(raw).not.toContain("<p>");
+    });
+
+    it("seeds one big title with an obvious editable title placeholder", async () => {
+      const dream = makeDream({
+        id: "first-heading",
+        title_kid: "one big title",
+        requires: ["html-text-headings"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "first-heading", "index.html"), "utf8");
+
+      expect(raw).toContain("<h1>My Big Title</h1>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+    });
+
+    it("gives the birthday card dream a starter page with a real card message and picture spot", async () => {
+      const dream = makeDream({
+        id: "birthday-card",
+        title_kid: "a birthday card page",
+        requires: ["html-text-headings", "html-text-paragraphs", "html-images", "css-colors"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "birthday-card", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's birthday card");
+      expect(raw).toContain("Happy Birthday!");
+      expect(raw).toContain('<div class="picture-spot"');
+      expect(raw).toContain("🎂");
+      expect(raw).toContain("<style>");
+      expect(raw).not.toContain("<h1>Ada's page</h1>");
+      expect(raw).not.toContain("Change anything to make it yours.");
+    });
+
+    it("gives the smiley button dream a starter page with stuff, look, and action", async () => {
+      const dream = makeDream({
+        id: "emoji-button",
+        title_kid: "a button with a smiley face",
+        requires: ["html-buttons"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "emoji-button", "index.html"), "utf8");
+
+      expect(raw).toContain("<button");
+      expect(raw).toContain("Click me");
+      expect(raw).toContain("<style>");
+      expect(raw).toContain("<script>");
+      expect(raw).toContain("addEventListener");
+    });
+
+    it("does not pre-fill the smiley button with the common first-edit choices", async () => {
+      const dream = makeDream({
+        id: "emoji-button",
+        title_kid: "a button with a smiley face",
+        requires: ["html-buttons"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "emoji-button", "index.html"), "utf8");
+
+      expect(raw).not.toContain("Click me :D");
+      expect(raw).not.toContain("Click me :)");
+    });
+
+    it("gives the click-me dream a starter page that already has buttons", async () => {
+      const dream = makeDream({
+        id: "click-me",
+        title_kid: "a page with buttons to click",
+        requires: ["html-text-headings", "html-buttons"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "click-me", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's button page");
+      expect(raw).toContain("<button");
+      expect(raw).toContain("Play");
+      expect(raw).toContain("Jump");
+      expect(raw).toContain("Dance");
+    });
+
+    it("gives the click counter dream a starter page with a working counter button", async () => {
+      const dream = makeDream({
+        id: "click-counter",
+        title_kid: "a page with a button that counts your clicks",
+        requires: ["html-buttons", "dom-text-content", "events-click", "state-counter"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "click-counter", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's click counter");
+      expect(raw).toContain('<button id="count-button"');
+      expect(raw).toContain('<p id="count-display"');
+      expect(raw).toContain("let count = 0");
+      expect(raw).toContain("count += 1");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
+    it("gives the click rush dream a starter page with a timed mashing game", async () => {
+      const dream = makeDream({
+        id: "click-rush",
+        title_kid: "a 10 second game where you mash a button as fast as you can",
+        requires: ["html-buttons", "dom-text-content", "events-click", "timers-settimeout"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "click-rush", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's click rush");
+      expect(raw).toContain('<button id="start-button"');
+      expect(raw).toContain('<button id="mash-button"');
+      expect(raw).toContain('<p id="score"');
+      expect(raw).toContain('<p id="timer"');
+      expect(raw).toContain('<button id="reset-button"');
+      expect(raw).toContain("let score = 0");
+      expect(raw).toContain("let timeLeft = 10");
+      expect(raw).toContain("setInterval");
+      expect(raw).toContain("clearInterval");
+      expect(raw).toContain("score += 1");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
+    it("gives the color changer dream a starter page with a button that changes the page color", async () => {
+      const dream = makeDream({
+        id: "color-changer",
+        title_kid: "a page that changes color when you click",
+        requires: ["html-buttons", "css-attach", "events-click"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "color-changer", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's color changer");
+      expect(raw).toContain('<button id="color-button"');
+      expect(raw).toContain("backgroundColor");
+      expect(raw).toContain("addEventListener");
+    });
+
+    it("gives the traffic light dream a starter page with lights and timer behavior", async () => {
+      const dream = makeDream({
+        id: "traffic-light",
+        title_kid: "a traffic light that changes colors by itself",
+        requires: ["html-div-span", "css-background", "css-border-radius", "timers-setinterval"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "traffic-light", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's traffic light");
+      expect(raw).toContain('<div class="traffic-light"');
+      expect(raw).toContain('class="light red active"');
+      expect(raw).toContain('class="light yellow"');
+      expect(raw).toContain('class="light green"');
+      expect(raw).toContain("setInterval");
+      expect(raw).toContain("classList");
+    });
+
+    it("gives the beat pad dream a starter page with keyboard drum pads", async () => {
+      const dream = makeDream({
+        id: "beat-pad",
+        title_kid: "four drum pads you play with the keyboard",
+        requires: ["html-div-span", "events-keydown", "state-counter"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "beat-pad", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's beat pad");
+      expect(raw).toContain('class="pad"');
+      expect(raw).toContain('data-key="a"');
+      expect(raw).toContain('data-key="s"');
+      expect(raw).toContain('data-key="d"');
+      expect(raw).toContain('data-key="f"');
+      expect(raw).toContain("keydown");
+      expect(raw).toContain("classList");
+      expect(raw).toContain("textContent");
+    });
+
+    it("does not build a beat pad selector from raw keyboard input", async () => {
+      const dream = makeDream({
+        id: "beat-pad",
+        title_kid: "four drum pads you play with the keyboard",
+        requires: ["html-div-span", "events-keydown", "state-counter"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "beat-pad", "index.html"), "utf8");
+
+      expect(raw).not.toContain("document.querySelector('[data-key=\"' + key + '\"]')");
+    });
+
+    it("gives the dice roller dream a starter page with a working dice button", async () => {
+      const dream = makeDream({
+        id: "dice-roller",
+        title_kid: "a page that rolls a dice when you click",
+        requires: ["html-buttons", "dom-text-content", "events-click", "js-math-random"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "dice-roller", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's dice roller");
+      expect(raw).toContain('<button id="roll-button"');
+      expect(raw).toContain('<p id="dice-result"');
+      expect(raw).toContain("Math.random");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
+    it("gives the random picker dream a starter page with choices and random pick behavior", async () => {
+      const dream = makeDream({
+        id: "random-picker",
+        title_kid: "a picker that chooses one surprise",
+        requires: ["js-arrays", "js-array-length", "js-math-random"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "random-picker", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's surprise picker");
+      expect(raw).toContain('<button id="pick-button"');
+      expect(raw).toContain('<p id="pick-result"');
+      expect(raw).toContain("const choices = [");
+      expect(raw).toContain("choices.length");
+      expect(raw).toContain("Math.random");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
+    it("gives the message-button dream a starter page with a button and message behavior", async () => {
+      const dream = makeDream({
+        id: "message-button",
+        title_kid: "a button that changes a message",
+        requires: ["html-buttons", "dom-text-content", "events-click"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "message-button", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's message button");
+      expect(raw).toContain('<button id="message-button"');
+      expect(raw).toContain('<p id="message"');
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
+    it("gives the magic answer dream a starter page with answer choices and button behavior", async () => {
+      const dream = makeDream({
+        id: "magic-answer",
+        title_kid: "a page that gives you a magic answer to any question",
+        requires: ["html-buttons", "dom-text-content", "events-click", "js-arrays"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "magic-answer", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's magic answer");
+      expect(raw).toContain('<button id="answer-button"');
+      expect(raw).toContain('<p id="answer"');
+      expect(raw).toContain("const answers = [");
+      expect(raw).toContain("answers.length");
+      expect(raw).toContain("Math.random");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain("addEventListener");
+    });
+
+    it("gives the secret message dream a starter page with a hidden message and reveal button", async () => {
+      const dream = makeDream({
+        id: "secret-message",
+        title_kid: "a page with a hidden message you reveal with a button",
+        requires: ["html-buttons", "css-attach", "dom-class-toggle", "events-click"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "secret-message", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's secret message");
+      expect(raw).toContain('<button id="reveal-button"');
+      expect(raw).toContain('<p id="secret-message"');
+      expect(raw).toContain("hidden");
+      expect(raw).toContain("classList");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
+    it("gives the type-mirror dream a starter page with a text box and mirrored text behavior", async () => {
+      const dream = makeDream({
+        id: "type-mirror",
+        title_kid: "words that copy what you type",
+        requires: ["html-inputs-text", "dom-input-value", "dom-text-content", "events-input"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "type-mirror", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's type mirror");
+      expect(raw).toContain('<label for="mirror-input"');
+      expect(raw).toContain('<input id="mirror-input"');
+      expect(raw).not.toContain('value="hello"');
+      expect(raw).toContain('<p id="mirror-output"');
+      expect(raw).toContain("Your words will show here.");
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain('addEventListener("input"');
+    });
+
+    it("gives the name badge dream a starter page with a text box and live badge text", async () => {
+      const dream = makeDream({
+        id: "name-badge",
+        title_kid: "a name badge you can type into",
+        requires: ["html-inputs-text", "dom-input-value", "dom-text-content", "events-input"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "name-badge", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's name badge");
+      expect(raw).toContain('<label for="name-input"');
+      expect(raw).toContain('<input id="name-input"');
+      expect(raw).toContain('<p id="badge-name"');
+      expect(raw).toContain("Ada");
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain('addEventListener("input"');
+    });
+
+    it("gives the typing game dream a starter page with a word box and score behavior", async () => {
+      const dream = makeDream({
+        id: "typing-game",
+        title_kid: "a game where you type words as fast as you can",
+        requires: [
+          "html-inputs-text",
+          "dom-input-value",
+          "dom-text-content",
+          "events-input",
+          "js-arrays",
+          "state-counter",
+        ],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "typing-game", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's typing game");
+      expect(raw).toContain('<p id="word-to-type"');
+      expect(raw).toContain('<label for="typing-input"');
+      expect(raw).toContain('<input id="typing-input"');
+      expect(raw).toContain('<p id="score"');
+      expect(raw).toContain("const words = [");
+      expect(raw).toContain("let score = 0");
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("score += 1");
+      expect(raw).toContain('addEventListener("input"');
+    });
+
+    it("gives the to-do list dream a starter page with a text box and add behavior", async () => {
+      const dream = makeDream({
+        id: "to-do-list",
+        title_kid: "a to do list where you type things and they show up",
+        requires: ["html-inputs-text", "dom-input-value", "events-click", "dom-create-append"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "to-do-list", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's to-do list");
+      expect(raw).toContain('<label for="todo-input"');
+      expect(raw).toContain('<input id="todo-input"');
+      expect(raw).toContain('<button id="add-todo"');
+      expect(raw).toContain('<ul id="todo-list"');
+      expect(raw).toContain("document.createElement");
+      expect(raw).toContain("input.value");
+      expect(raw).toContain("append");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
+    it("gives the stopwatch dream a starter page with a startable timer", async () => {
+      const dream = makeDream({
+        id: "stopwatch",
+        title_kid: "a stopwatch that counts up when you press start",
+        requires: ["html-buttons", "dom-text-content", "events-click", "timers-setinterval"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "stopwatch", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's stopwatch");
+      expect(raw).toContain('<p id="time-display"');
+      expect(raw).toContain('<button id="start-button"');
+      expect(raw).toContain("let seconds = 0");
+      expect(raw).toContain("setInterval");
+      expect(raw).toContain("textContent");
+      expect(raw).toContain('addEventListener("click"');
+    });
+
+    it("gives the rectangle dream a starter page with a canvas and rectangle drawing code", async () => {
+      const dream = makeDream({
+        id: "canvas-rectangle",
+        title_kid: "draw one rectangle",
+        requires: ["canvas-setup", "canvas-fillrect"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "canvas-rectangle", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's drawing page");
+      expect(raw).toContain("<canvas");
+      expect(raw).toContain('getContext("2d")');
+      expect(raw).toContain("fillRect");
+    });
+
+    it("gives the bouncing ball dream a starter page with a canvas and animation behavior", async () => {
+      const dream = makeDream({
+        id: "bouncing-ball",
+        title_kid: "a ball that bounces around the screen",
+        requires: [
+          "canvas-setup",
+          "canvas-circle",
+          "canvas-clear",
+          "animation-raf",
+          "canvas-collision-bounds",
+        ],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "bouncing-ball", "index.html"), "utf8");
+
+      expect(raw).toContain("Ada's bouncing ball");
+      expect(raw).toContain('<canvas id="ball-canvas"');
+      expect(raw).toContain('getContext("2d")');
+      expect(raw).toContain("arc(");
+      expect(raw).toContain("clearRect");
+      expect(raw).toContain("requestAnimationFrame");
+      expect(raw).toContain("speedX *= -1");
+      expect(raw).toContain("speedY *= -1");
+    });
+
     it("html-escapes the profile name so it can't break out of the h1", async () => {
       const dream = makeDream({ id: "hello-card" });
       await scaffoldProject(paths, dream, { profileName: "<script>Mallory</script>" });
@@ -253,13 +734,18 @@ describe("projects storage", () => {
   describe("watchProjectFiles", () => {
     async function waitFor<T>(
       accessor: () => T | null,
-      { timeoutMs = 4000, intervalMs = 25 }: { timeoutMs?: number; intervalMs?: number } = {},
+      {
+        timeoutMs = 4000,
+        intervalMs = 25,
+        beforeRetry,
+      }: { timeoutMs?: number; intervalMs?: number; beforeRetry?: () => Promise<void> } = {},
     ): Promise<T> {
       const deadline = Date.now() + timeoutMs;
       for (;;) {
         const value = accessor();
         if (value !== null) return value;
         if (Date.now() >= deadline) throw new Error("waitFor timed out");
+        await beforeRetry?.();
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }
     }
@@ -279,8 +765,14 @@ describe("projects storage", () => {
       const events: ProjectFileChange[] = [];
       const watcher = await watchProjectFiles(paths, "snake", (e) => events.push(e));
       try {
+        let writeCount = 0;
         await writeProjectFile(paths, "snake", "index.html", "<!doctype html>");
-        const event = await waitFor(() => events.find((e) => e.filename === "index.html") ?? null);
+        const event = await waitFor(() => events.find((e) => e.filename === "index.html") ?? null, {
+          beforeRetry: async () => {
+            writeCount += 1;
+            await writeProjectFile(paths, "snake", "index.html", `<!doctype html>${writeCount}`);
+          },
+        });
         expect(event.filename).toBe("index.html");
         expect(["changed", "renamed"]).toContain(event.kind);
       } finally {
@@ -292,13 +784,22 @@ describe("projects storage", () => {
       const events: ProjectFileChange[] = [];
       const watcher = await watchProjectFiles(paths, "snake", (e) => events.push(e));
       try {
+        let writeCount = 0;
         await writeProjectFile(paths, "snake", "index.html", "<!doctype html>");
         await writeProjectFile(paths, "snake", "snake.js", "// snake");
-        await waitFor(() =>
-          events.some((e) => e.filename === "index.html") &&
-          events.some((e) => e.filename === "snake.js")
-            ? true
-            : null,
+        await waitFor(
+          () =>
+            events.some((e) => e.filename === "index.html") &&
+            events.some((e) => e.filename === "snake.js")
+              ? true
+              : null,
+          {
+            beforeRetry: async () => {
+              writeCount += 1;
+              await writeProjectFile(paths, "snake", "index.html", `<!doctype html>${writeCount}`);
+              await writeProjectFile(paths, "snake", "snake.js", `// snake ${writeCount}`);
+            },
+          },
         );
       } finally {
         watcher.close();
@@ -308,8 +809,14 @@ describe("projects storage", () => {
     it("stops emitting events after close()", async () => {
       const events: ProjectFileChange[] = [];
       const watcher = await watchProjectFiles(paths, "snake", (e) => events.push(e));
+      let writeCount = 0;
       await writeProjectFile(paths, "snake", "index.html", "<!doctype html>");
-      await waitFor(() => (events.length > 0 ? true : null));
+      await waitFor(() => (events.length > 0 ? true : null), {
+        beforeRetry: async () => {
+          writeCount += 1;
+          await writeProjectFile(paths, "snake", "index.html", `<!doctype html>${writeCount}`);
+        },
+      });
       watcher.close();
       const countAtClose = events.length;
       await writeProjectFile(paths, "snake", "index.html", "<!doctype html><body>x</body>");

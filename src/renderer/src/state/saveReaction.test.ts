@@ -18,6 +18,40 @@ describe("buildSavedFilePrompt", () => {
     expect(prompt).toContain("Use the diff below instead of reading the file first");
   });
 
+  it("tells Bit not to ask for See my page when Save refreshed a visible split preview", () => {
+    const prompt = buildSavedFilePrompt({
+      profileId: "ada",
+      filename: "index.html",
+      slug: "pet-site",
+      before: "<h1>My Name</h1>",
+      after: "<h1>Ada</h1>",
+      previewVisible: true,
+    });
+
+    expect(prompt).toContain("Save already refreshed the live preview");
+    expect(prompt).toContain(
+      "Do not ask the kid to press See my page just to see this saved change",
+    );
+  });
+
+  it("allows Bit to ask for See my page when the saved preview is hidden", () => {
+    const prompt = buildSavedFilePrompt({
+      profileId: "ada",
+      filename: "index.html",
+      slug: "pet-site",
+      before: "<h1>My Name</h1>",
+      after: "<h1>Ada</h1>",
+      previewVisible: false,
+    });
+
+    expect(prompt).toContain("Save refreshed the live preview in the background");
+    expect(prompt).toContain("the preview is hidden in Code view");
+    expect(prompt).toContain("ask them to press See my page");
+    expect(prompt).not.toContain(
+      "Do not ask the kid to press See my page just to see this saved change",
+    );
+  });
+
   it("opens with a system-note marker so Bit can tell it isn't from the kid", () => {
     const prompt = buildSavedFilePrompt({
       profileId: "ada",

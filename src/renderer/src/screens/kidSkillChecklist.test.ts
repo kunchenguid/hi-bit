@@ -19,13 +19,13 @@ function makeDream(requires: string[]): Dream {
   };
 }
 
-function makeKp(id: string, titleKid?: string): KnowledgePoint {
+function makeKp(id: string, titleKid?: string, prereqs: string[] = []): KnowledgePoint {
   return {
     id,
     title_parent: id,
     title_kid: titleKid ?? id,
     area: "html",
-    prereqs: [],
+    prereqs,
     introduces: [],
     mastery_signals: { saw_it: "s", did_with_help: "d", did_unprompted: "u", explained_it: "e" },
   };
@@ -67,6 +67,26 @@ describe("buildKidSkillChecklist", () => {
     const graph = graphOf([makeKp("a", "alpha"), makeKp("b", "bravo"), makeKp("c", "charlie")]);
     const result = buildKidSkillChecklist(dream, graph, emptyProgress(), null);
     expect(result?.items.map((i) => i.titleKid)).toEqual(["alpha", "bravo", "charlie"]);
+  });
+
+  it("includes prerequisite KPs Bit will teach before the dream requirements", () => {
+    const dream = makeDream(["canvas-setup"]);
+    const graph = graphOf([
+      makeKp("run-and-preview", "running your code and seeing what happens"),
+      makeKp("html-doc-shell", "making a web page file", ["run-and-preview"]),
+      makeKp("canvas-setup", "making a drawing surface", ["html-doc-shell"]),
+    ]);
+    const result = buildKidSkillChecklist(dream, graph, emptyProgress(), "run-and-preview");
+    expect(result?.items.map((i) => i.id)).toEqual([
+      "run-and-preview",
+      "html-doc-shell",
+      "canvas-setup",
+    ]);
+    expect(result?.items[0]).toMatchObject({
+      id: "run-and-preview",
+      status: "next",
+      titleKid: "running your code and seeing what happens",
+    });
   });
 
   it("marks done KPs as 'done' when they meet did_with_help", () => {

@@ -1,22 +1,26 @@
+import { visiblePromptText } from "@shared/chat";
 import type { TranscriptEvent } from "@shared/transcript";
 import {
   type ChatMessage,
   isBlankAssistantText,
   KID_EMPTY_REPLY,
   KID_FRIENDLY_ERROR,
+  trimVisibleAssistantText,
 } from "./chatStore";
+import { learnerActivityPromptLabel } from "./learnerActivity";
 import { savedFilePromptLabel } from "./saveReaction";
 
 function toChatMessage(event: TranscriptEvent): ChatMessage | null {
   if (event.role !== "kid") return null;
   if (event.kind === "user_message") {
-    const savedLabel = savedFilePromptLabel(event.text);
-    if (savedLabel) {
+    const systemPromptLabel =
+      savedFilePromptLabel(event.text) ?? learnerActivityPromptLabel(event.text);
+    if (systemPromptLabel) {
       return {
         id: `${event.timestamp}-s`,
         role: "system",
         kind: "divider",
-        text: savedLabel,
+        text: systemPromptLabel,
         timestamp: event.timestamp,
       };
     }
@@ -24,17 +28,18 @@ function toChatMessage(event: TranscriptEvent): ChatMessage | null {
       id: `${event.timestamp}-u`,
       role: "kid",
       kind: "text",
-      text: event.text,
+      text: visiblePromptText(event.text),
       timestamp: event.timestamp,
     };
   }
   if (event.kind === "assistant_message") {
-    const blank = isBlankAssistantText(event.text);
+    const visibleText = trimVisibleAssistantText(event.text);
+    const blank = isBlankAssistantText(visibleText);
     return {
       id: `${event.timestamp}-a`,
       role: "bit",
       kind: blank ? "error" : "text",
-      text: blank ? KID_EMPTY_REPLY : event.text,
+      text: blank ? KID_EMPTY_REPLY : visibleText,
       timestamp: event.timestamp,
     };
   }

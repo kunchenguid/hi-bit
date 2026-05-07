@@ -20,6 +20,13 @@ describe("hi-bit control blocks", () => {
     ]);
   });
 
+  it("preserves a separator when stripping a control block between visible words", () => {
+    const text =
+      'First sentence.<hi-bit:progress>{"kpId":"html-text-headings"}</hi-bit:progress>Next sentence.';
+
+    expect(stripHiBitControlBlocks(text)).toBe("First sentence. Next sentence.");
+  });
+
   it("hides control blocks across streaming chunk boundaries", () => {
     const onVisible = vi.fn();
     const filter = createHiBitControlStreamFilter(onVisible);
@@ -30,6 +37,19 @@ describe("hi-bit control blocks", () => {
     filter.finish();
 
     expect(onVisible.mock.calls.map(([text]) => text).join("")).toBe("Nice  done.");
+  });
+
+  it("preserves a separator when streaming hides a control block between visible words", () => {
+    const onVisible = vi.fn();
+    const filter = createHiBitControlStreamFilter(onVisible);
+
+    filter.push('First sentence.<hi-bit:progress>{"kpId":"html-text-headings"}');
+    filter.push("</hi-bit:progress>Next sentence.");
+    filter.finish();
+
+    expect(onVisible.mock.calls.map(([text]) => text).join("")).toBe(
+      "First sentence. Next sentence.",
+    );
   });
 
   it("recognizes hidden control close tags split across streaming chunks", () => {

@@ -6,7 +6,13 @@ import { CreateProfileForm } from "./CreateProfileForm";
 import { ParentGate } from "./ParentGate";
 import { ParentHome } from "./ParentHome";
 
-type View = "picker" | "create" | "parent-gate" | "create-parent-gate" | "parent-picker";
+type View =
+  | "picker"
+  | "create"
+  | "parent-gate"
+  | "create-parent-gate"
+  | "parent-picker"
+  | "parent-create";
 
 export function ProfileGate(): JSX.Element {
   const status = useProfileStore((s) => s.status);
@@ -18,7 +24,7 @@ export function ProfileGate(): JSX.Element {
 
   const [view, setView] = useState<View>("picker");
   const [parentProfileId, setParentProfileId] = useState<string | null>(null);
-  const [createParentPin, setCreateParentPin] = useState<string | null>(null);
+  const [unlockedParentPin, setUnlockedParentPin] = useState<string | null>(null);
 
   useEffect(() => {
     void loadProfiles();
@@ -87,6 +93,7 @@ export function ProfileGate(): JSX.Element {
           }}
           onLock={() => {
             setParentProfileId(null);
+            setUnlockedParentPin(null);
             setView("picker");
           }}
         />
@@ -96,7 +103,13 @@ export function ProfileGate(): JSX.Element {
 
   if (view === "parent-gate") {
     return (
-      <ParentGate onUnlock={() => setView("parent-picker")} onCancel={() => setView("picker")} />
+      <ParentGate
+        onUnlock={(pin) => {
+          setUnlockedParentPin(pin);
+          setView("parent-picker");
+        }}
+        onCancel={() => setView("picker")}
+      />
     );
   }
 
@@ -104,11 +117,11 @@ export function ProfileGate(): JSX.Element {
     return (
       <ParentGate
         onUnlock={(pin) => {
-          setCreateParentPin(pin);
+          setUnlockedParentPin(pin);
           setView("create");
         }}
         onCancel={() => {
-          setCreateParentPin(null);
+          setUnlockedParentPin(null);
           setView("picker");
         }}
       />
@@ -143,7 +156,21 @@ export function ProfileGate(): JSX.Element {
               </li>
             ))}
           </ul>
-          <button type="button" className="hb-btn hb-btn-ghost" onClick={() => setView("picker")}>
+          <button
+            type="button"
+            className="hb-btn hb-btn-ghost"
+            onClick={() => setView("parent-create")}
+          >
+            + Add a new learner
+          </button>
+          <button
+            type="button"
+            className="hb-btn hb-btn-ghost"
+            onClick={() => {
+              setUnlockedParentPin(null);
+              setView("picker");
+            }}
+          >
             Back to learner sign-in
           </button>
         </div>
@@ -151,7 +178,7 @@ export function ProfileGate(): JSX.Element {
     );
   }
 
-  if (view === "create") {
+  if (view === "create" || view === "parent-create") {
     return (
       <main className="hb-gate">
         <div className="hb-gate-card">
@@ -171,16 +198,25 @@ export function ProfileGate(): JSX.Element {
             Bit uses this to greet them by name and pick dreams they'd actually build.
           </p>
           <CreateProfileForm
-            parentPin={createParentPin ?? ""}
+            parentPin={unlockedParentPin ?? ""}
             onCreated={(profileId) => {
+              if (view === "parent-create") {
+                setParentProfileId(profileId);
+                setView("parent-picker");
+                return;
+              }
               selectProfile(profileId);
-              setCreateParentPin(null);
+              setUnlockedParentPin(null);
               setView("picker");
             }}
             onCancel={
               profiles.length > 0
                 ? () => {
-                    setCreateParentPin(null);
+                    if (view === "parent-create") {
+                      setView("parent-picker");
+                      return;
+                    }
+                    setUnlockedParentPin(null);
                     setView("picker");
                   }
                 : undefined

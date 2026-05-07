@@ -6,7 +6,7 @@ area: html
 prereqs: []
 introduces: [see-my-page, page-view, split-view, live-preview, edit-preview-loop]
 mastery_signals:
-  saw_it: Bit had the kid press See my page after a tiny change and pointed to what showed up in Page view.
-  did_with_help: Kid pressed See my page after an edit with Bit reminding them where the button is and what to look for.
+  saw_it: Kid pressed See my page and noticed what showed up in Page view.
+  did_with_help: Kid changed specific code text with Bit's help, pressed See my page, and matched the new preview result back to that code change.
   did_unprompted: Kid pressed See my page on their own after making a change, to see what happened.
   explained_it: Kid described See my page as the button that shows their code as a real page, or said that Split view shows code and page together.
