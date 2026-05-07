@@ -7,6 +7,8 @@ export type ParentChatProps = {
   parentSessionId: string;
   parentName?: string;
   kidName: string;
+  draft?: string;
+  onDraftChange?: (value: string) => void;
 };
 
 export function ParentChat({
@@ -14,6 +16,8 @@ export function ParentChat({
   parentSessionId,
   parentName = "You",
   kidName,
+  draft,
+  onDraftChange,
 }: ParentChatProps): JSX.Element {
   const messages = useParentChatStore((s) => s.messages);
   const status = useParentChatStore((s) => s.status);
@@ -24,6 +28,8 @@ export function ParentChat({
   const hydratedSessionId = useParentChatStore((s) => s.hydratedSessionId);
 
   const [input, setInput] = useState("");
+  const inputValue = draft ?? input;
+  const setInputValue = onDraftChange ?? setInput;
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const prevStatusRef = useRef(status);
@@ -51,19 +57,19 @@ export function ParentChat({
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
-    const trimmed = input.trim();
+    const trimmed = inputValue.trim();
     if (trimmed.length === 0 || status === "sending") return;
-    setInput("");
+    setInputValue("");
     await send(profileId, trimmed);
   }
 
-  const disabled = status === "sending" || input.trim().length === 0;
+  const disabled = status === "sending" || inputValue.trim().length === 0;
   const showPresets = messages.length === 0 && hydrateStatus !== "loading";
   const canRetry = status !== "sending" && canRetryLastParentMessage(messages);
 
   function handlePreset(presetId: string): void {
     const text = resolveDirectivePreset(presetId, kidName);
-    if (text) setInput(text);
+    if (text) setInputValue(text);
   }
 
   async function handleRetry(): Promise<void> {
@@ -148,8 +154,8 @@ export function ParentChat({
           className="hb-input hb-parent-chat-input"
           type="text"
           placeholder="message Bit as the parent..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
           disabled={status === "sending"}
         />
         <button type="submit" className="hb-btn hb-btn-primary" disabled={disabled}>
