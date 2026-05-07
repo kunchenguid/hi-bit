@@ -435,6 +435,19 @@ describe("projects storage", () => {
       expect(raw).toContain("textContent");
     });
 
+    it("does not build a beat pad selector from raw keyboard input", async () => {
+      const dream = makeDream({
+        id: "beat-pad",
+        title_kid: "four drum pads you play with the keyboard",
+        requires: ["html-div-span", "events-keydown", "state-counter"],
+      });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "beat-pad", "index.html"), "utf8");
+
+      expect(raw).not.toContain("document.querySelector('[data-key=\"' + key + '\"]')");
+    });
+
     it("gives the dice roller dream a starter page with a working dice button", async () => {
       const dream = makeDream({
         id: "dice-roller",

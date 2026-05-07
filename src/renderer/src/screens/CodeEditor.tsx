@@ -296,10 +296,16 @@ export function CodeEditor({
   }
 
   async function handleRun(): Promise<void> {
-    if (activeBuffer && isDirty) {
+    const dirtyFileNames = useProjectsStore
+      .getState()
+      .buffers.filter((buffer) => buffer.content !== buffer.savedContent)
+      .map((buffer) => buffer.name);
+    if (dirtyFileNames.length > 0) {
       setSaveError(null);
       try {
-        await save(activeBuffer.name);
+        for (const filename of dirtyFileNames) {
+          await save(filename);
+        }
       } catch (e) {
         setSaveError(e instanceof Error ? e.message : "Could not save the file.");
         return;

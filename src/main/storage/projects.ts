@@ -525,7 +525,7 @@ function starterIndexHtml(dream: Dream, profileName: string): string {
 
       document.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
-        const pad = document.querySelector('[data-key="' + key + '"]');
+        const pad = Array.from(pads).find((item) => item.dataset.key === key) ?? null;
         if (pad === null) return;
 
         hits += 1;

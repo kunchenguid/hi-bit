@@ -139,6 +139,46 @@ describe("CodeEditor cursor marker", () => {
     expect(host.querySelector('[aria-pressed="true"]')?.textContent).toBe("Page");
   });
 
+  it("saves every dirty buffer before running the preview", async () => {
+    const writeProjectFile = vi.fn(async () => undefined);
+    window.hibit.writeProjectFile = writeProjectFile;
+    useProjectsStore.setState({
+      activeFileName: "style.css",
+      buffers: [
+        {
+          name: "index.html",
+          savedContent: "<h1>Saved</h1>",
+          content: "<h1>Edited</h1>",
+        },
+        {
+          name: "style.css",
+          savedContent: "body { color: red; }",
+          content: "body { color: red; }",
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(writeProjectFile).toHaveBeenCalledWith(
+      profile.id,
+      profile.currentDreamId,
+      "index.html",
+      "<h1>Edited</h1>",
+    );
+  });
+
   it("shows a matching See my code button in page mode", async () => {
     await act(async () => {
       root.render(<CodeEditor profile={profile} docked />);
