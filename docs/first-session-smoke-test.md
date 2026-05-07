@@ -30,8 +30,9 @@ PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profi
   Codex specs include `ignore_user_config=true`; OpenCode specs use `--pure` and an isolated `XDG_CONFIG_HOME` under `.acpx-sessions/clean-agent-config`.
 - [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_AGENT` in `src/shared/config.ts`). Select the agent you installed above.
 - [ ] Returning to `ProfileGate.tsx` with at least one profile shows a `For grown-ups` entry point next to `+ Add a new learner`.
-- [ ] Clicking `+ Add a new learner` requires unlocking `ParentGate.tsx` again before `CreateProfileForm.tsx` opens.
+- [ ] From kid sign-in, clicking `+ Add a new learner` requires unlocking `ParentGate.tsx` again before `CreateProfileForm.tsx` opens.
 - [ ] Clicking `For grown-ups`, unlocking `ParentGate.tsx`, and choosing `Open parent mode` opens `ParentHome.tsx` for that learner; `Switch profile` returns to the parent learner picker without dropping back to kid sign-in.
+- [ ] From the unlocked parent learner picker, clicking `+ Add a new learner` opens `CreateProfileForm.tsx` without another PIN prompt; submit or cancel returns to the parent learner picker.
 - [ ] `DreamPicker.tsx` opens next, with `playground` pinned first and labeled `Not sure yet?`.
   The `Great first dream` starter projects follow before interest-tag matches for a brand-new profile.
 
@@ -77,12 +78,12 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 
 - [ ] Bit leads the kid to the editor with a fill-in-the-blank or change-a-line task via `CodeEditor.tsx`.
 - [ ] When the latest Bit message includes fenced code blocks, each block shows its own `Show me where` button. Clicking one calls `window.hibit.requestCursorMarker` with that snippet, opens or focuses the editor as needed, and displays a marker at the intended location for that snippet. Plain text instructions should not show this button.
-- [ ] Docked workspaces start in `Code` view. Typing in the editor updates the buffer; clicking `See my page` renders via `buildPreviewSrcdoc` from `src/renderer/src/preview/buildPreview.ts`, switches to `Page` view, and shows the kid's actual change inside the iframe.
+- [ ] Docked workspaces start in `Code` view. Typing in the editor updates the buffer; clicking `See my page` saves dirty buffers, renders via `buildPreviewSrcdoc` from `src/renderer/src/preview/buildPreview.ts`, switches to `Page` view, and shows the kid's actual change inside the iframe.
 - [ ] In `Page` view, the preview shows `See my code`. Clicking it returns to `Code` view.
 - [ ] After clicking `See my page`, `progress.json` records `run-and-preview` as `saw_it` with the live-preview evidence, even if Bit did not emit a hidden progress block.
 - [ ] The `Split` view shows the code editor and live preview together. If `Show me where` is used while in `Page` view, the workspace switches to `Split` and shows the cursor marker, using Bit's snippet-specific label when provided and `Type here` as the fallback.
 - [ ] After another edit, clicking `Refresh` in the live preview header updates the iframe from the latest buffer content. Clicking `Refresh` again without editing reloads the iframe.
-- [ ] Clicking Save writes to `~/.hi-bit/profiles/<kid_id>/projects/<dream_slug>/` on disk. Confirm the file exists: `ls ~/.hi-bit/profiles/*/projects/`.
+- [ ] If another edit is still dirty, clicking Save writes it to `~/.hi-bit/profiles/<kid_id>/projects/<dream_slug>/` on disk. Confirm the file exists: `ls ~/.hi-bit/profiles/*/projects/`.
 - [ ] Open the saved file in an external editor or browser and verify it renders the same thing the in-app preview showed. This proves the artifact survives outside Hi-Bit, which is the PRD's shareability contract.
 
 ## Wrap-up
