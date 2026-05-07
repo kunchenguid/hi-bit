@@ -80,20 +80,27 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
     return library.byId[profile.currentDreamId] ?? null;
   }, [library, profile.currentDreamId]);
 
+  const scopedProgress =
+    loadedProfileId === profile.id && progressStatus === "ready" ? progress : null;
+
   const nextSuggestion = useMemo(() => {
-    if (!progress) return null;
+    if (!scopedProgress) return null;
     return chooseNextSuggestion({
       graph,
       library,
       currentDreamId: profile.currentDreamId ?? null,
-      progress,
+      progress: scopedProgress,
     });
-  }, [graph, library, profile.currentDreamId, progress]);
+  }, [graph, library, profile.currentDreamId, scopedProgress]);
 
-  const masterySummary = useMemo(() => computeMasterySummary(graph, progress), [graph, progress]);
-  const projectCount = progress?.projects.length ?? 0;
+  const masterySummary = useMemo(
+    () => computeMasterySummary(graph, scopedProgress),
+    [graph, scopedProgress],
+  );
+  const projectCount = scopedProgress?.projects.length ?? 0;
   const flagCount = loadedFlagProfileId === profile.id ? flags.length : 0;
   const isCheckingFlags = flagStatus === "loading" || loadedFlagProfileId !== profile.id;
+  const flagLoadFailed = loadedFlagProfileId === profile.id && flagStatus === "error";
   const dreamLabel = dream ? dream.title_parent : (profile.currentDreamId ?? "No dream picked yet");
   const overviewSentence = dream
     ? `${profile.name} is working on ${dream.title_parent}.`
@@ -110,11 +117,14 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
 
   const attentionLabel = isCheckingFlags
     ? "Checking flagged messages..."
+    : flagLoadFailed
+      ? "Flagged-message status could not be checked."
+      : flagCount > 0
+        ? `${formatCount(flagCount, "flagged message")} needs review.`
+        : "No flagged messages need review.";
+  const attentionCopy = flagLoadFailed
+    ? "Open Activity to retry loading the safety review list."
     : flagCount > 0
-      ? `${formatCount(flagCount, "flagged message")} needs review.`
-      : "No flagged messages need review.";
-  const attentionCopy =
-    flagCount > 0
       ? "Open Activity to inspect context or clear the flag."
       : "Activity still keeps session logs and transcript audit tools.";
 
@@ -194,22 +204,22 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
             graph={graph}
             library={library}
             currentDreamId={profile.currentDreamId ?? null}
-            progress={progress}
+            progress={scopedProgress}
           />
-          {progressStatus === "loading" ? (
+          {progressStatus === "loading" || loadedProfileId !== profile.id ? (
             <section className="hb-parent-card">
               <h2 className="hb-parent-section-title">Mastery</h2>
               <p className="hb-parent-empty">Loading progress...</p>
             </section>
           ) : (
-            <ParentMasteryGrid graph={graph} progress={progress} />
+            <ParentMasteryGrid graph={graph} progress={scopedProgress} />
           )}
           <ParentDreamHistory
             dreamHistory={profile.dreamHistory}
             library={library}
             currentDreamId={profile.currentDreamId ?? null}
             graph={graph}
-            progress={progress}
+            progress={scopedProgress}
           />
         </div>
       ) : null}
@@ -218,7 +228,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
         <ParentProjectsReview
           profileId={profile.id}
           library={library}
-          projects={progress?.projects ?? []}
+          projects={scopedProgress?.projects ?? []}
           currentDreamId={profile.currentDreamId ?? null}
         />
       ) : null}

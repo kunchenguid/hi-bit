@@ -196,6 +196,32 @@ describe("ParentHome dashboard", () => {
     expect(host.textContent).toContain("1 flagged message needs review.");
   });
 
+  it("does not summarize stale progress from another profile", async () => {
+    useProgressStore.setState({ progress, profileId: "kid-2", status: "ready" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Loading progress...");
+    expect(host.textContent).toContain(
+      "0 saved projects · 0 of 1 skills practiced with help or better.",
+    );
+    expect(host.textContent).not.toContain("CSS spacing and layout");
+    expect(host.textContent).not.toContain("1 saved project");
+  });
+
+  it("reports when flagged message status cannot be checked", async () => {
+    useFlagStore.setState({ flags: [], profileId: profile.id, status: "error" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Flagged-message status could not be checked.");
+    expect(host.textContent).not.toContain("No flagged messages need review.");
+  });
+
   it("groups detailed tools under parent-readable sections", async () => {
     await act(async () => {
       root.render(<ParentHome profile={profile} onLock={() => {}} />);
