@@ -82,6 +82,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
 
   const scopedProgress =
     loadedProfileId === profile.id && progressStatus === "ready" ? progress : null;
+  const progressLoadFailed = loadedProfileId === profile.id && progressStatus === "error";
 
   const nextSuggestion = useMemo(() => {
     if (!scopedProgress) return null;
@@ -101,12 +102,25 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
   const flagCount = loadedFlagProfileId === profile.id ? flags.length : 0;
   const isCheckingFlags = flagStatus === "loading" || loadedFlagProfileId !== profile.id;
   const flagLoadFailed = loadedFlagProfileId === profile.id && flagStatus === "error";
-  const dreamLabel = dream ? dream.title_parent : (profile.currentDreamId ?? "No dream picked yet");
-  const overviewSentence = dream
-    ? `${profile.name} is working on ${dream.title_parent}.`
-    : `${profile.name} has not picked a dream yet.`;
+  const hasCurrentDream = Boolean(profile.currentDreamId);
+  const isLoadingDream = hasCurrentDream && !library && graphStatus !== "error";
+  const isMissingDream = hasCurrentDream && Boolean(library) && !dream;
+  const dreamLabel = dream
+    ? dream.title_parent
+    : isLoadingDream
+      ? "Loading dream..."
+      : (profile.currentDreamId ?? "No dream picked yet");
+  let overviewSentence = `${profile.name} has not picked a dream yet.`;
+  if (dream) overviewSentence = `${profile.name} is working on ${dream.title_parent}.`;
+  if (isLoadingDream) overviewSentence = `${profile.name}'s current dream is loading.`;
+  if (isMissingDream)
+    overviewSentence = `${profile.name}'s current dream is missing from the library.`;
+  const progressSummary = progressLoadFailed
+    ? "Progress could not be loaded."
+    : `${formatCount(projectCount, "saved project")} · ${masterySummary.mastered} of ${masterySummary.total} skills practiced with help or better.`;
 
   let nextFocusLabel = "Loading progress...";
+  if (progressLoadFailed) nextFocusLabel = "Could not check the next learning step.";
   if (nextSuggestion?.kind === "next-kp") nextFocusLabel = nextSuggestion.kp.title_parent;
   if (nextSuggestion?.kind === "all-done") nextFocusLabel = "This dream is shippable.";
   if (nextSuggestion?.kind === "freeform") nextFocusLabel = "Free build mode.";
@@ -123,7 +137,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
         ? `${formatCount(flagCount, "flagged message")} needs review.`
         : "No flagged messages need review.";
   const attentionCopy = flagLoadFailed
-    ? "Open Activity to retry loading the safety review list."
+    ? "Open Activity to inspect the safety review list."
     : flagCount > 0
       ? "Open Activity to inspect context or clear the flag."
       : "Activity still keeps session logs and transcript audit tools.";
@@ -172,8 +186,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
                 {overviewSentence}
               </h2>
               <p className="hb-parent-overview-copy">
-                {formatCount(projectCount, "saved project")} · {masterySummary.mastered} of{" "}
-                {masterySummary.total} skills practiced with help or better.
+                {progressSummary}
               </p>
             </div>
           </div>
@@ -206,7 +219,12 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
             currentDreamId={profile.currentDreamId ?? null}
             progress={scopedProgress}
           />
-          {progressStatus === "loading" || loadedProfileId !== profile.id ? (
+          {progressLoadFailed ? (
+            <section className="hb-parent-card">
+              <h2 className="hb-parent-section-title">Mastery</h2>
+              <p className="hb-parent-empty">Progress could not be loaded.</p>
+            </section>
+          ) : progressStatus === "loading" || loadedProfileId !== profile.id ? (
             <section className="hb-parent-card">
               <h2 className="hb-parent-section-title">Mastery</h2>
               <p className="hb-parent-empty">Loading progress...</p>

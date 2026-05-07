@@ -222,6 +222,53 @@ describe("ParentHome dashboard", () => {
     expect(host.textContent).not.toContain("No flagged messages need review.");
   });
 
+  it("does not describe a loading dream library as no dream picked", async () => {
+    useGraphStore.setState({ library: null, status: "loading" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Ada's current dream is loading.");
+    expect(host.textContent).toContain("Loading dream...");
+    expect(host.textContent).not.toContain("Ada has not picked a dream yet.");
+  });
+
+  it("reports when the current dream is missing from the library", async () => {
+    const missingDreamProfile = { ...profile, currentDreamId: "lost-dream" };
+
+    await act(async () => {
+      root.render(<ParentHome profile={missingDreamProfile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Ada's current dream is missing from the library.");
+    expect(host.textContent).toContain("lost-dream");
+    expect(host.textContent).not.toContain("Ada has not picked a dream yet.");
+  });
+
+  it("reports progress load failures instead of empty progress", async () => {
+    useProgressStore.setState({ progress: null, profileId: profile.id, status: "error" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Progress could not be loaded.");
+    expect(host.textContent).toContain("Could not check the next learning step.");
+    expect(host.textContent).not.toContain("0 saved projects");
+  });
+
+  it("does not promise that Activity retries failed flag loads", async () => {
+    useFlagStore.setState({ flags: [], profileId: profile.id, status: "error" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Open Activity to inspect the safety review list.");
+    expect(host.textContent).not.toContain("Open Activity to retry loading the safety review list.");
+  });
+
   it("groups detailed tools under parent-readable sections", async () => {
     await act(async () => {
       root.render(<ParentHome profile={profile} onLock={() => {}} />);
