@@ -103,10 +103,13 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
   const isCheckingFlags = flagStatus === "loading" || loadedFlagProfileId !== profile.id;
   const flagLoadFailed = loadedFlagProfileId === profile.id && flagStatus === "error";
   const hasCurrentDream = Boolean(profile.currentDreamId);
-  const isDreamLibraryUnavailable = hasCurrentDream && !library && graphStatus === "ready";
+  const isDreamLibraryUnavailable =
+    hasCurrentDream && !library && (graphStatus === "ready" || graphStatus === "error");
   const isLoadingDream =
     hasCurrentDream && !library && graphStatus !== "error" && graphStatus !== "ready";
   const isMissingDream = hasCurrentDream && Boolean(library) && !dream;
+  const isSkillMapLoading = !graph && graphStatus !== "ready" && graphStatus !== "error";
+  const isSkillMapUnavailable = !graph && (graphStatus === "ready" || graphStatus === "error");
   const dreamLabel = dream
     ? dream.title_parent
     : isDreamLibraryUnavailable
@@ -121,9 +124,12 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
     overviewSentence = `${profile.name}'s current dream could not be loaded.`;
   if (isMissingDream)
     overviewSentence = `${profile.name}'s current dream is missing from the library.`;
-  const progressSummary = progressLoadFailed
-    ? "Progress could not be loaded."
-    : `${formatCount(projectCount, "saved project")} · ${masterySummary.mastered} of ${masterySummary.total} skills practiced with help or better.`;
+  let progressSummary = `${formatCount(projectCount, "saved project")} · ${masterySummary.mastered} of ${masterySummary.total} skills practiced with help or better.`;
+  if (isSkillMapLoading)
+    progressSummary = `${formatCount(projectCount, "saved project")} · Skill map is loading.`;
+  if (isSkillMapUnavailable)
+    progressSummary = `${formatCount(projectCount, "saved project")} · Skill map could not be loaded.`;
+  if (progressLoadFailed) progressSummary = "Progress could not be loaded.";
 
   let nextFocusLabel = "Loading progress...";
   if (progressLoadFailed) nextFocusLabel = "Could not check the next learning step.";

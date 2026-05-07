@@ -260,6 +260,29 @@ describe("ParentHome dashboard", () => {
     expect(host.textContent).not.toContain("Ada's current dream is loading.");
   });
 
+  it("reports when the dream library load fails", async () => {
+    useGraphStore.setState({ library: null, status: "error" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Ada's current dream could not be loaded.");
+    expect(host.textContent).toContain("Dream library unavailable");
+    expect(host.textContent).not.toContain("Ada has not picked a dream yet.");
+  });
+
+  it("reports when the skill map is unavailable for the overview mastery summary", async () => {
+    useGraphStore.setState({ graph: null, status: "error" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Skill map could not be loaded.");
+    expect(host.textContent).not.toContain("0 of 0 skills practiced");
+  });
+
   it("reports progress load failures instead of empty progress", async () => {
     useProgressStore.setState({ progress: null, profileId: profile.id, status: "error" });
 
