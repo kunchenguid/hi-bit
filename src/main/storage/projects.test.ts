@@ -787,11 +787,12 @@ describe("projects storage", () => {
         let writeCount = 0;
         await writeProjectFile(paths, "snake", "index.html", "<!doctype html>");
         await writeProjectFile(paths, "snake", "snake.js", "// snake");
-        await waitFor(() =>
-          events.some((e) => e.filename === "index.html") &&
-          events.some((e) => e.filename === "snake.js")
-            ? true
-            : null,
+        await waitFor(
+          () =>
+            events.some((e) => e.filename === "index.html") &&
+            events.some((e) => e.filename === "snake.js")
+              ? true
+              : null,
           {
             beforeRetry: async () => {
               writeCount += 1;
