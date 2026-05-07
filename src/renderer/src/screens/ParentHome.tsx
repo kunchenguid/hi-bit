@@ -46,6 +46,7 @@ function formatCount(count: number, singular: string, plural = `${singular}s`): 
 
 export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps): JSX.Element {
   const [activeSection, setActiveSection] = useState<ParentSection>("overview");
+  const [parentChatDraft, setParentChatDraft] = useState("");
   const graph = useGraphStore((s) => s.graph);
   const library = useGraphStore((s) => s.library);
   const graphStatus = useGraphStore((s) => s.status);
@@ -83,6 +84,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
   const scopedProgress =
     loadedProfileId === profile.id && progressStatus === "ready" ? progress : null;
   const progressLoadFailed = loadedProfileId === profile.id && progressStatus === "error";
+  const isProgressLoading = !progressLoadFailed && !scopedProgress;
 
   const nextSuggestion = useMemo(() => {
     if (!scopedProgress) return null;
@@ -129,6 +131,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
     progressSummary = `${formatCount(projectCount, "saved project")} · Skill map is loading.`;
   if (isSkillMapUnavailable)
     progressSummary = `${formatCount(projectCount, "saved project")} · Skill map could not be loaded.`;
+  if (isProgressLoading) progressSummary = "Progress is loading.";
   if (progressLoadFailed) progressSummary = "Progress could not be loaded.";
 
   let nextFocusLabel = "Loading progress...";
@@ -285,6 +288,8 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
             profileId={profile.id}
             parentSessionId={profile.sessions.parent}
             kidName={profile.name}
+            draft={parentChatDraft}
+            onDraftChange={setParentChatDraft}
           />
         </div>
       ) : null}

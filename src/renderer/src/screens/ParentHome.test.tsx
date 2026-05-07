@@ -4,7 +4,7 @@ import type { ParentFlag } from "@shared/flag";
 import type { KnowledgeGraph, KnowledgePoint } from "@shared/knowledgeGraph";
 import type { Profile } from "@shared/profile";
 import type { Progress } from "@shared/progress";
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFlagStore } from "../state/flagStore";
@@ -17,7 +17,27 @@ vi.mock("./parent/ParentAudit", () => ({
   ParentAudit: () => <section>Audit detail</section>,
 }));
 vi.mock("./parent/ParentChat", () => ({
-  ParentChat: () => <section>Parent chat detail</section>,
+  ParentChat: ({
+    draft,
+    onDraftChange,
+  }: {
+    draft?: string;
+    onDraftChange?: (value: string) => void;
+  }) => {
+    const [localDraft, setLocalDraft] = useState("");
+    const value = draft ?? localDraft;
+    const setValue = onDraftChange ?? setLocalDraft;
+    return (
+      <section>
+        Parent chat detail
+        <input
+          aria-label="Parent directive draft"
+          value={value}
+          onInput={(event) => setValue(event.currentTarget.value)}
+        />
+      </section>
+    );
+  },
 }));
 vi.mock("./parent/ParentDirectivesOverview", () => ({
   ParentDirectivesOverview: () => <section>Directives detail</section>,
@@ -206,11 +226,22 @@ describe("ParentHome dashboard", () => {
     });
 
     expect(host.textContent).toContain("Loading progress...");
-    expect(host.textContent).toContain(
-      "0 saved projects · 0 of 1 skills practiced with help or better.",
-    );
+    expect(host.textContent).toContain("Progress is loading.");
     expect(host.textContent).not.toContain("CSS spacing and layout");
     expect(host.textContent).not.toContain("1 saved project");
+    expect(host.textContent).not.toContain("0 saved projects");
+  });
+
+  it("summarizes loading progress instead of empty progress", async () => {
+    useProgressStore.setState({ progress: null, profileId: profile.id, status: "loading" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Progress is loading.");
+    expect(host.textContent).not.toContain("0 saved projects");
+    expect(host.textContent).not.toContain("0 of 1 skills practiced");
   });
 
   it("reports when flagged message status cannot be checked", async () => {
@@ -366,5 +397,42 @@ describe("ParentHome dashboard", () => {
     expect(host.textContent).toContain("Parent chat detail");
     expect(host.textContent).toContain("Directives detail");
     expect(host.textContent).not.toContain("Mastery detail");
+  });
+
+  it("keeps an unsent parent directive draft across tab switches", async () => {
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    const guidanceButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Guidance",
+    );
+    await act(async () => {
+      guidanceButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const draftInput = host.querySelector<HTMLInputElement>(
+      'input[aria-label="Parent directive draft"]',
+    );
+    await act(async () => {
+      if (draftInput) {
+        draftInput.value = "Focus on CSS";
+        draftInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+
+    const overviewButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Overview",
+    );
+    await act(async () => {
+      overviewButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      guidanceButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(
+      host.querySelector<HTMLInputElement>('input[aria-label="Parent directive draft"]')?.value,
+    ).toBe("Focus on CSS");
   });
 });
