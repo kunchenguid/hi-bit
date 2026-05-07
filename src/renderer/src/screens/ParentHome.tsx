@@ -103,16 +103,22 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
   const isCheckingFlags = flagStatus === "loading" || loadedFlagProfileId !== profile.id;
   const flagLoadFailed = loadedFlagProfileId === profile.id && flagStatus === "error";
   const hasCurrentDream = Boolean(profile.currentDreamId);
-  const isLoadingDream = hasCurrentDream && !library && graphStatus !== "error";
+  const isDreamLibraryUnavailable = hasCurrentDream && !library && graphStatus === "ready";
+  const isLoadingDream =
+    hasCurrentDream && !library && graphStatus !== "error" && graphStatus !== "ready";
   const isMissingDream = hasCurrentDream && Boolean(library) && !dream;
   const dreamLabel = dream
     ? dream.title_parent
-    : isLoadingDream
-      ? "Loading dream..."
-      : (profile.currentDreamId ?? "No dream picked yet");
+    : isDreamLibraryUnavailable
+      ? "Dream library unavailable"
+      : isLoadingDream
+        ? "Loading dream..."
+        : (profile.currentDreamId ?? "No dream picked yet");
   let overviewSentence = `${profile.name} has not picked a dream yet.`;
   if (dream) overviewSentence = `${profile.name} is working on ${dream.title_parent}.`;
   if (isLoadingDream) overviewSentence = `${profile.name}'s current dream is loading.`;
+  if (isDreamLibraryUnavailable)
+    overviewSentence = `${profile.name}'s current dream could not be loaded.`;
   if (isMissingDream)
     overviewSentence = `${profile.name}'s current dream is missing from the library.`;
   const progressSummary = progressLoadFailed
@@ -185,9 +191,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
               <h2 id="hb-parent-overview-title" className="hb-parent-overview-title">
                 {overviewSentence}
               </h2>
-              <p className="hb-parent-overview-copy">
-                {progressSummary}
-              </p>
+              <p className="hb-parent-overview-copy">{progressSummary}</p>
             </div>
           </div>
 
@@ -213,12 +217,19 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
 
       {activeSection === "learning" ? (
         <div className="hb-parent-section-stack">
-          <ParentNextKp
-            graph={graph}
-            library={library}
-            currentDreamId={profile.currentDreamId ?? null}
-            progress={scopedProgress}
-          />
+          {progressLoadFailed ? (
+            <section className="hb-parent-card">
+              <h2 className="hb-parent-section-title">Suggested next focus</h2>
+              <p className="hb-parent-empty">Could not check the next learning step.</p>
+            </section>
+          ) : (
+            <ParentNextKp
+              graph={graph}
+              library={library}
+              currentDreamId={profile.currentDreamId ?? null}
+              progress={scopedProgress}
+            />
+          )}
           {progressLoadFailed ? (
             <section className="hb-parent-card">
               <h2 className="hb-parent-section-title">Mastery</h2>

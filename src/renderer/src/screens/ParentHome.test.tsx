@@ -32,7 +32,9 @@ vi.mock("./parent/ParentMasteryGrid", () => ({
   ParentMasteryGrid: () => <section>Mastery detail</section>,
 }));
 vi.mock("./parent/ParentNextKp", () => ({
-  ParentNextKp: () => <section>Next KP detail</section>,
+  ParentNextKp: ({ progress }: { progress: Progress | null }) => (
+    <section>{progress ? "Next KP detail" : "Loading progress..."}</section>
+  ),
 }));
 vi.mock("./parent/ParentProjectsReview", () => ({
   ParentProjectsReview: () => <section>Projects detail</section>,
@@ -246,6 +248,18 @@ describe("ParentHome dashboard", () => {
     expect(host.textContent).not.toContain("Ada has not picked a dream yet.");
   });
 
+  it("reports when the dream library is unavailable", async () => {
+    useGraphStore.setState({ library: null, status: "ready" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Ada's current dream could not be loaded.");
+    expect(host.textContent).toContain("Dream library unavailable");
+    expect(host.textContent).not.toContain("Ada's current dream is loading.");
+  });
+
   it("reports progress load failures instead of empty progress", async () => {
     useProgressStore.setState({ progress: null, profileId: profile.id, status: "error" });
 
@@ -266,7 +280,28 @@ describe("ParentHome dashboard", () => {
     });
 
     expect(host.textContent).toContain("Open Activity to inspect the safety review list.");
-    expect(host.textContent).not.toContain("Open Activity to retry loading the safety review list.");
+    expect(host.textContent).not.toContain(
+      "Open Activity to retry loading the safety review list.",
+    );
+  });
+
+  it("reports progress load failures in the learning next focus card", async () => {
+    useProgressStore.setState({ progress: null, profileId: profile.id, status: "error" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    const learningButton = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Learning",
+    );
+
+    await act(async () => {
+      learningButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Could not check the next learning step.");
+    expect(host.textContent).not.toContain("Loading progress...");
   });
 
   it("groups detailed tools under parent-readable sections", async () => {
