@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
+import { type CursorMarkerRequest, type SendMessageResult, visiblePromptText } from "@shared/chat";
 import type { AgentId, HiBitConfig } from "@shared/config";
 import type { KnowledgePointStatus } from "@shared/progress";
 import { collectRequiredKps, pickNextKP } from "@shared/scheduler";
@@ -172,7 +172,7 @@ async function sendMessage(
       role,
       sessionId,
       kind: "user_message",
-      text: prompt,
+      text: visiblePromptText(prompt),
     });
 
     const streamFilter = opts.onDelta ? createHiBitControlStreamFilter(opts.onDelta) : null;

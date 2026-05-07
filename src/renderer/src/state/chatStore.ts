@@ -1,4 +1,4 @@
-import type { SendMessageResult } from "@shared/chat";
+import { promptWithUiContext, type SendMessageResult } from "@shared/chat";
 import { isLearnerActivityType } from "@shared/learnerActivity";
 import type { TranscriptEvent } from "@shared/transcript";
 import { create } from "zustand";
@@ -129,12 +129,6 @@ async function sendKidMessageWithTimeout(
   } finally {
     if (timer) clearTimeout(timer);
   }
-}
-
-function promptWithUiContext(prompt: string, uiContext?: string): string {
-  const trimmedContext = uiContext?.trim();
-  if (!trimmedContext) return prompt;
-  return `<hi-bit:ui-context>\n${trimmedContext}\n</hi-bit:ui-context>\n\n${prompt}`;
 }
 
 function expectedActionFromResult(result: SendMessageResult): ExpectedLearnerAction | null {

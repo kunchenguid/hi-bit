@@ -170,6 +170,29 @@ describe("ACP-backed chat", () => {
     expect(log[0]).not.toHaveProperty("tokensOutput");
   });
 
+  it("keeps hidden UI context out of persisted kid user messages", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 8 });
+    const { runtimeFactory, prompts } = runtimeFactoryFor([{ text: "Sure." }]);
+
+    await sendKidMessage({
+      layout,
+      config,
+      profileId: profile.id,
+      prompt: [
+        "<hi-bit:ui-context>",
+        "The editor is already open next to chat.",
+        "</hi-bit:ui-context>",
+        "",
+        "yes",
+      ].join("\n"),
+      runtimeFactory,
+    });
+
+    expect(prompts[0]).toContain("The editor is already open next to chat.");
+    const events = await readTranscript(profilePathsFor(layout, profile.id), profile.sessions.kid);
+    expect(events[0]?.text).toBe("yes");
+  });
+
   it("records an aborted clean ACP turn as cancelled", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 8 });
     const controller = new AbortController();

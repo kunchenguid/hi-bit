@@ -32,6 +32,34 @@ describe("buildKidChatHistory", () => {
     ]);
   });
 
+  it("hides persisted UI context from kid text bubbles", () => {
+    const events = [
+      mkEvent({
+        timestamp: "t1",
+        kind: "user_message",
+        text: [
+          "<hi-bit:ui-context>",
+          "The editor is already open next to chat.",
+          "</hi-bit:ui-context>",
+          "",
+          "yes",
+        ].join("\n"),
+      }),
+    ];
+
+    const result = buildKidChatHistory(events);
+
+    expect(result).toEqual([
+      {
+        id: "t1-u",
+        role: "kid",
+        kind: "text",
+        text: "yes",
+        timestamp: "t1",
+      },
+    ]);
+  });
+
   it("restores automatic save prompts as divider messages when rebuilding kid chat history", () => {
     const events: TranscriptEvent[] = [
       mkEvent({

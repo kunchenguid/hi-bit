@@ -1,3 +1,4 @@
+import { visiblePromptText } from "@shared/chat";
 import type { TranscriptEvent } from "@shared/transcript";
 import {
   type ChatMessage,
@@ -27,7 +28,7 @@ function toChatMessage(event: TranscriptEvent): ChatMessage | null {
       id: `${event.timestamp}-u`,
       role: "kid",
       kind: "text",
-      text: event.text,
+      text: visiblePromptText(event.text),
       timestamp: event.timestamp,
     };
   }
