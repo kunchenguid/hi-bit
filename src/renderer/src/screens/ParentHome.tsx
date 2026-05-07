@@ -140,6 +140,13 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
   if (nextSuggestion?.kind === "unknown-dream") nextFocusLabel = "The current dream is missing.";
   if (nextSuggestion?.kind === "unresolved-prereqs")
     nextFocusLabel = "Some required skills are missing.";
+  if (nextSuggestion?.kind === "loading") {
+    nextFocusLabel = isSkillMapUnavailable
+      ? "Skill map could not be loaded."
+      : isDreamLibraryUnavailable
+        ? "Dream library unavailable."
+        : "Skill map is loading.";
+  }
 
   const attentionLabel = isCheckingFlags
     ? "Checking flagged messages..."

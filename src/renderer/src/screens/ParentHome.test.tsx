@@ -283,6 +283,17 @@ describe("ParentHome dashboard", () => {
     expect(host.textContent).not.toContain("0 of 0 skills practiced");
   });
 
+  it("reports unavailable skill map state for the overview next learning step", async () => {
+    useGraphStore.setState({ graph: null, status: "error" });
+
+    await act(async () => {
+      root.render(<ParentHome profile={profile} onLock={() => {}} />);
+    });
+
+    expect(host.textContent).toContain("Skill map could not be loaded.");
+    expect(host.textContent).not.toContain("Loading progress...");
+  });
+
   it("reports progress load failures instead of empty progress", async () => {
     useProgressStore.setState({ progress: null, profileId: profile.id, status: "error" });
 
