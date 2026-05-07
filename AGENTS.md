@@ -17,7 +17,7 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
   Regular ACP turns reuse a warm runtime keyed by session; helper turns discard their runtime state.
   Warm runtimes are closed when a kid session ends, a profile is deleted, a dream change rotates the kid session, the default agent changes, or the app quits.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
-- `src/renderer/` - the React UI. `screens/` holds top-level views (kid home, dream picker, tutor chat, editor + live preview, parent gate, parent home with audit/mastery/directives/settings). `state/` is Zustand stores; `editor/` and `preview/` are the CodeMirror + iframe pieces.
+- `src/renderer/` - the React UI. `screens/` holds top-level views (kid home, dream picker, tutor chat, editor + live preview, parent gate, parent dashboard with Overview, Learning, Projects, Guidance, Activity, and Settings tabs). `state/` is Zustand stores; `editor/` and `preview/` are the CodeMirror + iframe pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
 - `graph/nodes/` - hand-authored knowledge points. `graph/dreams/` - hand-authored dream projects. `src/main/storage/graphSeed.ts` mirrors shipped YAML into the user's profile dir on startup, including overwriting changed bundled files and deleting stale bundled YAML.
 - `prompts/bit.md` - Bit's system prompt. Product content, not code; edit it like you'd edit docs.
