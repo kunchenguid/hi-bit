@@ -61,11 +61,10 @@ const PLAYGROUND_DREAM_ID = "playground";
 
 type Props = {
   profile: Profile;
-  onCancel?: () => void;
   onPicked?: () => void;
 };
 
-export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element {
+export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
   const status = useGraphStore((s) => s.status);
   const error = useGraphStore((s) => s.error);
   const library = useGraphStore((s) => s.library);
@@ -98,16 +97,11 @@ export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element
       if (query.length > 0) {
         e.preventDefault();
         setQuery("");
-        return;
-      }
-      if (onCancel) {
-        e.preventDefault();
-        onCancel();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [picking, onCancel, query]);
+  }, [picking, query]);
 
   const isFirstTimer = useMemo(() => isFirstDreamPicker(progress), [progress]);
 
@@ -243,16 +237,6 @@ export function DreamPicker({ profile, onCancel, onPicked }: Props): JSX.Element
               Each dream is a real web project. Bit will teach you what you need as you go.
             </p>
           </div>
-          {onCancel ? (
-            <button
-              type="button"
-              className="hb-btn hb-btn-ghost"
-              onClick={onCancel}
-              disabled={picking !== null}
-            >
-              Keep current dream
-            </button>
-          ) : null}
         </div>
 
         {pickError ? <p className="hb-form-err">{pickError}</p> : null}

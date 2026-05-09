@@ -116,14 +116,7 @@ describe("KidBuildWorkspace cursor target", () => {
 
   it("does not apply a cursor marker after the active buffer changes", async () => {
     await act(async () => {
-      root.render(
-        <KidBuildWorkspace
-          profile={profile}
-          onEnterParentMode={() => {}}
-          onSwitchDream={() => {}}
-          onOpenProjects={() => {}}
-        />,
-      );
+      root.render(<KidBuildWorkspace profile={profile} />);
     });
 
     const button = Array.from(host.querySelectorAll("button")).find(
@@ -164,14 +157,7 @@ describe("KidBuildWorkspace cursor target", () => {
     });
 
     await act(async () => {
-      root.render(
-        <KidBuildWorkspace
-          profile={profile}
-          onEnterParentMode={() => {}}
-          onSwitchDream={() => {}}
-          onOpenProjects={() => {}}
-        />,
-      );
+      root.render(<KidBuildWorkspace profile={profile} />);
     });
 
     const button = Array.from(host.querySelectorAll("button")).find(
@@ -205,14 +191,7 @@ describe("KidBuildWorkspace cursor target", () => {
     });
 
     await act(async () => {
-      root.render(
-        <KidBuildWorkspace
-          profile={profile}
-          onEnterParentMode={() => {}}
-          onSwitchDream={() => {}}
-          onOpenProjects={() => {}}
-        />,
-      );
+      root.render(<KidBuildWorkspace profile={profile} />);
     });
 
     const button = Array.from(host.querySelectorAll("button")).find(
@@ -239,14 +218,7 @@ describe("KidBuildWorkspace cursor target", () => {
     useChatStore.setState({ send });
 
     await act(async () => {
-      root.render(
-        <KidBuildWorkspace
-          profile={profile}
-          onEnterParentMode={() => {}}
-          onSwitchDream={() => {}}
-          onOpenProjects={() => {}}
-        />,
-      );
+      root.render(<KidBuildWorkspace profile={profile} />);
     });
 
     const openEditorButton = Array.from(host.querySelectorAll("button")).find(
@@ -290,14 +262,7 @@ describe("KidBuildWorkspace cursor target", () => {
     useChatStore.setState({ sendLearnerActivity });
 
     await act(async () => {
-      root.render(
-        <KidBuildWorkspace
-          profile={profile}
-          onEnterParentMode={() => {}}
-          onSwitchDream={() => {}}
-          onOpenProjects={() => {}}
-        />,
-      );
+      root.render(<KidBuildWorkspace profile={profile} />);
     });
 
     const openEditorButton = Array.from(host.querySelectorAll("button")).find(
@@ -317,14 +282,7 @@ describe("KidBuildWorkspace cursor target", () => {
     useChatStore.setState({ expectLearnerAction });
 
     await act(async () => {
-      root.render(
-        <KidBuildWorkspace
-          profile={{ ...profile, currentDreamId: "show-me-around" }}
-          onEnterParentMode={() => {}}
-          onSwitchDream={() => {}}
-          onOpenProjects={() => {}}
-        />,
-      );
+      root.render(<KidBuildWorkspace profile={{ ...profile, currentDreamId: "show-me-around" }} />);
     });
 
     expect(expectLearnerAction).toHaveBeenCalledWith({

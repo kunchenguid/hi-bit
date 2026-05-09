@@ -13,9 +13,6 @@ import { KidChat } from "./KidChat";
 
 type Props = {
   profile: Profile;
-  onEnterParentMode: () => void;
-  onSwitchDream: () => void;
-  onOpenProjects: () => void;
 };
 
 type PendingCursorRequest = { snippet: string; latestBitMessage: string };
@@ -29,12 +26,7 @@ function findExactSnippetPosition(editorContent: string, snippet: string): numbe
   return position;
 }
 
-export function KidBuildWorkspace({
-  profile,
-  onEnterParentMode,
-  onSwitchDream,
-  onOpenProjects,
-}: Props): JSX.Element {
+export function KidBuildWorkspace({ profile }: Props): JSX.Element {
   const [editorRevealed, setEditorRevealed] = useState(false);
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>("code");
   const [cursorTarget, setCursorTarget] = useState<EditorCursorTarget | null>(null);
@@ -197,9 +189,6 @@ export function KidBuildWorkspace({
     return (
       <KidChat
         profile={profile}
-        onEnterParentMode={onEnterParentMode}
-        onSwitchDream={onSwitchDream}
-        onOpenProjects={onOpenProjects}
         onOpenEditor={handleOpenEditor}
         onShowCursorTarget={handleShowCursorTarget}
         cursorTargetStatus={cursorTargetStatus}
@@ -222,9 +211,6 @@ export function KidBuildWorkspace({
       <aside className="hb-build-chat" aria-label="Chat with Bit">
         <KidChat
           profile={profile}
-          onEnterParentMode={onEnterParentMode}
-          onSwitchDream={onSwitchDream}
-          onOpenProjects={onOpenProjects}
           onShowCursorTarget={handleShowCursorTarget}
           cursorTargetStatus={cursorTargetStatus}
           cursorTargetError={cursorTargetError}

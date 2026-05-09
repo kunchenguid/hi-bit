@@ -29,9 +29,6 @@ type Props = {
   profile: Profile;
   onOpenEditor?: () => void;
   onShowCursorTarget?: (snippet: string, latestBitMessage: string) => Promise<void>;
-  onEnterParentMode?: () => void;
-  onSwitchDream?: () => void;
-  onOpenProjects?: () => void;
   cursorTargetStatus?: "idle" | "locating";
   cursorTargetError?: string | null;
   docked?: boolean;
@@ -42,9 +39,6 @@ export function KidChat({
   profile,
   onOpenEditor,
   onShowCursorTarget,
-  onEnterParentMode,
-  onSwitchDream,
-  onOpenProjects,
   cursorTargetStatus = "idle",
   cursorTargetError = null,
   docked = false,
@@ -252,17 +246,9 @@ export function KidChat({
     <Shell className={shellClass}>
       <header className="hb-chat-header">
         <div className="hb-chat-heading">
-          {docked ? null : <div className="t-pixel hb-gate-kicker">Bit</div>}
-          <h1 className="hb-chat-title">
-            {docked ? (
-              "Bit"
-            ) : (
-              <>
-                {profile.name} and Bit
-                {dream ? <span className="hb-chat-dream"> - {dream.title_kid}</span> : null}
-              </>
-            )}
-          </h1>
+          {docked ? null : (
+            <h1 className="hb-chat-title">{dream ? dream.title_kid : "Chat with Bit"}</h1>
+          )}
           {showLearningStrip ? (
             <div className="hb-chat-learning-strip">
               {visibleSessionLearned ? (
@@ -318,42 +304,13 @@ export function KidChat({
             </div>
           ) : null}
         </div>
-        <div className="hb-chat-header-actions">
-          <div className="hb-chat-header-chrome">
-            {onSwitchDream ? (
-              <button
-                type="button"
-                className="hb-btn hb-btn-ghost hb-btn-sm"
-                onClick={onSwitchDream}
-              >
-                Switch dream
-              </button>
-            ) : null}
-            {onOpenProjects ? (
-              <button
-                type="button"
-                className="hb-btn hb-btn-ghost hb-btn-sm"
-                onClick={onOpenProjects}
-              >
-                My projects
-              </button>
-            ) : null}
-            {onEnterParentMode ? (
-              <button
-                type="button"
-                className="hb-btn hb-btn-ghost hb-btn-sm hb-btn-parent"
-                onClick={onEnterParentMode}
-              >
-                For grown-ups
-              </button>
-            ) : null}
-          </div>
-          {onOpenEditor && !docked ? (
+        {onOpenEditor && !docked ? (
+          <div className="hb-chat-header-actions">
             <button type="button" className="hb-btn hb-btn-primary" onClick={onOpenEditor}>
               Open editor
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </header>
 
       <div className="hb-chat-messages" ref={listRef}>
