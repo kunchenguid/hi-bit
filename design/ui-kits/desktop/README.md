@@ -4,7 +4,7 @@ The Electron app recreated as an interactive in-browser prototype. Five surfaces
 
 - **Home** — Boo greets the learner, a "continue" card resumes the current lesson, a rainbow grid picks a subject.
 - **Tutor** — Boo chat view. Try typing `let` to see a correct-answer flow; `var` or `const` for gentle redirection; anything else for a nudge. XP is awarded on success.
-- **Code** — code editor + live preview with Code, Page, and Split views. "See my page" saves dirty buffers before running HTML/CSS/JS in an iframe; preview can be refreshed or reloaded.
+- **Code** — code editor + live preview with Code, Page, and Split views. "See my page" formats and saves dirty HTML/CSS/JS buffers before running them in an iframe; preview can be refreshed or reloaded.
 - **Lessons / Trophies** — stubbed simple views (real product would expand).
 
 The production parent dashboard uses a tabbed layout: Overview summarizes the current dream, next learning step, saved projects, mastery, and flagged-message attention state; Learning holds suggested focus, mastery, and dream history; Projects reviews saved work; Guidance holds parent directives and parent chat; Activity holds flags, session logs, and audit tools; Settings holds profile controls.

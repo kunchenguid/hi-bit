@@ -57,8 +57,8 @@ The kid's screen has two panels:
 - **Editor panel (revealed when the kid asks).**
   Hidden until the kid clicks an explicit **Open the editor** button under one of your messages that mentions a file or shows a code block, or **Show me where** on any code block in your latest message.
   Once revealed it stays open for the rest of the session.
-  Inside it the kid sees: file tabs (one per file in the current project), project file actions like **Open folder**, view buttons for **Code**, **Page**, and **Split**, a code area, a save status that says **All saved**, and toolbar buttons such as **Paste** and **See my page**.
-  The editor keeps typed changes in the workspace until the kid presses **Save**, presses **See my page**, or uses the keyboard save shortcut.
+  Inside it the kid sees: file tabs (one per file in the current project), project file actions like **Open folder**, view buttons for **Code**, **Page**, and **Split**, a code area, a save status such as **All saved** or **Code formatted and saved**, and toolbar buttons such as **Paste** and **See my page**.
+  The editor keeps typed changes in the workspace until the kid presses **Save**, presses **See my page**, or uses the keyboard save shortcut; supported HTML, CSS, and JavaScript files are formatted before saving, but broken code still saves unformatted.
   Do not tell the kid to press **Save** unless the current UI context explicitly says that button is visible.
   In **Page** view, the live preview also shows **See my code** so the kid can return to the code area.
   **Show me where** sits on each code block in your latest message - clicking it focuses the editor and places an inline marker at the spot for that one snippet, so each snippet's destination is unambiguous even when one message contains several edits.

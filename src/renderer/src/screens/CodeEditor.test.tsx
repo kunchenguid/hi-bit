@@ -12,12 +12,19 @@ import { useProjectsStore } from "../state/projectsStore";
 import { CodeEditor } from "./CodeEditor";
 
 const renderedMarkers: Array<CodeMirrorCursorMarker | null | undefined> = [];
+const formatCodeMock = vi.hoisted(() =>
+  vi.fn(async (_filename: string, content: string) => ({ content, changed: false })),
+);
 
 vi.mock("../editor/CodeMirrorEditor", () => ({
   CodeMirrorEditor: ({ cursorMarker }: { cursorMarker?: CodeMirrorCursorMarker | null }) => {
     renderedMarkers.push(cursorMarker);
     return <div data-testid="code-mirror" />;
   },
+}));
+
+vi.mock("../editor/formatCode", () => ({
+  formatCode: formatCodeMock,
 }));
 
 const profile: Profile = {
@@ -40,6 +47,11 @@ describe("CodeEditor cursor marker", () => {
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     renderedMarkers.length = 0;
+    formatCodeMock.mockReset();
+    formatCodeMock.mockImplementation(async (_filename: string, content: string) => ({
+      content,
+      changed: false,
+    }));
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -176,6 +188,47 @@ describe("CodeEditor cursor marker", () => {
       profile.currentDreamId,
       "index.html",
       "<h1>Edited</h1>",
+    );
+  });
+
+  it("formats dirty files before running the preview", async () => {
+    const writeProjectFile = vi.fn(async () => undefined);
+    window.hibit.writeProjectFile = writeProjectFile;
+    formatCodeMock.mockImplementation(async (filename: string, content: string) =>
+      filename === "index.html"
+        ? { content: "<h1>Ada</h1>\n", changed: true }
+        : { content, changed: false },
+    );
+    useProjectsStore.setState({
+      activeFileName: "index.html",
+      buffers: [
+        {
+          name: "index.html",
+          savedContent: "<h1>Saved</h1>",
+          content: "<h1>Ada</h1>",
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const runButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "See my page",
+    );
+    if (!runButton) throw new Error("See my page button was not rendered");
+
+    await act(async () => {
+      runButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(formatCodeMock).toHaveBeenCalledWith("index.html", "<h1>Ada</h1>");
+    expect(writeProjectFile).toHaveBeenCalledWith(
+      profile.id,
+      profile.currentDreamId,
+      "index.html",
+      "<h1>Ada</h1>\n",
     );
   });
 
@@ -583,6 +636,79 @@ describe("CodeEditor cursor marker", () => {
     );
     expect(host.querySelector('[aria-label="unsaved changes"]')).toBeNull();
     expect(host.textContent).toContain("All saved");
+  });
+
+  it("shows 'Code formatted and saved' after clicking Save, and reverts to 'All saved' when the user edits again", async () => {
+    useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada</h1>");
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    expect(host.textContent).not.toContain("Code formatted and saved");
+
+    const saveButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Save",
+    );
+    if (!saveButton) throw new Error("Save button was not rendered");
+
+    await act(async () => {
+      saveButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Code formatted and saved");
+    expect(host.textContent).not.toMatch(/✓\s*All saved/);
+
+    await act(async () => {
+      useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada Lovelace</h1>");
+    });
+
+    await act(async () => {
+      const saveAgain = Array.from(host.querySelectorAll("button")).find(
+        (el) => el.textContent === "Save",
+      );
+      if (!saveAgain) throw new Error("Save button did not reappear after editing");
+      saveAgain.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Code formatted and saved");
+  });
+
+  it("does not overwrite newer edits when formatting finishes during Save", async () => {
+    let finishFormatting: ((value: { content: string; changed: boolean }) => void) | null = null;
+    formatCodeMock.mockImplementation(
+      () =>
+        new Promise<{ content: string; changed: boolean }>((resolve) => {
+          finishFormatting = resolve;
+        }),
+    );
+    useProjectsStore.getState().updateBuffer("index.html", "<h1>Old</h1>");
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    const saveButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Save",
+    );
+    if (!saveButton) throw new Error("Save button was not rendered");
+
+    await act(async () => {
+      saveButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    await act(async () => {
+      useProjectsStore.getState().updateBuffer("index.html", "<h1>New</h1>");
+      finishFormatting?.({ content: "<h1>Old</h1>\n", changed: true });
+    });
+
+    expect(window.hibit.writeProjectFile).toHaveBeenCalledWith(
+      profile.id,
+      profile.currentDreamId,
+      "index.html",
+      "<h1>New</h1>",
+    );
+    expect(useProjectsStore.getState().buffers[0]?.content).toBe("<h1>New</h1>");
   });
 
   it("tells Bit a saved preview is hidden when saving from Code view", async () => {
