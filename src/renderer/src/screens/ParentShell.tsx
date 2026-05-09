@@ -39,10 +39,12 @@ export function ParentShell(): JSX.Element {
   let view: ParentShellView;
   if (!unlocked) {
     view = "gate";
-  } else if (!defaultAgent) {
-    view = "harness";
   } else if (creating) {
     view = "create";
+  } else if (profiles.length === 0) {
+    view = "picker";
+  } else if (!defaultAgent) {
+    view = "harness";
   } else if (managingProfileId) {
     view = "home";
   } else {
@@ -133,9 +135,11 @@ export function ParentShell(): JSX.Element {
             >
               + Add a new learner
             </button>
-            <button type="button" className="hb-btn hb-btn-ghost" onClick={exitParent}>
-              Exit parent mode
-            </button>
+            {canExitParent ? (
+              <button type="button" className="hb-btn hb-btn-ghost" onClick={exitParent}>
+                Exit parent mode
+              </button>
+            ) : null}
           </div>
         </div>
       </main>

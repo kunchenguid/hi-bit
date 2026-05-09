@@ -220,4 +220,27 @@ describe("ParentShell", () => {
     );
     expect(add).toBeDefined();
   });
+
+  it("hides parent picker exit when no profiles force parent mode", async () => {
+    useProfileStore.setState({ profiles: [] });
+    await act(async () => {
+      root.render(<ParentShell />);
+    });
+    await unlock();
+
+    expect(host.textContent).toContain("Add your first learner.");
+    expect(host.textContent).not.toContain("Exit parent mode");
+  });
+
+  it("prompts for the first learner before agent setup on fresh installs", async () => {
+    useConfigStore.setState({ config: { version: 2 } });
+    useProfileStore.setState({ profiles: [] });
+    await act(async () => {
+      root.render(<ParentShell />);
+    });
+    await unlock();
+
+    expect(host.textContent).toContain("Add your first learner.");
+    expect(host.textContent).not.toContain("Pick your AI helper");
+  });
 });
