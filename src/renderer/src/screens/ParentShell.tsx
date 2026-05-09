@@ -34,6 +34,7 @@ export function ParentShell(): JSX.Element {
   }, [profileStatus, loadProfiles]);
 
   const unlocked = unlockedPin !== null;
+  const canExitParent = defaultAgent !== undefined && profiles.length > 0;
 
   let view: ParentShellView;
   if (!unlocked) {
@@ -49,7 +50,12 @@ export function ParentShell(): JSX.Element {
   }
 
   if (view === "gate") {
-    return <ParentGate onUnlock={(pin) => setUnlockedPin(pin)} onCancel={exitParent} />;
+    return (
+      <ParentGate
+        onUnlock={(pin) => setUnlockedPin(pin)}
+        onCancel={canExitParent ? exitParent : undefined}
+      />
+    );
   }
 
   if (view === "harness") {

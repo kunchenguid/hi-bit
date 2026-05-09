@@ -198,6 +198,16 @@ describe("ParentShell", () => {
     expect(host.textContent).toContain("Pick your AI helper");
   });
 
+  it("hides parent gate cancel when setup prerequisites force parent mode", async () => {
+    useConfigStore.setState({ config: { version: 2 } });
+    await act(async () => {
+      root.render(<ParentShell />);
+    });
+
+    expect(host.textContent).toContain("Enter your parent PIN.");
+    expect(host.textContent).not.toContain("Cancel");
+  });
+
   it("on first run with no profiles, prompts the parent to add a learner", async () => {
     useProfileStore.setState({ profiles: [] });
     await act(async () => {
