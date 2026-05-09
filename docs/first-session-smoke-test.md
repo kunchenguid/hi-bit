@@ -78,14 +78,15 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 
 - [ ] Bit leads the kid to the editor with a fill-in-the-blank or change-a-line task via `CodeEditor.tsx`.
 - [ ] When the latest Bit message includes fenced code blocks, each block shows its own `Show me where` button. Clicking one opens or focuses the editor as needed and displays a marker at the intended location for that snippet. A unique exact snippet match in the open file should place the marker locally without calling `window.hibit.requestCursorMarker`; non-exact or ambiguous matches should fall back to `requestCursorMarker`. Plain text instructions should not show this button.
-- [ ] Docked workspaces start in `Code` view. Typing in the editor updates the buffer; clicking `See my page` saves dirty buffers, renders via `buildPreviewSrcdoc` from `src/renderer/src/preview/buildPreview.ts`, switches to `Page` view, and shows the kid's actual change inside the iframe.
+- [ ] Docked workspaces start in `Code` view. Typing in the editor updates the buffer; clicking `See my page` formats supported dirty HTML/CSS/JS buffers, saves them, renders via `buildPreviewSrcdoc` from `src/renderer/src/preview/buildPreview.ts`, switches to `Page` view, and shows the kid's actual change inside the iframe.
 - [ ] In `Page` view, the preview shows `See my code`. Clicking it returns to `Code` view.
 - [ ] When Bit asks the kid to open the editor or switch workspace views, the hidden `<hi-bit:expect-action>` block does not appear in chat. Completing the matching action, such as `Open the editor`, `See my page`, or `Split`, sends a short Bit follow-up; unrelated clicks do not.
 - [ ] After clicking `See my page`, `progress.json` records `run-and-preview` as `saw_it` with the live-preview evidence, even if Bit did not emit a hidden progress block.
 - [ ] The `Split` view shows the code editor and live preview together. If `Show me where` is used while in `Page` view, the workspace switches to `Split` and shows the cursor marker, using Bit's snippet-specific label when provided and `Type here` as the fallback.
 - [ ] For the `show-me-around` starter tour, switching to `Split` after `See my page` promotes `run-and-preview` to `did_with_help`; Bit then treats the one-skill dream as complete and points the kid at `Switch dream`.
 - [ ] After another edit, clicking `Refresh` in the live preview header updates the iframe from the latest buffer content. Clicking `Refresh` again without editing reloads the iframe.
-- [ ] If another edit is still dirty, clicking Save writes it to `~/.hi-bit/profiles/<kid_id>/projects/<dream_slug>/` on disk. Confirm the file exists: `ls ~/.hi-bit/profiles/*/projects/`.
+- [ ] If another supported HTML/CSS/JS edit is still dirty, clicking Save formats it, writes it to `~/.hi-bit/profiles/<kid_id>/projects/<dream_slug>/` on disk, and shows `Code formatted and saved`. Confirm the file exists: `ls ~/.hi-bit/profiles/*/projects/`.
+- [ ] If broken supported code cannot be formatted, clicking Save still writes the unformatted code instead of blocking the save.
 - [ ] Open the saved file in an external editor or browser and verify it renders the same thing the in-app preview showed. This proves the artifact survives outside Hi-Bit, which is the PRD's shareability contract.
 
 ## Wrap-up
