@@ -17,7 +17,7 @@ import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
 import { useProgressStore } from "../state/progressStore";
 import { useProjectsStore } from "../state/projectsStore";
-import { buildSavedFilePrompt } from "../state/saveReaction";
+import { buildSavedFilePrompt, type SavedProjectFile } from "../state/saveReaction";
 import { validateNewFilename } from "./newFileValidation";
 import { computeNextTabIndex } from "./tablistNavigation";
 
@@ -171,11 +171,7 @@ export function CodeEditor({
     if (!activeBuffer) return;
     setSaveError(null);
     try {
-      const formatted = await formatCode(activeBuffer.name, activeBuffer.content);
-      if (formatted.changed) {
-        updateBuffer(activeBuffer.name, formatted.content);
-      }
-      const saved = await save(activeBuffer.name);
+      const saved = await formatAndSaveBuffer(activeBuffer.name);
       setLastFormattedSaveFile(activeBuffer.name);
       rebuildPreview();
       void sendSystemPrompt(profile.id, {
@@ -185,6 +181,19 @@ export function CodeEditor({
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Could not save the file.");
     }
+  }
+
+  async function formatAndSaveBuffer(filename: string): Promise<SavedProjectFile> {
+    const snapshot = useProjectsStore.getState().buffers.find((b) => b.name === filename);
+    if (!snapshot) {
+      return save(filename);
+    }
+    const formatted = await formatCode(snapshot.name, snapshot.content);
+    const current = useProjectsStore.getState().buffers.find((b) => b.name === filename);
+    if (current?.content === snapshot.content && formatted.changed) {
+      updateBuffer(filename, formatted.content);
+    }
+    return save(filename);
   }
 
   function rebuildPreview(): void {
@@ -311,7 +320,7 @@ export function CodeEditor({
       setSaveError(null);
       try {
         for (const filename of dirtyFileNames) {
-          await save(filename);
+          await formatAndSaveBuffer(filename);
         }
       } catch (e) {
         setSaveError(e instanceof Error ? e.message : "Could not save the file.");
