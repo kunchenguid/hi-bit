@@ -38,7 +38,9 @@ export function App(): JSX.Element {
   // re-load cycles afterwards. Re-fetches must not unmount the routed
   // screen, or any screen that calls loadX() on mount creates a loop.
   const bootstrapDoneRef = useRef(false);
-  if (configStatus === "ready" && profileStatus === "ready") {
+  const configBootstrapped = configStatus === "ready" || configStatus === "error";
+  const profilesBootstrapped = profileStatus === "ready" || profileStatus === "error";
+  if (configBootstrapped && profilesBootstrapped) {
     bootstrapDoneRef.current = true;
   }
 
@@ -48,6 +50,10 @@ export function App(): JSX.Element {
         <p className="hb-gate-loading">Waking Bit up...</p>
       </main>
     );
+  }
+
+  if (profileStatus === "error") {
+    return <ProfileGate />;
   }
 
   if (mode === "parent" || !defaultAgent || profiles.length === 0) {
