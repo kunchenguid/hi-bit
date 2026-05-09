@@ -30,11 +30,10 @@ const FILTER_LABELS: Record<KidProjectsFilter, string> = {
 
 type Props = {
   profile: Profile;
-  onCancel: () => void;
   onOpened: () => void;
 };
 
-export function KidProjects({ profile, onCancel, onOpened }: Props): JSX.Element {
+export function KidProjects({ profile, onOpened }: Props): JSX.Element {
   const progress = useProgressStore((s) => s.progress);
   const status = useProgressStore((s) => s.status);
   const error = useProgressStore((s) => s.error);
@@ -67,14 +66,11 @@ export function KidProjects({ profile, onCancel, onOpened }: Props): JSX.Element
       if (query.length > 0) {
         e.preventDefault();
         setQuery("");
-        return;
       }
-      e.preventDefault();
-      onCancel();
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [opening, onCancel, query]);
+  }, [opening, query]);
 
   const allEntries = useMemo<KidProjectListEntry[]>(
     () =>
@@ -118,14 +114,6 @@ export function KidProjects({ profile, onCancel, onOpened }: Props): JSX.Element
               Every dream you start lives here. Open one to keep working on it.
             </p>
           </div>
-          <button
-            type="button"
-            className="hb-btn hb-btn-ghost"
-            onClick={onCancel}
-            disabled={opening !== null}
-          >
-            Back
-          </button>
         </div>
 
         {status === "loading" || status === "idle" ? (

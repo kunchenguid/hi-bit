@@ -4,7 +4,7 @@ import { validatePinEntry, validatePinSetup } from "./parent/pinValidation";
 
 export type ParentGateProps = {
   onUnlock: (pin: string) => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 };
 
 export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element {
@@ -48,9 +48,11 @@ export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element
           <h1>Parent mode is still locked.</h1>
           <p className="hb-gate-sub">{configError ?? "Couldn't read parent PIN settings."}</p>
           <div className="hb-parent-actions">
-            <button type="button" className="hb-btn hb-btn-ghost" onClick={onCancel}>
-              Cancel
-            </button>
+            {onCancel ? (
+              <button type="button" className="hb-btn hb-btn-ghost" onClick={onCancel}>
+                Cancel
+              </button>
+            ) : null}
             <button type="button" className="hb-btn hb-btn-primary" onClick={() => void load()}>
               Try again
             </button>
@@ -61,7 +63,7 @@ export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLFormElement>): void {
-    if (e.key === "Escape" && !busy) {
+    if (e.key === "Escape" && !busy && onCancel) {
       e.preventDefault();
       onCancel();
     }
@@ -160,14 +162,16 @@ export function ParentGate({ onUnlock, onCancel }: ParentGateProps): JSX.Element
           {error ? <p className="hb-form-err">{error}</p> : null}
 
           <div className="hb-parent-actions">
-            <button
-              type="button"
-              className="hb-btn hb-btn-ghost"
-              onClick={onCancel}
-              disabled={busy}
-            >
-              Cancel
-            </button>
+            {onCancel ? (
+              <button
+                type="button"
+                className="hb-btn hb-btn-ghost"
+                onClick={onCancel}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+            ) : null}
             <button type="submit" className="hb-btn hb-btn-primary" disabled={busy}>
               {busy
                 ? hasParentPin

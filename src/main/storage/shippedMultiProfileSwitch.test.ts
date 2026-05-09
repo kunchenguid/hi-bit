@@ -18,7 +18,7 @@ describe("shipped multi-profile switch affordance", () => {
     expect(text).toMatch(/useProfileStore/);
   });
 
-  it("Switch profile button lives in the parent header next to Lock parent mode", async () => {
+  it("Switch profile button lives in the parent header next to the exit-parent-mode button", async () => {
     const text = await readFile(parentHomeSource, "utf8");
     const headerStart = text.indexOf("hb-parent-header");
     expect(headerStart).toBeGreaterThan(-1);
@@ -26,6 +26,6 @@ describe("shipped multi-profile switch affordance", () => {
     expect(headerEnd).toBeGreaterThan(headerStart);
     const header = text.slice(headerStart, headerEnd);
     expect(header).toMatch(/Switch profile/);
-    expect(header).toMatch(/Lock parent mode/);
+    expect(header).toMatch(/Exit parent mode/);
   });
 });

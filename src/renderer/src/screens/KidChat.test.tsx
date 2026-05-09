@@ -154,13 +154,13 @@ describe("KidChat cursor target action", () => {
     expect(mascot?.alt).toBe("");
   });
 
-  it("does not repeat the Bit label in docked mode", async () => {
+  it("omits the chat title in docked mode (KidShell nav already shows identity)", async () => {
     await act(async () => {
       root.render(<KidChat profile={profile} docked />);
     });
 
-    expect(host.querySelector(".hb-chat-title")?.textContent).toBe("Bit");
-    expect(host.querySelector(".hb-gate-kicker")?.textContent).not.toBe("Bit");
+    expect(host.querySelector(".hb-chat-title")).toBeNull();
+    expect(host.querySelector(".hb-gate-kicker")).toBeNull();
   });
 
   it("tells Bit when the editor is already open in docked mode", async () => {

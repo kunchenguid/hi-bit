@@ -181,7 +181,7 @@ export function ParentHome({ profile, onLock, onSwitchProfile }: ParentHomeProps
             Switch profile
           </button>
           <button type="button" className="hb-btn hb-btn-ghost" onClick={onLock}>
-            Lock parent mode
+            Exit parent mode
           </button>
         </div>
       </header>
