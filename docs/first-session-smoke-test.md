@@ -3,7 +3,7 @@
 A scripted walkthrough for validating the PRD §"The first session" 5-minute arc on a fresh install before shipping a release build.
 This is deliberately a manual checklist rather than an automated E2E harness: the arc crosses renderer UI, typed IPC, the selected ACP agent (Claude Code / Codex / OpenCode), the filesystem, and Bit's LLM - none of which a unit-test mock can faithfully cover end to end.
 
-Unit tests under `src/**/*.test.ts` already regression-pin the individual pieces (chat hydrate, profile create, preview build, workspace reducer, etc.). This doc is the composite pass that proves the pieces hold together as a real first session.
+Unit tests under `src/**/*.test.ts` already regression-pin the individual pieces (chat hydrate, profile create, preview build, shell routing, etc.). This doc is the composite pass that proves the pieces hold together as a real first session.
 
 Run this before every alpha release build and after any change that touches onboarding, Bit's system prompt, the chat store, or the dream picker.
 
@@ -22,16 +22,15 @@ Timings are ideal-case; the arc should close inside 5 minutes on a reasonably fa
 
 PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profile: name, age, interests, optional notes for Bit."
 
-- [ ] App launches to `ProfileGate` (no profiles yet, so `ParentGate.tsx` opens before the create form per `ProfileGate.tsx`).
+- [ ] App launches to `ParentShell.tsx` (no profiles yet, so `ParentGate.tsx` opens before the create form).
 - [ ] Set or enter the parent PIN in `ParentGate.tsx`; unlocking opens `CreateProfileForm.tsx` for learner creation.
 - [ ] `CreateProfileForm.tsx` accepts a name, age (3-18), comma-separated interests, optional notes for Bit. Fill in a real kid-shaped profile - e.g. Name "Ada", age 9, interests "cats, drawing, games", notes "already knows some HTML from school".
 - [ ] The new profile contains seeded `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
 - [ ] After the first agent turn, `.acpx-sessions/clean-agent-launch` contains generated launch specs for the selected provider.
   Codex specs include `ignore_user_config=true`; OpenCode specs use `--pure` and an isolated `XDG_CONFIG_HOME` under `.acpx-sessions/clean-agent-config`.
 - [ ] After submit, `HarnessSetup.tsx` shows Claude Code first with a "Recommended" badge (see `REFERENCE_AGENT` in `src/shared/config.ts`). Select the agent you installed above.
-- [ ] Returning to `ProfileGate.tsx` with at least one profile shows a `For grown-ups` entry point next to `+ Add a new learner`.
-- [ ] From kid sign-in, clicking `+ Add a new learner` requires unlocking `ParentGate.tsx` again before `CreateProfileForm.tsx` opens.
-- [ ] Clicking `For grown-ups`, unlocking `ParentGate.tsx`, and choosing `Open parent mode` opens `ParentHome.tsx` for that learner; `Switch profile` returns to the parent learner picker without dropping back to kid sign-in.
+- [ ] Returning to `ProfileGate.tsx` with at least one profile shows a `For grown-ups` entry point after the learner list.
+- [ ] Clicking `For grown-ups`, unlocking `ParentGate.tsx`, and choosing `Open parent mode` opens `ParentHome.tsx` for that learner inside `ParentShell.tsx`; `Switch profile` returns to the parent learner picker without dropping back to kid sign-in.
 - [ ] From the unlocked parent learner picker, clicking `+ Add a new learner` opens `CreateProfileForm.tsx` without another PIN prompt; submit or cancel returns to the parent learner picker.
 - [ ] `DreamPicker.tsx` opens next, with `playground` pinned first and labeled `Not sure yet?`.
   The `Great first dream` starter projects follow before interest-tag matches for a brand-new profile.
