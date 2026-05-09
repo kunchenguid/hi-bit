@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { CodeMirrorEditor, type CodeMirrorHandle } from "../editor/CodeMirrorEditor";
+import { formatCode } from "../editor/formatCode";
 import { buildPreviewSrcdoc } from "../preview/buildPreview";
 import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
@@ -93,6 +94,7 @@ export function CodeEditor({
   const [previewMissing, setPreviewMissing] = useState(false);
   const didAutoPreviewRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastFormattedSaveFile, setLastFormattedSaveFile] = useState<string | null>(null);
   const [openFolderError, setOpenFolderError] = useState<string | null>(null);
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [newFileStatus, setNewFileStatus] = useState<NewFileStatus>("closed");
@@ -169,7 +171,12 @@ export function CodeEditor({
     if (!activeBuffer) return;
     setSaveError(null);
     try {
+      const formatted = await formatCode(activeBuffer.name, activeBuffer.content);
+      if (formatted.changed) {
+        updateBuffer(activeBuffer.name, formatted.content);
+      }
       const saved = await save(activeBuffer.name);
+      setLastFormattedSaveFile(activeBuffer.name);
       rebuildPreview();
       void sendSystemPrompt(profile.id, {
         label: `Saved ${saved.filename}`,
@@ -534,6 +541,7 @@ export function CodeEditor({
                 value={activeBuffer.content}
                 onChange={(next) => {
                   if (cursorTarget?.filename === activeBuffer.name) onCursorTargetCleared?.();
+                  if (lastFormattedSaveFile === activeBuffer.name) setLastFormattedSaveFile(null);
                   updateBuffer(activeBuffer.name, next);
                 }}
                 onSave={() => {
@@ -549,7 +557,10 @@ export function CodeEditor({
             <div className="hb-editor-toolbar">
               {activeBuffer && !isDirty ? (
                 <span className="hb-editor-saved-status" aria-live="polite">
-                  <span aria-hidden="true">✓</span> All saved
+                  <span aria-hidden="true">✓</span>{" "}
+                  {lastFormattedSaveFile === activeBuffer.name
+                    ? "Code formatted and saved"
+                    : "All saved"}
                 </span>
               ) : (
                 <button

@@ -585,6 +585,42 @@ describe("CodeEditor cursor marker", () => {
     expect(host.textContent).toContain("All saved");
   });
 
+  it("shows 'Code formatted and saved' after clicking Save, and reverts to 'All saved' when the user edits again", async () => {
+    useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada</h1>");
+
+    await act(async () => {
+      root.render(<CodeEditor profile={profile} docked />);
+    });
+
+    expect(host.textContent).not.toContain("Code formatted and saved");
+
+    const saveButton = Array.from(host.querySelectorAll("button")).find(
+      (el) => el.textContent === "Save",
+    );
+    if (!saveButton) throw new Error("Save button was not rendered");
+
+    await act(async () => {
+      saveButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Code formatted and saved");
+    expect(host.textContent).not.toMatch(/✓\s*All saved/);
+
+    await act(async () => {
+      useProjectsStore.getState().updateBuffer("index.html", "<h1>Ada Lovelace</h1>");
+    });
+
+    await act(async () => {
+      const saveAgain = Array.from(host.querySelectorAll("button")).find(
+        (el) => el.textContent === "Save",
+      );
+      if (!saveAgain) throw new Error("Save button did not reappear after editing");
+      saveAgain.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(host.textContent).toContain("Code formatted and saved");
+  });
+
   it("tells Bit a saved preview is hidden when saving from Code view", async () => {
     const sendSystemPrompt = vi.fn(async () => null);
     useChatStore.setState({ sendSystemPrompt });
