@@ -23,7 +23,8 @@ Timings are ideal-case; the arc should close inside 5 minutes on a reasonably fa
 PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profile: name, age, interests, optional notes for Bit."
 
 - [ ] App launches to `ParentShell.tsx` (no profiles yet, so `ParentGate.tsx` opens before the create form).
-- [ ] Set or enter the parent PIN in `ParentGate.tsx`; unlocking opens `CreateProfileForm.tsx` for learner creation.
+- [ ] Set or enter the parent PIN in `ParentGate.tsx`; unlocking opens the parent learner picker with `Add your first learner.`.
+- [ ] Click `+ Add a new learner`; `CreateProfileForm.tsx` opens for learner creation.
 - [ ] `CreateProfileForm.tsx` accepts a name, age (3-18), comma-separated interests, optional notes for Bit. Fill in a real kid-shaped profile - e.g. Name "Ada", age 9, interests "cats, drawing, games", notes "already knows some HTML from school".
 - [ ] The new profile contains seeded `.claude/settings.json` and `opencode.json` permission config files; parent-edited versions are preserved when reopening a legacy profile.
 - [ ] After the first agent turn, `.acpx-sessions/clean-agent-launch` contains generated launch specs for the selected provider.
@@ -32,7 +33,7 @@ PRD: "Parent installs Hi-Bit, configures their chosen agent, creates a kid profi
 - [ ] Returning to `ProfileGate.tsx` with at least one profile shows a `For grown-ups` entry point after the learner list.
 - [ ] Clicking `For grown-ups`, unlocking `ParentGate.tsx`, and choosing `Open parent mode` opens `ParentHome.tsx` for that learner inside `ParentShell.tsx`; `Switch profile` returns to the parent learner picker without dropping back to kid sign-in.
 - [ ] From the unlocked parent learner picker, clicking `+ Add a new learner` opens `CreateProfileForm.tsx` without another PIN prompt; submit or cancel returns to the parent learner picker.
-- [ ] `DreamPicker.tsx` opens next, with `playground` pinned first and labeled `Not sure yet?`.
+- [ ] After setup, `ParentHome.tsx` opens for the new learner; exit parent mode, choose the learner in `ProfileGate.tsx`, and confirm `DreamPicker.tsx` opens with `playground` pinned first and labeled `Not sure yet?`.
   The `Great first dream` starter projects follow before interest-tag matches for a brand-new profile.
 
 ### Step 2 - Kid opens app, Bit greets by name
