@@ -132,7 +132,7 @@ describe("DreamPicker difficulty", () => {
     expect(host.textContent).toContain("talk with Bit before picking a project");
   });
 
-  it("shows a secondary Start over action for the current dream and restarts after confirmation", async () => {
+  it("does not show Start over in the picker for tried dreams", async () => {
     const currentProfile: Profile = {
       ...profile,
       currentDreamId: "pet-page",
@@ -140,29 +140,16 @@ describe("DreamPicker difficulty", () => {
     };
     const restartDream = vi.fn(async () => currentProfile);
     useProfileStore.setState({ restartDream });
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
 
     await act(async () => {
       root.render(<DreamPicker profile={currentProfile} />);
     });
 
-    const startOver = Array.from(host.querySelectorAll("button")).find(
-      (button) => button.textContent?.trim() === "Start over",
-    );
-    expect(startOver).toBeTruthy();
-
-    await act(async () => {
-      startOver?.click();
-    });
-
-    expect(confirm).toHaveBeenCalledWith(
-      "Start this dream over? This will replace the files in this project.",
-    );
-    expect(restartDream).toHaveBeenCalledWith("kid-1", "pet-page");
-    confirm.mockRestore();
+    expect(host.textContent).not.toContain("Start over");
+    expect(restartDream).not.toHaveBeenCalled();
   });
 
-  it("shows Start over for playground after the kid has tried it", async () => {
+  it("does not show Start over for playground in the picker", async () => {
     const playground = makeDream(1, {
       id: "playground",
       mode: "freeform",
@@ -186,6 +173,6 @@ describe("DreamPicker difficulty", () => {
     });
 
     expect(host.textContent).toContain("Playground.");
-    expect(host.textContent).toContain("Start over");
+    expect(host.textContent).not.toContain("Start over");
   });
 });

@@ -71,13 +71,11 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
   const graph = useGraphStore((s) => s.graph);
   const load = useGraphStore((s) => s.load);
   const setCurrentDream = useProfileStore((s) => s.setCurrentDream);
-  const restartDream = useProfileStore((s) => s.restartDream);
   const progress = useProgressStore((s) => s.progress);
   const loadedProgressProfileId = useProgressStore((s) => s.profileId);
   const loadProgress = useProgressStore((s) => s.load);
 
   const [picking, setPicking] = useState<string | null>(null);
-  const [restarting, setRestarting] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
   const [filter, setFilter] = useState<DreamFilter>("all");
   const [query, setQuery] = useState<string>("");
@@ -95,7 +93,7 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
-      if (e.key !== "Escape" || picking !== null || restarting !== null) return;
+      if (e.key !== "Escape" || picking !== null) return;
       if (query.length > 0) {
         e.preventDefault();
         setQuery("");
@@ -103,7 +101,7 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [picking, restarting, query]);
+  }, [picking, query]);
 
   const isFirstTimer = useMemo(() => isFirstDreamPicker(progress), [progress]);
 
@@ -228,22 +226,6 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
     }
   }
 
-  async function startOver(dreamId: string): Promise<void> {
-    const confirmed = window.confirm(
-      "Start this dream over? This will replace the files in this project.",
-    );
-    if (!confirmed) return;
-    setRestarting(dreamId);
-    setPickError(null);
-    try {
-      await restartDream(profile.id, dreamId);
-      onPicked?.();
-    } catch (err) {
-      setPickError(err instanceof Error ? err.message : "Couldn't start this dream over.");
-      setRestarting(null);
-    }
-  }
-
   return (
     <main className="hb-gate hb-dream-shell">
       <div className="hb-dream-card">
@@ -322,7 +304,6 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
               const interestMatch = describeDreamInterestMatch(dream, profile.interests);
               const requiresWarning = describeDreamRequiresWarning(readiness);
               const currentMarker = describeDreamCurrentMarker(dream.id, profile.currentDreamId);
-              const canRestart = profile.dreamHistory.includes(dream.id);
               const triedBefore = describeDreamTriedBefore(
                 dream.id,
                 profile.dreamHistory,
@@ -347,12 +328,12 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
                     greatFirstDream={greatFirstDream}
                     playgroundDream={playgroundDream}
                     recommendedDream={recommendedDream}
-                    disabled={picking !== null || restarting !== null}
+                    disabled={picking !== null}
                     pending={picking === dream.id}
-                    canRestart={canRestart}
-                    restartPending={restarting === dream.id}
+                    canRestart={false}
+                    restartPending={false}
                     onPick={() => void pick(dream.id)}
-                    onRestart={() => void startOver(dream.id)}
+                    onRestart={() => {}}
                   />
                 </li>
               );

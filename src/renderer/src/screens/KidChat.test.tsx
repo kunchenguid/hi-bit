@@ -10,6 +10,7 @@ import { useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
 import { useProfileStore } from "../state/profileStore";
 import { useProgressStore } from "../state/progressStore";
+import { useProjectsStore } from "../state/projectsStore";
 import { KidChat } from "./KidChat";
 
 const profile: Profile = {
@@ -113,6 +114,7 @@ describe("KidChat cursor target action", () => {
     useChatStore.getState().reset();
     useProfileStore.setState({ activeProfileId: null });
     useProgressStore.getState().reset();
+    useProjectsStore.getState().reset();
   });
 
   it("shows Show me where on each code block of the latest Bit message", async () => {
@@ -423,6 +425,38 @@ describe("KidChat cursor target action", () => {
       "Start this dream over? This will replace the files in this project.",
     );
     expect(restartDream).toHaveBeenCalledWith(profile.id, dream.id);
+    confirm.mockRestore();
+  });
+
+  it("reloads project files after restarting the current dream", async () => {
+    const dream = makeDream([]);
+    const currentProfile: Profile = {
+      ...profile,
+      currentDreamId: dream.id,
+      dreamHistory: [dream.id],
+    };
+    const restartDream = vi.fn(async () => currentProfile);
+    const resetProject = vi.fn();
+    const loadProject = vi.fn(async () => {});
+    useProfileStore.setState({ restartDream });
+    useGraphStore.setState({ library: libraryOf(dream) });
+    useProjectsStore.setState({ reset: resetProject, load: loadProject });
+    Object.defineProperty(window, "confirm", { value: vi.fn(), configurable: true });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    await act(async () => {
+      root.render(<KidChat profile={currentProfile} />);
+    });
+
+    const startOver = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent === "Start over",
+    );
+    await act(async () => {
+      startOver?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(resetProject).toHaveBeenCalledTimes(1);
+    expect(loadProject).toHaveBeenCalledWith(profile.id, dream.id);
     confirm.mockRestore();
   });
 

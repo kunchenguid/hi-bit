@@ -15,6 +15,7 @@ import { canRetryLastKidMessage, useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
 import { useProfileStore } from "../state/profileStore";
 import { useProgressStore } from "../state/progressStore";
+import { useProjectsStore } from "../state/projectsStore";
 import { ChatMarkdown } from "./chatMarkdown";
 import { describeKidDreamProgress } from "./kidDreamProgress";
 import { messageHasEditorCue } from "./kidEditorCue";
@@ -64,6 +65,8 @@ export function KidChat({
   const loadProgress = useProgressStore((s) => s.load);
   const selectProfile = useProfileStore((s) => s.selectProfile);
   const restartDream = useProfileStore((s) => s.restartDream);
+  const resetProject = useProjectsStore((s) => s.reset);
+  const loadProject = useProjectsStore((s) => s.load);
 
   const [input, setInput] = useState("");
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
@@ -249,7 +252,10 @@ export function KidChat({
     setRestartStatus("restarting");
     setRestartError(null);
     try {
-      await restartDream(profile.id, profile.currentDreamId);
+      const dreamId = profile.currentDreamId;
+      await restartDream(profile.id, dreamId);
+      resetProject();
+      await loadProject(profile.id, dreamId);
     } catch (err) {
       setRestartError(err instanceof Error ? err.message : "Couldn't start this dream over.");
     } finally {
