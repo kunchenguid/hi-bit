@@ -385,6 +385,47 @@ describe("KidChat cursor target action", () => {
     expect(useProfileStore.getState().activeProfileId).toBeNull();
   });
 
+  it("shows Start over next to I'm done for now on the current dream page", async () => {
+    const dream = makeDream([]);
+    const currentProfile: Profile = {
+      ...profile,
+      currentDreamId: dream.id,
+      dreamHistory: [dream.id],
+    };
+    const restartDream = vi.fn(async () => currentProfile);
+    useProfileStore.setState({ restartDream });
+    useGraphStore.setState({ library: libraryOf(dream) });
+    Object.defineProperty(window, "confirm", { value: vi.fn(), configurable: true });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    await act(async () => {
+      root.render(<KidChat profile={currentProfile} />);
+    });
+
+    const done = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent === "I'm done for now",
+    );
+    const startOver = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent === "Start over",
+    );
+    expect(startOver).toBeTruthy();
+    expect(startOver?.closest("form")).toBe(done?.closest("form"));
+    const footerButtons = Array.from(host.querySelectorAll(".hb-chat-input-row button"));
+    expect(footerButtons.indexOf(done as HTMLButtonElement)).toBeLessThan(
+      footerButtons.indexOf(startOver as HTMLButtonElement),
+    );
+
+    await act(async () => {
+      startOver?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Start this dream over? This will replace the files in this project.",
+    );
+    expect(restartDream).toHaveBeenCalledWith(profile.id, dream.id);
+    confirm.mockRestore();
+  });
+
   it("hides Show me where when the latest Bit message has no code block", async () => {
     useChatStore.setState({
       messages: [

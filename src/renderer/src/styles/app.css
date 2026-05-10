@@ -516,6 +516,14 @@ pre,
   gap: 12px;
 }
 
+.hb-dream-choice-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  height: 100%;
+}
+
 .hb-dream-choice {
   display: flex;
   flex-direction: column;
@@ -551,6 +559,12 @@ pre,
 .hb-dream-choice:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.hb-dream-restart {
+  align-self: flex-end;
+  font-size: 12px;
+  box-shadow: none;
 }
 
 .hb-dream-emoji {

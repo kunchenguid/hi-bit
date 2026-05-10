@@ -14,6 +14,7 @@ import {
   readProfile,
   readProgress,
   renderInitialStateMd,
+  restartCurrentDream,
   setCurrentDream,
   slugify,
   updateKpSkipped,
@@ -359,6 +360,18 @@ describe("profile storage", () => {
     expect(again.sessions.kid).toBe(first.sessions.kid);
   });
 
+  it("restartCurrentDream rotates the kid session even when restarting the current dream", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 9 });
+    const first = await setCurrentDream(layout, profile.id, "hello-card");
+
+    const restarted = await restartCurrentDream(layout, profile.id, "hello-card");
+
+    expect(restarted.currentDreamId).toBe("hello-card");
+    expect(restarted.dreamHistory).toEqual(["hello-card"]);
+    expect(restarted.sessions.kid).not.toBe(first.sessions.kid);
+    expect(restarted.sessions.parent).toBe(first.sessions.parent);
+  });
+
   it("setCurrentDream rejects an empty dream id", async () => {
     const profile = await createProfile(layout, { name: "Ada", age: 9 });
     await expect(setCurrentDream(layout, profile.id, "  ")).rejects.toThrow(
@@ -539,6 +552,27 @@ describe("profile storage", () => {
         dreamId: "snake",
         slug: "snake",
         startedAt: "2026-04-23T00:00:00.000Z",
+        lastActiveAt: "2026-04-24T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("upsertProjectEntry resets startedAt when replacing a project attempt", async () => {
+    const profile = await createProfile(layout, { name: "Ada", age: 9 });
+    await upsertProjectEntry(layout, profile.id, "snake", "snake", {
+      now: () => new Date("2026-04-23T00:00:00.000Z"),
+    });
+
+    const progress = await upsertProjectEntry(layout, profile.id, "snake", "snake", {
+      now: () => new Date("2026-04-24T10:00:00.000Z"),
+      resetStartedAt: true,
+    });
+
+    expect(progress.projects).toEqual([
+      {
+        dreamId: "snake",
+        slug: "snake",
+        startedAt: "2026-04-24T10:00:00.000Z",
         lastActiveAt: "2026-04-24T10:00:00.000Z",
       },
     ]);

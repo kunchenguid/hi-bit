@@ -63,6 +63,7 @@ describe("DreamPicker difficulty", () => {
       error: null,
       activeProfileId: profile.id,
       setCurrentDream: vi.fn(async () => profile),
+      restartDream: vi.fn(async () => profile),
     });
     useProgressStore.setState({
       progress: emptyProgress(),
@@ -129,5 +130,62 @@ describe("DreamPicker difficulty", () => {
     expect(titles[0]).toBe("Playground.");
     expect(host.textContent).toContain("Not sure yet?");
     expect(host.textContent).toContain("talk with Bit before picking a project");
+  });
+
+  it("shows a secondary Start over action for the current dream and restarts after confirmation", async () => {
+    const currentProfile: Profile = {
+      ...profile,
+      currentDreamId: "pet-page",
+      dreamHistory: ["pet-page"],
+    };
+    const restartDream = vi.fn(async () => currentProfile);
+    useProfileStore.setState({ restartDream });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    await act(async () => {
+      root.render(<DreamPicker profile={currentProfile} />);
+    });
+
+    const startOver = Array.from(host.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Start over",
+    );
+    expect(startOver).toBeTruthy();
+
+    await act(async () => {
+      startOver?.click();
+    });
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Start this dream over? This will replace the files in this project.",
+    );
+    expect(restartDream).toHaveBeenCalledWith("kid-1", "pet-page");
+    confirm.mockRestore();
+  });
+
+  it("shows Start over for playground after the kid has tried it", async () => {
+    const playground = makeDream(1, {
+      id: "playground",
+      mode: "freeform",
+      title_parent: "Playground",
+      title_kid: "playground",
+      summary_kid: "chat with Bit about anything you are curious about",
+      categories: ["creative"],
+      requires: [],
+      emoji: "💬",
+    });
+    useGraphStore.setState({
+      library: { dreams: [playground], byId: { [playground.id]: playground } },
+    });
+
+    await act(async () => {
+      root.render(
+        <DreamPicker
+          profile={{ ...profile, currentDreamId: "playground", dreamHistory: ["playground"] }}
+        />,
+      );
+    });
+
+    expect(host.textContent).toContain("Playground.");
+    expect(host.textContent).toContain("Start over");
   });
 });

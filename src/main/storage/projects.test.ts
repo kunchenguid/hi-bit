@@ -11,6 +11,7 @@ import {
   projectPathFor,
   readProjectFile,
   resolveProjectDir,
+  restartProject,
   scaffoldProject,
   watchProjectFiles,
   writeProjectFile,
@@ -715,6 +716,23 @@ describe("projects storage", () => {
       await expect(readProjectFile(paths, "hello-card", "index.html")).resolves.toBe(
         "<p>kid's work</p>\n",
       );
+    });
+
+    it("restartProject replaces the project directory with fresh starter files", async () => {
+      const dream = makeDream({ id: "hello-card", title_kid: "a hello card page" });
+      await scaffoldProject(paths, dream, { profileName: "Ada" });
+      await writeFile(join(paths.projectsDir, "hello-card", "index.html"), "custom work", "utf8");
+      await writeFile(join(paths.projectsDir, "hello-card", "notes.txt"), "extra", "utf8");
+
+      const result = await restartProject(paths, dream, { profileName: "Ada" });
+
+      const raw = await readFile(join(paths.projectsDir, "hello-card", "index.html"), "utf8");
+      await expect(
+        readFile(join(paths.projectsDir, "hello-card", "notes.txt"), "utf8"),
+      ).rejects.toThrow();
+      expect(raw).toContain("a hello card page");
+      expect(raw).not.toBe("custom work");
+      expect(result).toEqual({ created: ["index.html"], skipped: [] });
     });
 
     it("creates project files for freeform dreams", async () => {

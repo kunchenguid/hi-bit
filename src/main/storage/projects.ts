@@ -1,5 +1,5 @@
 import { type FSWatcher, watch } from "node:fs";
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Dream } from "@shared/dreams";
 import type { ProjectFileChange } from "@shared/project";
@@ -1255,4 +1255,14 @@ export async function scaffoldProject(
     }
   }
   return { created, skipped };
+}
+
+export async function restartProject(
+  paths: ProfilePaths,
+  dream: Dream,
+  options: ScaffoldOptions,
+): Promise<ScaffoldResult> {
+  const dir = projectPathFor(paths, dream.id);
+  await rm(dir, { recursive: true, force: true });
+  return scaffoldProject(paths, dream, options);
 }

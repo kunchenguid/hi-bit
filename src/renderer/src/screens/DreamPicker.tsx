@@ -71,11 +71,13 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
   const graph = useGraphStore((s) => s.graph);
   const load = useGraphStore((s) => s.load);
   const setCurrentDream = useProfileStore((s) => s.setCurrentDream);
+  const restartDream = useProfileStore((s) => s.restartDream);
   const progress = useProgressStore((s) => s.progress);
   const loadedProgressProfileId = useProgressStore((s) => s.profileId);
   const loadProgress = useProgressStore((s) => s.load);
 
   const [picking, setPicking] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
   const [filter, setFilter] = useState<DreamFilter>("all");
   const [query, setQuery] = useState<string>("");
@@ -93,7 +95,7 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
-      if (e.key !== "Escape" || picking !== null) return;
+      if (e.key !== "Escape" || picking !== null || restarting !== null) return;
       if (query.length > 0) {
         e.preventDefault();
         setQuery("");
@@ -101,7 +103,7 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [picking, query]);
+  }, [picking, restarting, query]);
 
   const isFirstTimer = useMemo(() => isFirstDreamPicker(progress), [progress]);
 
@@ -226,6 +228,22 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
     }
   }
 
+  async function startOver(dreamId: string): Promise<void> {
+    const confirmed = window.confirm(
+      "Start this dream over? This will replace the files in this project.",
+    );
+    if (!confirmed) return;
+    setRestarting(dreamId);
+    setPickError(null);
+    try {
+      await restartDream(profile.id, dreamId);
+      onPicked?.();
+    } catch (err) {
+      setPickError(err instanceof Error ? err.message : "Couldn't start this dream over.");
+      setRestarting(null);
+    }
+  }
+
   return (
     <main className="hb-gate hb-dream-shell">
       <div className="hb-dream-card">
@@ -304,6 +322,7 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
               const interestMatch = describeDreamInterestMatch(dream, profile.interests);
               const requiresWarning = describeDreamRequiresWarning(readiness);
               const currentMarker = describeDreamCurrentMarker(dream.id, profile.currentDreamId);
+              const canRestart = profile.dreamHistory.includes(dream.id);
               const triedBefore = describeDreamTriedBefore(
                 dream.id,
                 profile.dreamHistory,
@@ -328,9 +347,12 @@ export function DreamPicker({ profile, onPicked }: Props): JSX.Element {
                     greatFirstDream={greatFirstDream}
                     playgroundDream={playgroundDream}
                     recommendedDream={recommendedDream}
-                    disabled={picking !== null}
+                    disabled={picking !== null || restarting !== null}
                     pending={picking === dream.id}
+                    canRestart={canRestart}
+                    restartPending={restarting === dream.id}
                     onPick={() => void pick(dream.id)}
+                    onRestart={() => void startOver(dream.id)}
                   />
                 </li>
               );
@@ -370,7 +392,10 @@ function DreamCard({
   recommendedDream,
   disabled,
   pending,
+  canRestart,
+  restartPending,
   onPick,
+  onRestart,
 }: {
   dream: Dream;
   readinessLabel: string;
@@ -384,97 +409,116 @@ function DreamCard({
   recommendedDream: RecommendedDreamMarker | null;
   disabled: boolean;
   pending: boolean;
+  canRestart: boolean;
+  restartPending: boolean;
   onPick: () => void;
+  onRestart: () => void;
 }): JSX.Element {
   const difficultyBits = [1, 2, 3, 4, 5].slice(0, dream.difficulty);
 
   return (
-    <button
-      type="button"
-      className={`hb-dream-choice${currentMarker ? " hb-dream-choice-current" : ""}${
-        greatFirstDream ? " hb-dream-choice-great-first" : ""
-      }${playgroundDream ? " hb-dream-choice-playground" : ""}${
-        recommendedDream ? " hb-dream-choice-picked-for-you" : ""
-      }`}
-      onClick={onPick}
-      disabled={disabled}
-    >
-      <span className="hb-dream-emoji" aria-hidden="true">
-        {dream.emoji}
-      </span>
-      <span className="hb-dream-text">
-        <span className="hb-dream-title">{formatDreamCardTitle(dream.title_kid)}</span>
-        <span className="hb-dream-summary">{dream.summary_kid}</span>
-        <span className="hb-dream-tags">
-          {greatFirstDream ? (
-            <span className="hb-dream-great-first">
-              <span className="hb-dream-great-first-kicker">{greatFirstDream.kicker}</span>
-              <span className="hb-dream-great-first-text">{greatFirstDream.text}</span>
-            </span>
-          ) : null}
-          {recommendedDream ? (
-            <span className="hb-dream-picked-for-you">
-              <span className="hb-dream-picked-for-you-kicker">{recommendedDream.kicker}</span>
-              <span className="hb-dream-picked-for-you-text">{recommendedDream.text}</span>
-            </span>
-          ) : null}
-          {playgroundDream ? (
-            <span className="hb-dream-playground">
-              <span className="hb-dream-playground-kicker">Not sure yet?</span>
-              <span className="hb-dream-playground-text">
-                talk with Bit before picking a project
+    <div className="hb-dream-choice-wrap">
+      <button
+        type="button"
+        className={`hb-dream-choice${currentMarker ? " hb-dream-choice-current" : ""}${
+          greatFirstDream ? " hb-dream-choice-great-first" : ""
+        }${playgroundDream ? " hb-dream-choice-playground" : ""}${
+          recommendedDream ? " hb-dream-choice-picked-for-you" : ""
+        }`}
+        onClick={onPick}
+        disabled={disabled}
+      >
+        <span className="hb-dream-emoji" aria-hidden="true">
+          {dream.emoji}
+        </span>
+        <span className="hb-dream-text">
+          <span className="hb-dream-title">{formatDreamCardTitle(dream.title_kid)}</span>
+          <span className="hb-dream-summary">{dream.summary_kid}</span>
+          <span className="hb-dream-tags">
+            {greatFirstDream ? (
+              <span className="hb-dream-great-first">
+                <span className="hb-dream-great-first-kicker">{greatFirstDream.kicker}</span>
+                <span className="hb-dream-great-first-text">{greatFirstDream.text}</span>
+              </span>
+            ) : null}
+            {recommendedDream ? (
+              <span className="hb-dream-picked-for-you">
+                <span className="hb-dream-picked-for-you-kicker">{recommendedDream.kicker}</span>
+                <span className="hb-dream-picked-for-you-text">{recommendedDream.text}</span>
+              </span>
+            ) : null}
+            {playgroundDream ? (
+              <span className="hb-dream-playground">
+                <span className="hb-dream-playground-kicker">Not sure yet?</span>
+                <span className="hb-dream-playground-text">
+                  talk with Bit before picking a project
+                </span>
+              </span>
+            ) : null}
+            {dream.categories.map((c) => (
+              <span key={c} className="hb-dream-tag">
+                {CATEGORY_LABELS[c]}
+              </span>
+            ))}
+            <span className="hb-dream-difficulty t-pixel">
+              <span className="hb-dream-difficulty-icons" aria-hidden="true">
+                {difficultyBits.map((level) => (
+                  <img
+                    key={`bit-${level}`}
+                    className="hb-dream-difficulty-icon"
+                    src={mascotAvatarUrl}
+                    alt=""
+                    aria-hidden="true"
+                  />
+                ))}
+              </span>
+              <span className="hb-dream-difficulty-label">
+                {DIFFICULTY_LABELS[dream.difficulty]}
               </span>
             </span>
-          ) : null}
-          {dream.categories.map((c) => (
-            <span key={c} className="hb-dream-tag">
-              {CATEGORY_LABELS[c]}
+            <span
+              className={`hb-dream-ready${readinessReady ? " hb-dream-ready-all" : ""} t-pixel`}
+            >
+              {readinessLabel}
             </span>
-          ))}
-          <span className="hb-dream-difficulty t-pixel">
-            <span className="hb-dream-difficulty-icons" aria-hidden="true">
-              {difficultyBits.map((level) => (
-                <img
-                  key={`bit-${level}`}
-                  className="hb-dream-difficulty-icon"
-                  src={mascotAvatarUrl}
-                  alt=""
-                  aria-hidden="true"
-                />
-              ))}
-            </span>
-            <span className="hb-dream-difficulty-label">{DIFFICULTY_LABELS[dream.difficulty]}</span>
+            {currentMarker ? (
+              <span className="hb-dream-current t-pixel">
+                <span className="hb-dream-current-kicker">{currentMarker.kicker}</span>
+                <span className="hb-dream-current-text">{currentMarker.text}</span>
+              </span>
+            ) : null}
+            {triedBefore ? (
+              <span className="hb-dream-tried t-pixel">
+                <span className="hb-dream-tried-kicker">{triedBefore.kicker}</span>
+                <span className="hb-dream-tried-text">{triedBefore.text}</span>
+              </span>
+            ) : null}
+            {interestMatch ? (
+              <span className="hb-dream-interest t-pixel">
+                <span className="hb-dream-interest-kicker">{interestMatch.kicker}</span>
+                <span className="hb-dream-interest-tags">{interestMatch.tags.join(", ")}</span>
+              </span>
+            ) : null}
+            {requiresWarning ? (
+              <span className="hb-dream-warning t-pixel">
+                <span className="hb-dream-warning-kicker">{requiresWarning.kicker}</span>
+                <span className="hb-dream-warning-text">{requiresWarning.text}</span>
+              </span>
+            ) : null}
           </span>
-          <span className={`hb-dream-ready${readinessReady ? " hb-dream-ready-all" : ""} t-pixel`}>
-            {readinessLabel}
-          </span>
-          {currentMarker ? (
-            <span className="hb-dream-current t-pixel">
-              <span className="hb-dream-current-kicker">{currentMarker.kicker}</span>
-              <span className="hb-dream-current-text">{currentMarker.text}</span>
-            </span>
-          ) : null}
-          {triedBefore ? (
-            <span className="hb-dream-tried t-pixel">
-              <span className="hb-dream-tried-kicker">{triedBefore.kicker}</span>
-              <span className="hb-dream-tried-text">{triedBefore.text}</span>
-            </span>
-          ) : null}
-          {interestMatch ? (
-            <span className="hb-dream-interest t-pixel">
-              <span className="hb-dream-interest-kicker">{interestMatch.kicker}</span>
-              <span className="hb-dream-interest-tags">{interestMatch.tags.join(", ")}</span>
-            </span>
-          ) : null}
-          {requiresWarning ? (
-            <span className="hb-dream-warning t-pixel">
-              <span className="hb-dream-warning-kicker">{requiresWarning.kicker}</span>
-              <span className="hb-dream-warning-text">{requiresWarning.text}</span>
-            </span>
-          ) : null}
         </span>
-      </span>
-      <span className="hb-dream-cta t-pixel">{pending ? "Picking..." : "Pick this"}</span>
-    </button>
+        <span className="hb-dream-cta t-pixel">{pending ? "Picking..." : "Pick this"}</span>
+      </button>
+      {canRestart ? (
+        <button
+          type="button"
+          className="hb-btn hb-btn-ghost hb-btn-sm hb-dream-restart"
+          onClick={onRestart}
+          disabled={disabled}
+        >
+          {restartPending ? "Starting over..." : "Start over"}
+        </button>
+      ) : null}
+    </div>
   );
 }

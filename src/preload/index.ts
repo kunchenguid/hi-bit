@@ -34,6 +34,8 @@ const api: HiBitApi = {
   getDreams: (): Promise<DreamValidation> => ipcRenderer.invoke("hibit:get-dreams"),
   setCurrentDream: (profileId: string, dreamId: string): Promise<Profile> =>
     ipcRenderer.invoke("hibit:set-current-dream", profileId, dreamId),
+  restartDream: (profileId: string, dreamId: string): Promise<Profile> =>
+    ipcRenderer.invoke("hibit:restart-dream", profileId, dreamId),
   updateProfileSettings: (profileId: string, settings: ProfileSettingsInput): Promise<Profile> =>
     ipcRenderer.invoke("hibit:update-profile-settings", profileId, settings),
   sendKidMessage: (
