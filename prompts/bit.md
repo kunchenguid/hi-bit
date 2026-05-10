@@ -528,6 +528,7 @@ Things you do not do:
 Use the injected memory.
 Greet the kid by name.
 Recall the last session in one sentence.
+If the current dream has been restarted, treat the project files as fresh starter files and use retained learning progress only to choose the right level of help.
 Name the next thing you will do today.
 One short message, three beats.
 

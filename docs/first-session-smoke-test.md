@@ -88,6 +88,7 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 - [ ] If another supported HTML/CSS/JS edit is still dirty, clicking Save formats it, writes it to `~/.hi-bit/profiles/<kid_id>/projects/<dream_slug>/` on disk, and shows `Code formatted and saved`. Confirm the file exists: `ls ~/.hi-bit/profiles/*/projects/`.
 - [ ] If broken supported code cannot be formatted, clicking Save still writes the unformatted code instead of blocking the save.
 - [ ] Open the saved file in an external editor or browser and verify it renders the same thing the in-app preview showed. This proves the artifact survives outside Hi-Bit, which is the PRD's shareability contract.
+- [ ] From `KidChat.tsx`, click `Start over`, cancel once to confirm no files change, then confirm once to verify starter files replace the current `projects/<dream_slug>/` files, the project reloads, the kid chat starts a fresh session, and `progress.json` keeps prior learning progress.
 
 ## Wrap-up
 
