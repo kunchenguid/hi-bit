@@ -15,6 +15,7 @@ import { canRetryLastKidMessage, useChatStore } from "../state/chatStore";
 import { useGraphStore } from "../state/graphStore";
 import { useProfileStore } from "../state/profileStore";
 import { useProgressStore } from "../state/progressStore";
+import { useProjectsStore } from "../state/projectsStore";
 import { ChatMarkdown } from "./chatMarkdown";
 import { describeKidDreamProgress } from "./kidDreamProgress";
 import { messageHasEditorCue } from "./kidEditorCue";
@@ -63,9 +64,14 @@ export function KidChat({
   const progressProfileId = useProgressStore((s) => s.profileId);
   const loadProgress = useProgressStore((s) => s.load);
   const selectProfile = useProfileStore((s) => s.selectProfile);
+  const restartDream = useProfileStore((s) => s.restartDream);
+  const resetProject = useProjectsStore((s) => s.reset);
+  const loadProject = useProjectsStore((s) => s.load);
 
   const [input, setInput] = useState("");
   const [wrapUpOpen, setWrapUpOpen] = useState(false);
+  const [restartStatus, setRestartStatus] = useState<"idle" | "restarting">("idle");
+  const [restartError, setRestartError] = useState<string | null>(null);
   const [sessionStartDone, setSessionStartDone] = useState<ReadonlySet<string> | null>(null);
   const [learnedDismissedCount, setLearnedDismissedCount] = useState(0);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -234,6 +240,26 @@ export function KidChat({
     } finally {
       setWrapUpOpen(false);
       selectProfile(null);
+    }
+  }
+
+  async function handleStartOver(): Promise<void> {
+    if (!profile.currentDreamId || restartStatus === "restarting") return;
+    const confirmed = window.confirm(
+      "Start this dream over? This will replace the files in this project.",
+    );
+    if (!confirmed) return;
+    setRestartStatus("restarting");
+    setRestartError(null);
+    try {
+      const dreamId = profile.currentDreamId;
+      await restartDream(profile.id, dreamId);
+      resetProject();
+      await loadProject(profile.id, dreamId);
+    } catch (err) {
+      setRestartError(err instanceof Error ? err.message : "Couldn't start this dream over.");
+    } finally {
+      setRestartStatus("idle");
     }
   }
 
@@ -488,7 +514,18 @@ export function KidChat({
         >
           I'm done for now
         </button>
+        {profile.currentDreamId ? (
+          <button
+            type="button"
+            className="hb-btn hb-btn-ghost hb-btn-sm hb-chat-restart"
+            onClick={() => void handleStartOver()}
+            disabled={status === "sending" || restartStatus === "restarting"}
+          >
+            {restartStatus === "restarting" ? "Starting over..." : "Start over"}
+          </button>
+        ) : null}
       </form>
+      {restartError ? <p className="hb-form-err hb-chat-restart-error">{restartError}</p> : null}
 
       {wrapUpOpen ? (
         <section

@@ -71,6 +71,7 @@ PRD: "Kid picks a dream. Bit commits to the journey: 'We're going to build this 
 - [ ] Bit treats the starter `projects/<dream_slug>/index.html` as already existing and tells the kid to open or change it, not create a new `index.html`.
 - [ ] Bit names the first concrete knowledge-point step ("Let's get a page on the screen first") rather than dumping the whole roadmap.
 - [ ] If choosing `playground` instead, Bit stays in free-build mode: no fixed dream path appears, but the learning strip may show `Up next` for a suggested ready skill and the greeting may mention practicing it.
+- [ ] On the active `playground` chat page, `Start over` appears next to `I'm done for now`; cancel once to confirm no files change, then confirm once to verify `projects/playground/` resets and reloads while `progress.json` keeps prior learning progress.
 
 ### Step 6 - Typed something real, saw it run, saved a file
 
@@ -88,6 +89,7 @@ PRD: "Within five minutes of opening the app, the kid has typed something real, 
 - [ ] If another supported HTML/CSS/JS edit is still dirty, clicking Save formats it, writes it to `~/.hi-bit/profiles/<kid_id>/projects/<dream_slug>/` on disk, and shows `Code formatted and saved`. Confirm the file exists: `ls ~/.hi-bit/profiles/*/projects/`.
 - [ ] If broken supported code cannot be formatted, clicking Save still writes the unformatted code instead of blocking the save.
 - [ ] Open the saved file in an external editor or browser and verify it renders the same thing the in-app preview showed. This proves the artifact survives outside Hi-Bit, which is the PRD's shareability contract.
+- [ ] From `KidChat.tsx`, click `Start over`, cancel once to confirm no files change, then confirm once to verify starter files replace the current `projects/<dream_slug>/` files, the project reloads, the kid chat starts a fresh session, and `progress.json` keeps prior learning progress.
 
 ## Wrap-up
 

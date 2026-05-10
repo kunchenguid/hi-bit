@@ -55,6 +55,7 @@ export type HiBitApi = {
   getKnowledgeGraph: () => Promise<KnowledgeGraphValidation>;
   getDreams: () => Promise<DreamValidation>;
   setCurrentDream: (profileId: string, dreamId: string) => Promise<Profile>;
+  restartDream: (profileId: string, dreamId: string) => Promise<Profile>;
   updateProfileSettings: (profileId: string, settings: ProfileSettingsInput) => Promise<Profile>;
   sendKidMessage: (
     profileId: string,

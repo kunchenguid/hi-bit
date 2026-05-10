@@ -329,6 +329,7 @@ export async function updateKpSkipped(
 
 export type UpsertProjectEntryOptions = {
   now?: () => Date;
+  resetStartedAt?: boolean;
 };
 
 export async function upsertProjectEntry(
@@ -367,7 +368,11 @@ export async function upsertProjectEntry(
   } else {
     const existing = nextProjects[idx];
     if (existing) {
-      nextProjects[idx] = { ...existing, lastActiveAt: now };
+      nextProjects[idx] = {
+        ...existing,
+        startedAt: options.resetStartedAt ? now : existing.startedAt,
+        lastActiveAt: now,
+      };
     }
   }
   const updated: Progress = { ...progress, projects: nextProjects };
@@ -459,6 +464,23 @@ export async function setCurrentDream(
   profileId: string,
   dreamId: string,
 ): Promise<Profile> {
+  return writeCurrentDream(layout, profileId, dreamId, { forceNewKidSession: false });
+}
+
+export async function restartCurrentDream(
+  layout: HiBitLayout,
+  profileId: string,
+  dreamId: string,
+): Promise<Profile> {
+  return writeCurrentDream(layout, profileId, dreamId, { forceNewKidSession: true });
+}
+
+async function writeCurrentDream(
+  layout: HiBitLayout,
+  profileId: string,
+  dreamId: string,
+  options: { forceNewKidSession: boolean },
+): Promise<Profile> {
   const trimmedDreamId = dreamId.trim();
   if (trimmedDreamId.length === 0) {
     throw new Error("Dream id must not be empty");
@@ -475,7 +497,7 @@ export async function setCurrentDream(
 
   // Changing the active dream rotates the kid session so Bit starts with a
   // fresh context bundle for the selected dream.
-  const isDreamChanging = profile.currentDreamId !== trimmedDreamId;
+  const isDreamChanging = profile.currentDreamId !== trimmedDreamId || options.forceNewKidSession;
   const sessions = isDreamChanging ? { ...profile.sessions, kid: randomUUID() } : profile.sessions;
 
   const updated: Profile = {

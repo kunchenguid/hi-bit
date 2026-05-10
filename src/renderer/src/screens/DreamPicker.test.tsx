@@ -63,6 +63,7 @@ describe("DreamPicker difficulty", () => {
       error: null,
       activeProfileId: profile.id,
       setCurrentDream: vi.fn(async () => profile),
+      restartDream: vi.fn(async () => profile),
     });
     useProgressStore.setState({
       progress: emptyProgress(),
@@ -129,5 +130,49 @@ describe("DreamPicker difficulty", () => {
     expect(titles[0]).toBe("Playground.");
     expect(host.textContent).toContain("Not sure yet?");
     expect(host.textContent).toContain("talk with Bit before picking a project");
+  });
+
+  it("does not show Start over in the picker for tried dreams", async () => {
+    const currentProfile: Profile = {
+      ...profile,
+      currentDreamId: "pet-page",
+      dreamHistory: ["pet-page"],
+    };
+    const restartDream = vi.fn(async () => currentProfile);
+    useProfileStore.setState({ restartDream });
+
+    await act(async () => {
+      root.render(<DreamPicker profile={currentProfile} />);
+    });
+
+    expect(host.textContent).not.toContain("Start over");
+    expect(restartDream).not.toHaveBeenCalled();
+  });
+
+  it("does not show Start over for playground in the picker", async () => {
+    const playground = makeDream(1, {
+      id: "playground",
+      mode: "freeform",
+      title_parent: "Playground",
+      title_kid: "playground",
+      summary_kid: "chat with Bit about anything you are curious about",
+      categories: ["creative"],
+      requires: [],
+      emoji: "💬",
+    });
+    useGraphStore.setState({
+      library: { dreams: [playground], byId: { [playground.id]: playground } },
+    });
+
+    await act(async () => {
+      root.render(
+        <DreamPicker
+          profile={{ ...profile, currentDreamId: "playground", dreamHistory: ["playground"] }}
+        />,
+      );
+    });
+
+    expect(host.textContent).toContain("Playground.");
+    expect(host.textContent).not.toContain("Start over");
   });
 });

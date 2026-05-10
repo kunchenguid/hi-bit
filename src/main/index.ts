@@ -20,6 +20,7 @@ import { loadDreams } from "./graph/dreams";
 import { loadKnowledgeGraph } from "./graph/load";
 import { requestCursorMarker, sendKidMessage, sendParentMessage } from "./harness/chat";
 import { requireParentPinForProfileCreation } from "./profileCreationAuth";
+import { requireRestartDream } from "./restartDream";
 import { loadOrInitConfig, writeConfig } from "./storage/config";
 import { deleteFlag, loadFlags, writeFlag } from "./storage/flags";
 import { seedGraph } from "./storage/graphSeed";
@@ -32,6 +33,7 @@ import {
   listProfiles,
   readProfile,
   readProgress,
+  restartCurrentDream,
   setCurrentDream,
   updateKpSkipped,
   updateKpStatus,
@@ -44,6 +46,7 @@ import {
   type ProjectFileChange,
   readProjectFile,
   resolveProjectDir,
+  restartProject,
   scaffoldProject,
   watchProjectFiles,
   writeProjectFile,
@@ -279,6 +282,23 @@ function registerIpc(layout: HiBitLayout): void {
       await updateStateMdCurrentDream(paths, dream);
       await upsertProjectEntry(layout, profileId, dream.id, dream.id);
     }
+    return profile;
+  });
+
+  ipcMain.handle("hibit:restart-dream", async (_event, profileId: string, dreamId: string) => {
+    const prior = await readProfile(layout, profileId);
+    const graphResult = await loadKnowledgeGraph(layout.graphNodesDir);
+    const graph = graphResult.ok ? graphResult.graph : { nodes: [], byId: {} };
+    const dreamResult = await loadDreams(layout.graphDreamsDir, graph);
+    const dream = requireRestartDream(dreamResult, dreamId);
+    const profile = await restartCurrentDream(layout, profileId, dreamId);
+    if (prior) {
+      await closeAcpRuntimeSessions({ profileId, role: "kid", sessionId: prior.sessions.kid });
+    }
+    const paths = profilePathsFor(layout, profileId);
+    await restartProject(paths, dream, { profileName: profile.name });
+    await updateStateMdCurrentDream(paths, dream);
+    await upsertProjectEntry(layout, profileId, dream.id, dream.id, { resetStartedAt: true });
     return profile;
   });
 

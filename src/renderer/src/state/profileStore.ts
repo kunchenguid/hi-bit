@@ -16,6 +16,7 @@ export type ProfileStore = {
   exportProfile: (profileId: string) => Promise<string | null>;
   selectProfile: (profileId: string | null) => void;
   setCurrentDream: (profileId: string, dreamId: string) => Promise<Profile>;
+  restartDream: (profileId: string, dreamId: string) => Promise<Profile>;
   updateSettings: (profileId: string, settings: ProfileSettingsInput) => Promise<Profile>;
 };
 
@@ -74,6 +75,16 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     await useProgressStore.getState().load(profileId);
     // Main also appends a system_event divider when the dream changes mid-session.
     // Re-hydrate the chat so the new event lands in the renderer's message list.
+    await useChatStore.getState().hydrate(profileId, updated.sessions.kid);
+    return updated;
+  },
+
+  restartDream: async (profileId, dreamId) => {
+    const updated = await window.hibit.restartDream(profileId, dreamId);
+    set((state) => ({
+      profiles: state.profiles.map((p) => (p.id === updated.id ? updated : p)),
+    }));
+    await useProgressStore.getState().load(profileId);
     await useChatStore.getState().hydrate(profileId, updated.sessions.kid);
     return updated;
   },

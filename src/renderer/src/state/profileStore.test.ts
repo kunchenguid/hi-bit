@@ -189,6 +189,45 @@ describe("useProfileStore", () => {
     expect(progressState.progress?.projects.map((p) => p.dreamId)).toEqual(["hello-card"]);
   });
 
+  it("restartDream refreshes progress and re-hydrates chat against the restarted kid session", async () => {
+    const ada = fakeProfile({
+      id: "ada",
+      name: "Ada",
+      currentDreamId: "hello-card",
+      dreamHistory: ["hello-card"],
+      sessions: { kid: "k-1", parent: "p-1" },
+    });
+    useProfileStore.setState({ profiles: [ada], status: "ready" });
+
+    const restartedAda: Profile = {
+      ...ada,
+      sessions: { kid: "k-2", parent: "p-1" },
+    };
+    const fresh: Progress = {
+      ...emptyProgress(),
+      projects: [
+        {
+          dreamId: "hello-card",
+          slug: "hello-card",
+          startedAt: "2026-04-24T00:00:00.000Z",
+          lastActiveAt: "2026-04-24T00:00:00.000Z",
+        },
+      ],
+    };
+    const restartDream = vi.fn().mockResolvedValue(restartedAda);
+    const getProgress = vi.fn().mockResolvedValue(fresh);
+    const getTranscript = vi.fn().mockResolvedValue([]);
+    mockHiBit({ restartDream, getProgress, getTranscript });
+
+    const result = await useProfileStore.getState().restartDream("ada", "hello-card");
+
+    expect(restartDream).toHaveBeenCalledWith("ada", "hello-card");
+    expect(result).toEqual(restartedAda);
+    expect(useProfileStore.getState().profiles[0]?.sessions.kid).toBe("k-2");
+    expect(getProgress).toHaveBeenCalledWith("ada");
+    expect(getTranscript).toHaveBeenCalledWith("ada", "k-2");
+  });
+
   it("deleteProfile removes the profile from the list", async () => {
     const ada = fakeProfile({ id: "ada", name: "Ada" });
     const bea = fakeProfile({ id: "bea", name: "Bea" });
