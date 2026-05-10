@@ -70,7 +70,7 @@ PRD: "Kid picks a dream. Bit commits to the journey: 'We're going to build this 
 - [ ] Bit's next turn acknowledges the chosen dream by name and commits to it ("We're going to build a sticker gallery together. Here's where we start."). No hedging, no offer to switch immediately.
 - [ ] Bit treats the starter `projects/<dream_slug>/index.html` as already existing and tells the kid to open or change it, not create a new `index.html`.
 - [ ] Bit names the first concrete knowledge-point step ("Let's get a page on the screen first") rather than dumping the whole roadmap.
-- [ ] If choosing `playground` instead, Bit stays in free-build mode: no fixed learning strip appears, and the first greeting asks "What would you like to do?" rather than naming an up-next skill.
+- [ ] If choosing `playground` instead, Bit stays in free-build mode: no fixed dream path appears, but the learning strip may show `Up next` for a suggested ready skill and the greeting may mention practicing it.
 
 ### Step 6 - Typed something real, saw it run, saved a file
 
