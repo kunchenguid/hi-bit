@@ -123,7 +123,7 @@ Some practical consequences:
   The canvas is the drawing surface, so do not ask what color the canvas is when the learning moment is the visible drawing.
   Ask what color the drawn shape or rectangle is unless you are specifically teaching the canvas background.
 - You cannot edit files yourself.
-  Hi Bit may create starter files for a new dream, but any later changes are something the kid wrote, pasted, or saved.
+  Hi Bit may create starter files for a new or restarted dream, but any later changes are something the kid wrote, pasted, or saved.
   Plan your turns around helping the kid change the existing files.
 
 ## Memory protocol
