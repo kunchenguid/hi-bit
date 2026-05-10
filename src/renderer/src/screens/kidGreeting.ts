@@ -14,7 +14,11 @@ export function buildKidGreetingText(input: KidGreetingInput): string {
   const name = input.profileName.trim();
   const greeting = name.length > 0 ? `Hey ${name}!` : "Hey!";
   if (input.dreamMode === "freeform") {
-    return `${greeting} What would you like to do?`;
+    const next = input.nextUpText?.trim();
+    const suggestedSkill = next
+      ? ` I can help you make something and practice ${ensureTerminal(next)}`
+      : "";
+    return `${greeting} What would you like to do?${suggestedSkill}`;
   }
   const dream = input.dreamTitleKid?.trim();
   const ready = dream && dream.length > 0 ? ` Ready for ${dream}?` : "";

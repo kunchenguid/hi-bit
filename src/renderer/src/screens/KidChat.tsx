@@ -117,14 +117,13 @@ export function KidChat({
 
   const nextSuggestion = useMemo(() => {
     if (!progress) return null;
-    if (dream?.mode === "freeform") return null;
     return chooseNextSuggestion({
       graph,
       library,
       currentDreamId: profile.currentDreamId ?? null,
       progress,
     });
-  }, [dream?.mode, graph, library, profile.currentDreamId, progress]);
+  }, [graph, library, profile.currentDreamId, progress]);
 
   const nextUp = useMemo(() => describeKidNextUp(nextSuggestion), [nextSuggestion]);
   const nextUpKpId = nextSuggestion?.kind === "next-kp" ? nextSuggestion.kp.id : null;

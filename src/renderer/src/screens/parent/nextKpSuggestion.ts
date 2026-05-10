@@ -1,7 +1,7 @@
 import type { DreamLibrary } from "@shared/dreams";
 import type { KnowledgeGraph, KnowledgePoint } from "@shared/knowledgeGraph";
 import type { KnowledgePointStatus, Progress } from "@shared/progress";
-import { collectRequiredKps, kpLevel, pickNextKP } from "@shared/scheduler";
+import { collectRequiredKps, kpLevel, pickNextKP, pickNextOpenKps } from "@shared/scheduler";
 
 export type NextKpSuggestion =
   | { kind: "no-dream" }
@@ -25,7 +25,13 @@ export function chooseNextSuggestion(input: ChooseNextSuggestionInput): NextKpSu
   if (!graph || !library) return { kind: "loading" };
   const dream = library.byId[currentDreamId];
   if (!dream) return { kind: "unknown-dream", dreamId: currentDreamId };
-  if (dream.mode === "freeform") return { kind: "freeform" };
+  if (dream.mode === "freeform") {
+    const nextId = pickNextOpenKps(graph, progress, { limit: 1 })[0];
+    if (!nextId) return { kind: "freeform" };
+    const kp = graph.byId[nextId];
+    if (!kp) return { kind: "freeform" };
+    return { kind: "next-kp", kp, status: kpLevel(progress, nextId) };
+  }
   const { unresolved } = collectRequiredKps(graph, dream);
   if (unresolved.length > 0) return { kind: "unresolved-prereqs", missing: unresolved };
   const nextId = pickNextKP(graph, dream, progress);

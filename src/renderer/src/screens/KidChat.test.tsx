@@ -37,13 +37,13 @@ function makeDream(requires: string[]): Dream {
   };
 }
 
-function makeKp(id: string, titleKid: string): KnowledgePoint {
+function makeKp(id: string, titleKid: string, prereqs: string[] = []): KnowledgePoint {
   return {
     id,
     title_parent: titleKid,
     title_kid: titleKid,
     area: "html",
-    prereqs: [],
+    prereqs,
     introduces: [],
     mastery_signals: { saw_it: "s", did_with_help: "d", did_unprompted: "u", explained_it: "e" },
   };
@@ -255,6 +255,37 @@ describe("KidChat cursor target action", () => {
     });
 
     expect(host.textContent).toContain("Hey Ada! What would you like to do?");
+  });
+
+  it("shows a suggested next skill in playground when one is teachable", async () => {
+    const playground = makeDream([]);
+    playground.id = "playground";
+    playground.mode = "freeform";
+    playground.title_kid = "playground";
+    useChatStore.setState({ messages: [], greetingForSessionId: null });
+    useGraphStore.setState({
+      status: "ready",
+      graph: graphOf([
+        makeKp("run-and-preview", "running your code and seeing what happens"),
+        makeKp("web-page-parts", "the three parts of a web page", ["run-and-preview"]),
+      ]),
+      library: libraryOf(playground),
+    });
+    useProgressStore.setState({
+      status: "ready",
+      profileId: profile.id,
+      progress: emptyProgress(),
+    });
+
+    await act(async () => {
+      root.render(<KidChat profile={{ ...profile, currentDreamId: "playground" }} />);
+    });
+
+    expect(host.textContent).toContain(
+      "I can help you make something and practice running your code and seeing what happens.",
+    );
+    expect(host.textContent).toContain("Up next:");
+    expect(host.textContent).toContain("running your code and seeing what happens");
   });
 
   it("does not show all-done learning progress for freeform dreams", async () => {

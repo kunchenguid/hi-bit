@@ -27,6 +27,7 @@ export type LearningPlanKp = {
 };
 
 export type LearningPlanContext = {
+  kind?: "dream" | "suggested";
   dream: { id: string; titleKid: string };
   nextUpKpId: string | null;
   requiredKps: LearningPlanKp[];
@@ -86,16 +87,26 @@ export function buildSessionContextPreamble(opts: BuildSessionContextOptions): s
 }
 
 function buildLearningPlanLines(plan: LearningPlanContext): string[] {
+  const suggested = plan.kind === "suggested";
   const completingNextUpCompletesDream = doesCompletingNextUpCompleteDream(plan);
   const lines = [
     "",
     "<hi-bit:learning-plan>",
-    "This is the current dream path from Hi-Bit's knowledge graph.",
+    suggested
+      ? "This is a suggested learning focus for freeform playground mode, chosen from unlearned knowledge points whose prereqs are ready."
+      : "This is the current dream path from Hi-Bit's knowledge graph.",
+    ...(suggested
+      ? [
+          "Guide the kid toward these skills through whatever they want to build, but do not treat this as a fixed project path.",
+        ]
+      : []),
     "Use these exact KP ids in hidden <hi-bit:progress> blocks. Do not invent KP ids.",
     "Use listed ids like html-text-headings, not tag names like h1.",
     "Before your visible reply ends, include a hidden <hi-bit:progress> block when this turn teaches or checks next_up.",
     "If next_up is not_started and you ask the kid to inspect or change related code, mark it saw_it in that hidden block first.",
-    "If next_up is none, the current dream path is complete. Tell the kid to click Switch dream.",
+    suggested
+      ? "If next_up is none, keep helping the kid build freely; there is no fixed playground path to complete."
+      : "If next_up is none, the current dream path is complete. Tell the kid to click Switch dream.",
     "Never mention hidden progress blocks to the kid.",
     `dream: ${plan.dream.id} - ${plan.dream.titleKid}`,
     `next_up: ${plan.nextUpKpId ?? "none"}`,
@@ -121,6 +132,7 @@ function buildLearningPlanLines(plan: LearningPlanContext): string[] {
 }
 
 function doesCompletingNextUpCompleteDream(plan: LearningPlanContext): boolean {
+  if (plan.kind === "suggested") return false;
   if (!plan.nextUpKpId) return false;
   if (!plan.requiredKps.some((kp) => kp.id === plan.nextUpKpId)) return false;
   return plan.requiredKps.every(

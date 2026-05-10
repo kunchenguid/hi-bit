@@ -9,6 +9,7 @@ import {
   kpLevel,
   kpMeets,
   pickNextKP,
+  pickNextOpenKps,
 } from "./scheduler";
 
 function makeKp(id: string, prereqs: string[] = []): KnowledgePoint {
@@ -237,6 +238,30 @@ describe("pickNextKP with skipped KPs", () => {
       skipped: true,
     };
     expect(pickNextKP(graph, dream, p)).toBeNull();
+  });
+});
+
+describe("pickNextOpenKps", () => {
+  it("returns a small set of teachable unlearned KPs across the graph", () => {
+    const graph = graphOf([
+      makeKp("run-and-preview"),
+      makeKp("web-page-parts", ["run-and-preview"]),
+      makeKp("html-tags-basics", ["web-page-parts"]),
+      makeKp("css-colors", ["html-tags-basics"]),
+    ]);
+    const progress = progressAt({ "run-and-preview": "did_with_help" });
+
+    expect(pickNextOpenKps(graph, progress, { limit: 2 })).toEqual(["web-page-parts"]);
+  });
+
+  it("keeps started-but-not-taught KPs before later prereq-dependent KPs", () => {
+    const graph = graphOf([
+      makeKp("run-and-preview"),
+      makeKp("web-page-parts", ["run-and-preview"]),
+    ]);
+    const progress = progressAt({ "run-and-preview": "saw_it" });
+
+    expect(pickNextOpenKps(graph, progress)).toEqual(["run-and-preview"]);
   });
 });
 

@@ -66,15 +66,19 @@ function runtimeFactoryFor(outputs: RuntimeOutput[]) {
 
 const config: HiBitConfig = { version: 2, defaultAgent: "claude" };
 
-async function writeGraphNode(layout: HiBitLayout, id: string): Promise<void> {
+async function writeGraphNode(
+  layout: HiBitLayout,
+  id: string,
+  opts: { titleKid?: string; prereqs?: string[] } = {},
+): Promise<void> {
   await writeFile(
     join(layout.graphNodesDir, `${id}.yml`),
     [
       `id: ${id}`,
       "title_parent: Headings",
-      "title_kid: big titles",
+      `title_kid: ${opts.titleKid ?? "big titles"}`,
       "area: html",
-      "prereqs: []",
+      `prereqs: [${(opts.prereqs ?? []).join(", ")}]`,
       "introduces: []",
       "mastery_signals:",
       "  saw_it: saw",
@@ -649,7 +653,14 @@ describe("ACP-backed chat", () => {
     expect(prompts[0]).toContain("project_files: []");
   });
 
-  it("keeps freeform dreams in project context without a fixed learning plan", async () => {
+  it("keeps freeform dreams in project context with a suggested next-skill plan", async () => {
+    await writeGraphNode(layout, "run-and-preview", {
+      titleKid: "running your code and seeing what happens",
+    });
+    await writeGraphNode(layout, "web-page-parts", {
+      titleKid: "the three parts of a web page",
+      prereqs: ["run-and-preview"],
+    });
     await writeFile(
       join(layout.graphDreamsDir, "playground.yml"),
       [
@@ -699,7 +710,13 @@ describe("ACP-backed chat", () => {
     expect(prompts[0]).toContain("current_dream: playground");
     expect(prompts[0]).toContain(`project_dir: ${join(paths.root, "projects", "playground")}`);
     expect(prompts[0]).toContain('project_files: ["index.html"]');
-    expect(prompts[0]).not.toContain("<hi-bit:learning-plan>");
+    expect(prompts[0]).toContain("<hi-bit:learning-plan>");
+    expect(prompts[0]).toContain("suggested learning focus for freeform playground mode");
+    expect(prompts[0]).toContain("next_up: run-and-preview");
+    expect(prompts[0]).toContain(
+      "- run-and-preview | running your code and seeing what happens | status: not_started",
+    );
+    expect(prompts[0]).not.toContain("- web-page-parts | the three parts of a web page");
   });
 
   it("runs parent turns against the parent session and role", async () => {

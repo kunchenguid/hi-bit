@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { type CursorMarkerRequest, type SendMessageResult, visiblePromptText } from "@shared/chat";
 import type { AgentId, HiBitConfig } from "@shared/config";
-import type { KnowledgePointStatus } from "@shared/progress";
-import { collectRequiredKps, pickNextKP } from "@shared/scheduler";
+import type { KnowledgeGraph } from "@shared/knowledgeGraph";
+import type { KnowledgePointStatus, Progress } from "@shared/progress";
+import { collectRequiredKps, pickNextKP, pickNextOpenKps } from "@shared/scheduler";
 import type { HarnessInvocationLogEntry, SessionRole } from "@shared/sessionLog";
 import { type ExecuteAcpTurnOptions, executeAcpTurn } from "../agent/acpxTurn";
 import { loadDreams } from "../graph/dreams";
@@ -379,12 +380,34 @@ async function learningPlanForCurrentDream(
   if (!dreamResult.ok) return undefined;
   const dream = dreamResult.library.byId[profile.currentDreamId];
   if (!dream) return undefined;
-  if (dream.mode === "freeform") return undefined;
-
   const progress = await readProgress(layout, profileId);
+
+  if (dream.mode === "freeform") {
+    const nextKpIds = pickNextOpenKps(graph, progress, { limit: 3 });
+    return {
+      kind: "suggested",
+      dream: { id: dream.id, titleKid: dream.title_kid },
+      nextUpKpId: nextKpIds[0] ?? null,
+      requiredKps: learningPlanKpsForIds(graph, progress, nextKpIds),
+    };
+  }
+
   const nextUpKpId = pickNextKP(graph, dream, progress);
   const { ordered } = collectRequiredKps(graph, dream);
-  const requiredKps = ordered
+
+  return {
+    dream: { id: dream.id, titleKid: dream.title_kid },
+    nextUpKpId,
+    requiredKps: learningPlanKpsForIds(graph, progress, ordered),
+  };
+}
+
+function learningPlanKpsForIds(
+  graph: KnowledgeGraph,
+  progress: Progress,
+  kpIds: readonly string[],
+): LearningPlanContext["requiredKps"] {
+  return kpIds
     .map((id) => graph.byId[id])
     .filter((kp) => kp !== undefined)
     .map((kp) => ({
@@ -394,12 +417,6 @@ async function learningPlanForCurrentDream(
       status: progress.knowledgePoints[kp.id]?.status ?? null,
       masterySignals: kp.mastery_signals,
     }));
-
-  return {
-    dream: { id: dream.id, titleKid: dream.title_kid },
-    nextUpKpId,
-    requiredKps,
-  };
 }
 
 type ProgressControlEntry = {

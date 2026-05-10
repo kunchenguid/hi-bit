@@ -78,6 +78,10 @@ export type PickNextOptions = {
   taughtThreshold?: KnowledgePointStatus;
 };
 
+export type PickNextOpenOptions = PickNextOptions & {
+  limit?: number;
+};
+
 export function pickNextKP(
   graph: KnowledgeGraph,
   dream: Dream,
@@ -98,4 +102,25 @@ export function pickNextKP(
   }
 
   return null;
+}
+
+export function pickNextOpenKps(
+  graph: KnowledgeGraph,
+  progress: Progress,
+  options: PickNextOpenOptions = {},
+): string[] {
+  const prereqThreshold = options.prereqThreshold ?? "did_with_help";
+  const taughtThreshold = options.taughtThreshold ?? "did_with_help";
+  const limit = Math.max(0, options.limit ?? 3);
+  if (limit === 0) return [];
+
+  const nextIds: string[] = [];
+  for (const node of graph.nodes) {
+    if (kpMeets(progress, node.id, taughtThreshold)) continue;
+    if (node.prereqs.some((prereq) => !kpMeets(progress, prereq, prereqThreshold))) continue;
+    nextIds.push(node.id);
+    if (nextIds.length >= limit) break;
+  }
+
+  return nextIds;
 }
