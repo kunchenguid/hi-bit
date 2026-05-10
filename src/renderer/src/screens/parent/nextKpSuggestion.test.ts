@@ -141,7 +141,22 @@ describe("chooseNextSuggestion", () => {
     expect(result).toEqual({ kind: "all-done" });
   });
 
-  it("returns freeform for freeform dreams without a fixed learning plan", () => {
+  it("returns the next teachable KP for freeform dreams", () => {
+    const run = makeKp("run-and-preview");
+    const parts = makeKp("web-page-parts", ["run-and-preview"]);
+    const dream = makeDream("playground", []);
+    dream.mode = "freeform";
+    const result = chooseNextSuggestion({
+      graph: makeGraph([run, parts]),
+      library: libraryOf([dream]),
+      currentDreamId: "playground",
+      progress: baseProgress,
+    });
+    expect(result.kind).toBe("next-kp");
+    if (result.kind === "next-kp") expect(result.kp.id).toBe("run-and-preview");
+  });
+
+  it("returns freeform when no teachable KP is available for a freeform dream", () => {
     const dream = makeDream("playground", []);
     dream.mode = "freeform";
     const result = chooseNextSuggestion({

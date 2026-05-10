@@ -67,6 +67,18 @@ describe("buildKidGreetingText", () => {
     expect(text).toBe("Hey Ada! What would you like to do?");
   });
 
+  it("adds a suggested skill to freeform greetings when one is ready", () => {
+    const text = buildKidGreetingText({
+      profileName: "Ada",
+      dreamTitleKid: "playground",
+      dreamMode: "freeform",
+      nextUpText: "running your code and seeing what happens",
+    });
+    expect(text).toBe(
+      "Hey Ada! What would you like to do? I can help you make something and practice running your code and seeing what happens.",
+    );
+  });
+
   it("never produces ALL CAPS", () => {
     const text = buildKidGreetingText({
       profileName: "Eddie",
