@@ -527,4 +527,10 @@ pre {
   .hb-header-actions {
     flex-wrap: wrap;
   }
+
+  .hb-profile-settings-popover {
+    left: 0;
+    right: auto;
+    width: calc(100vw - var(--s-4));
+  }
 }
