@@ -20,6 +20,7 @@ export type BitRuntime = {
   abort: (runtimeKey: string) => Promise<void>;
   getMessages: (runtimeKey: string) => unknown[];
   isRunning: (runtimeKey: string) => boolean;
+  disposeProject?: (runtimeKey: string) => void;
 };
 
 type BitCoordinatorServiceOptions = {
@@ -94,6 +95,10 @@ export class BitCoordinatorService {
     let project: RuntimeProject | undefined;
     try {
       project = await this.projects.get(projectId);
+      if (this.activeRuntimeKeys.has(project.id)) {
+        return { ok: false, error: "Bit is already working on this project." };
+      }
+
       const projectCatalog = await this.projects.list();
       const plan = await this.botJobs.createBuildPlan(project, prompt, projectCatalog);
       job = await this.botJobs.createJob(project, plan);
@@ -178,6 +183,7 @@ export class BitCoordinatorService {
       }
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     } finally {
+      if (job) this.runtime.disposeProject?.(job.id);
       if (project) this.activeRuntimeKeys.delete(project.id);
     }
   }

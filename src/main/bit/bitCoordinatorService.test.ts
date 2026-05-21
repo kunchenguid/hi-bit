@@ -13,6 +13,7 @@ class FakeRuntime implements BitRuntime {
   prompts: string[] = [];
   projects: RuntimeProject[] = [];
   aborts: string[] = [];
+  disposed: string[] = [];
   status: "completed" | "cancelled" | "failed" = "completed";
 
   async sendPrompt(project: RuntimeProject, text: string, onEvent: (event: ChatEvent) => void) {
@@ -39,11 +40,16 @@ class FakeRuntime implements BitRuntime {
   isRunning(): boolean {
     return false;
   }
+
+  disposeProject(runtimeKey: string): void {
+    this.disposed.push(runtimeKey);
+  }
 }
 
 class FakePipeline implements BotPipeline {
   prepared: Array<{ project: RuntimeProject; job: BotJobRecord }> = [];
   installed: Array<{ project: RuntimeProject; job: BotJobRecord; workbench: BotWorkbench }> = [];
+  beforeInstall?: () => Promise<void> | void;
 
   async prepareBotWorkbench(project: RuntimeProject, job: BotJobRecord): Promise<BotWorkbench> {
     this.prepared.push({ project, job });
@@ -64,6 +70,7 @@ class FakePipeline implements BotPipeline {
     job: BotJobRecord,
     workbench: BotWorkbench,
   ): Promise<BotBuild> {
+    await this.beforeInstall?.();
     this.installed.push({ project, job, workbench });
     return {
       jobId: job.id,
@@ -174,5 +181,40 @@ describe("BitCoordinatorService", () => {
       id: "bot_job_0001",
       status: "cancelled",
     });
+  });
+
+  it("rejects a second prompt while a completed runtime turn is still installing", async () => {
+    const setup = await createCoordinator();
+    let releaseInstall!: () => void;
+    let installCalls = 0;
+    const installStarted = new Promise<void>((resolve) => {
+      setup.pipeline.beforeInstall = () =>
+        installCalls++ === 0
+          ? new Promise<void>((release) => {
+              releaseInstall = release;
+              resolve();
+            })
+          : undefined;
+    });
+
+    const first = setup.coordinator.send(setup.game.id, "Add star pets", () => {});
+    await installStarted;
+
+    await expect(setup.coordinator.send(setup.game.id, "Add moon pets", () => {})).resolves.toEqual({
+      ok: false,
+      error: "Bit is already working on this project.",
+    });
+
+    releaseInstall();
+    await first;
+    expect(setup.pipeline.prepared).toHaveLength(1);
+  });
+
+  it("disposes the one-off bot runtime after the bot job finishes", async () => {
+    const setup = await createCoordinator();
+
+    await setup.coordinator.send(setup.game.id, "Add star pets", () => {});
+
+    expect(setup.runtime.disposed).toEqual(["bot_job_0001"]);
   });
 });
