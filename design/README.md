@@ -1,12 +1,12 @@
 # Hi-Bit Design System
 
-> A cozy arcade for learning to code. Pixel-art spirit, rounded-sans warmth, mentor-tone copy — built for kids ages 5–18 and the parents who trust the app on their behalf.
+> A cozy arcade for learning to code. Pixel-art spirit, rounded-sans warmth, mentor-tone copy - built for kids ages 7-12 and the parents who trust the app on their behalf.
 
 ---
 
 ## What is Hi-Bit?
 
-**Hi-Bit** is a desktop Electron app that acts as an AI tutor, teaching kids ages 5–18 how to code. Current curriculum focus is **JavaScript, HTML, and CSS** — the web stack, because it's the fastest path from "I typed some words" to "my computer drew a thing."
+**Hi-Bit** is a desktop Electron app that acts as an AI tutor, teaching kids ages 7-12 how to code. Current curriculum focus is **JavaScript, HTML, and CSS** - the web stack, because it's the fastest path from "I typed some words" to "my computer drew a thing."
 
 The product's emotional promise is a contradiction we lean into on purpose:
 
@@ -17,9 +17,9 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 
 ### Sources used to build this system
 
-- **Brand:** greenfield — no prior codebase, no prior marks. This design system *is* the brand spec. Iterate it here, then implement.
-- **Referenced repo:** `kunchenguid/hi-bit` (empty at time of writing — confirmed by the user as a new app).
-- **User brief:** desktop Electron AI tutor, kids 5–18, aesthetic that parents trust and kids find friendly.
+- **Brand:** greenfield - no prior marks. This design system *is* the brand spec. Iterate it here, then implement.
+- **Referenced repo:** `kunchenguid/hi-bit` Electron app with Codex sign-in, project picking, and a Pi-backed Bit chat workspace.
+- **User brief:** desktop Electron AI tutor, kids 7-12, aesthetic that parents trust and kids find friendly.
 
 ---
 
@@ -41,7 +41,7 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 
 ### Voice
 
-**Wise & warm, like a favorite teacher** — specifically the one you still quote twenty years later. Never condescending, never saccharine. Boo (the mascot) carries the voice in tutor chat; the UI itself is quieter.
+**Wise & warm, like a favorite teacher** - specifically the one you still quote twenty years later. Never condescending, never saccharine. Bit carries the voice in tutor chat; the UI itself is quieter.
 
 The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid whose parent was standing right there?* If no, rewrite.
 

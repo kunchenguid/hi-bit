@@ -9,7 +9,7 @@ The canonical knowledge graph under `graph/nodes/` and the dream library under `
 - **Maintainer:** Kun Chen (@kunchenguid). Final say on what lands in `graph/`.
 - **Everything else:** standard open-source review. Any maintainer with write access can merge non-graph PRs once tests pass and CI is green.
 
-The graph is authored, not crowdsourced. Outside PRs are welcome, but the bar is deliberately high - see the review criteria below - because the scheduler and every shipped dream depend on the graph staying small and sharp.
+The graph is authored, not crowdsourced. Outside PRs are welcome, but the bar is deliberately high - see the review criteria below - because the retained curriculum and every shipped dream depend on the graph staying small and sharp.
 
 ## Before you open a PR
 
@@ -30,7 +30,7 @@ Keep graph and dream edits small enough for maintainer review, and do not rely o
 Summary of what reviewers look for:
 
 1. **One sharp concept.** "CSS" is not a KP. "Changing the background color of a div" is a KP. A KP should be something a kid can master in one focused moment.
-2. **Tight prereqs.** Only list prereqs without which the KP is genuinely incomprehensible. Over-listing prereqs turns the graph into a linear queue and kills the scheduler's flexibility.
+2. **Tight prereqs.** Only list prereqs without which the KP is genuinely incomprehensible. Over-listing prereqs turns the graph into a linear queue and makes retained curriculum harder to review.
 3. **No exercises on the node.** The node says what must be mastered; Bit decides how to teach it each session. Mastery signals describe observable transitions, not drills.
 4. **Language-blended.** HTML, CSS, and JS all live in the same graph. The kid never sees the labels.
 5. **Stable id.** Once a KP ships, its `id` is forever. New concepts get new ids; do not rename.
@@ -49,7 +49,7 @@ Review criteria:
 1. **Real and achievable.** A `mode: project` dream is a real web project a 7-12 year old would actually want to build and could finish in one to a handful of sessions.
    A `mode: freeform` dream is an open-ended space for exploring, asking questions, or deciding what to build, not a disguised fixed project.
 2. **Coverable by shipped KPs.** Every id in `requires:` must resolve to an existing `graph/nodes/*.yml`. If you need a KP that does not exist yet, add the KP in the same PR - but prefer reusing KPs. Only `mode: freeform` dreams may have an empty `requires:` list.
-3. **Direct-use prereqs only.** Like KP prereqs, list the KPs the dream directly exercises. The scheduler resolves transitive prereqs from the graph; you do not need to include them.
+3. **Direct-use prereqs only.** Like KP prereqs, list the KPs the dream directly exercises. Do not include transitive prereqs that can be inferred from the graph.
 4. **No difficulty field.** Do not author `difficulty` in `graph/dreams/*.yml`; the current Pi-backed app does not expose a dream rating.
 5. **Categorized.** Use the `arcade | creative | personal | utility | art` enum. Multiple categories are fine. Adding a new category is a separate architectural change, not a dream PR.
 6. **Interest tags are kid-facing labels.** Use words a kid would recognize ("music", "animals", "space"), not author-facing taxonomy.

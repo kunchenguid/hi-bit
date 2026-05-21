@@ -1,12 +1,12 @@
 ---
 name: hi-bit-design
-description: Use this skill to generate well-branded interfaces and assets for Hi-Bit, an AI tutor desktop app that teaches kids 5–18 how to code. Contains design guidelines, colors, type, fonts, pixel-art assets, and UI kit components for prototyping or production work.
+description: Use this skill to generate well-branded interfaces and assets for Hi-Bit, an AI tutor desktop app that teaches kids 7-12 how to code. Contains design guidelines, colors, type, fonts, pixel-art assets, and UI kit components for prototyping or production work.
 user-invocable: true
 ---
 
 # Hi-Bit Design Skill
 
-Hi-Bit is a cozy arcade for learning to code — pixel-art spirit, rounded-sans warmth, mentor-tone copy. Designed for kids 5–18 and the parents who trust the app.
+Hi-Bit is a cozy arcade for learning to code - pixel-art spirit, rounded-sans warmth, mentor-tone copy. Designed for kids 7-12 and the parents who trust the app.
 
 The mascot is **Bit** — a curious little desktop-computer robot who leans in and figures things out with you.
 
