@@ -526,11 +526,16 @@ pre {
 
   .hb-header-actions {
     flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .hb-profile-settings-menu {
+    width: 100%;
   }
 
   .hb-profile-settings-popover {
     left: 0;
     right: auto;
-    width: calc(100vw - var(--s-4));
+    width: 100%;
   }
 }

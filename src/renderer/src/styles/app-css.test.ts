@@ -7,8 +7,10 @@ describe("app.css", () => {
     const mobileRules = css.match(/@media \(max-width: 920px\) \{[\s\S]*\n\}/)?.[0] ?? "";
 
     expect(mobileRules).toMatch(/\.hb-profile-settings-popover\s*\{/);
+    expect(mobileRules).toMatch(/\.hb-header-actions\s*\{[^}]*width:\s*100%;/);
+    expect(mobileRules).toMatch(/\.hb-profile-settings-menu\s*\{[^}]*width:\s*100%;/);
     expect(mobileRules).toMatch(/left:\s*0;/);
     expect(mobileRules).toMatch(/right:\s*auto;/);
-    expect(mobileRules).toMatch(/width:\s*calc\(100vw - var\(--s-4\)\);/);
+    expect(mobileRules).toMatch(/\.hb-profile-settings-popover\s*\{[^}]*width:\s*100%;/);
   });
 });
