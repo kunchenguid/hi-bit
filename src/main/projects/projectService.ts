@@ -32,19 +32,21 @@ export class ProjectService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async list(): Promise<ProjectSummary[]> {
-    await mkdir(projectsDir(this.layout), { recursive: true });
-    const entries = await readdir(projectsDir(this.layout), { withFileTypes: true });
+  async list(profileId: string): Promise<ProjectSummary[]> {
+    await mkdir(projectsDir(this.layout, profileId), { recursive: true });
+    const entries = await readdir(projectsDir(this.layout, profileId), { withFileTypes: true });
     const projects: ProjectSummary[] = [];
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      const record = await readJsonFile<ProjectRecord>(this.pathsFor(entry.name).projectJsonPath);
+      const record = await readJsonFile<ProjectRecord>(
+        this.pathsFor(profileId, entry.name).projectJsonPath,
+      );
       if (record) projects.push(record);
     }
     return projects.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  async create(input: CreateProjectInput): Promise<ProjectSummary> {
+  async create(profileId: string, input: CreateProjectInput): Promise<ProjectSummary> {
     const title = input.title.trim();
     if (!title) {
       throw new Error("Project title is required.");
@@ -55,11 +57,12 @@ export class ProjectService {
       schemaVersion: 1,
       id: `project_${randomUUID().replace(/-/g, "")}`,
       factoryId: this.layout.defaultFactoryId,
+      profileId,
       title,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
-    const paths = this.pathsFor(project.id);
+    const paths = this.pathsFor(profileId, project.id);
     await Promise.all([
       mkdir(paths.mainWorkbenchDir, { recursive: true }),
       mkdir(paths.workbenchesDir, { recursive: true }),
@@ -82,10 +85,10 @@ export class ProjectService {
     return project;
   }
 
-  async get(projectId: string): Promise<RuntimeProject> {
-    const paths = this.pathsFor(projectId);
+  async get(profileId: string, projectId: string): Promise<RuntimeProject> {
+    const paths = this.pathsFor(profileId, projectId);
     const record = await readJsonFile<ProjectRecord>(paths.projectJsonPath);
-    if (!record) {
+    if (!record || record.profileId !== profileId) {
       throw new Error("Project not found.");
     }
     return {
@@ -97,8 +100,12 @@ export class ProjectService {
     };
   }
 
-  async setActiveBitSessionFile(projectId: string, sessionFile: string | undefined): Promise<void> {
-    const project = await this.get(projectId);
+  async setActiveBitSessionFile(
+    profileId: string,
+    projectId: string,
+    sessionFile: string | undefined,
+  ): Promise<void> {
+    const project = await this.get(profileId, projectId);
     const activeSession = sessionFile
       ? {
           provider: "pi" as const,
@@ -109,6 +116,7 @@ export class ProjectService {
       schemaVersion: 1,
       id: project.id,
       factoryId: project.factoryId,
+      profileId: project.profileId,
       title: project.title,
       createdAt: project.createdAt,
       updatedAt: this.now().toISOString(),
@@ -117,13 +125,13 @@ export class ProjectService {
     await writeJsonFile(project.projectJsonPath, next);
   }
 
-  async appendActivity(projectId: string, value: unknown): Promise<void> {
-    const paths = this.pathsFor(projectId);
+  async appendActivity(profileId: string, projectId: string, value: unknown): Promise<void> {
+    const paths = this.pathsFor(profileId, projectId);
     await appendJsonl(paths.projectLogbookPath, value);
   }
 
-  pathsFor(projectId: string): ProjectPaths {
-    const dir = projectDir(this.layout, projectId);
+  pathsFor(profileId: string, projectId: string): ProjectPaths {
+    const dir = projectDir(this.layout, profileId, projectId);
     return {
       projectDir: dir,
       projectJsonPath: join(dir, "project.json"),

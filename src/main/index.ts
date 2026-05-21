@@ -7,6 +7,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
 import { PiRuntimeService } from "./pi/piRuntimeService";
+import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
 import { readJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
@@ -17,6 +18,7 @@ const isDev = !app.isPackaged;
 type Services = {
   layout: HiBitLayout;
   auth: CodexAuthService;
+  profiles: ProfileService;
   projects: ProjectService;
   bit: BitCoordinatorService;
   runtime: PiRuntimeService;
@@ -64,16 +66,15 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     codec: createSafeStorageTokenCodec(safeStorage),
     openExternal: (url) => shell.openExternal(url),
   });
+  const profiles = new ProfileService(layout);
   const projects = new ProjectService(layout);
   const runtime = new PiRuntimeService({
     agentDir: layout.piAgentDir,
     modelId: modelIdFromConfig(config.defaultModel),
     getFreshAccessToken: () => auth.getFreshAccessToken(),
-    onSessionFile: (projectId, sessionFile) =>
-      projects.setActiveBitSessionFile(projectId, sessionFile),
   });
-  const bit = new BitCoordinatorService({ projects, runtime });
-  return { layout, auth, projects, bit, runtime };
+  const bit = new BitCoordinatorService({ profiles, projects, runtime });
+  return { layout, auth, profiles, projects, bit, runtime };
 }
 
 export function registerIpc(services: Services): void {
@@ -94,24 +95,51 @@ export function registerIpc(services: Services): void {
     services.runtime.disposeAll();
   });
 
-  ipcMain.handle("hibit:projects:list", () => services.projects.list());
-  ipcMain.handle("hibit:projects:create", (_event, input) => services.projects.create(input));
-  ipcMain.handle("hibit:projects:open-folder", async (_event, projectId: string) => {
-    const project = await services.projects.get(projectId);
-    const failure = await shell.openPath(project.mainWorkbenchDir);
-    if (failure) throw new Error(failure);
+  ipcMain.handle("hibit:profiles:list", () => services.profiles.list());
+  ipcMain.handle("hibit:profiles:create", (_event, input) => services.profiles.create(input));
+  ipcMain.handle("hibit:profiles:update", (_event, profileId: string, settings) =>
+    services.profiles.update(profileId, settings),
+  );
+  ipcMain.handle("hibit:profiles:get-active-id", () => services.profiles.getActiveId());
+  ipcMain.handle("hibit:profiles:set-active-id", async (_event, profileId: string | null) => {
+    if (profileId) await services.profiles.get(profileId);
+    await services.profiles.setActiveId(profileId);
   });
 
-  ipcMain.handle("hibit:chat:load", (_event, projectId: string) => services.bit.load(projectId));
-  ipcMain.handle("hibit:chat:send", async (event, projectId: string, text: string) => {
-    const sendEvent = (payload: ChatEvent) => {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send("hibit:chat:event", payload);
-      }
-    };
-    return services.bit.send(projectId, text, sendEvent);
+  ipcMain.handle("hibit:projects:list", async (_event, profileId: string) => {
+    await services.profiles.get(profileId);
+    return services.projects.list(profileId);
   });
-  ipcMain.handle("hibit:chat:abort", (_event, projectId: string) => services.bit.abort(projectId));
+  ipcMain.handle("hibit:projects:create", async (_event, profileId: string, input) => {
+    await services.profiles.get(profileId);
+    return services.projects.create(profileId, input);
+  });
+  ipcMain.handle(
+    "hibit:projects:open-folder",
+    async (_event, profileId: string, projectId: string) => {
+      const project = await services.projects.get(profileId, projectId);
+      const failure = await shell.openPath(project.mainWorkbenchDir);
+      if (failure) throw new Error(failure);
+    },
+  );
+
+  ipcMain.handle("hibit:chat:load", (_event, profileId: string, projectId: string) =>
+    services.bit.load(profileId, projectId),
+  );
+  ipcMain.handle(
+    "hibit:chat:send",
+    async (event, profileId: string, projectId: string, text: string) => {
+      const sendEvent = (payload: ChatEvent) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send("hibit:chat:event", payload);
+        }
+      };
+      return services.bit.send(profileId, projectId, text, sendEvent);
+    },
+  );
+  ipcMain.handle("hibit:chat:abort", (_event, profileId: string, projectId: string) =>
+    services.bit.abort(profileId, projectId),
+  );
 }
 
 void app.whenReady().then(async () => {

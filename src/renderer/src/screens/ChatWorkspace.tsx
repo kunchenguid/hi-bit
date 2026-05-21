@@ -1,5 +1,6 @@
 import type { AuthStatus } from "@shared/auth";
 import type { ChatMessage, ToolActivity } from "@shared/chat";
+import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { Composer } from "../components/Composer";
 import { MessageList } from "../components/MessageList";
@@ -7,6 +8,7 @@ import { ToolActivity as ToolActivityList } from "../components/ToolActivity";
 
 type ChatWorkspaceProps = {
   authStatus: AuthStatus | null;
+  profile: ProfileSummary;
   project: ProjectSummary;
   messages: ChatMessage[];
   tools: ToolActivity[];
@@ -19,10 +21,12 @@ type ChatWorkspaceProps = {
   onBack: () => void;
   onOpenFolder: () => void;
   onLogout: () => void;
+  onSwitchProfile: () => void;
 };
 
 export function ChatWorkspace({
   authStatus,
+  profile,
   project,
   messages,
   tools,
@@ -35,6 +39,7 @@ export function ChatWorkspace({
   onBack,
   onOpenFolder,
   onLogout,
+  onSwitchProfile,
 }: ChatWorkspaceProps) {
   return (
     <main className="hb-workspace">
@@ -46,10 +51,14 @@ export function ChatWorkspace({
           <p className="t-pixel">openai-codex/gpt-5.5</p>
           <h1>{project.title}</h1>
           <p className="t-small">
-            {authStatus?.accountId ? `Signed in as ${authStatus.accountId}` : "Codex connected"}
+            {profile.name}'s project -{" "}
+            {authStatus?.accountId ? `signed in as ${authStatus.accountId}` : "Codex connected"}
           </p>
         </div>
         <div className="hb-header-actions">
+          <button className="hb-button hb-button-secondary" type="button" onClick={onSwitchProfile}>
+            Switch profile
+          </button>
           <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
             Open folder
           </button>

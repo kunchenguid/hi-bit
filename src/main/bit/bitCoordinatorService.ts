@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { ChatEvent, ChatMessage, ChatSnapshot, SendMessageResult } from "@shared/chat";
+import type { ProfileSummary } from "@shared/profile";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
 import { chatMessagesFromPiMessages } from "../pi/piMessages";
@@ -23,7 +24,12 @@ export type BitRuntime = {
   disposeProject?: (runtimeKey: string) => void;
 };
 
+export type ProfileReader = {
+  get: (profileId: string) => Promise<ProfileSummary>;
+};
+
 type BitCoordinatorServiceOptions = {
+  profiles: ProfileReader;
   projects: ProjectService;
   runtime: BitRuntime;
   botJobs?: BotJobService;
@@ -46,6 +52,7 @@ type ProjectLogbookEntry =
   | Record<string, unknown>;
 
 export class BitCoordinatorService {
+  private readonly profiles: ProfileReader;
   private readonly projects: ProjectService;
   private readonly runtime: BitRuntime;
   private readonly botJobs: BotJobService;
@@ -54,6 +61,7 @@ export class BitCoordinatorService {
   private readonly activeRuntimeKeys = new Map<string, string>();
 
   constructor(options: BitCoordinatorServiceOptions) {
+    this.profiles = options.profiles;
     this.projects = options.projects;
     this.runtime = options.runtime;
     this.now = options.now ?? (() => new Date());
@@ -61,8 +69,8 @@ export class BitCoordinatorService {
     this.pipeline = options.pipeline ?? new LocalBotPipeline(undefined, this.now);
   }
 
-  async load(projectId: string): Promise<ChatSnapshot> {
-    const project = await this.projects.get(projectId);
+  async load(profileId: string, projectId: string): Promise<ChatSnapshot> {
+    const project = await this.projects.get(profileId, projectId);
     const logbookMessages = await readChatMessages(project);
     const runtimeKey = this.activeRuntimeKeys.get(projectId);
     const liveMessages = runtimeKey ? this.runtime.getMessages(runtimeKey) : [];
@@ -82,6 +90,7 @@ export class BitCoordinatorService {
   }
 
   async send(
+    profileId: string,
     projectId: string,
     text: string,
     onEvent: (event: ChatEvent) => void,
@@ -94,12 +103,13 @@ export class BitCoordinatorService {
     let job: BotJobRecord | undefined;
     let project: RuntimeProject | undefined;
     try {
-      project = await this.projects.get(projectId);
+      const profile = await this.profiles.get(profileId);
+      project = await this.projects.get(profileId, projectId);
       if (this.activeRuntimeKeys.has(project.id)) {
         return { ok: false, error: "Bit is already working on this project." };
       }
 
-      const projectCatalog = await this.projects.list();
+      const projectCatalog = await this.projects.list(profileId);
       const plan = await this.botJobs.createBuildPlan(project, prompt, projectCatalog);
       job = await this.botJobs.createJob(project, plan);
       await appendChatMessage(project, {
@@ -123,10 +133,10 @@ export class BitCoordinatorService {
       };
       const result = await this.runtime.sendPrompt(
         botProject,
-        botPrompt({ leadPrompt: prompt, project, projectCatalog }),
+        botPrompt({ leadPrompt: prompt, profile, project, projectCatalog }),
         (event) => {
           if (event.type === "assistant_delta") assistantText += event.text;
-          void this.projects.appendActivity(projectId, {
+          void this.projects.appendActivity(profileId, projectId, {
             timestamp: this.now().toISOString(),
             type: "chat_event",
             event,
@@ -136,7 +146,7 @@ export class BitCoordinatorService {
       );
 
       if (result.sessionFile) {
-        await this.projects.setActiveBitSessionFile(projectId, result.sessionFile);
+        await this.projects.setActiveBitSessionFile(profileId, projectId, result.sessionFile);
       }
       if (result.status === "failed") {
         await this.botJobs.jam(project, job, result.error ?? "Bit hit a problem.");
@@ -188,7 +198,7 @@ export class BitCoordinatorService {
     }
   }
 
-  async abort(projectId: string): Promise<void> {
+  async abort(_profileId: string, projectId: string): Promise<void> {
     const runtimeKey = this.activeRuntimeKeys.get(projectId) ?? projectId;
     await this.runtime.abort(runtimeKey);
   }
@@ -196,13 +206,22 @@ export class BitCoordinatorService {
 
 function botPrompt(input: {
   leadPrompt: string;
+  profile: ProfileSummary;
   project: RuntimeProject;
   projectCatalog: Array<{ id: string; title: string }>;
 }): string {
   const projects = input.projectCatalog.map((project) => `- ${project.title}`).join("\n");
+  const interests = input.profile.interests.length ? input.profile.interests.join(", ") : "not set";
+  const notes = input.profile.notes?.trim() || "None.";
   return `The Lead Builder asked Bit for help.
 
 You are a Bot working for Bit inside an isolated Workbench.
+Lead Builder profile:
+- Name: ${input.profile.name}
+- Age: ${input.profile.age}
+- Interests: ${interests}
+- Parent notes: ${notes}
+
 Current project: ${input.project.title}
 
 Factory projects:

@@ -1,5 +1,6 @@
 import type { AuthStatus } from "./auth";
 import type { ChatEvent, ChatSnapshot, SendMessageResult } from "./chat";
+import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "./profile";
 import type { CreateProjectInput, ProjectSummary } from "./project";
 
 export type Platform =
@@ -32,15 +33,22 @@ export type HiBitApi = {
     login: () => Promise<AuthStatus>;
     logout: () => Promise<void>;
   };
+  profiles: {
+    list: () => Promise<ProfileSummary[]>;
+    create: (input: ProfileInput) => Promise<ProfileSummary>;
+    update: (profileId: string, settings: ProfileSettingsInput) => Promise<ProfileSummary>;
+    getActiveId: () => Promise<string | null>;
+    setActiveId: (profileId: string | null) => Promise<void>;
+  };
   projects: {
-    list: () => Promise<ProjectSummary[]>;
-    create: (input: CreateProjectInput) => Promise<ProjectSummary>;
-    openFolder: (projectId: string) => Promise<void>;
+    list: (profileId: string) => Promise<ProjectSummary[]>;
+    create: (profileId: string, input: CreateProjectInput) => Promise<ProjectSummary>;
+    openFolder: (profileId: string, projectId: string) => Promise<void>;
   };
   chat: {
-    load: (projectId: string) => Promise<ChatSnapshot>;
-    send: (projectId: string, text: string) => Promise<SendMessageResult>;
-    abort: (projectId: string) => Promise<void>;
+    load: (profileId: string, projectId: string) => Promise<ChatSnapshot>;
+    send: (profileId: string, projectId: string, text: string) => Promise<SendMessageResult>;
+    abort: (profileId: string, projectId: string) => Promise<void>;
     onEvent: (listener: (event: ChatEvent) => void) => Unsubscribe;
   };
 };
