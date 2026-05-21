@@ -3,9 +3,9 @@
 ## What this project is
 
 Hi-Bit is a local-first Electron app that teaches kids (7-12) to build real web apps with an AI tutor called Bit.
-Parents sign in with Codex, and Hi-Bit runs Bit through an embedded Pi coding runtime per project.
+Parents sign in with Codex, and Hi-Bit runs Bit through an embedded Pi coding runtime per project using OpenAI Codex services.
 Everything - auth state, factory metadata, project files, session files, and logbooks - lives on disk under Electron's `userData` dir.
-No telemetry, no cloud.
+No telemetry and no Hi-Bit cloud backend.
 MIT.
 
 This file is the canonical architecture and workflow guide for the current app. `CONTRIBUTING.md` governs changes to the retained knowledge graph and dream library.
@@ -15,6 +15,7 @@ This file is the canonical architecture and workflow guide for the current app. 
 - Electron 41, electron-vite, React 19, Vitest, Biome. TypeScript throughout.
 - `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory layout; `auth/` owns Codex OAuth and token refresh; `projects/` owns project records, starter files, workbench paths, and project logbooks; `pi/` adapts the Pi coding runtime; `bots/` owns build plans, bot jobs, isolated git worktree workbenches, machine inspections, and assembly-line installs; `bit/` coordinates chat turns around projects.
   Pi sessions are reused per project and closed when a project runtime is disposed or the app quits. Project folders include `build-plans`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
+  `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds the Codex auth gate, project picker, and chat workspace; `components/` holds the chat composer, message list, and tool activity pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
