@@ -198,7 +198,8 @@ export class BitCoordinatorService {
     }
   }
 
-  async abort(_profileId: string, projectId: string): Promise<void> {
+  async abort(profileId: string, projectId: string): Promise<void> {
+    await this.projects.get(profileId, projectId);
     const runtimeKey = this.activeRuntimeKeys.get(projectId) ?? projectId;
     await this.runtime.abort(runtimeKey);
   }

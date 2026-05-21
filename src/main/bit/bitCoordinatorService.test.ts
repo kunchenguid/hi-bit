@@ -236,6 +236,34 @@ describe("BitCoordinatorService", () => {
     expect(setup.pipeline.prepared).toHaveLength(1);
   });
 
+  it("rejects aborts for projects outside the supplied profile", async () => {
+    const setup = await createCoordinator();
+    const otherProfile = await setup.profiles.create({
+      name: "Grace",
+      age: 10,
+      interests: [],
+    });
+    let releaseInstall!: () => void;
+    const installStarted = new Promise<void>((resolve) => {
+      setup.pipeline.beforeInstall = () =>
+        new Promise<void>((release) => {
+          releaseInstall = release;
+          resolve();
+        });
+    });
+
+    const send = setup.coordinator.send(setup.profile.id, setup.game.id, "Add star pets", () => {});
+    await installStarted;
+
+    await expect(setup.coordinator.abort(otherProfile.id, setup.game.id)).rejects.toThrow(
+      "Project not found.",
+    );
+    expect(setup.runtime.aborts).toEqual([]);
+
+    releaseInstall();
+    await send;
+  });
+
   it("disposes the one-off bot runtime after the bot job finishes", async () => {
     const setup = await createCoordinator();
 
