@@ -15,16 +15,6 @@ files:
   - "!**/*.map"
   - "!**/*.md"
 
-extraResources:
-  - from: graph
-    to: graph
-    filter:
-      - "**/*"
-  - from: prompts
-    to: prompts
-    filter:
-      - "**/*"
-
 mac:
   category: public.app-category.education
   target:

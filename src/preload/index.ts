@@ -1,127 +1,37 @@
-import type { CursorMarkerRequest, SendMessageResult } from "@shared/chat";
-import type { HiBitConfig } from "@shared/config";
-import type { DreamValidation } from "@shared/dreams";
-import type { ParentFlag } from "@shared/flag";
-import type {
-  AppInfo,
-  BitDeltaEvent,
-  HiBitApi,
-  OpenProjectFolderResult,
-  ProjectFileSubscription,
-} from "@shared/ipc";
-import type { KnowledgeGraphValidation } from "@shared/knowledgeGraph";
-import type { Profile, ProfileInput, ProfileSettingsInput } from "@shared/profile";
-import type { KnowledgePointStatus, Progress } from "@shared/progress";
-import type { ProjectFile, ProjectFileChange } from "@shared/project";
-import type { HarnessInvocationLogEntry } from "@shared/sessionLog";
-import type { TranscriptEvent } from "@shared/transcript";
+import type { AuthStatus } from "@shared/auth";
+import type { ChatEvent, ChatSnapshot, SendMessageResult } from "@shared/chat";
+import type { AppInfo, HiBitApi } from "@shared/ipc";
+import type { CreateProjectInput, ProjectSummary } from "@shared/project";
 import { contextBridge, ipcRenderer } from "electron";
 
 const api: HiBitApi = {
-  getAppInfo: (): Promise<AppInfo> => ipcRenderer.invoke("hibit:get-app-info"),
-  listProfiles: (): Promise<Profile[]> => ipcRenderer.invoke("hibit:list-profiles"),
-  createProfile: (input: ProfileInput, parentPin: string): Promise<Profile> =>
-    ipcRenderer.invoke("hibit:create-profile", input, parentPin),
-  deleteProfile: (profileId: string): Promise<void> =>
-    ipcRenderer.invoke("hibit:delete-profile", profileId),
-  exportProfile: (profileId: string): Promise<string | null> =>
-    ipcRenderer.invoke("hibit:export-profile", profileId),
-  getConfig: (): Promise<HiBitConfig> => ipcRenderer.invoke("hibit:get-config"),
-  updateConfig: (config: HiBitConfig): Promise<HiBitConfig> =>
-    ipcRenderer.invoke("hibit:update-config", config),
-  getKnowledgeGraph: (): Promise<KnowledgeGraphValidation> =>
-    ipcRenderer.invoke("hibit:get-knowledge-graph"),
-  getDreams: (): Promise<DreamValidation> => ipcRenderer.invoke("hibit:get-dreams"),
-  setCurrentDream: (profileId: string, dreamId: string): Promise<Profile> =>
-    ipcRenderer.invoke("hibit:set-current-dream", profileId, dreamId),
-  restartDream: (profileId: string, dreamId: string): Promise<Profile> =>
-    ipcRenderer.invoke("hibit:restart-dream", profileId, dreamId),
-  updateProfileSettings: (profileId: string, settings: ProfileSettingsInput): Promise<Profile> =>
-    ipcRenderer.invoke("hibit:update-profile-settings", profileId, settings),
-  sendKidMessage: (
-    profileId: string,
-    prompt: string,
-    requestId?: string,
-  ): Promise<SendMessageResult> =>
-    ipcRenderer.invoke("hibit:send-kid-message", profileId, prompt, requestId),
-  endKidSession: (profileId: string): Promise<void> =>
-    ipcRenderer.invoke("hibit:end-kid-session", profileId),
-  cancelKidMessage: (requestId: string): Promise<void> =>
-    ipcRenderer.invoke("hibit:cancel-kid-message", requestId),
-  requestCursorMarker: (
-    profileId: string,
-    request: CursorMarkerRequest,
-  ): Promise<SendMessageResult> =>
-    ipcRenderer.invoke("hibit:request-cursor-marker", profileId, request),
-  sendParentMessage: (profileId: string, prompt: string): Promise<SendMessageResult> =>
-    ipcRenderer.invoke("hibit:send-parent-message", profileId, prompt),
-  onBitDelta: (handler: (event: BitDeltaEvent) => void): (() => void) => {
-    const listener = (_e: unknown, payload: BitDeltaEvent) => handler(payload);
-    ipcRenderer.on("hibit:bit-delta", listener);
-    return () => {
-      ipcRenderer.off("hibit:bit-delta", listener);
-    };
+  app: {
+    info: (): Promise<AppInfo> => ipcRenderer.invoke("hibit:app:info"),
   },
-  listProjectSlugs: (profileId: string): Promise<string[]> =>
-    ipcRenderer.invoke("hibit:list-project-slugs", profileId),
-  listProjectFiles: (profileId: string, slug: string): Promise<string[]> =>
-    ipcRenderer.invoke("hibit:list-project-files", profileId, slug),
-  readProjectFile: (profileId: string, slug: string, filename: string): Promise<ProjectFile> =>
-    ipcRenderer.invoke("hibit:read-project-file", profileId, slug, filename),
-  writeProjectFile: (
-    profileId: string,
-    slug: string,
-    filename: string,
-    content: string,
-  ): Promise<void> =>
-    ipcRenderer.invoke("hibit:write-project-file", profileId, slug, filename, content),
-  openProjectFolder: (profileId: string, slug: string): Promise<OpenProjectFolderResult> =>
-    ipcRenderer.invoke("hibit:open-project-folder", profileId, slug),
-  subscribeProjectFiles: async (
-    profileId: string,
-    slug: string,
-    onChange: (change: ProjectFileChange) => void,
-  ): Promise<ProjectFileSubscription> => {
-    const id = (await ipcRenderer.invoke("hibit:watch-project-files", profileId, slug)) as number;
-    const channel = `hibit:project-file-changed:${id}`;
-    const listener = (_event: unknown, change: ProjectFileChange) => {
-      onChange(change);
-    };
-    ipcRenderer.on(channel, listener);
-    return {
-      id,
-      close: async () => {
-        ipcRenderer.off(channel, listener);
-        await ipcRenderer.invoke("hibit:unwatch-project-files", id);
-      },
-    };
+  auth: {
+    status: (): Promise<AuthStatus> => ipcRenderer.invoke("hibit:auth:status"),
+    login: (): Promise<AuthStatus> => ipcRenderer.invoke("hibit:auth:login"),
+    logout: (): Promise<void> => ipcRenderer.invoke("hibit:auth:logout"),
   },
-  getProgress: (profileId: string): Promise<Progress> =>
-    ipcRenderer.invoke("hibit:get-progress", profileId),
-  updateKpStatus: (
-    profileId: string,
-    kpId: string,
-    status: KnowledgePointStatus | null,
-    evidence?: string,
-  ): Promise<Progress> =>
-    ipcRenderer.invoke("hibit:update-kp-status", profileId, kpId, status, evidence),
-  updateKpSkipped: (profileId: string, kpId: string, skipped: boolean): Promise<Progress> =>
-    ipcRenderer.invoke("hibit:update-kp-skipped", profileId, kpId, skipped),
-  getSessionLog: (profileId: string): Promise<HarnessInvocationLogEntry[]> =>
-    ipcRenderer.invoke("hibit:get-session-log", profileId),
-  getTranscript: (profileId: string, sessionId: string): Promise<TranscriptEvent[]> =>
-    ipcRenderer.invoke("hibit:get-transcript", profileId, sessionId),
-  hasParentPin: (): Promise<boolean> => ipcRenderer.invoke("hibit:has-parent-pin"),
-  setParentPin: (pin: string): Promise<void> => ipcRenderer.invoke("hibit:set-parent-pin", pin),
-  verifyParentPin: (pin: string): Promise<boolean> =>
-    ipcRenderer.invoke("hibit:verify-parent-pin", pin),
-  clearParentPin: (): Promise<void> => ipcRenderer.invoke("hibit:clear-parent-pin"),
-  listFlags: (profileId: string): Promise<ParentFlag[]> =>
-    ipcRenderer.invoke("hibit:list-flags", profileId),
-  writeFlag: (profileId: string, flag: ParentFlag): Promise<string> =>
-    ipcRenderer.invoke("hibit:write-flag", profileId, flag),
-  deleteFlag: (profileId: string, flag: ParentFlag): Promise<void> =>
-    ipcRenderer.invoke("hibit:delete-flag", profileId, flag),
+  projects: {
+    list: (): Promise<ProjectSummary[]> => ipcRenderer.invoke("hibit:projects:list"),
+    create: (input: CreateProjectInput): Promise<ProjectSummary> =>
+      ipcRenderer.invoke("hibit:projects:create", input),
+    openFolder: (projectId: string): Promise<void> =>
+      ipcRenderer.invoke("hibit:projects:open-folder", projectId),
+  },
+  chat: {
+    load: (projectId: string): Promise<ChatSnapshot> =>
+      ipcRenderer.invoke("hibit:chat:load", projectId),
+    send: (projectId: string, text: string): Promise<SendMessageResult> =>
+      ipcRenderer.invoke("hibit:chat:send", projectId, text),
+    abort: (projectId: string): Promise<void> => ipcRenderer.invoke("hibit:chat:abort", projectId),
+    onEvent: (listener: (event: ChatEvent) => void): (() => void) => {
+      const handler = (_event: unknown, payload: ChatEvent) => listener(payload);
+      ipcRenderer.on("hibit:chat:event", handler);
+      return () => ipcRenderer.off("hibit:chat:event", handler);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld("hibit", api);

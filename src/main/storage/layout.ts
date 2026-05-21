@@ -1,85 +1,136 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { type HiBitConfig, normalizeHiBitConfig } from "@shared/config";
+import { readJsonFile, writeJsonFile } from "./json";
+
+export const DEFAULT_FACTORY_ID = "default";
+export const DEFAULT_LEAD_ID = "lead";
 
 export type HiBitLayout = {
   root: string;
-  configFile: string;
-  promptsDir: string;
-  graphDir: string;
-  graphNodesDir: string;
-  graphDreamsDir: string;
-  profilesDir: string;
+  homePath: string;
+  configPath: string;
+  authDir: string;
+  codexAuthPath: string;
+  piAgentDir: string;
+  factoriesDir: string;
+  defaultFactoryId: string;
+  defaultFactoryDir: string;
+  defaultFactoryLogbookDir: string;
 };
 
-export function layoutFor(root: string): HiBitLayout {
-  return {
-    root,
-    configFile: join(root, "config.json"),
-    promptsDir: join(root, "prompts"),
-    graphDir: join(root, "graph"),
-    graphNodesDir: join(root, "graph", "nodes"),
-    graphDreamsDir: join(root, "graph", "dreams"),
-    profilesDir: join(root, "profiles"),
-  };
-}
+export type HiBitHomeRecord = {
+  schemaVersion: 1;
+  defaultFactoryId: string;
+};
 
-export async function bootstrapLayout(root: string): Promise<HiBitLayout> {
-  const layout = layoutFor(root);
+export type FactoryRecord = {
+  schemaVersion: 1;
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
+export type LeadRecord = {
+  schemaVersion: 1;
+  id: string;
+  name: string;
+  role: "lead_builder";
+  createdAt: string;
+};
+
+export async function bootstrapLayout(root: string, now = () => new Date()): Promise<HiBitLayout> {
+  const layout = buildLayout(root);
   await Promise.all([
-    mkdir(layout.root, { recursive: true }),
-    mkdir(layout.promptsDir, { recursive: true }),
-    mkdir(layout.graphNodesDir, { recursive: true }),
-    mkdir(layout.graphDreamsDir, { recursive: true }),
-    mkdir(layout.profilesDir, { recursive: true }),
+    mkdir(layout.authDir, { recursive: true }),
+    mkdir(layout.piAgentDir, { recursive: true }),
+    mkdir(layout.defaultFactoryDir, { recursive: true }),
+    mkdir(layout.defaultFactoryLogbookDir, { recursive: true }),
   ]);
+
+  const home = await readJsonFile<HiBitHomeRecord>(layout.homePath);
+  if (!home) {
+    await writeJsonFile(layout.homePath, {
+      schemaVersion: 1,
+      defaultFactoryId: layout.defaultFactoryId,
+    } satisfies HiBitHomeRecord);
+  }
+
+  const config = normalizeHiBitConfig(await readJsonFile<HiBitConfig>(layout.configPath));
+  await writeJsonFile(layout.configPath, config);
+
+  const createdAt = now().toISOString();
+  const factoryPath = factoryJsonPath(layout, layout.defaultFactoryId);
+  const factory = await readJsonFile<FactoryRecord>(factoryPath);
+  if (!factory) {
+    await writeJsonFile(factoryPath, {
+      schemaVersion: 1,
+      id: layout.defaultFactoryId,
+      name: "Builder's Factory",
+      createdAt,
+    } satisfies FactoryRecord);
+  }
+
+  const leadPath = leadJsonPath(layout, layout.defaultFactoryId);
+  const lead = await readJsonFile<LeadRecord>(leadPath);
+  if (!lead) {
+    await writeJsonFile(leadPath, {
+      schemaVersion: 1,
+      id: DEFAULT_LEAD_ID,
+      name: "Builder",
+      role: "lead_builder",
+      createdAt,
+    } satisfies LeadRecord);
+  }
+
+  await mkdir(projectsDir(layout), { recursive: true });
   return layout;
 }
 
-export type ProfilePaths = {
-  root: string;
-  profileFile: string;
-  stateFile: string;
-  progressFile: string;
-  agentsFile: string;
-  claudeFile: string;
-  projectsDir: string;
-  flagsDir: string;
-  transcriptsDir: string;
-  sessionLogFile: string;
-  acpxSessionsDir: string;
-  claudeSettingsDir: string;
-  claudeSettingsFile: string;
-  opencodeConfigFile: string;
-};
-
-export function profilePathsFor(layout: HiBitLayout, profileId: string): ProfilePaths {
-  const root = join(layout.profilesDir, profileId);
-  const claudeSettingsDir = join(root, ".claude");
+export function buildLayout(root: string): HiBitLayout {
+  const factoriesDir = join(root, "factories");
+  const defaultFactoryDir = join(factoriesDir, DEFAULT_FACTORY_ID);
   return {
     root,
-    profileFile: join(root, "profile.json"),
-    stateFile: join(root, "state.md"),
-    progressFile: join(root, "progress.json"),
-    agentsFile: join(root, "AGENTS.md"),
-    claudeFile: join(root, "CLAUDE.md"),
-    projectsDir: join(root, "projects"),
-    flagsDir: join(root, "flags"),
-    transcriptsDir: join(root, "transcripts"),
-    sessionLogFile: join(root, "session-log.jsonl"),
-    acpxSessionsDir: join(root, ".acpx-sessions"),
-    claudeSettingsDir,
-    claudeSettingsFile: join(claudeSettingsDir, "settings.json"),
-    opencodeConfigFile: join(root, "opencode.json"),
+    homePath: join(root, "home.json"),
+    configPath: join(root, "config.json"),
+    authDir: join(root, "auth"),
+    codexAuthPath: join(root, "auth", "codex.json"),
+    piAgentDir: join(root, "pi-agent"),
+    factoriesDir,
+    defaultFactoryId: DEFAULT_FACTORY_ID,
+    defaultFactoryDir,
+    defaultFactoryLogbookDir: join(defaultFactoryDir, "logbook"),
   };
 }
 
-export async function bootstrapProfileDirs(paths: ProfilePaths): Promise<void> {
-  await Promise.all([
-    mkdir(paths.root, { recursive: true }),
-    mkdir(paths.projectsDir, { recursive: true }),
-    mkdir(paths.flagsDir, { recursive: true }),
-    mkdir(paths.transcriptsDir, { recursive: true }),
-    mkdir(paths.acpxSessionsDir, { recursive: true }),
-    mkdir(paths.claudeSettingsDir, { recursive: true }),
-  ]);
+export function assertSafeId(id: string, label = "id"): string {
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) {
+    throw new Error(`Invalid ${label}`);
+  }
+  return id;
+}
+
+export function factoryDir(layout: HiBitLayout, factoryId = layout.defaultFactoryId): string {
+  return join(layout.factoriesDir, assertSafeId(factoryId, "factory id"));
+}
+
+export function factoryJsonPath(layout: HiBitLayout, factoryId = layout.defaultFactoryId): string {
+  return join(factoryDir(layout, factoryId), "factory.json");
+}
+
+export function leadJsonPath(layout: HiBitLayout, factoryId = layout.defaultFactoryId): string {
+  return join(factoryDir(layout, factoryId), "lead.json");
+}
+
+export function projectsDir(layout: HiBitLayout, factoryId = layout.defaultFactoryId): string {
+  return join(factoryDir(layout, factoryId), "projects");
+}
+
+export function projectDir(
+  layout: HiBitLayout,
+  projectId: string,
+  factoryId = layout.defaultFactoryId,
+): string {
+  return join(projectsDir(layout, factoryId), assertSafeId(projectId, "project id"));
 }
