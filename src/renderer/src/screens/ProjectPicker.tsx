@@ -108,6 +108,7 @@ function ProfileSettingsCard({
   const [age, setAge] = useState(String(profile.age));
   const [interests, setInterests] = useState(profile.interests.join(", "));
   const [notes, setNotes] = useState(profile.notes ?? "");
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     setName(profile.name);
@@ -118,9 +119,15 @@ function ProfileSettingsCard({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    const parsedAge = Number(age);
+    if (!Number.isInteger(parsedAge) || parsedAge < 3 || parsedAge > 18) {
+      setFormError("Age must be a whole number between 3 and 18.");
+      return;
+    }
+    setFormError(null);
     await onUpdateProfile({
       name,
-      age: Number.parseInt(age, 10),
+      age: parsedAge,
       interests: interests
         .split(",")
         .map((interest) => interest.trim())
@@ -132,7 +139,7 @@ function ProfileSettingsCard({
   return (
     <details className="hb-card hb-profile-settings-card">
       <summary>Edit {profile.name}'s profile</summary>
-      <form className="hb-profile-form" onSubmit={handleSubmit}>
+      <form className="hb-profile-form" onSubmit={handleSubmit} noValidate>
         <label htmlFor="profile-settings-name">Kid name</label>
         <input
           id="profile-settings-name"
@@ -165,6 +172,7 @@ function ProfileSettingsCard({
           onChange={(event) => setNotes(event.currentTarget.value)}
           rows={3}
         />
+        {formError ? <p className="hb-error">{formError}</p> : null}
         <button className="hb-button hb-button-secondary" type="submit" disabled={busy}>
           Save profile
         </button>

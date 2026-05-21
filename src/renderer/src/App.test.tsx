@@ -77,6 +77,22 @@ describe("App", () => {
     expect(host.textContent).toContain("What does Ada want to build?");
   });
 
+  it("rejects fractional ages before creating a kid profile", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.list = vi.fn(async () => []);
+
+    await renderApp(root);
+    await fillInput(host, "name", "Ada");
+    await fillInput(host, "age", "9.5");
+    await clickButton(host, "Create profile");
+
+    expect(api.profiles.create).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Age must be a whole number between 3 and 18.");
+  });
+
   it("shows profile-scoped project picker after authentication", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -92,6 +108,25 @@ describe("App", () => {
     expect(api.projects.list).toHaveBeenCalledWith("ada");
     expect(host.textContent).toContain("What does Ada want to build?");
     expect(host.textContent).toContain("New project");
+  });
+
+  it("rejects fractional ages before updating a kid profile", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      accountId: "acct-1",
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.projects.list = vi.fn(async () => []);
+
+    await renderApp(root);
+    await openDetails(host, "Edit Ada's profile");
+    await fillInput(host, "profileAge", "9.5");
+    await clickButton(host, "Save profile");
+
+    expect(api.profiles.update).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Age must be a whole number between 3 and 18.");
   });
 
   it("opens profile-scoped projects after selecting a kid", async () => {
@@ -166,6 +201,17 @@ async function clickButton(host: HTMLElement, label: string): Promise<void> {
   if (!button) throw new Error(`Button not found: ${label}`);
   await act(async () => {
     button.click();
+  });
+  await flushAsyncWork();
+}
+
+async function openDetails(host: HTMLElement, label: string): Promise<void> {
+  const summary = Array.from(host.querySelectorAll("summary")).find((candidate) =>
+    candidate.textContent?.includes(label),
+  );
+  if (!summary) throw new Error(`Summary not found: ${label}`);
+  await act(async () => {
+    summary.click();
   });
   await flushAsyncWork();
 }

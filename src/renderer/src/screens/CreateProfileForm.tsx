@@ -16,7 +16,7 @@ export function CreateProfileForm({ busy, onCreate }: CreateProfileFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const trimmedName = name.trim();
-    const parsedAge = Number.parseInt(age, 10);
+    const parsedAge = Number(age);
     if (!trimmedName) {
       setError("We need a name to greet you by.");
       return;
