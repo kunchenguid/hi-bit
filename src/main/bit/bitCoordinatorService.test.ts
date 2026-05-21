@@ -200,10 +200,12 @@ describe("BitCoordinatorService", () => {
     const first = setup.coordinator.send(setup.game.id, "Add star pets", () => {});
     await installStarted;
 
-    await expect(setup.coordinator.send(setup.game.id, "Add moon pets", () => {})).resolves.toEqual({
-      ok: false,
-      error: "Bit is already working on this project.",
-    });
+    await expect(setup.coordinator.send(setup.game.id, "Add moon pets", () => {})).resolves.toEqual(
+      {
+        ok: false,
+        error: "Bit is already working on this project.",
+      },
+    );
 
     releaseInstall();
     await first;
