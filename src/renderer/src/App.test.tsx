@@ -12,6 +12,7 @@ describe("App", () => {
   let api: HiBitApi;
 
   beforeEach(() => {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -185,6 +186,46 @@ describe("App", () => {
     expect(host.textContent).toContain("Ready when you are.");
     expect(host.textContent).toContain("Ask Bit to build");
   });
+
+  it("switches from the project picker back to the kid profile gate", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
+    api.projects.list = vi.fn(async (profileId) => (profileId === "ada" ? [] : [samProject()]));
+
+    await renderApp(root);
+    await clickButton(host, "Switch profile");
+    await clickButton(host, "Sam");
+
+    expect(api.profiles.setActiveId).toHaveBeenCalledWith(null);
+    expect(api.profiles.setActiveId).toHaveBeenCalledWith("sam");
+    expect(api.projects.list).toHaveBeenLastCalledWith("sam");
+    expect(host.textContent).toContain("Sam site");
+  });
+
+  it("switches from chat back to the kid profile gate", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
+    api.projects.list = vi.fn(async (profileId) =>
+      profileId === "ada" ? [adaProject()] : [samProject()],
+    );
+
+    await renderApp(root);
+    await clickButton(host, "Switch profile");
+
+    expect(api.profiles.setActiveId).toHaveBeenCalledWith(null);
+    expect(host.textContent).toContain("Pick a profile.");
+    expect(host.textContent).toContain("Ada");
+    expect(host.textContent).toContain("Sam");
+    expect(host.textContent).not.toContain("Maze");
+  });
 });
 
 async function renderApp(root: Root): Promise<void> {
@@ -248,6 +289,42 @@ function adaProfile() {
     interests: ["space"],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function samProfile() {
+  return {
+    schemaVersion: 1 as const,
+    id: "sam",
+    name: "Sam",
+    age: 10,
+    interests: ["music"],
+    createdAt: "2026-01-02T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
+  };
+}
+
+function adaProject() {
+  return {
+    schemaVersion: 1 as const,
+    id: "project-1",
+    factoryId: "default",
+    profileId: "ada",
+    title: "Maze",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function samProject() {
+  return {
+    schemaVersion: 1 as const,
+    id: "project-2",
+    factoryId: "default",
+    profileId: "sam",
+    title: "Sam site",
+    createdAt: "2026-01-02T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
   };
 }
 
