@@ -82,17 +82,17 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 - Numerals from **0** up (not spelled out) — this is a product about counting things that happen on computers. *"You wrote 3 lines."* not *"three lines."*
 - Code snippets use **Fira Code** and real, runnable examples. No `foo`/`bar` placeholder-speak in student-facing copy. Use `price`, `name`, `score` — things a kid recognizes.
 
-### Example copy (lifted from the UI kit)
+### Example copy
 
-> **Bit:** Hey — ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
+> **Codex sign-in:** Connect Codex so Bit can build with you on this computer.
 >
-> **Empty dashboard:** No lessons yet. Pick a subject and let's begin.
+> **Project picker:** What do you want to make today?
 >
-> **Passing test toast:** Nice. +15 XP.
+> **Bit:** Hey - ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
 >
-> **Failing test toast:** Not quite — line 4 is missing a `;`. Try again.
+> **Tool activity:** Bit is updating the project files.
 >
-> **Parent view intro:** This week, Ada spent 42 minutes on Hi-Bit, completed 3 lessons, and finished her first working web page.
+> **Open folder:** Open project folder.
 
 ### What we avoid
 
@@ -252,5 +252,6 @@ The canonical Hi-Bit card:
 1. Read this file top to bottom.
 2. Import `tokens/colors_and_type.css` — everything uses these tokens.
 3. Preview tokens in the **Design System** tab (cards in `preview/`).
-4. For a working reference of the product, open `ui-kits/desktop/index.html`.
-5. If you're building a new screen: start from a card in the UI kit, keep the subject-rainbow rule (one hue per lesson, not all of them at once), and remember — **pixel is a spice, not the stew.**
+4. For the current product surfaces, review the renderer screens: Codex auth, project picker, and chat workspace.
+5. Treat `ui-kits/desktop/index.html` as a legacy brand prototype for visual patterns, not the current product shell.
+6. If you're building a new screen: start from the current renderer flow, keep the subject-rainbow rule (one hue per project moment, not all of them at once), and remember — **pixel is a spice, not the stew.**

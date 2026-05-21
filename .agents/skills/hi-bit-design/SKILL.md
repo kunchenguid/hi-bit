@@ -27,8 +27,9 @@ All design sources are under `/design/` (relative to the repo root). From this s
 1. **Read `design/README.md` first.** It's the source of truth for brand voice, casing rules, color usage, type ramp, motion, and iconography.
 2. **Import tokens** from `design/tokens/colors_and_type.css` — subject rainbow (HTML coral, CSS cyan, JS amber, art magenta, math lime), paper/night neutrals, Fredoka + Fira Code + Press Start 2P type ramp.
 3. **Browse the preview cards** in `design/preview/` to see each token rendered in context.
-4. **Reference the UI kit** at `design/ui-kits/desktop/index.html` — it's a working clickable demo of Home → Tutor → Editor with JSX components you can crib from.
-5. **Use assets** from `design/assets/`:
+4. **Reference current product surfaces** in `src/renderer/src/screens/` for Codex auth, project picker, and chat workspace flows.
+5. **Use the UI kit** at `design/ui-kits/desktop/index.html` as a legacy brand prototype for visual patterns, not as the current product shell.
+6. **Use assets** from `design/assets/`:
    - `mascot-boo.svg` — full-body Bit (filename kept for path stability; the character inside is Bit the robot)
    - `logo-mark.svg` — Bit's monitor head, used for tutor avatar + favicon
    - `logo-wordmark.svg` — "HI BIT" pixel wordmark
