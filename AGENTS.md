@@ -13,8 +13,8 @@ This file is the canonical architecture and workflow guide for the current app. 
 ## Stack and layout
 
 - Electron 41, electron-vite, React 19, Vitest, Biome. TypeScript throughout.
-- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory layout; `auth/` owns Codex OAuth and token refresh; `projects/` owns project records, starter files, workbench paths, and project logbooks; `pi/` adapts the Pi coding runtime; `bit/` coordinates chat turns around projects.
-  Pi sessions are reused per project and closed when a project runtime is disposed or the app quits.
+- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory layout; `auth/` owns Codex OAuth and token refresh; `projects/` owns project records, starter files, workbench paths, and project logbooks; `pi/` adapts the Pi coding runtime; `bots/` owns build plans, bot jobs, isolated git worktree workbenches, machine inspections, and assembly-line installs; `bit/` coordinates chat turns around projects.
+  Pi sessions are reused per project and closed when a project runtime is disposed or the app quits. Project folders include `build-plans`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds the Codex auth gate, project picker, and chat workspace; `components/` holds the chat composer, message list, and tool activity pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.

@@ -33,7 +33,7 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 | `assets/` | Logos, mascot sprites, pixel-art icons, background textures |
 | `preview/` | Design-system spec cards (rendered in the Design System tab) |
 | `ui-kits/desktop/` | The Hi-Bit desktop app — interactive UI kit with JSX components + a click-thru `index.html` |
-| `SKILL.md` | Agent Skill manifest — lets Claude Code pick this up as a portable skill |
+| `.agents/skills/hi-bit-design/SKILL.md` | Agent Skill manifest - lets agents pick this up as a portable skill |
 
 ---
 

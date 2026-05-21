@@ -12,7 +12,7 @@ The mascot is **Bit** — a curious little desktop-computer robot who leans in a
 
 ## Where everything lives
 
-All design sources are under `/design/` (relative to the repo root). From the skill's location at `/skills/hi-bit-design/`, that's `../../design/`.
+All design sources are under `/design/` (relative to the repo root). From this skill's location at `.agents/skills/hi-bit-design/`, that's `../../../design/`.
 
 | Path (from repo root) | What |
 |---|---|
