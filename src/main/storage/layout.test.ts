@@ -18,7 +18,10 @@ describe("bootstrapLayout", () => {
     await expect(stat(layout.piAgentDir)).resolves.toBeTruthy();
     await expect(stat(layout.defaultFactoryDir)).resolves.toBeTruthy();
     await expect(stat(layout.defaultFactoryLogbookDir)).resolves.toBeTruthy();
-    await expect(stat(projectDir(layout, "sample"))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(layout.defaultFactoryProfilesDir)).resolves.toBeTruthy();
+    await expect(stat(projectDir(layout, "ada", "sample"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
 
     const home = JSON.parse(await readFile(layout.homePath, "utf8"));
     expect(home).toEqual({

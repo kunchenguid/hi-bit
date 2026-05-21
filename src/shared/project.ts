@@ -11,6 +11,7 @@ export type ProjectSummary = {
   schemaVersion: 1;
   id: string;
   factoryId: string;
+  profileId: string;
   title: string;
   createdAt: string;
   updatedAt: string;

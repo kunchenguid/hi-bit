@@ -17,11 +17,13 @@ export type HiBitLayout = {
   defaultFactoryId: string;
   defaultFactoryDir: string;
   defaultFactoryLogbookDir: string;
+  defaultFactoryProfilesDir: string;
 };
 
 export type HiBitHomeRecord = {
   schemaVersion: 1;
   defaultFactoryId: string;
+  activeProfileId?: string;
 };
 
 export type FactoryRecord = {
@@ -46,6 +48,7 @@ export async function bootstrapLayout(root: string, now = () => new Date()): Pro
     mkdir(layout.piAgentDir, { recursive: true }),
     mkdir(layout.defaultFactoryDir, { recursive: true }),
     mkdir(layout.defaultFactoryLogbookDir, { recursive: true }),
+    mkdir(layout.defaultFactoryProfilesDir, { recursive: true }),
   ]);
 
   const home = await readJsonFile<HiBitHomeRecord>(layout.homePath);
@@ -83,7 +86,6 @@ export async function bootstrapLayout(root: string, now = () => new Date()): Pro
     } satisfies LeadRecord);
   }
 
-  await mkdir(projectsDir(layout), { recursive: true });
   return layout;
 }
 
@@ -101,6 +103,7 @@ export function buildLayout(root: string): HiBitLayout {
     defaultFactoryId: DEFAULT_FACTORY_ID,
     defaultFactoryDir,
     defaultFactoryLogbookDir: join(defaultFactoryDir, "logbook"),
+    defaultFactoryProfilesDir: join(defaultFactoryDir, "profiles"),
   };
 }
 
@@ -123,14 +126,31 @@ export function leadJsonPath(layout: HiBitLayout, factoryId = layout.defaultFact
   return join(factoryDir(layout, factoryId), "lead.json");
 }
 
-export function projectsDir(layout: HiBitLayout, factoryId = layout.defaultFactoryId): string {
-  return join(factoryDir(layout, factoryId), "projects");
+export function profilesDir(layout: HiBitLayout, factoryId = layout.defaultFactoryId): string {
+  return join(factoryDir(layout, factoryId), "profiles");
+}
+
+export function profileDir(
+  layout: HiBitLayout,
+  profileId: string,
+  factoryId = layout.defaultFactoryId,
+): string {
+  return join(profilesDir(layout, factoryId), assertSafeId(profileId, "profile id"));
+}
+
+export function projectsDir(
+  layout: HiBitLayout,
+  profileId: string,
+  factoryId = layout.defaultFactoryId,
+): string {
+  return join(profileDir(layout, profileId, factoryId), "projects");
 }
 
 export function projectDir(
   layout: HiBitLayout,
+  profileId: string,
   projectId: string,
   factoryId = layout.defaultFactoryId,
 ): string {
-  return join(projectsDir(layout, factoryId), assertSafeId(projectId, "project id"));
+  return join(projectsDir(layout, profileId, factoryId), assertSafeId(projectId, "project id"));
 }

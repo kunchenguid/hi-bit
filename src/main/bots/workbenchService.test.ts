@@ -2,6 +2,7 @@ import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { ProfileService } from "../profiles/profileService";
 import { ProjectService } from "../projects/projectService";
 import { bootstrapLayout } from "../storage/layout";
 import { WorkbenchService } from "./workbenchService";
@@ -9,9 +10,11 @@ import { WorkbenchService } from "./workbenchService";
 async function createProject() {
   const root = await mkdtemp(join(tmpdir(), "hibit-workbench-"));
   const layout = await bootstrapLayout(root);
+  const profiles = new ProfileService(layout);
+  const profile = await profiles.create({ name: "Ada", age: 9 });
   const projects = new ProjectService(layout);
-  const summary = await projects.create({ title: "Factory game" });
-  return projects.get(summary.id);
+  const summary = await projects.create(profile.id, { title: "Factory game" });
+  return projects.get(profile.id, summary.id);
 }
 
 describe("WorkbenchService", () => {

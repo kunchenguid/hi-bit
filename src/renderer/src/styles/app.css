@@ -20,6 +20,7 @@ button {
 }
 
 button:disabled,
+input:disabled,
 textarea:disabled {
   cursor: not-allowed;
   opacity: 0.72;
@@ -66,6 +67,114 @@ pre {
   padding: var(--s-4);
 }
 
+.hb-profile-shell {
+  display: grid;
+  place-items: start center;
+}
+
+.hb-profile-gate-card {
+  width: min(920px, 100%);
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+
+.hb-profile-gate-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.hb-profile-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s-2);
+}
+
+.hb-profile-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-1\.5);
+  min-height: 96px;
+  padding: var(--s-2);
+  border: var(--border-hairline);
+  border-radius: var(--r-xl);
+  background: var(--paper-3);
+  box-shadow: var(--shadow-pixel);
+  color: var(--ink);
+  text-align: left;
+}
+
+.hb-profile-card span:last-child {
+  display: grid;
+  gap: var(--s-0\.5);
+  min-width: 0;
+}
+
+.hb-profile-card strong {
+  font-size: var(--t-h3-size);
+}
+
+.hb-profile-avatar {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-lg);
+  background: var(--subject-css);
+  font-weight: 800;
+}
+
+.hb-create-profile-card,
+.hb-profile-settings-card {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+}
+
+.hb-profile-settings-card summary {
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hb-profile-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 140px);
+  gap: var(--s-1);
+}
+
+.hb-profile-form label {
+  font-weight: 700;
+}
+
+.hb-profile-form label:nth-of-type(1),
+.hb-profile-form input:nth-of-type(1),
+.hb-profile-form label:nth-of-type(3),
+.hb-profile-form input:nth-of-type(3),
+.hb-profile-form label:nth-of-type(4),
+.hb-profile-form textarea,
+.hb-profile-form button {
+  grid-column: 1 / -1;
+}
+
+.hb-profile-form input,
+.hb-profile-form textarea {
+  min-height: 44px;
+  border: var(--border-strong);
+  border-radius: var(--r-lg);
+  padding: 0 var(--s-1\.5);
+  background: var(--paper-3);
+  color: var(--ink);
+}
+
+.hb-profile-form textarea {
+  min-height: 84px;
+  padding-top: var(--s-1);
+  resize: vertical;
+}
+
 .hb-bit-badge {
   width: 64px;
   height: 64px;
@@ -94,6 +203,10 @@ pre {
 .hb-error {
   background: var(--danger-wash);
   color: var(--ink);
+}
+
+.hb-profile-form .hb-error {
+  grid-column: 1 / -1;
 }
 
 .hb-button {
