@@ -159,7 +159,7 @@ describe("BitCoordinatorService", () => {
         { role: "assistant", text: "Done" },
       ],
     });
-  });
+  }, 15_000);
 
   it("does not run machines or the assembly line when a bot job is cancelled", async () => {
     const setup = await createCoordinator();

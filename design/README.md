@@ -229,7 +229,7 @@ The canonical Hi-Bit card:
 
 **Why pixel and not a standard icon lib?** The arcade identity requires it — Lucide/Heroicons would flatten the brand. However:
 
-- **Where pixel-art doesn't fit** (dense info-density screens like the parent dashboard, or system chrome like close/minimize), we fall back to **Lucide React** via CDN, rendered at 18px stroke-1.75. This compromise is documented per-screen in each UI kit's README.
+- **Where pixel-art doesn't fit** (dense info-density screens like project review tools, or system chrome like close/minimize), we fall back to **Lucide React** via CDN, rendered at 18px stroke-1.75. This compromise is documented per-screen in each UI kit's README.
 - **Emoji:** never in chrome. Allowed as mascot reactions in tutor chat (one per message, end-of-message only).
 - **Unicode-as-icon:** avoided. If it's not a real icon, we don't fake one with `✓` or `→`.
 

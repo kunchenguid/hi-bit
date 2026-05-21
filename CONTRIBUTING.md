@@ -16,36 +16,33 @@ The graph is authored, not crowdsourced. Outside PRs are welcome, but the bar is
 Run the relevant validators locally. These match CI:
 
 ```
-npm run check
-npm run typecheck
-npm test
-npm run build
+pnpm check
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
-In particular:
-
-- `src/main/graph/load.test.ts` validates KP schema (required fields, `area` enum, mastery signals, DAG acyclicity, unresolved prereqs).
-- `src/main/graph/dreams.test.ts` validates dream schema and cross-references each `requires:` id against the graph.
-- `src/main/graph/shipped.test.ts` asserts the full shipped `graph/nodes/` + `graph/dreams/` parses, validates, and matches the expected id lists. Any new KP or dream must be added to the expected arrays in that file or the regression assertion will fail.
+The current Pi-backed app does not ship a dedicated graph validator.
+Keep graph and dream edits small enough for maintainer review, and do not rely on runtime validation to catch content mistakes.
 
 ## Adding a knowledge point (KP)
 
-The full spec lives in `docs/knowledge-graph.md`. Read it first. Summary of what reviewers look for:
+Summary of what reviewers look for:
 
 1. **One sharp concept.** "CSS" is not a KP. "Changing the background color of a div" is a KP. A KP should be something a kid can master in one focused moment.
 2. **Tight prereqs.** Only list prereqs without which the KP is genuinely incomprehensible. Over-listing prereqs turns the graph into a linear queue and kills the scheduler's flexibility.
 3. **No exercises on the node.** The node says what must be mastered; Bit decides how to teach it each session. Mastery signals describe observable transitions, not drills.
 4. **Language-blended.** HTML, CSS, and JS all live in the same graph. The kid never sees the labels.
 5. **Stable id.** Once a KP ships, its `id` is forever. New concepts get new ids; do not rename.
-6. **In v1 scope.** See the "Out of scope for v1" list in `docs/knowledge-graph.md` before proposing anything network, async, modules, regex, TypeScript, or touch-event related.
+6. **In v1 scope.** Do not propose anything network, async, modules, regex, TypeScript, or touch-event related unless the product scope has changed.
 
-One file per KP under `graph/nodes/<id>.yml`, following the shape in `docs/knowledge-graph.md` §"Example complete nodes".
+One file per KP under `graph/nodes/<id>.yml`, following the shape of the existing files.
 
 ## Adding a dream
 
 Dreams are usually buildable projects the kid can pick from Bit's dream menu.
 The current v1 library ships 53 dreams, including the `playground` freeform dream.
-Schema lives in `src/shared/dreams.ts`.
+Follow the shape of the existing files in `graph/dreams/`.
 
 Review criteria:
 
@@ -61,18 +58,15 @@ Review criteria:
 
 One file per dream under `graph/dreams/<id>.yml`. Follow existing files (e.g. `graph/dreams/beat-pad.yml`) for shape.
 
-After adding the file, update the expected dream id list in `src/main/graph/shipped.test.ts` or the shipped-library test will fail.
-If a new or materially changed fixed-project dream needs starter code beyond the generic page, add or update its `scaffoldProject` template in `src/main/storage/projects.ts` and cover it in `src/main/storage/projects.test.ts`.
-
 ## Adding to the system prompt
 
-`prompts/bit.md` is the voice and pedagogy spec. Changes there affect every kid session and are reviewed with extra care. `src/main/storage/shippedPrompt.test.ts` maps the PRD-required behaviors to markers in the prompt - any change that removes a covered behavior will fail that test. If you are intentionally restructuring the prompt, update both the prompt and the markers in the same PR.
+`prompts/bit.md` is the voice and pedagogy spec. Changes there affect every kid session and are reviewed with extra care.
 
 ## Review process
 
 - Open a PR against `main`.
 - Keep graph PRs small. One new KP, one new dream, or one tightly scoped cluster of related additions. Large batch PRs get asked to split.
-- CI must be green: `npm run check` (Biome lint + format), `npm run typecheck`, `npm test`, and `npm run build`.
+- CI must be green: `pnpm check` (Biome lint + format), `pnpm typecheck`, `pnpm test`, and `pnpm build`.
 - A maintainer reviews against the criteria above. Expect specific, concept-level feedback on KPs and dreams. The bar is "would we teach this to a real kid next week?"
 - Graph-affecting changes are merged by the graph maintainer (currently @kunchenguid). Non-graph code can be merged by any maintainer with write access.
 
@@ -80,7 +74,7 @@ If a new or materially changed fixed-project dream needs starter code beyond the
 
 - LLM-generated KPs or dreams. Every graph node is hand-reviewed. Submissions that read as generated will be closed.
 - Renames of shipped ids.
-- Removals of shipped KPs or dreams without a migration story for existing `progress.json` files.
+- Removals of shipped KPs or dreams without a migration story for existing local data.
 - Whole new curricula (Python, TypeScript, backend, React). Out of scope for v1 per `PRD.md`.
 - Auto-generated CHANGELOG edits or formatting-only churn in `graph/`.
 

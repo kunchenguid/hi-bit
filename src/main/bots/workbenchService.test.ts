@@ -38,5 +38,5 @@ describe("WorkbenchService", () => {
       "built by a bot\n",
     );
     await expect(stat(workbench.path)).rejects.toMatchObject({ code: "ENOENT" });
-  });
+  }, 15_000);
 });

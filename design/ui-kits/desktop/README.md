@@ -7,7 +7,7 @@ The Electron app recreated as an interactive in-browser prototype. Five surfaces
 - **Code** — code editor + live preview with Code, Page, and Split views. "See my page" formats and saves dirty HTML/CSS/JS buffers before running them in an iframe; preview can be refreshed or reloaded.
 - **Lessons / Trophies** — stubbed simple views (real product would expand).
 
-The production parent dashboard uses a tabbed layout: Overview summarizes the current dream, next learning step, saved projects, mastery, and flagged-message attention state; Learning holds suggested focus, mastery, and dream history; Projects reviews saved work; Guidance holds parent directives and parent chat; Activity holds flags, session logs, and audit tools; Settings holds profile controls.
+The production app now centers on Codex sign-in, project picking, and a Pi-backed Bit chat workspace.
 
 ### Components
 
@@ -24,6 +24,6 @@ The production parent dashboard uses a tabbed layout: Overview summarizes the cu
 
 - Icons come from our custom pixel sprite sheet (`assets/icons.svg`) via `<use href>`.
 - Boo (mascot) is the single signature character across the app. Appears in Home hero, sidebar logo, chat avatar.
-- Code editor syntax highlighting is deliberately simple — real product would use CodeMirror / Monaco.
+- Code editor syntax highlighting is deliberately simple; the current product edits files through the Pi-backed project workspace rather than an embedded editor.
 - Only 3 of 5 nav destinations are fully mocked (Home, Tutor, Code). Lessons mirrors Home; Trophies is a stub.
-- The parent dashboard is documented here for structure only; it is not part of this click-thru prototype.
+- Codex auth and project picking are not part of this click-thru prototype.

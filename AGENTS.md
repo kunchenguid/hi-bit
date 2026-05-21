@@ -3,8 +3,8 @@
 ## What this project is
 
 Hi-Bit is a local-first Electron app that teaches kids (7-12) to build real web apps with an AI tutor called Bit.
-The parent picks a supported ACP agent (Claude Code, Codex, OpenCode), and Hi-Bit runs turns through ACPX per kid-session.
-Everything - profiles, transcripts, progress, saved projects - lives on disk under Electron's `userData` dir.
+Parents sign in with Codex, and Hi-Bit runs Bit through an embedded Pi coding runtime per project.
+Everything - auth state, factory metadata, project files, session files, and logbooks - lives on disk under Electron's `userData` dir.
 No telemetry, no cloud.
 MIT.
 
@@ -12,14 +12,13 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
 
 ## Stack and layout
 
-- Electron 41, electron-vite, React 19, Zustand, CodeMirror 6, Vitest, Biome. TypeScript throughout.
-- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk profile layout (`state.md`, `progress.json`, transcripts, flags, project files, session logs, per-profile agent permission config); `agent/` owns ACPX availability and turn execution; `harness/` builds Bit chat turns around that agent layer; `graph/` loads the knowledge graph + dream library from `graph/` at the repo root.
-  Regular ACP turns reuse a warm runtime keyed by session; helper turns discard their runtime state.
-  Warm runtimes are closed when a kid session ends, a profile is deleted, a dream change or restart rotates the kid session, the default agent changes, or the app quits.
+- Electron 41, electron-vite, React 19, Vitest, Biome. TypeScript throughout.
+- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory layout; `auth/` owns Codex OAuth and token refresh; `projects/` owns project records, starter files, workbench paths, and project logbooks; `pi/` adapts the Pi coding runtime; `bit/` coordinates chat turns around projects.
+  Pi sessions are reused per project and closed when a project runtime is disposed or the app quits.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
-- `src/renderer/` - the React UI. `screens/` holds top-level views (kid home, dream picker, tutor chat, editor + live preview, parent gate, parent dashboard with Overview, Learning, Projects, Guidance, Activity, and Settings tabs). `state/` is Zustand stores; `editor/` and `preview/` are the CodeMirror + iframe pieces.
+- `src/renderer/` - the React UI. `screens/` holds the Codex auth gate, project picker, and chat workspace; `components/` holds the chat composer, message list, and tool activity pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
-- `graph/nodes/` - hand-authored knowledge points. `graph/dreams/` - hand-authored dream projects. `src/main/storage/graphSeed.ts` mirrors shipped YAML into the user's profile dir on startup, including overwriting changed bundled files and deleting stale bundled YAML.
+- `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
 - `prompts/bit.md` - Bit's system prompt. Product content, not code; edit it like you'd edit docs.
 - `design/` - design tokens and the shared stylesheet the renderer consumes.
 
@@ -27,8 +26,8 @@ Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisio
 
 Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
 
-Manual E2E testing should use Claude Code as the configured Hi-Bit agent unless the task explicitly asks to validate another ACP provider.
-Before testing Bit chat, confirm `config.json` under Electron `userData` has `defaultAgent: "claude"`, or switch the app's selected agent to Claude through the setup UI.
+Manual E2E testing should exercise the Codex auth gate, project picker, and Pi-backed chat workspace unless the task explicitly narrows scope.
+Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`; use the app's sign-in flow or a clean `userData` state appropriate for the test.
 
 ### One-time understanding
 
@@ -95,10 +94,10 @@ Do not leave background dev apps, CDP endpoints, or AXI bridge processes running
 
 ### What E2E can and can't cover
 
-- Can: full renderer flow (navigation, forms, live preview, CodeMirror input, parent-mode PIN, mastery grid rendering).
-- Can: IPC round-trips through the preload bridge, since those run in the real main process against the real profile layout under Electron's `userData` dir.
-- Cannot directly: main-process internals (file writes, ACPX agent start/turn execution) except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
-- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify profiles there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).
+- Can: full renderer flow for Codex sign-in state, project creation/picking, chat, abort, and opening a project folder.
+- Can: IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
+- Cannot directly: main-process internals such as token refresh, project file writes, or Pi runtime turns except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
+- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).
 
 ## Project conventions
 

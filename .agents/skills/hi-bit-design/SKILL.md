@@ -45,7 +45,7 @@ All design sources are under `/design/` (relative to the repo root). From the sk
 
 Ask what the user wants to build. Offer a few directions:
 
-- A new screen for the Hi-Bit app (parent dashboard, onboarding, trophies, a new lesson type)
+- A new screen for the Hi-Bit app (Codex auth, project picker, chat workspace, onboarding)
 - Marketing asset (app icon variations, a landing page)
 - A slide for a parent-facing pitch deck
 - A new subject added to the rainbow (e.g. Python — what color? what sticker?)
