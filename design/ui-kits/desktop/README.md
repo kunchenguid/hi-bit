@@ -1,11 +1,11 @@
-# Hi-Bit — Desktop UI Kit
+# Hi-Bit - Desktop UI Kit
 
-The Electron app recreated as an interactive in-browser prototype. Five surfaces, all reachable from the sidebar:
+Legacy visual prototype for the old Electron shell. Five surfaces, all reachable from the sidebar:
 
-- **Home** — Bit greets the learner, a "continue" card resumes the current lesson, a rainbow grid picks a subject.
-- **Tutor** — Bit chat view. Try typing `let` to see a correct-answer flow; `var` or `const` for gentle redirection; anything else for a nudge. XP is awarded on success.
-- **Code** — code editor + live preview with Code, Page, and Split views. "See my page" formats and saves dirty HTML/CSS/JS buffers before running them in an iframe; preview can be refreshed or reloaded.
-- **Lessons / Trophies** — stubbed simple views (real product would expand).
+- **Home** - legacy learner dashboard with a continue card and subject grid.
+- **Tutor** - legacy Bit chat view with canned teaching flows.
+- **Code** - legacy code editor + live preview with Code, Page, and Split views.
+- **Lessons / Trophies** - legacy stubbed simple views.
 
 The production app now centers on Codex sign-in, project picking, and a Pi-backed Bit chat workspace.
 
@@ -13,11 +13,11 @@ The production app now centers on Codex sign-in, project picking, and a Pi-backe
 
 | File | What it is |
 |---|---|
-| `Sidebar.jsx` | App nav, level chip, XP bar, streak pill |
+| `Sidebar.jsx` | Legacy app nav and gamified status chrome |
 | `HomeScreen.jsx` | Dashboard: hero, continue card, subject cards grid |
 | `TutorScreen.jsx` | Bit chat with suggestion chips + composer |
 | `EditorScreen.jsx` | Code editor + iframe preview with Code/Page/Split view toggle |
-| `XpToast.jsx` | "+N XP" pop with bounce easing |
+| `XpToast.jsx` | Legacy XP pop with bounce easing |
 | `styles.css` | All kit styles; reads tokens from `../../tokens/colors_and_type.css` |
 
 ### Fidelity notes

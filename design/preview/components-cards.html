@@ -7,7 +7,7 @@
   body { margin:0; padding: 20px; background: var(--paper); width:660px; box-sizing:border-box; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-  /* Base card — one flat paper background, one ink pixel-drop. No border. */
+  /* Base card - one flat paper background, one ink pixel-drop. No border. */
   .card {
     background: var(--paper-3);
     border-radius: 12px;
@@ -42,12 +42,12 @@
   .title { font-weight: 600; font-size: 15px; color: var(--ink); margin: 0 0 4px; }
   .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-64); }
 
-  /* Progress bar — a single inset row in ink neutral, no per-card color variety. */
+  /* Progress bar - a single inset row in ink neutral, no per-card color variety. */
   .prog { height: 6px; background: var(--ink-08); border-radius: 999px; margin-top: 10px; overflow: hidden; }
   .prog > span { display:block; height:100%; background: var(--ink-40); }
 
-  /* XP pill — one consistent token across all cards, ink-on-paper. */
-  .xp {
+  /* Status pill - one consistent token across all cards, ink-on-paper. */
+  .status {
     display: inline-block;
     margin-top: 8px;
     padding: 2px 8px;
@@ -76,7 +76,7 @@
         <div class="title">Buttons that count</div>
         <div class="meta">JavaScript · 3 of 8</div>
         <div class="prog"><span style="width:38%"></span></div>
-        <span class="xp">+120 XP</span>
+        <span class="status">Active</span>
       </div>
     </div>
 
@@ -86,7 +86,7 @@
       <div class="body">
         <div class="title">Paint the page</div>
         <div class="meta">CSS · Not started</div>
-        <span class="xp">+80 XP</span>
+        <span class="status">Idea</span>
       </div>
     </div>
 
@@ -96,7 +96,7 @@
       <div class="body">
         <div class="title">First web page</div>
         <div class="meta">HTML · Complete</div>
-        <span class="xp">+100 XP</span>
+        <span class="status">Ready</span>
       </div>
       <svg class="check" width="20" height="20"><use href="../assets/icons.svg#i-check"/></svg>
     </div>
@@ -107,7 +107,7 @@
       <div class="body">
         <div class="title">Drawing with code</div>
         <div class="meta">Art · Not started</div>
-        <span class="xp">+150 XP</span>
+        <span class="status">New</span>
       </div>
     </div>
   </div>
