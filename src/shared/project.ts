@@ -1,11 +1,20 @@
-export type ProjectFile = {
-  name: string;
-  content: string;
+export type CreateProjectInput = {
+  title: string;
 };
 
-export type ProjectFileChangeKind = "changed" | "renamed";
-
-export type ProjectFileChange = {
-  kind: ProjectFileChangeKind;
-  filename: string;
+export type ProjectSessionRef = {
+  provider: "pi";
+  relativePath: string;
 };
+
+export type ProjectSummary = {
+  schemaVersion: 1;
+  id: string;
+  factoryId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  activeSession?: ProjectSessionRef;
+};
+
+export type ProjectRecord = ProjectSummary;

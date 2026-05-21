@@ -8,6 +8,8 @@ Thumbs.db
 # Dependency trees (add these preemptively for the frontend app that will land here)
 node_modules/
 .pnpm-store/
+package-lock.json
+yarn.lock
 
 # Build output
 dist/

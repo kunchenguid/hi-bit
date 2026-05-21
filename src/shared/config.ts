@@ -1,33 +1,25 @@
-export type AgentId = "claude" | "codex" | "opencode";
-
-export const AGENT_IDS = ["claude", "codex", "opencode"] as const satisfies readonly AgentId[];
-
-// The agent Hi-Bit's first alpha ships against as the reference integration.
-// All three supported agents are invoked through ACPX; this only drives the
-// "Recommended" hint in the onboarding picker.
-export const REFERENCE_AGENT: AgentId = "claude";
-
-export type ParentPinRecord = {
-  algorithm: "pbkdf2-sha256";
-  iterations: number;
-  keyLength: number;
-  salt: string;
-  hash: string;
-};
-
-export type ThemePreference = "light" | "dark";
-
-export const THEME_PREFERENCES = ["light", "dark"] as const satisfies readonly ThemePreference[];
-
 export type HiBitConfig = {
-  version: 2;
-  defaultAgent?: AgentId;
-  parentPin?: ParentPinRecord;
-  theme?: ThemePreference;
+  version: 1;
+  defaultModel: string;
 };
 
-export function defaultConfig(): HiBitConfig {
+export const DEFAULT_CODEX_MODEL = "openai-codex/gpt-5.5";
+
+export function defaultHiBitConfig(): HiBitConfig {
   return {
-    version: 2,
+    version: 1,
+    defaultModel: DEFAULT_CODEX_MODEL,
+  };
+}
+
+export function normalizeHiBitConfig(value: unknown): HiBitConfig {
+  if (!value || typeof value !== "object") return defaultHiBitConfig();
+  const candidate = value as { defaultModel?: unknown };
+  if (typeof candidate.defaultModel !== "string" || !candidate.defaultModel.trim()) {
+    return defaultHiBitConfig();
+  }
+  return {
+    version: 1,
+    defaultModel: candidate.defaultModel.trim(),
   };
 }

@@ -32,7 +32,7 @@ Before testing Bit chat, confirm `config.json` under Electron `userData` has `de
 
 ### One-time understanding
 
-- `npm run dev` runs `electron-vite dev`, which builds main + preload into `out/`, starts a Vite dev server on `http://localhost:5173` for the renderer, and launches Electron pointing at it.
+- `pnpm dev` runs `electron-vite dev`, which builds main + preload into `out/`, starts a Vite dev server on `http://localhost:5173` for the renderer, and launches Electron pointing at it.
 - `electron-vite dev` passes trailing args through to the Electron binary. Chromium honors `--remote-debugging-port=<N>`, so the Electron renderer exposes CDP on that port.
 - `chrome-devtools-axi` can attach to any CDP endpoint via the `CHROME_DEVTOOLS_AXI_BROWSER_URL` env var instead of launching its own Chrome.
 
@@ -41,7 +41,7 @@ Before testing Bit chat, confirm `config.json` under Electron `userData` has `de
 Run in background - the dev server stays up for the duration of the test session:
 
 ```
-npm run dev -- --remote-debugging-port=9222
+pnpm dev -- --remote-debugging-port=9222
 ```
 
 Wait for the CDP endpoint to come up before driving anything:
@@ -80,7 +80,7 @@ Tip: `export CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:9222` for the sess
 ### Sanity checks
 
 - `eval "typeof window.hibit"` should return `"object"`. If it returns `"undefined"`, the preload bridge did not load - the renderer will show the error boundary ("Something went sideways.") and every IPC-driven feature will be broken. Fix the preload wiring before continuing, don't try to work around it.
-- `console --type error` surfaces renderer-side errors. Main-process errors only show up in the `npm run dev` output, not in axi.
+- `console --type error` surfaces renderer-side errors. Main-process errors only show up in the `pnpm dev` output, not in axi.
 
 ### Tearing down
 
@@ -88,7 +88,7 @@ Tip: `export CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:9222` for the sess
 chrome-devtools-axi stop
 ```
 
-Then kill the `npm run dev` process. Quitting the Electron window also ends the dev server because `electron-vite dev` is tied to Electron's lifecycle.
+Then kill the `pnpm dev` process. Quitting the Electron window also ends the dev server because `electron-vite dev` is tied to Electron's lifecycle.
 
 Always tear down the Electron dev app and the `chrome-devtools-axi` bridge when you finish e2e testing.
 Do not leave background dev apps, CDP endpoints, or AXI bridge processes running after validation.
@@ -98,12 +98,12 @@ Do not leave background dev apps, CDP endpoints, or AXI bridge processes running
 - Can: full renderer flow (navigation, forms, live preview, CodeMirror input, parent-mode PIN, mastery grid rendering).
 - Can: IPC round-trips through the preload bridge, since those run in the real main process against the real profile layout under Electron's `userData` dir.
 - Cannot directly: main-process internals (file writes, ACPX agent start/turn execution) except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
-- Note: `npm run dev` uses the real userData dir, so E2E runs will create/modify profiles there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).
+- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify profiles there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).
 
 ## Project conventions
 
-- Package manager: `npm` (lockfile is `package-lock.json`).
-- Typecheck: `npm run typecheck`. Tests: `npm test`. Lint/format: `npm run check` / `npm run format`.
+- Package manager: `pnpm` only (lockfile is `pnpm-lock.yaml`).
+- Typecheck: `pnpm typecheck`. Tests: `pnpm test`. Lint/format: `pnpm check` / `pnpm format`.
 - Tests are Vitest, colocated next to the file under test as `*.test.ts(x)`.
 - TDD is expected for bug fixes and new features (see global instructions).
 - Do not auto-add an AI co-author to commits.

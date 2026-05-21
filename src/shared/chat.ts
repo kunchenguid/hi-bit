@@ -1,29 +1,63 @@
-import type { ExpectedLearnerAction } from "./learnerActivity";
+export type ToolContent =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
 
-const UI_CONTEXT_OPEN = "<hi-bit:ui-context>\n";
-const UI_CONTEXT_CLOSE = "\n</hi-bit:ui-context>";
-
-export type SendMessageResult =
-  | { ok: true; text: string; durationMs: number; expectedActions?: ExpectedLearnerAction[] }
-  | { ok: false; error: string; durationMs: number };
-
-export type CursorMarkerRequest = {
-  filename: string;
-  editorContent: string;
-  latestBitMessage: string;
-  snippet: string;
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  createdAt: string;
 };
 
-export function promptWithUiContext(prompt: string, uiContext?: string): string {
-  const trimmedContext = uiContext?.trim();
-  if (!trimmedContext) return prompt;
-  return `${UI_CONTEXT_OPEN}${trimmedContext}${UI_CONTEXT_CLOSE}\n\n${prompt}`;
-}
+export type ToolActivity = {
+  callId: string;
+  toolName: string;
+  status: "running" | "completed" | "failed";
+  args?: unknown;
+  content: ToolContent[];
+};
 
-export function visiblePromptText(prompt: string): string {
-  const trimmed = prompt.trim();
-  if (!trimmed.startsWith(UI_CONTEXT_OPEN)) return trimmed;
-  const closeIndex = trimmed.indexOf(UI_CONTEXT_CLOSE, UI_CONTEXT_OPEN.length);
-  if (closeIndex === -1) return trimmed;
-  return trimmed.slice(closeIndex + UI_CONTEXT_CLOSE.length).trimStart();
-}
+export type ChatSnapshot = {
+  projectId: string;
+  messages: ChatMessage[];
+  tools: ToolActivity[];
+  isRunning: boolean;
+};
+
+export type ChatEvent =
+  | { type: "turn_start"; projectId: string; turnId: string }
+  | { type: "assistant_delta"; projectId: string; turnId: string; text: string }
+  | {
+      type: "tool_start";
+      projectId: string;
+      turnId: string;
+      callId: string;
+      toolName: string;
+      args: unknown;
+    }
+  | {
+      type: "tool_update";
+      projectId: string;
+      turnId: string;
+      callId: string;
+      content: ToolContent[];
+    }
+  | {
+      type: "tool_end";
+      projectId: string;
+      turnId: string;
+      callId: string;
+      isError: boolean;
+      content: ToolContent[];
+    }
+  | {
+      type: "turn_end";
+      projectId: string;
+      turnId: string;
+      status: "completed" | "cancelled" | "failed";
+      error?: string;
+    };
+
+export type SendMessageResult =
+  | { ok: true; turnId: string; status: "completed" | "cancelled" }
+  | { ok: false; turnId?: string; error: string };
