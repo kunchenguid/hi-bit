@@ -40,7 +40,7 @@ One file per KP under `graph/nodes/<id>.yml`, following the shape of the existin
 
 ## Adding a dream
 
-Dreams are usually buildable projects the kid can pick from Bit's dream menu.
+Dreams are retained buildable project ideas for Bit and future project flows.
 The current v1 library ships 53 dreams, including the `playground` freeform dream.
 Follow the shape of the existing files in `graph/dreams/`.
 
@@ -50,9 +50,9 @@ Review criteria:
    A `mode: freeform` dream is an open-ended space for exploring, asking questions, or deciding what to build, not a disguised fixed project.
 2. **Coverable by shipped KPs.** Every id in `requires:` must resolve to an existing `graph/nodes/*.yml`. If you need a KP that does not exist yet, add the KP in the same PR - but prefer reusing KPs. Only `mode: freeform` dreams may have an empty `requires:` list.
 3. **Direct-use prereqs only.** Like KP prereqs, list the KPs the dream directly exercises. The scheduler resolves transitive prereqs from the graph; you do not need to include them.
-4. **Difficulty is computed.** Do not author `difficulty` in `graph/dreams/*.yml`. Validation computes the 1-5 bit rating shown in the picker from the direct `requires:` count and the graph depth of those direct requirements.
+4. **No difficulty field.** Do not author `difficulty` in `graph/dreams/*.yml`; the current Pi-backed app does not expose a dream rating.
 5. **Categorized.** Use the `arcade | creative | personal | utility | art` enum. Multiple categories are fine. Adding a new category is a separate architectural change, not a dream PR.
-6. **Interest tags are kid-facing filters.** They drive the dream picker. Use words a kid would recognize ("music", "animals", "space"), not author-facing taxonomy.
+6. **Interest tags are kid-facing labels.** Use words a kid would recognize ("music", "animals", "space"), not author-facing taxonomy.
 7. **Style hints describe open choices, not the build.** They exist so Bit can ask the kid what they want, not so the PR proposes a finished design.
 8. **Unique id.** Kebab-case, stable forever once shipped.
 
@@ -75,7 +75,7 @@ One file per dream under `graph/dreams/<id>.yml`. Follow existing files (e.g. `g
 - LLM-generated KPs or dreams. Every graph node is hand-reviewed. Submissions that read as generated will be closed.
 - Renames of shipped ids.
 - Removals of shipped KPs or dreams without a migration story for existing local data.
-- Whole new curricula (Python, TypeScript, backend, React). Out of scope for v1 per `PRD.md`.
+- Whole new curricula (Python, TypeScript, backend, React). Out of scope for v1.
 - Auto-generated CHANGELOG edits or formatting-only churn in `graph/`.
 
 ## Licensing of contributions

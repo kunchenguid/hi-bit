@@ -28,11 +28,11 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 | File / folder | What it holds |
 |---|---|
 | `README.md` | This file — brand story, content & visual foundations, iconography |
-| `colors_and_type.css` | All design tokens: colors (light + dark), type ramp, spacing, radii, shadows, motion |
+| `tokens/colors_and_type.css` | All design tokens: colors (light + dark), type ramp, spacing, radii, shadows, motion |
 | `fonts/` | Webfonts (via Google Fonts CDN; see **Typography** below) |
 | `assets/` | Logos, mascot sprites, pixel-art icons, background textures |
 | `preview/` | Design-system spec cards (rendered in the Design System tab) |
-| `ui_kits/desktop/` | The Hi-Bit desktop app — interactive UI kit with JSX components + a click-thru `index.html` |
+| `ui-kits/desktop/` | The Hi-Bit desktop app — interactive UI kit with JSX components + a click-thru `index.html` |
 | `SKILL.md` | Agent Skill manifest — lets Claude Code pick this up as a portable skill |
 
 ---
@@ -116,7 +116,7 @@ This means:
 - **Accents are loud.** Subject colors are fully saturated 8-bit primaries (cyan, magenta, yellow-amber, lime) — used *per lesson*, not everywhere at once.
 - **Details are chunky.** 8px pixel grid governs everything: icon sprites are 16×16 or 32×32, radii are 4/8/12/16px, never fractional.
 
-### Color system — see `colors_and_type.css` for values
+### Color system — see `tokens/colors_and_type.css` for values
 
 **Neutrals (light mode):** a warm cream `--paper` base (`#F7F1E5`), step-darker surface `--paper-2`, and a near-black ink `--ink` (`#1A1626`) that echoes the dark-mode base.
 
@@ -149,7 +149,7 @@ Press Start 2P is used *sparingly* — roughly 5% of total type on any screen. I
 
 Code and editor text use Fira Code with ligatures and contextual alternates disabled, so symbols stay literal for kids reading and typing code.
 
-Type ramp is defined in `colors_and_type.css` as `--t-display`, `--t-h1` through `--t-h4`, `--t-body`, `--t-small`, `--t-mono`, `--t-pixel`.
+Type ramp is defined in `tokens/colors_and_type.css` as `--t-display`, `--t-h1` through `--t-h4`, `--t-body`, `--t-small`, `--t-mono`, `--t-pixel`.
 
 ### Spacing
 
@@ -250,7 +250,7 @@ The canonical Hi-Bit card:
 ## Getting started (for designers/agents)
 
 1. Read this file top to bottom.
-2. Import `colors_and_type.css` — everything uses these tokens.
+2. Import `tokens/colors_and_type.css` — everything uses these tokens.
 3. Preview tokens in the **Design System** tab (cards in `preview/`).
-4. For a working reference of the product, open `ui_kits/desktop/index.html`.
+4. For a working reference of the product, open `ui-kits/desktop/index.html`.
 5. If you're building a new screen: start from a card in the UI kit, keep the subject-rainbow rule (one hue per lesson, not all of them at once), and remember — **pixel is a spice, not the stew.**

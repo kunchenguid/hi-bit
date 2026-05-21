@@ -8,7 +8,7 @@ Everything - auth state, factory metadata, project files, session files, and log
 No telemetry, no cloud.
 MIT.
 
-Read `PRD.md` for product intent, `TECHNICAL_DESIGN.md` for architecture decisions, `V1_GAPS.md` for what's tracked as still-open vs. resolved. `CONTRIBUTING.md` governs changes to the knowledge graph and dream library.
+This file is the canonical architecture and workflow guide for the current app. `CONTRIBUTING.md` governs changes to the retained knowledge graph and dream library.
 
 ## Stack and layout
 

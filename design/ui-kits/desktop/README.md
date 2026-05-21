@@ -18,7 +18,7 @@ The production app now centers on Codex sign-in, project picking, and a Pi-backe
 | `TutorScreen.jsx` | Boo chat with suggestion chips + composer |
 | `EditorScreen.jsx` | Code editor + iframe preview with Code/Page/Split view toggle |
 | `XpToast.jsx` | "+N XP" pop with bounce easing |
-| `styles.css` | All kit styles; reads tokens from `../../colors_and_type.css` |
+| `styles.css` | All kit styles; reads tokens from `../../tokens/colors_and_type.css` |
 
 ### Fidelity notes
 
