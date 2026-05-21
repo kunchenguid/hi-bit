@@ -134,7 +134,7 @@ export class CodexAuthService {
   async getFreshAccessToken(): Promise<string> {
     const credential = await this.loadCredential();
     if (!credential) {
-      throw new Error("Sign in to Codex before starting Bit.");
+      throw new Error("Connect Codex before starting Bit.");
     }
 
     if (!codexAccessTokenIsExpiring(credential.accessToken, this.now().getTime())) {

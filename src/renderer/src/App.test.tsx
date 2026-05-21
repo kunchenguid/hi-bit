@@ -33,7 +33,7 @@ describe("App", () => {
     vi.restoreAllMocks();
   });
 
-  it("opens on the auth gate when Codex is signed out", async () => {
+  it("opens on the Codex provider gate when Codex is not connected", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: false,
       storage: { path: "/tmp/codex.json", encrypted: false },
@@ -41,7 +41,8 @@ describe("App", () => {
 
     await renderApp(root);
 
-    expect(host.textContent).toContain("Sign in to Codex");
+    expect(host.textContent).toContain("Connect Codex");
+    expect(host.textContent).toContain("not a Hi-Bit account");
     expect(host.textContent).toContain("Hi-Bit stores your token locally");
   });
 
@@ -56,6 +57,7 @@ describe("App", () => {
 
     expect(host.textContent).toContain("Who's using Hi-Bit?");
     expect(host.textContent).toContain("Create profile");
+    expect(host.textContent).not.toContain("Log out");
     expect(api.projects.list).not.toHaveBeenCalled();
   });
 
@@ -113,6 +115,13 @@ describe("App", () => {
     expect(api.projects.list).toHaveBeenCalledWith("ada");
     expect(host.textContent).toContain("What does Ada want to build?");
     expect(host.textContent).toContain("New project");
+    expect(host.textContent).not.toContain("Log out");
+
+    const editProfile = Array.from(host.querySelectorAll("summary")).find((summary) =>
+      summary.textContent?.includes("Edit profile"),
+    );
+    expect(editProfile?.classList.contains("hb-button")).toBe(true);
+    expect(editProfile?.closest(".hb-header-actions")).not.toBeNull();
   });
 
   it("rejects fractional ages before updating a kid profile", async () => {
@@ -126,7 +135,7 @@ describe("App", () => {
     api.projects.list = vi.fn(async () => []);
 
     await renderApp(root);
-    await openDetails(host, "Edit Ada's profile");
+    await openDetails(host, "Edit profile");
     await fillInput(host, "profileAge", "9.5");
     await clickButton(host, "Save profile");
 
@@ -187,8 +196,11 @@ describe("App", () => {
     expect(api.chat.load).toHaveBeenCalledWith("ada", "project-1");
     expect(host.textContent).toContain("Maze");
     expect(host.textContent).toContain("Ada's project");
+    expect(host.textContent).toContain("Codex provider connected");
     expect(host.textContent).toContain("Ready when you are.");
     expect(host.textContent).toContain("Ask Bit to build");
+    expect(host.textContent).not.toContain("Log out");
+    expect(host.textContent).not.toContain("signed in as");
   });
 
   it("switches from the project picker back to the kid profile gate", async () => {

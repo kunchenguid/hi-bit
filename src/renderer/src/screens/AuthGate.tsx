@@ -12,11 +12,14 @@ export function AuthGate({ status, busy, error, onLogin }: AuthGateProps) {
     <main className="hb-shell hb-auth-shell">
       <section className="hb-card hb-auth-card">
         <div className="hb-bit-badge">Bit</div>
-        <p className="t-pixel">Local coding buddy</p>
-        <h1>Sign in to Codex</h1>
+        <p className="t-pixel">Local LLM provider</p>
+        <h1>Connect Codex</h1>
         <p>
-          Hi-Bit uses your Codex subscription to run Bit, the coding partner that edits files in
-          each local project folder.
+          Hi-Bit uses your Codex subscription as the local LLM provider for Bit, the coding partner
+          that edits files in each local project folder.
+        </p>
+        <p className="t-small">
+          This is not a Hi-Bit account. It only connects Bit to Codex on this computer.
         </p>
         <p className="t-small">
           Hi-Bit stores your token locally under{" "}
@@ -33,7 +36,7 @@ export function AuthGate({ status, busy, error, onLogin }: AuthGateProps) {
           onClick={onLogin}
           disabled={busy}
         >
-          {busy ? "Waiting for sign-in" : "Sign in with Codex"}
+          {busy ? "Waiting for Codex" : "Connect Codex"}
         </button>
       </section>
     </main>

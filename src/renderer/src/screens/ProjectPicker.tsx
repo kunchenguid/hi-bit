@@ -9,7 +9,6 @@ type ProjectPickerProps = {
   error: string | null;
   onCreate: (title: string) => Promise<void>;
   onOpen: (project: ProjectSummary) => void;
-  onLogout: () => void;
   onSwitchProfile: () => void;
   onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
 };
@@ -21,7 +20,6 @@ export function ProjectPicker({
   error,
   onCreate,
   onOpen,
-  onLogout,
   onSwitchProfile,
   onUpdateProfile,
 }: ProjectPickerProps) {
@@ -42,15 +40,11 @@ export function ProjectPicker({
           <button className="hb-button hb-button-secondary" type="button" onClick={onSwitchProfile}>
             Switch profile
           </button>
-          <button className="hb-button hb-button-secondary" type="button" onClick={onLogout}>
-            Log out
-          </button>
+          <ProfileSettingsCard profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
         </div>
       </header>
 
       {error ? <p className="hb-error">{error}</p> : null}
-
-      <ProfileSettingsCard profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
 
       <section className="hb-card hb-new-project-card">
         <h2>New project</h2>
@@ -137,9 +131,13 @@ function ProfileSettingsCard({
   }
 
   return (
-    <details className="hb-card hb-profile-settings-card">
-      <summary>Edit {profile.name}'s profile</summary>
-      <form className="hb-profile-form" onSubmit={handleSubmit} noValidate>
+    <details className="hb-profile-settings-menu">
+      <summary className="hb-button hb-button-secondary">Edit profile</summary>
+      <form
+        className="hb-card hb-profile-settings-popover hb-profile-form"
+        onSubmit={handleSubmit}
+        noValidate
+      >
         <label htmlFor="profile-settings-name">Kid name</label>
         <input
           id="profile-settings-name"
