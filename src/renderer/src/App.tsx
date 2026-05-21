@@ -132,17 +132,6 @@ export function App() {
     }
   }, [loadProfileState]);
 
-  const logout = useCallback(async () => {
-    await window.hibit.auth.logout();
-    setAuthStatus({
-      authenticated: false,
-      storage: authStatus?.storage ?? { path: "", encrypted: false },
-    });
-    setProfiles([]);
-    setActiveProfileId(null);
-    clearProjectState();
-  }, [authStatus?.storage, clearProjectState]);
-
   const createProfile = useCallback(
     async (input: ProfileInput) => {
       setBusy(true);
@@ -283,7 +272,6 @@ export function App() {
         error={error}
         onCreate={createProfile}
         onSelect={selectProfile}
-        onLogout={logout}
       />
     );
   }
@@ -297,7 +285,6 @@ export function App() {
         error={error}
         onCreate={createProject}
         onOpen={(project) => setActiveProjectId(project.id)}
-        onLogout={logout}
         onSwitchProfile={switchProfile}
         onUpdateProfile={updateProfile}
       />
@@ -319,7 +306,6 @@ export function App() {
       onAbort={abort}
       onBack={() => setActiveProjectId(null)}
       onOpenFolder={openFolder}
-      onLogout={logout}
       onSwitchProfile={switchProfile}
     />
   );

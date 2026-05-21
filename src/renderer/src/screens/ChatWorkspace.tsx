@@ -20,7 +20,6 @@ type ChatWorkspaceProps = {
   onAbort: () => void;
   onBack: () => void;
   onOpenFolder: () => void;
-  onLogout: () => void;
   onSwitchProfile: () => void;
 };
 
@@ -38,9 +37,12 @@ export function ChatWorkspace({
   onAbort,
   onBack,
   onOpenFolder,
-  onLogout,
   onSwitchProfile,
 }: ChatWorkspaceProps) {
+  const providerStatus = authStatus?.accountId
+    ? `Codex provider connected (${authStatus.accountId})`
+    : "Codex provider connected";
+
   return (
     <main className="hb-workspace">
       <header className="hb-workspace-header">
@@ -51,8 +53,7 @@ export function ChatWorkspace({
           <p className="t-pixel">openai-codex/gpt-5.5</p>
           <h1>{project.title}</h1>
           <p className="t-small">
-            {profile.name}'s project -{" "}
-            {authStatus?.accountId ? `signed in as ${authStatus.accountId}` : "Codex connected"}
+            {profile.name}'s project - {providerStatus}
           </p>
         </div>
         <div className="hb-header-actions">
@@ -61,9 +62,6 @@ export function ChatWorkspace({
           </button>
           <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
             Open folder
-          </button>
-          <button className="hb-button hb-button-secondary" type="button" onClick={onLogout}>
-            Log out
           </button>
         </div>
       </header>

@@ -7,24 +7,16 @@ type ProfileGateProps = {
   error: string | null;
   onCreate: (input: ProfileInput) => Promise<void>;
   onSelect: (profile: ProfileSummary) => Promise<void>;
-  onLogout: () => void;
 };
 
-export function ProfileGate({
-  profiles,
-  busy,
-  error,
-  onCreate,
-  onSelect,
-  onLogout,
-}: ProfileGateProps) {
+export function ProfileGate({ profiles, busy, error, onCreate, onSelect }: ProfileGateProps) {
   const hasProfiles = profiles.length > 0;
 
   return (
     <main className="hb-shell hb-profile-shell">
       <section className="hb-card hb-profile-gate-card">
         <div className="hb-profile-gate-header">
-          <div>
+          <div className="hb-profile-gate-copy">
             <div className="hb-bit-badge">Bit</div>
             <p className="t-pixel">Who's using Hi-Bit?</p>
             <h1>{hasProfiles ? "Pick a profile." : "Create your first kid profile."}</h1>
@@ -33,9 +25,6 @@ export function ProfileGate({
               warmer age-appropriate words.
             </p>
           </div>
-          <button className="hb-button hb-button-secondary" type="button" onClick={onLogout}>
-            Log out
-          </button>
         </div>
 
         {error ? <p className="hb-error">{error}</p> : null}

@@ -42,6 +42,19 @@ describe("startCodexOAuthCallbackServer", () => {
       await server.close();
     }
   });
+
+  it("describes callback completion as a Codex connection", async () => {
+    const server = await startCodexOAuthCallbackServer({ state: "state-123", timeoutMs: 1_000 });
+
+    try {
+      const response = await fetch(`${server.redirectUri}?state=state-123&code=code-123`);
+
+      await expect(response.text()).resolves.toContain("Codex is connected");
+      await expect(server.waitForCode()).resolves.toBe("code-123");
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 describe("Codex JWT helpers", () => {

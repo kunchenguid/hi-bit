@@ -69,6 +69,15 @@ describe("CodexAuthService", () => {
     });
   });
 
+  it("asks to connect Codex when Bit needs a provider token", async () => {
+    const authPath = await tempAuthPath();
+    const service = new CodexAuthService({ authPath });
+
+    await expect(service.getFreshAccessToken()).rejects.toThrow(
+      "Connect Codex before starting Bit.",
+    );
+  });
+
   it("uses the configured codec for token-at-rest protection", async () => {
     const authPath = await tempAuthPath();
     const codec: CodexTokenCodec = {

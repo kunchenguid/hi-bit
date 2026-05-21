@@ -86,8 +86,8 @@ export async function exchangeCodexAuthorizationCode(
   });
 
   return readCodexTokenResponse(response, {
-    httpFailureMessage: "Codex sign-in failed",
-    missingAccessTokenMessage: "Codex sign-in response was missing access_token",
+    httpFailureMessage: "Codex connection failed",
+    missingAccessTokenMessage: "Codex connection response was missing access_token",
   });
 }
 
@@ -214,7 +214,7 @@ export async function startCodexOAuthCallbackServer({
   });
 
   const timer = setTimeout(() => {
-    reject?.(new Error("Codex sign-in timed out"));
+    reject?.(new Error("Codex connection timed out"));
     void closeServer(server);
   }, timeoutMs);
 
@@ -231,27 +231,25 @@ export async function startCodexOAuthCallbackServer({
     const error = cleanString(requestUrl.searchParams.get("error"));
     if (returnedState !== state) {
       response.writeHead(400, { "content-type": "text/html" });
-      response.end("<h1>Hi-Bit sign-in did not match.</h1><p>You can close this tab.</p>");
-      reject?.(new Error("Codex sign-in state did not match"));
+      response.end("<h1>Codex connection did not match.</h1><p>You can close this tab.</p>");
+      reject?.(new Error("Codex connection state did not match"));
       return;
     }
     if (error) {
       response.writeHead(400, { "content-type": "text/html" });
-      response.end("<h1>Hi-Bit sign-in was cancelled.</h1><p>You can close this tab.</p>");
-      reject?.(new Error(`Codex sign-in failed: ${error}`));
+      response.end("<h1>Codex connection was cancelled.</h1><p>You can close this tab.</p>");
+      reject?.(new Error(`Codex connection failed: ${error}`));
       return;
     }
     if (!code) {
       response.writeHead(400, { "content-type": "text/html" });
-      response.end("<h1>Hi-Bit sign-in missed the code.</h1><p>You can close this tab.</p>");
-      reject?.(new Error("Codex sign-in callback did not include a code"));
+      response.end("<h1>Codex connection missed the code.</h1><p>You can close this tab.</p>");
+      reject?.(new Error("Codex connection callback did not include a code"));
       return;
     }
 
     response.writeHead(200, { "content-type": "text/html" });
-    response.end(
-      "<h1>Hi-Bit is signed in.</h1><p>You can close this tab and return to Hi-Bit.</p>",
-    );
+    response.end("<h1>Codex is connected.</h1><p>You can close this tab and return to Hi-Bit.</p>");
     clearTimeout(timer);
     settle?.(code);
     void closeServer(server);
@@ -264,7 +262,7 @@ export async function startCodexOAuthCallbackServer({
 
   const address = server.address();
   if (!address || typeof address === "string") {
-    throw new Error("Codex sign-in callback server did not start");
+    throw new Error("Codex connection callback server did not start");
   }
 
   return {
