@@ -8,9 +8,16 @@ export function MessageList({ messages }: MessageListProps) {
   if (messages.length === 0) {
     return (
       <div className="hb-empty-chat">
-        <p className="t-small">
-          Ask Bit to build a button, a tiny game, a fan page, or anything web-shaped.
-        </p>
+        <div className="hb-empty-chat-card">
+          <p className="t-pixel">Start here</p>
+          <h2>What should Bit build first?</h2>
+          <p>Pick an idea, or ask in your own words.</p>
+          <ul className="hb-starter-ideas" aria-label="Starter ideas">
+            <li>Make it faster</li>
+            <li>Add a timer</li>
+            <li>Change the colors</li>
+          </ul>
+        </div>
       </div>
     );
   }

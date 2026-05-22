@@ -368,6 +368,10 @@ pre {
   gap: var(--s-2);
 }
 
+.hb-chat-layout-full {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .hb-chat-card,
 .hb-tool-panel {
   min-height: 0;
@@ -425,6 +429,44 @@ pre {
   place-items: center;
   padding: var(--s-4);
   color: var(--ink-64);
+}
+
+.hb-empty-chat-card {
+  width: min(680px, 100%);
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-4);
+  border: var(--border-hairline);
+  border-radius: var(--r-2xl);
+  background: var(--paper-3);
+  box-shadow: var(--shadow-soft);
+  color: var(--ink);
+}
+
+.hb-empty-chat-card p {
+  margin: 0;
+}
+
+.hb-empty-chat-card h2 {
+  margin: 0;
+}
+
+.hb-starter-ideas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  margin: var(--s-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hb-starter-ideas li {
+  border: var(--border-hairline);
+  border-radius: var(--r-pill);
+  padding: var(--s-0\.5) var(--s-1);
+  background: var(--subject-js-wash);
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .hb-composer {

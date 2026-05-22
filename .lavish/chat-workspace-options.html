@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hi-Bit chat workspace options</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Press+Start+2P&display=swap');
+
+      :root {
+        color-scheme: light;
+        --brand: #6c5ce7;
+        --brand-ink: #3f2eb4;
+        --brand-wash: #edebff;
+        --subject-js: #ffc244;
+        --subject-js-wash: #fff4d9;
+        --subject-math-wash: #e9fae3;
+        --danger-wash: #ffede6;
+        --success-wash: #e9fae3;
+        --paper: #f7f1e5;
+        --paper-2: #fff9ec;
+        --paper-3: #fffdf5;
+        --ink: #1a1626;
+        --ink-3: #5a536b;
+        --ink-06: rgba(26, 22, 38, 0.06);
+        --ink-08: rgba(26, 22, 38, 0.08);
+        --ink-12: rgba(26, 22, 38, 0.12);
+        --ink-24: rgba(26, 22, 38, 0.24);
+        --ink-64: rgba(26, 22, 38, 0.64);
+        --font-ui: 'Fredoka', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-pixel: 'Press Start 2P', 'Fredoka', system-ui, sans-serif;
+        --t-body-size: 15px;
+        --t-body-lh: 1.5;
+        --r-md: 8px;
+        --r-lg: 12px;
+        --r-xl: 16px;
+        --r-2xl: 24px;
+        --r-pill: 999px;
+        --border-hairline: 1px solid var(--ink-12);
+        --shadow-pixel: 0 2px 0 0 var(--ink);
+        --shadow-soft: 0 4px 16px -4px rgba(26, 22, 38, 0.12);
+        --shadow-soft-lg: 0 12px 32px -8px rgba(26, 22, 38, 0.18);
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        --dur-quick: 120ms;
+        --dur-base: 180ms;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-height: 100%;
+        background: var(--paper);
+      }
+
+      body {
+        min-height: 100%;
+        margin: 0;
+        background:
+          radial-gradient(circle at 10% 0%, color-mix(in oklch, var(--subject-js) 20%, transparent), transparent 28rem),
+          radial-gradient(circle at 90% 12%, color-mix(in oklch, var(--brand) 16%, transparent), transparent 24rem),
+          var(--paper);
+        color: var(--ink);
+        font-family: var(--font-ui);
+        font-size: var(--t-body-size);
+        line-height: var(--t-body-lh);
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+        gap: 24px;
+        align-items: end;
+        padding: 28px;
+        border: var(--border-hairline);
+        border-radius: var(--r-2xl);
+        background: var(--paper-2);
+        box-shadow: var(--shadow-soft-lg);
+      }
+
+      .eyebrow,
+      .badge,
+      .option-kicker {
+        margin: 0;
+        color: var(--ink-64);
+        font-family: var(--font-pixel);
+        font-size: 10px;
+        letter-spacing: 0.02em;
+        line-height: 1.6;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 760px;
+        margin-bottom: 12px;
+        font-size: clamp(36px, 6vw, 72px);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+      }
+
+      h2 {
+        margin-bottom: 14px;
+        font-size: clamp(28px, 4vw, 42px);
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 22px;
+        line-height: 1.15;
+      }
+
+      .lead {
+        max-width: 760px;
+        margin-bottom: 0;
+        color: var(--ink-3);
+        font-size: 20px;
+      }
+
+      .mascot-card {
+        min-width: 0;
+        display: grid;
+        gap: 12px;
+        justify-items: center;
+        padding: 18px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-xl);
+        background: var(--subject-js-wash);
+        box-shadow: var(--shadow-pixel);
+        text-align: center;
+      }
+
+      .mascot-card img {
+        width: min(150px, 100%);
+        image-rendering: pixelated;
+      }
+
+      .section {
+        margin-top: 28px;
+        padding: 24px;
+        border: var(--border-hairline);
+        border-radius: var(--r-2xl);
+        background: color-mix(in oklch, var(--paper-2) 92%, transparent);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .section-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        align-items: end;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+
+      .section-header p {
+        max-width: 620px;
+        margin-bottom: 0;
+        color: var(--ink-3);
+      }
+
+      .grid-2,
+      .grid-3,
+      .option-grid,
+      .question-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .option-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .question-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .card,
+      .issue,
+      .option,
+      .question-card,
+      .implementation-card {
+        min-width: 0;
+        padding: 18px;
+        border: var(--border-hairline);
+        border-radius: var(--r-xl);
+        background: var(--paper-3);
+      }
+
+      .issue strong,
+      .metric strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 18px;
+      }
+
+      .issue p,
+      .card p,
+      .option p,
+      .question-card p,
+      .implementation-card p {
+        margin-bottom: 0;
+        color: var(--ink-3);
+      }
+
+      .current-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(210px, 28%);
+        gap: 14px;
+        min-height: 270px;
+        padding: 14px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-xl);
+        background: var(--paper);
+        box-shadow: var(--shadow-pixel);
+      }
+
+      .mock-header {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 14px;
+        border: var(--border-hairline);
+        border-radius: var(--r-lg);
+        background: var(--paper-2);
+      }
+
+      .mock-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 0 12px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-md);
+        background: var(--paper-3);
+        box-shadow: 0 2px 0 0 var(--ink);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .mock-title {
+        min-width: 0;
+      }
+
+      .mock-title .tech {
+        overflow: hidden;
+        margin-bottom: 4px;
+        color: var(--ink);
+        font-family: var(--font-pixel);
+        font-size: 10px;
+        line-height: 1.5;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mock-title h3 {
+        margin: 0;
+        font-size: 28px;
+      }
+
+      .mock-title .id-line {
+        overflow: hidden;
+        color: var(--ink-64);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mock-chat {
+        display: grid;
+        align-content: start;
+        gap: 14px;
+        min-height: 190px;
+        padding: 18px;
+        border: var(--border-hairline);
+        border-radius: var(--r-lg);
+        background: var(--paper-2);
+      }
+
+      .mock-message {
+        max-width: 74%;
+        padding: 12px;
+        border: var(--border-hairline);
+        border-radius: var(--r-lg);
+      }
+
+      .mock-message.you {
+        justify-self: end;
+        background: var(--paper-3);
+      }
+
+      .mock-message.bit {
+        justify-self: start;
+        background: var(--brand-wash);
+        color: var(--brand-ink);
+      }
+
+      .mock-empty-rail {
+        display: grid;
+        place-items: center;
+        min-height: 190px;
+        border: 2px dashed var(--ink-24);
+        border-radius: var(--r-lg);
+        color: var(--ink-64);
+        text-align: center;
+      }
+
+      .callout {
+        padding: 16px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-xl);
+        background: var(--subject-js-wash);
+        box-shadow: var(--shadow-pixel);
+      }
+
+      .callout p:last-child {
+        margin-bottom: 0;
+      }
+
+      .copy-table {
+        display: grid;
+        gap: 10px;
+      }
+
+      .copy-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+        gap: 10px;
+      }
+
+      .copy-cell {
+        min-width: 0;
+        padding: 14px;
+        border: var(--border-hairline);
+        border-radius: var(--r-lg);
+        background: var(--paper-3);
+      }
+
+      .copy-cell.before {
+        background: color-mix(in oklch, var(--danger-wash) 68%, var(--paper-3));
+      }
+
+      .copy-cell.after {
+        background: color-mix(in oklch, var(--success-wash) 72%, var(--paper-3));
+      }
+
+      .copy-label {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--ink-64);
+        font-family: var(--font-pixel);
+        font-size: 9px;
+        line-height: 1.5;
+        text-transform: uppercase;
+      }
+
+      .copy-value {
+        overflow-wrap: anywhere;
+        font-weight: 700;
+      }
+
+      .option {
+        position: relative;
+        display: grid;
+        gap: 14px;
+      }
+
+      .option.recommended {
+        border: 2px solid var(--ink);
+        background: color-mix(in oklch, var(--subject-js-wash) 58%, var(--paper-3));
+        box-shadow: var(--shadow-pixel);
+      }
+
+      .option-top {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        min-height: 28px;
+        padding: 0 10px;
+        border: var(--border-hairline);
+        border-radius: var(--r-pill);
+        background: var(--paper-2);
+        color: var(--ink-64);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .option h3 {
+        margin: 0;
+      }
+
+      .wireframe {
+        display: grid;
+        gap: 10px;
+        min-height: 240px;
+        padding: 12px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-lg);
+        background: var(--paper);
+      }
+
+      .wire-head {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .wire-logo {
+        width: 34px;
+        height: 34px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-md);
+        background: var(--brand);
+      }
+
+      .wire-title {
+        min-width: 0;
+      }
+
+      .wire-title strong,
+      .wire-title span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .wire-title span {
+        color: var(--ink-64);
+        font-size: 13px;
+      }
+
+      .wire-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(150px, 34%);
+        gap: 10px;
+        min-height: 160px;
+      }
+
+      .wire-chat,
+      .wire-rail,
+      .wire-preview,
+      .wire-card {
+        min-width: 0;
+        border: var(--border-hairline);
+        border-radius: var(--r-md);
+        background: var(--paper-2);
+      }
+
+      .wire-chat {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        padding: 10px;
+      }
+
+      .wire-bubble {
+        width: 72%;
+        min-height: 38px;
+        border-radius: var(--r-md);
+        background: var(--brand-wash);
+      }
+
+      .wire-bubble.small {
+        justify-self: end;
+        width: 38%;
+        background: var(--paper-3);
+      }
+
+      .wire-rail,
+      .wire-preview {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+        padding: 10px;
+      }
+
+      .wire-card {
+        min-height: 38px;
+        padding: 8px;
+      }
+
+      .wire-preview-screen {
+        min-height: 92px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-md);
+        background:
+          linear-gradient(90deg, var(--subject-js) 0 12px, transparent 12px),
+          linear-gradient(var(--ink-08) 1px, transparent 1px),
+          var(--paper-3);
+        background-size: auto, 100% 16px, auto;
+      }
+
+      .wire-footer {
+        min-height: 38px;
+        border: var(--border-hairline);
+        border-radius: var(--r-md);
+        background: var(--paper-3);
+      }
+
+      .tradeoffs {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .tradeoffs li {
+        padding-left: 14px;
+        border-left: 4px solid var(--subject-js);
+        color: var(--ink-3);
+      }
+
+      .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .choice-button,
+      .send-button {
+        min-height: 42px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-lg);
+        padding: 0 14px;
+        background: var(--paper-3);
+        box-shadow: var(--shadow-pixel);
+        color: var(--ink);
+        font-weight: 800;
+        cursor: pointer;
+        transition:
+          transform var(--dur-quick) var(--ease-out),
+          box-shadow var(--dur-quick) var(--ease-out),
+          filter var(--dur-quick) var(--ease-out);
+      }
+
+      .choice-button:hover,
+      .send-button:hover {
+        filter: brightness(1.05);
+      }
+
+      .choice-button:active,
+      .send-button:active {
+        transform: translateY(2px);
+        box-shadow: none;
+      }
+
+      .choice-button.is-queued,
+      .send-button {
+        background: var(--subject-js);
+      }
+
+      .question-card {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+
+      .question-card h3 {
+        margin-bottom: 0;
+        font-size: 18px;
+      }
+
+      .decision-footer {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        margin-top: 18px;
+        padding: 18px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-xl);
+        background: var(--paper-3);
+        box-shadow: var(--shadow-pixel);
+      }
+
+      .implementation-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .implementation-card ul {
+        display: grid;
+        gap: 8px;
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .implementation-card li {
+        padding: 8px 10px;
+        border-radius: var(--r-md);
+        background: var(--ink-06);
+        color: var(--ink-3);
+      }
+
+      .small-note {
+        color: var(--ink-64);
+        font-size: 13px;
+      }
+
+      .toast {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 10;
+        max-width: min(360px, calc(100vw - 32px));
+        padding: 14px 16px;
+        border: 2px solid var(--ink);
+        border-radius: var(--r-lg);
+        background: var(--subject-math-wash);
+        box-shadow: var(--shadow-pixel);
+        opacity: 0;
+        transform: translateY(10px);
+        pointer-events: none;
+        transition:
+          opacity var(--dur-base) var(--ease-out),
+          transform var(--dur-base) var(--ease-out);
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (max-width: 980px) {
+        .hero,
+        .grid-2,
+        .grid-3,
+        .option-grid,
+        .question-grid,
+        .implementation-grid,
+        .decision-footer {
+          grid-template-columns: 1fr;
+        }
+
+        .wire-body,
+        .current-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          width: min(100vw - 20px, 1180px);
+          padding-top: 10px;
+        }
+
+        .hero,
+        .section {
+          padding: 18px;
+          border-radius: var(--r-xl);
+        }
+
+        .mock-header,
+        .wire-head,
+        .copy-row {
+          grid-template-columns: 1fr;
+        }
+
+        .mock-message {
+          max-width: 100%;
+        }
+
+        h1 {
+          font-size: 38px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Workspace redesign discussion</p>
+          <h1>Make the build screen feel like a kid's studio, not a debug panel.</h1>
+          <p class="lead">The screenshot has two separate problems: technical details are leaking into the kid-facing header, and the empty right side is not earning its space.</p>
+        </div>
+        <aside class="mascot-card" aria-label="Bit design reminder">
+          <img src="../design/assets/mascot-boo.svg" alt="Bit, the Hi-Bit tutor mascot" />
+          <p><strong>Design target</strong></p>
+          <p class="small-note">Warm arcade. Clear for parents. Friendly for ages 7-12.</p>
+        </aside>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">What feels off</p>
+            <h2>The screen is doing grown-up work in kid space.</h2>
+          </div>
+          <p>The current layout makes implementation state more visible than the learner's goal. The workspace should answer: what am I building, what can I try next, and what is Bit doing for me?</p>
+        </div>
+
+        <div class="current-layout" aria-label="Current screen issues">
+          <div class="mock-header">
+            <div class="mock-button">Projects</div>
+            <div class="mock-title">
+              <p class="tech">openai-codex/gpt-5.5</p>
+              <h3>reaction game</h3>
+              <p class="id-line">Ada's project - Codex provider connected (bd596edf-af40-4776-b10f-a7f2ffdb4ab3)</p>
+            </div>
+            <div class="mock-button">Open folder</div>
+          </div>
+          <div class="mock-chat">
+            <div class="mock-message you"><strong>You</strong><br />hi</div>
+            <div class="mock-message bit"><strong>Bit</strong><br />Hi Ada. I am ready to help with your reaction game. What would you like to change or add?</div>
+          </div>
+          <div class="mock-empty-rail">
+            <div>
+              <strong>Unused space</strong>
+              <p class="small-note">A right rail is reserved even when there is no tool activity.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 16px;">
+          <article class="issue">
+            <strong>Technical identity is too loud</strong>
+            <p>The model name and account UUID matter for debugging, but not for the learner's next action.</p>
+          </article>
+          <article class="issue">
+            <strong>The empty rail feels broken</strong>
+            <p>The right side should collapse, or become a helpful workspace panel with goals, preview, and next steps.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Copy cleanup</p>
+            <h2>Hide machinery. Keep confidence.</h2>
+          </div>
+          <p>We can preserve accountability for parents by moving technical details to a settings or debug drawer, while giving the learner language they can act on.</p>
+        </div>
+
+        <div class="copy-table" aria-label="Current copy versus proposed copy">
+          <div class="copy-row">
+            <div class="copy-cell before">
+              <span class="copy-label">Current</span>
+              <span class="copy-value">openai-codex/gpt-5.5</span>
+            </div>
+            <div class="copy-cell after">
+              <span class="copy-label">Kid-facing</span>
+              <span class="copy-value">Bit is ready</span>
+            </div>
+          </div>
+          <div class="copy-row">
+            <div class="copy-cell before">
+              <span class="copy-label">Current</span>
+              <span class="copy-value">Ada's project - Codex provider connected (bd596edf-af40-4776-b10f-a7f2ffdb4ab3)</span>
+            </div>
+            <div class="copy-cell after">
+              <span class="copy-label">Kid-facing</span>
+              <span class="copy-value">Ada is building a reaction game</span>
+            </div>
+          </div>
+          <div class="copy-row">
+            <div class="copy-cell before">
+              <span class="copy-label">Current</span>
+              <span class="copy-value">Tool activity, raw tool names, JSON args</span>
+            </div>
+            <div class="copy-cell after">
+              <span class="copy-label">Kid-facing</span>
+              <span class="copy-value">Bit is updating the project files. Show details.</span>
+            </div>
+          </div>
+          <div class="copy-row">
+            <div class="copy-cell before">
+              <span class="copy-label">Current</span>
+              <span class="copy-value">Open folder</span>
+            </div>
+            <div class="copy-cell after">
+              <span class="copy-label">Kid-facing</span>
+              <span class="copy-value">Project files</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top: 16px;">
+          <p><strong>Recommended principle:</strong> the main screen can say "Bit is ready" or "Bit is building." Model, provider, account id, raw tool names, and JSON should live under "Grown-up details" or "Debug details."</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Layout options</p>
+            <h2>Four directions for using the space better.</h2>
+          </div>
+          <p>These are intentionally different so we can choose a product direction before implementation.</p>
+        </div>
+
+        <div class="option-grid">
+          <article class="option">
+            <div class="option-top">
+              <p class="option-kicker">Option A</p>
+              <span class="pill">Biggest product leap</span>
+            </div>
+            <h3>Mission control with live preview</h3>
+            <div class="wireframe" aria-label="Mission control wireframe">
+              <div class="wire-head">
+                <div class="wire-logo"></div>
+                <div class="wire-title"><strong>Reaction game</strong><span>Ada is building with Bit</span></div>
+                <div class="mock-button">Projects</div>
+              </div>
+              <div class="wire-body">
+                <div class="wire-chat"><div class="wire-bubble small"></div><div class="wire-bubble"></div></div>
+                <div class="wire-preview"><strong>Play test</strong><div class="wire-preview-screen"></div><div class="wire-card">Try it</div></div>
+              </div>
+              <div class="wire-footer"></div>
+            </div>
+            <p>The right side becomes the thing the learner is making: a playable app preview, a goal card, and a "Try it" button.</p>
+            <ul class="tradeoffs">
+              <li>Best use of whitespace and strongest kid appeal.</li>
+              <li>Needs reliable preview/runtime plumbing, so this is a larger feature.</li>
+            </ul>
+            <div class="choice-row">
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'I prefer Option A: make the right side a live project preview with chat beside it.', 'layout-option')">Choose Option A</button>
+            </div>
+          </article>
+
+          <article class="option">
+            <div class="option-top">
+              <p class="option-kicker">Option B</p>
+              <span class="pill">Useful later</span>
+            </div>
+            <h3>Project guide rail</h3>
+            <div class="wireframe" aria-label="Project guide rail wireframe">
+              <div class="wire-head">
+                <div class="wire-logo"></div>
+                <div class="wire-title"><strong>Reaction game</strong><span>Bit is ready</span></div>
+                <div class="mock-button">Profile</div>
+              </div>
+              <div class="wire-body">
+                <div class="wire-chat"><div class="wire-bubble small"></div><div class="wire-bubble"></div></div>
+                <div class="wire-rail"><div class="wire-card">Today's goal</div><div class="wire-card">Try next</div><div class="wire-card">Bit status</div></div>
+              </div>
+              <div class="wire-footer"></div>
+            </div>
+            <p>Keep chat primary, but the right rail always has kid-friendly purpose: today's goal, quick ideas, and a calm status card.</p>
+            <ul class="tradeoffs">
+              <li>Solves whitespace quickly without needing a live preview.</li>
+              <li>Can later swap the guide rail for a real preview.</li>
+            </ul>
+            <div class="choice-row">
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'I prefer Option B: build a right-side project guide rail first.', 'layout-option')">Choose Option B</button>
+            </div>
+          </article>
+
+          <article class="option recommended">
+            <div class="option-top">
+              <p class="option-kicker">Option C</p>
+              <span class="pill">Selected direction</span>
+            </div>
+            <h3>Full-width chat until work starts</h3>
+            <div class="wireframe" aria-label="Full width chat wireframe">
+              <div class="wire-head">
+                <div class="wire-logo"></div>
+                <div class="wire-title"><strong>Reaction game</strong><span>Ada is building with Bit</span></div>
+                <div class="mock-button">Files</div>
+              </div>
+              <div class="wire-chat" style="min-height: 150px;"><div class="wire-bubble small"></div><div class="wire-bubble"></div><div class="wire-card">Idea chips along the bottom</div></div>
+              <div class="wire-footer"></div>
+            </div>
+            <p>If there is no tool activity, collapse to a single column. Use the saved space inside chat for prompts and a bigger Bit welcome state.</p>
+            <ul class="tradeoffs">
+              <li>Fastest code change and least risky.</li>
+              <li>Does not create a stronger studio feeling on its own.</li>
+            </ul>
+            <div class="choice-row">
+              <button class="choice-button is-queued" data-lavish-action onclick="queueChoice(this, 'I prefer Option C: collapse to full-width chat when there is no activity.', 'layout-option')">Selected: Option C</button>
+            </div>
+          </article>
+
+          <article class="option">
+            <div class="option-top">
+              <p class="option-kicker">Option D</p>
+              <span class="pill">Most parent/debug friendly</span>
+            </div>
+            <h3>Kid mode plus details drawer</h3>
+            <div class="wireframe" aria-label="Details drawer wireframe">
+              <div class="wire-head">
+                <div class="wire-logo"></div>
+                <div class="wire-title"><strong>Reaction game</strong><span>Bit is connected</span></div>
+                <div class="mock-button">Details</div>
+              </div>
+              <div class="wire-body">
+                <div class="wire-chat"><div class="wire-bubble small"></div><div class="wire-bubble"></div></div>
+                <div class="wire-rail"><div class="wire-card">Kid-friendly status</div><div class="wire-card">Hidden drawer: model, account, logs</div></div>
+              </div>
+              <div class="wire-footer"></div>
+            </div>
+            <p>Make a formal separation: kid mode is clean by default, and technical details are one click away for parents or debugging.</p>
+            <ul class="tradeoffs">
+              <li>Best long-term information architecture.</li>
+              <li>Still needs another visual idea for the empty rail.</li>
+            </ul>
+            <div class="choice-row">
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'I prefer Option D: keep kid mode clean and move technical details into a details drawer.', 'layout-option')">Choose Option D</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Questions</p>
+            <h2>Decisions I need from you.</h2>
+          </div>
+          <p>Use these buttons to queue structured feedback in Lavish, or annotate the cards directly.</p>
+        </div>
+
+        <div class="question-grid">
+          <article class="question-card">
+            <h3>What should the right side be?</h3>
+            <p>Choose the most useful default for empty or early projects.</p>
+            <div class="choice-row">
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'For the right side, use a project guide rail by default.', 'right-rail')">Guide rail</button>
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'For the right side, prioritize a live project preview.', 'right-rail')">Live preview</button>
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'For the right side, collapse it unless there is activity to show.', 'right-rail')">Collapse it</button>
+            </div>
+          </article>
+
+          <article class="question-card">
+            <h3>Where do technical details belong?</h3>
+            <p>This covers model name, provider id, tool names, JSON args, and logs.</p>
+            <div class="choice-row">
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'Technical details should be hidden from the learner and available in a grown-up details drawer.', 'technical-details')">Details drawer</button>
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'Technical details should live in settings, not in the chat workspace.', 'technical-details')">Settings only</button>
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'Technical details should be completely absent from kid-facing flows.', 'technical-details')">Never kid-facing</button>
+            </div>
+          </article>
+
+          <article class="question-card">
+            <h3>How playful should the workspace be?</h3>
+            <p>We can add more Bit presence without turning the app into a toy.</p>
+            <div class="choice-row">
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'Make the workspace more playful with Bit art, mission cards, and idea chips.', 'playfulness')">More playful</button>
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'Keep the workspace calm and lightly branded, with only subtle Bit presence.', 'playfulness')">Keep calm</button>
+            </div>
+          </article>
+
+          <article class="question-card">
+            <h3>What is the next implementation size?</h3>
+            <p>This decides whether we do a narrow cleanup or a real redesign pass.</p>
+            <div class="choice-row">
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'Scope this as a small patch: hide technical header details and collapse empty whitespace.', 'scope')">Small patch</button>
+              <button class="choice-button" data-lavish-action onclick="queueChoice(this, 'Scope this as a workspace redesign: add a useful rail and new empty states.', 'scope')">Redesign pass</button>
+            </div>
+          </article>
+        </div>
+
+        <div class="decision-footer">
+          <div>
+            <strong>My recommendation</strong>
+            <p>Ship Option C first: clean the header, collapse the empty right rail when there is no activity, and use the recovered space for a stronger chat welcome state. This directly fixes the screenshot without committing to a new right-rail product concept yet.</p>
+          </div>
+          <button class="send-button" data-lavish-action onclick="sendFeedback()">Send queued feedback</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Implementation notes</p>
+            <h2>Likely code changes after we choose.</h2>
+          </div>
+          <p>These are not final until you choose a direction, but they show where the screenshot problems come from.</p>
+        </div>
+        <div class="implementation-grid">
+          <article class="implementation-card">
+            <h3>Header cleanup</h3>
+            <p>Update the workspace title area to use learner-facing status.</p>
+            <ul>
+              <li>Remove raw `openai-codex/gpt-5.5` from the visible header.</li>
+              <li>Remove account id from the visible subtitle.</li>
+              <li>Use copy like `Ada is building a reaction game` and `Bit is ready`.</li>
+            </ul>
+          </article>
+          <article class="implementation-card">
+            <h3>Right rail behavior</h3>
+            <p>The current grid reserves a second column even when no tool panel renders.</p>
+            <ul>
+              <li>Add a layout class for `tools.length === 0` if we choose full-width chat.</li>
+              <li>Or always render a kid-friendly rail if we choose Option B.</li>
+              <li>Keep raw tool output behind an explicit details disclosure.</li>
+            </ul>
+          </article>
+          <article class="implementation-card">
+            <h3>Empty state</h3>
+            <p>The first moments should offer useful next actions instead of waiting on a blank chat.</p>
+            <ul>
+              <li>Add idea chips such as `Make it faster`, `Add a timer`, `Change colors`.</li>
+              <li>Show Bit art and a short mission card.</li>
+              <li>Make the composer prompt specific to the project.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite">Queued feedback for Lavish.</div>
+
+    <script>
+      function showToast(message) {
+        var toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.clearTimeout(window.__toastTimer);
+        window.__toastTimer = window.setTimeout(function () {
+          toast.classList.remove('show');
+        }, 1800);
+      }
+
+      function queueChoice(button, prompt, tag) {
+        if (window.lavish && typeof window.lavish.queuePrompt === 'function') {
+          window.lavish.queuePrompt(prompt, {
+            tag: tag,
+            text: button.textContent.trim(),
+            selector: button.closest('article') ? button.closest('article').querySelector('h3').textContent : undefined,
+          });
+          button.classList.add('is-queued');
+          button.textContent = 'Queued: ' + button.textContent.replace(/^Queued: /, '');
+          showToast('Queued feedback. Press Send queued feedback when ready.');
+          return;
+        }
+
+        showToast('Lavish feedback is unavailable in this browser.');
+      }
+
+      function sendFeedback() {
+        if (window.lavish && typeof window.lavish.sendQueuedPrompts === 'function') {
+          window.lavish.sendQueuedPrompts();
+          showToast('Sent queued feedback to the agent.');
+          return;
+        }
+
+        showToast('Lavish feedback is unavailable in this browser.');
+      }
+    </script>
+  </body>
+</html>

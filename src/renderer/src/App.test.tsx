@@ -64,6 +64,7 @@ describe("App", () => {
   it("creates the first kid profile before opening projects", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
+      accountId: "bd596edf-af40-4776-b10f-a7f2ffdb4ab3",
       storage: { path: "/tmp/codex.json", encrypted: true },
     }));
     api.profiles.list = vi.fn(async () => []);
@@ -195,10 +196,12 @@ describe("App", () => {
 
     expect(api.chat.load).toHaveBeenCalledWith("ada", "project-1");
     expect(host.textContent).toContain("Maze");
-    expect(host.textContent).toContain("Ada's project");
-    expect(host.textContent).toContain("Codex provider connected");
+    expect(host.textContent).toContain("Bit is ready");
+    expect(host.textContent).toContain("Ada is building with Bit");
     expect(host.textContent).toContain("Ready when you are.");
     expect(host.textContent).toContain("Ask Bit to build");
+    expect(host.textContent).not.toContain("Codex provider connected");
+    expect(host.textContent).not.toContain("bd596edf-af40-4776-b10f-a7f2ffdb4ab3");
     expect(host.textContent).not.toContain("Log out");
     expect(host.textContent).not.toContain("signed in as");
   });

@@ -1,4 +1,3 @@
-import type { AuthStatus } from "@shared/auth";
 import type { ChatMessage, ToolActivity } from "@shared/chat";
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
@@ -7,7 +6,6 @@ import { MessageList } from "../components/MessageList";
 import { ToolActivity as ToolActivityList } from "../components/ToolActivity";
 
 type ChatWorkspaceProps = {
-  authStatus: AuthStatus | null;
   profile: ProfileSummary;
   project: ProjectSummary;
   messages: ChatMessage[];
@@ -24,7 +22,6 @@ type ChatWorkspaceProps = {
 };
 
 export function ChatWorkspace({
-  authStatus,
   profile,
   project,
   messages,
@@ -39,9 +36,7 @@ export function ChatWorkspace({
   onOpenFolder,
   onSwitchProfile,
 }: ChatWorkspaceProps) {
-  const providerStatus = authStatus?.accountId
-    ? `Codex provider connected (${authStatus.accountId})`
-    : "Codex provider connected";
+  const hasToolActivity = tools.length > 0;
 
   return (
     <main className="hb-workspace">
@@ -50,11 +45,9 @@ export function ChatWorkspace({
           Projects
         </button>
         <div className="hb-project-title">
-          <p className="t-pixel">openai-codex/gpt-5.5</p>
+          <p className="t-pixel">{running ? "Bit is building" : "Bit is ready"}</p>
           <h1>{project.title}</h1>
-          <p className="t-small">
-            {profile.name}'s project - {providerStatus}
-          </p>
+          <p className="t-small">{profile.name} is building with Bit</p>
         </div>
         <div className="hb-header-actions">
           <button className="hb-button hb-button-secondary" type="button" onClick={onSwitchProfile}>
@@ -66,7 +59,7 @@ export function ChatWorkspace({
         </div>
       </header>
 
-      <section className="hb-chat-layout">
+      <section className={`hb-chat-layout${hasToolActivity ? "" : " hb-chat-layout-full"}`}>
         <div className="hb-chat-card">
           <MessageList messages={messages} />
           {error ? <p className="hb-error">{error}</p> : null}
@@ -78,7 +71,7 @@ export function ChatWorkspace({
             onAbort={onAbort}
           />
         </div>
-        <ToolActivityList tools={tools} />
+        {hasToolActivity ? <ToolActivityList tools={tools} /> : null}
       </section>
     </main>
   );

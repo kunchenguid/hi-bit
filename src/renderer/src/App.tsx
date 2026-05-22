@@ -293,7 +293,6 @@ export function App() {
 
   return (
     <ChatWorkspace
-      authStatus={authStatus}
       profile={activeProfile}
       project={activeProject}
       messages={messages}
