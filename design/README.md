@@ -90,6 +90,12 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Project picker:** What does Maya want to build?
 >
+> **Workspace status:** Bit is ready.
+>
+> **Empty workspace:** What should Bit build first?
+>
+> **Starter ideas:** Make it faster. Add a timer. Change the colors.
+>
 > **Bit:** Hey - ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
 >
 > **Tool activity:** Bit is updating the project files.
