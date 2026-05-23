@@ -130,6 +130,13 @@ export class ProjectService {
     await appendJsonl(paths.projectLogbookPath, value);
   }
 
+  /** The folder holding all of a profile's creations, for a parent to browse on disk. */
+  async profileProjectsDir(profileId: string): Promise<string> {
+    const dir = projectsDir(this.layout, profileId);
+    await mkdir(dir, { recursive: true });
+    return dir;
+  }
+
   pathsFor(profileId: string, projectId: string): ProjectPaths {
     const dir = projectDir(this.layout, profileId, projectId);
     return {

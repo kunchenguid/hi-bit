@@ -1,47 +1,44 @@
-import { mkdtemp, readdir, readFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChatEvent } from "@shared/chat";
 import { describe, expect, it } from "vitest";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import type { BotBuild, BotPipeline, BotWorkbench } from "../bots/botPipeline";
+import { ConversationService } from "../conversation/conversationService";
+import type { MayorPromptInput, MayorRuntime, MayorTurnResult } from "../pi/mayorRuntimeService";
 import { ProfileService } from "../profiles/profileService";
 import { ProjectService, type RuntimeProject } from "../projects/projectService";
 import { bootstrapLayout } from "../storage/layout";
 import { BitCoordinatorService, type BitRuntime } from "./bitCoordinatorService";
 
-class FakeRuntime implements BitRuntime {
-  prompts: string[] = [];
-  projects: RuntimeProject[] = [];
-  aborts: string[] = [];
+/** Worker runtime stub: emits ambient tool activity, then a short completion note. */
+class FakeWorkerRuntime implements BitRuntime {
+  prompts: Array<{ project: RuntimeProject; text: string }> = [];
   disposed: string[] = [];
   status: "completed" | "cancelled" | "failed" = "completed";
 
   async sendPrompt(project: RuntimeProject, text: string, onEvent: (event: ChatEvent) => void) {
-    this.projects.push(project);
-    this.prompts.push(text);
-    onEvent({ type: "turn_start", projectId: project.id, turnId: "turn-1" });
-    onEvent({ type: "assistant_delta", projectId: project.id, turnId: "turn-1", text: "Done" });
-    onEvent({ type: "turn_end", projectId: project.id, turnId: "turn-1", status: this.status });
-    return {
-      turnId: "turn-1",
-      status: this.status,
-      sessionFile: join(project.botSessionsDir, "job_test.jsonl"),
+    this.prompts.push({ project, text });
+    const meta = {
+      profileId: project.profileId,
+      projectId: project.id,
+      projectTitle: project.title,
+      turnId: `worker-${project.runtimeKey}`,
     };
+    onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
+    onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+    onEvent({ ...meta, type: "assistant_delta", text: "Added the thing." });
+    return { turnId: meta.turnId, status: this.status };
   }
 
-  async abort(runtimeKey: string): Promise<void> {
-    this.aborts.push(runtimeKey);
-  }
-
+  async abort(): Promise<void> {}
   getMessages(): unknown[] {
     return [];
   }
-
   isRunning(): boolean {
     return false;
   }
-
   disposeProject(runtimeKey: string): void {
     this.disposed.push(runtimeKey);
   }
@@ -49,7 +46,7 @@ class FakeRuntime implements BitRuntime {
 
 class FakePipeline implements BotPipeline {
   prepared: Array<{ project: RuntimeProject; job: BotJobRecord }> = [];
-  installed: Array<{ project: RuntimeProject; job: BotJobRecord; workbench: BotWorkbench }> = [];
+  installed: Array<{ project: RuntimeProject; job: BotJobRecord }> = [];
   beforeInstall?: () => Promise<void> | void;
 
   async prepareBotWorkbench(project: RuntimeProject, job: BotJobRecord): Promise<BotWorkbench> {
@@ -62,28 +59,78 @@ class FakePipeline implements BotPipeline {
     };
   }
 
-  async runMachines(): Promise<Array<{ name: string; status: "passed" }>> {
-    return [{ name: "preview_machine", status: "passed" }];
+  async runMachines() {
+    return [{ name: "preview_machine", status: "passed" as const }];
   }
 
-  async installBotBuild(
-    project: RuntimeProject,
-    job: BotJobRecord,
-    workbench: BotWorkbench,
-  ): Promise<BotBuild> {
+  async installBotBuild(project: RuntimeProject, job: BotJobRecord): Promise<BotBuild> {
     await this.beforeInstall?.();
-    this.installed.push({ project, job, workbench });
-    return {
-      jobId: job.id,
-      status: "installed",
-      installedAt: "2026-01-02T03:04:10.000Z",
-    };
+    this.installed.push({ project, job });
+    return { jobId: job.id, status: "installed", installedAt: "2026-01-02T03:04:10.000Z" };
   }
 }
 
+type MayorHandler = (ctx: {
+  text: string;
+  profileId: string;
+  callTool: (name: string, params: unknown) => Promise<unknown>;
+}) => Promise<string>;
+
+class FakeMayorRuntime implements MayorRuntime {
+  prompts: string[] = [];
+  handler: MayorHandler = async () => "";
+  private turn = 0;
+  private runningSet = new Set<string>();
+
+  async prompt(
+    input: MayorPromptInput,
+    text: string,
+    onEvent: (event: ChatEvent) => void,
+  ): Promise<MayorTurnResult> {
+    this.prompts.push(text);
+    this.runningSet.add(input.profileId);
+    const turnId = `mayor-turn-${++this.turn}`;
+    onEvent({ type: "turn_start", profileId: input.profileId, turnId });
+    const callTool = async (name: string, params: unknown) => {
+      const tool = input.customTools.find((candidate) => candidate.name === name);
+      if (!tool) throw new Error(`tool not registered: ${name}`);
+      return tool.execute(`${name}-call`, params as never, undefined, undefined, {} as never);
+    };
+    let assistantText = "";
+    try {
+      assistantText = await this.handler({ text, profileId: input.profileId, callTool });
+      if (assistantText) {
+        onEvent({
+          type: "assistant_delta",
+          profileId: input.profileId,
+          turnId,
+          text: assistantText,
+        });
+      }
+    } finally {
+      this.runningSet.delete(input.profileId);
+    }
+    onEvent({ type: "turn_end", profileId: input.profileId, turnId, status: "completed" });
+    return {
+      turnId,
+      status: "completed",
+      assistantText,
+      sessionFile: `/tmp/mayor/${input.profileId}.jsonl`,
+    };
+  }
+
+  async abort(): Promise<void> {}
+  isRunning(profileId: string): boolean {
+    return this.runningSet.has(profileId);
+  }
+  dispose(): void {}
+  disposeAll(): void {}
+}
+
 async function createCoordinator() {
-  const root = await mkdtemp(join(tmpdir(), "hibit-bit-"));
+  const root = await mkdtemp(join(tmpdir(), "hibit-mayor-"));
   const layout = await bootstrapLayout(root);
+  const now = () => new Date("2026-01-02T03:04:10.000Z");
   const profiles = new ProfileService(layout, () => new Date("2026-01-02T03:04:04.000Z"));
   const ada = await profiles.create({
     name: "Ada",
@@ -92,183 +139,225 @@ async function createCoordinator() {
     notes: "Gets frustrated fast.",
   });
   const projects = new ProjectService(layout, () => new Date("2026-01-02T03:04:05.000Z"));
-  const runtime = new FakeRuntime();
+  const conversation = new ConversationService(layout, now);
+  const worker = new FakeWorkerRuntime();
   const pipeline = new FakePipeline();
+  const mayor = new FakeMayorRuntime();
+  let counter = 0;
   const coordinator = new BitCoordinatorService({
     profiles,
     projects,
-    botJobs: new BotJobService({
-      now: () => new Date("2026-01-02T03:04:10.000Z"),
-      nextBuildPlanId: () => "build_plan_0001",
-      nextJobId: () => "bot_job_0001",
-    }),
-    runtime,
+    conversation,
+    mayor,
+    worker,
     pipeline,
-    now: () => new Date("2026-01-02T03:04:10.000Z"),
+    botJobs: new BotJobService({
+      now,
+      nextBuildPlanId: () => `build_plan_${++counter}`,
+      nextJobId: () => `bot_job_${counter}`,
+    }),
+    now,
   });
-  const game = await projects.create(ada.id, { title: "Factory game" });
-  const site = await projects.create(ada.id, { title: "Space site" });
-  return { coordinator, profiles, projects, runtime, pipeline, profile: ada, game, site };
+  const events: ChatEvent[] = [];
+  coordinator.subscribe((event) => events.push(event));
+  async function drain() {
+    await Promise.all([...coordinator.pending]);
+  }
+  return {
+    coordinator,
+    profiles,
+    projects,
+    conversation,
+    worker,
+    pipeline,
+    mayor,
+    profile: ada,
+    events,
+    drain,
+  };
 }
 
-describe("BitCoordinatorService", () => {
-  it("turns a lead builder message into a build plan, bot job, workbench run, inspections, and install", async () => {
-    const setup = await createCoordinator();
-    const events: ChatEvent[] = [];
+function isCompletion(text: string): boolean {
+  return (
+    text.includes("just finished building") ||
+    text.includes("ran into a problem") ||
+    text.includes("was stopped")
+  );
+}
 
-    await expect(
-      setup.coordinator.send(setup.profile.id, setup.game.id, "Add star pets", (event) =>
-        events.push(event),
-      ),
-    ).resolves.toEqual({
-      ok: true,
-      turnId: "turn-1",
-      status: "completed",
-    });
+describe("BitCoordinatorService (Mayor)", () => {
+  it("replies to chit-chat without creating anything", async () => {
+    const s = await createCoordinator();
+    s.mayor.handler = async () => "Hi Ada! What should we build?";
 
-    expect(events.map((event) => event.type)).toEqual([
-      "turn_start",
-      "assistant_delta",
-      "turn_end",
+    const result = await s.coordinator.send(s.profile.id, "hello");
+    await s.drain();
+
+    expect(result).toEqual({ ok: true, turnId: "mayor-turn-1", status: "completed" });
+    await expect(s.projects.list(s.profile.id)).resolves.toEqual([]);
+    expect(s.pipeline.prepared).toHaveLength(0);
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    expect(transcript).toMatchObject([
+      { role: "user", text: "hello" },
+      { role: "assistant", text: "Hi Ada! What should we build?" },
     ]);
-    expect(setup.pipeline.prepared).toHaveLength(1);
-    expect(setup.pipeline.installed).toHaveLength(1);
-    expect(setup.runtime.projects[0]).toMatchObject({
-      id: setup.game.id,
-      mainWorkbenchDir: join(
-        setup.projects.pathsFor(setup.profile.id, setup.game.id).workbenchesDir,
-        "bot_job_0001",
-      ),
-      runtimeKey: "bot_job_0001",
-    });
-    expect(setup.runtime.prompts[0]).toContain("The Lead Builder asked Bit");
-    expect(setup.runtime.prompts[0]).toContain("Lead Builder profile:");
-    expect(setup.runtime.prompts[0]).toContain("- Name: Ada");
-    expect(setup.runtime.prompts[0]).toContain("- Age: 9");
-    expect(setup.runtime.prompts[0]).toContain("- Interests: space, cats");
-    expect(setup.runtime.prompts[0]).toContain("- Parent notes: Gets frustrated fast.");
-    expect(setup.runtime.prompts[0]).toContain("Factory projects:");
-    expect(setup.runtime.prompts[0]).toContain("- Factory game");
-    expect(setup.runtime.prompts[0]).toContain("- Space site");
-
-    const paths = setup.projects.pathsFor(setup.profile.id, setup.game.id);
-    const planFiles = await readdir(paths.buildPlansDir);
-    const jobFiles = await readdir(paths.botJobsDir);
-    expect(planFiles).toEqual(["build_plan_0001.json"]);
-    expect(jobFiles).toEqual(["bot_job_0001.json"]);
-
-    const job = JSON.parse(await readFile(join(paths.botJobsDir, "bot_job_0001.json"), "utf8"));
-    expect(job).toMatchObject({
-      schemaVersion: 1,
-      id: "bot_job_0001",
-      buildPlanId: "build_plan_0001",
-      status: "completed",
-      workbench: {
-        kind: "git-worktree",
-        path: join(paths.workbenchesDir, "bot_job_0001"),
-      },
-      inspections: [{ name: "preview_machine", status: "passed" }],
-      build: { status: "installed" },
-    });
-
-    await expect(setup.coordinator.load(setup.profile.id, setup.game.id)).resolves.toMatchObject({
-      projectId: setup.game.id,
-      messages: [
-        { role: "user", text: "Add star pets" },
-        { role: "assistant", text: "Done" },
-      ],
-    });
-  }, 15_000);
-
-  it("does not run machines or the assembly line when a bot job is cancelled", async () => {
-    const setup = await createCoordinator();
-    setup.runtime.status = "cancelled";
-
-    await expect(
-      setup.coordinator.send(setup.profile.id, setup.game.id, "Stop building", () => {}),
-    ).resolves.toEqual({
-      ok: true,
-      turnId: "turn-1",
-      status: "cancelled",
-    });
-
-    expect(setup.pipeline.installed).toHaveLength(0);
-
-    const paths = setup.projects.pathsFor(setup.profile.id, setup.game.id);
-    const job = JSON.parse(await readFile(join(paths.botJobsDir, "bot_job_0001.json"), "utf8"));
-    expect(job).toMatchObject({
-      id: "bot_job_0001",
-      status: "cancelled",
-    });
   });
 
-  it("rejects a second prompt while a completed runtime turn is still installing", async () => {
-    const setup = await createCoordinator();
-    let releaseInstall!: () => void;
-    let installCalls = 0;
-    const installStarted = new Promise<void>((resolve) => {
-      setup.pipeline.beforeInstall = () =>
-        installCalls++ === 0
-          ? new Promise<void>((release) => {
-              releaseInstall = release;
-              resolve();
-            })
-          : undefined;
-    });
+  it("confirms a new idea on one turn, then creates and builds it after the kid agrees", async () => {
+    const s = await createCoordinator();
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return `Your Cat Jump is ready! 🎉`;
+      if (text.includes("make a cat game")) {
+        return "Ooh, a cat game! Want me to start it? 🐱";
+      }
+      await callTool("create_creation", {
+        title: "Cat Jump",
+        instructions: "build a game where a cat jumps boxes",
+        confirmed: true,
+      });
+      return "On it! Building Cat Jump now.";
+    };
 
-    const first = setup.coordinator.send(
-      setup.profile.id,
-      setup.game.id,
-      "Add star pets",
-      () => {},
-    );
-    await installStarted;
+    await s.coordinator.send(s.profile.id, "make a cat game");
+    expect(await s.projects.list(s.profile.id)).toHaveLength(0); // proposal only, nothing made
 
-    await expect(
-      setup.coordinator.send(setup.profile.id, setup.game.id, "Add moon pets", () => {}),
-    ).resolves.toEqual({
-      ok: false,
-      error: "Bit is already working on this project.",
-    });
+    await s.coordinator.send(s.profile.id, "yes please");
+    await s.drain();
 
-    releaseInstall();
-    await first;
-    expect(setup.pipeline.prepared).toHaveLength(1);
+    const portfolio = await s.projects.list(s.profile.id);
+    expect(portfolio).toHaveLength(1);
+    expect(portfolio[0]?.title).toBe("Cat Jump");
+    expect(s.pipeline.prepared).toHaveLength(1);
+    expect(s.pipeline.installed).toHaveLength(1);
+    expect(s.worker.disposed).toEqual(["bot_job_1"]);
+
+    // Completion turn ran and posted a kid-facing update.
+    const completionPrompt = s.mayor.prompts.find((p) => p.includes("just finished building"));
+    expect(completionPrompt).toContain("Cat Jump");
   });
 
-  it("rejects aborts for projects outside the supplied profile", async () => {
-    const setup = await createCoordinator();
-    const otherProfile = await setup.profiles.create({
-      name: "Grace",
-      age: 10,
-      interests: [],
-    });
+  it("refuses to create when the kid has not confirmed", async () => {
+    const s = await createCoordinator();
+    let toolResult: unknown;
+    s.mayor.handler = async ({ callTool }) => {
+      toolResult = await callTool("create_creation", {
+        title: "Cat Jump",
+        instructions: "build it",
+        confirmed: false,
+      });
+      return "Want me to start it?";
+    };
+
+    await s.coordinator.send(s.profile.id, "make a cat game");
+    await s.drain();
+
+    expect(await s.projects.list(s.profile.id)).toHaveLength(0);
+    expect(s.pipeline.prepared).toHaveLength(0);
+    expect(toolResult).toMatchObject({ details: { created: false } });
+  });
+
+  it("delegates an edit on an existing creation immediately and surfaces worker activity", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", {
+        creationId: game.id,
+        instructions: "make the cat orange",
+      });
+      return "Making the cat orange now!";
+    };
+
+    await s.coordinator.send(s.profile.id, "make the cat orange");
+    await s.drain();
+
+    expect(s.worker.prompts).toHaveLength(1);
+    expect(s.worker.prompts[0]?.text).toContain("make the cat orange");
+    expect(s.pipeline.installed).toHaveLength(1);
+
+    const toolEvent = s.events.find((event) => event.type === "tool_start");
+    expect(toolEvent).toMatchObject({ projectId: game.id, projectTitle: "Cat Jump" });
+  });
+
+  it("returns from send after the ack while the worker keeps building in the background", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     let releaseInstall!: () => void;
     const installStarted = new Promise<void>((resolve) => {
-      setup.pipeline.beforeInstall = () =>
+      s.pipeline.beforeInstall = () =>
         new Promise<void>((release) => {
           releaseInstall = release;
           resolve();
         });
     });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
 
-    const send = setup.coordinator.send(setup.profile.id, setup.game.id, "Add star pets", () => {});
+    const result = await s.coordinator.send(s.profile.id, "add stars");
     await installStarted;
 
-    await expect(setup.coordinator.abort(otherProfile.id, setup.game.id)).rejects.toThrow(
-      "Project not found.",
-    );
-    expect(setup.runtime.aborts).toEqual([]);
+    expect(result.ok).toBe(true);
+    expect(s.pipeline.installed).toHaveLength(0); // build still running after send returned
 
     releaseInstall();
-    await send;
+    await s.drain();
+    expect(s.pipeline.installed).toHaveLength(1);
   });
 
-  it("disposes the one-off bot runtime after the bot job finishes", async () => {
-    const setup = await createCoordinator();
+  it("starts a parallel worker per creation for a multi-creation request", async () => {
+    const s = await createCoordinator();
+    const a = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    const b = await s.projects.create(s.profile.id, { title: "Space Site" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (!text.includes("starrier")) return "";
+      await callTool("delegate_build", { creationId: a.id, instructions: "add stars" });
+      await callTool("delegate_build", { creationId: b.id, instructions: "add stars" });
+      return "Adding stars to both!";
+    };
 
-    await setup.coordinator.send(setup.profile.id, setup.game.id, "Add star pets", () => {});
+    await s.coordinator.send(s.profile.id, "make all my creations starrier");
+    await s.drain();
 
-    expect(setup.runtime.disposed).toEqual(["bot_job_0001"]);
+    expect(s.worker.prompts).toHaveLength(2);
+    expect(s.pipeline.installed).toHaveLength(2);
+    const completions = s.mayor.prompts.filter((p) => p.includes("just finished building"));
+    expect(completions).toHaveLength(2);
+  });
+
+  it("reports a worker failure through a gentle completion turn", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.status = "failed";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (text.includes("just finished") || text.includes("problem"))
+        return "Hmm, let's try again.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "change it");
+    await s.drain();
+
+    expect(s.pipeline.installed).toHaveLength(0);
+    const failurePrompt = s.mayor.prompts.find((p) => p.includes("ran into a problem"));
+    expect(failurePrompt).toContain("Cat Jump");
+  });
+
+  it("loads the continuous profile transcript", async () => {
+    const s = await createCoordinator();
+    s.mayor.handler = async () => "Hello!";
+    await s.coordinator.send(s.profile.id, "hi");
+    await s.drain();
+
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.profileId).toBe(s.profile.id);
+    expect(snapshot.isRunning).toBe(false);
+    expect(snapshot.messages).toMatchObject([
+      { role: "user", text: "hi" },
+      { role: "assistant", text: "Hello!" },
+    ]);
   });
 });

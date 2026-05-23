@@ -1,7 +1,6 @@
 import type { AuthStatus } from "@shared/auth";
 import type { ChatEvent, ChatMessage, ToolActivity } from "@shared/chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
-import type { ProjectSummary } from "@shared/project";
 import {
   type Dispatch,
   type SetStateAction,
@@ -13,7 +12,6 @@ import {
 import { AuthGate } from "./screens/AuthGate";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
 import { ProfileGate } from "./screens/ProfileGate";
-import { ProjectPicker } from "./screens/ProjectPicker";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -22,8 +20,6 @@ export function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [tools, setTools] = useState<ToolActivity[]>([]);
   const [draft, setDraft] = useState("");
@@ -35,27 +31,11 @@ export function App() {
     () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
     [activeProfileId, profiles],
   );
-  const activeProject = useMemo(
-    () => projects.find((project) => project.id === activeProjectId) ?? null,
-    [activeProjectId, projects],
-  );
 
-  const clearProjectState = useCallback(() => {
-    setProjects([]);
-    setActiveProjectId(null);
+  const clearChatState = useCallback(() => {
     setMessages([]);
     setTools([]);
     setRunning(false);
-  }, []);
-
-  const loadProjects = useCallback(async (profileId: string) => {
-    const nextProjects = await window.hibit.projects.list(profileId);
-    setProjects(nextProjects);
-    setActiveProjectId((current) =>
-      current && nextProjects.some((project) => project.id === current)
-        ? current
-        : (nextProjects[0]?.id ?? null),
-    );
   }, []);
 
   const loadProfileState = useCallback(async () => {
@@ -68,12 +48,8 @@ export function App() {
       ? storedActiveProfileId
       : null;
     setActiveProfileId(nextActiveProfileId);
-    if (nextActiveProfileId) {
-      await loadProjects(nextActiveProfileId);
-    } else {
-      clearProjectState();
-    }
-  }, [clearProjectState, loadProjects]);
+    clearChatState();
+  }, [clearChatState]);
 
   const refreshAuth = useCallback(async () => {
     setLoadState("loading");
@@ -96,9 +72,9 @@ export function App() {
   }, [refreshAuth]);
 
   useEffect(() => {
-    if (!activeProjectId || !activeProfileId || !authStatus?.authenticated) return;
+    if (!activeProfileId || !authStatus?.authenticated) return;
     let cancelled = false;
-    void window.hibit.chat.load(activeProfileId, activeProjectId).then((snapshot) => {
+    void window.hibit.chat.load(activeProfileId).then((snapshot) => {
       if (cancelled) return;
       setMessages(snapshot.messages);
       setTools(snapshot.tools);
@@ -107,14 +83,14 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeProfileId, activeProjectId, authStatus?.authenticated]);
+  }, [activeProfileId, authStatus?.authenticated]);
 
   useEffect(() => {
     return window.hibit.chat.onEvent((event) => {
-      if (event.projectId !== activeProjectId) return;
+      if (event.profileId !== activeProfileId) return;
       applyChatEvent(event, setMessages, setTools, setRunning, setError);
     });
-  }, [activeProjectId]);
+  }, [activeProfileId]);
 
   const login = useCallback(async () => {
     setBusy(true);
@@ -142,15 +118,15 @@ export function App() {
         setProfiles((current) =>
           [...current, profile].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
         );
+        clearChatState();
         setActiveProfileId(profile.id);
-        await loadProjects(profile.id);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         setBusy(false);
       }
     },
-    [loadProjects],
+    [clearChatState],
   );
 
   const selectProfile = useCallback(
@@ -159,24 +135,22 @@ export function App() {
       setError(null);
       try {
         await window.hibit.profiles.setActiveId(profile.id);
+        clearChatState();
         setActiveProfileId(profile.id);
-        setMessages([]);
-        setTools([]);
-        await loadProjects(profile.id);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : String(caught));
       } finally {
         setBusy(false);
       }
     },
-    [loadProjects],
+    [clearChatState],
   );
 
   const switchProfile = useCallback(async () => {
     await window.hibit.profiles.setActiveId(null);
     setActiveProfileId(null);
-    clearProjectState();
-  }, [clearProjectState]);
+    clearChatState();
+  }, [clearChatState]);
 
   const updateProfile = useCallback(
     async (settings: ProfileSettingsInput) => {
@@ -197,27 +171,8 @@ export function App() {
     [activeProfile],
   );
 
-  const createProject = useCallback(
-    async (title: string) => {
-      if (!activeProfile) return;
-      setBusy(true);
-      setError(null);
-      try {
-        const project = await window.hibit.projects.create(activeProfile.id, { title });
-        const nextProjects = await window.hibit.projects.list(activeProfile.id);
-        setProjects(nextProjects);
-        setActiveProjectId(project.id);
-      } catch (caught) {
-        setError(caught instanceof Error ? caught.message : String(caught));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [activeProfile],
-  );
-
   const send = useCallback(async () => {
-    if (!activeProfile || !activeProject) return;
+    if (!activeProfile) return;
     const text = draft.trim();
     if (!text) return;
     setDraft("");
@@ -232,25 +187,25 @@ export function App() {
         createdAt: new Date().toISOString(),
       },
     ]);
-    const result = await window.hibit.chat.send(activeProfile.id, activeProject.id, text);
+    const result = await window.hibit.chat.send(activeProfile.id, text);
     if (!result.ok) {
       setRunning(false);
       setError(result.error);
     }
-  }, [activeProfile, activeProject, draft]);
+  }, [activeProfile, draft]);
 
   const abort = useCallback(async () => {
-    if (!activeProfile || !activeProject) return;
-    await window.hibit.chat.abort(activeProfile.id, activeProject.id);
+    if (!activeProfile) return;
+    await window.hibit.chat.abort(activeProfile.id);
     setRunning(false);
-  }, [activeProfile, activeProject]);
+  }, [activeProfile]);
 
   const openFolder = useCallback(() => {
-    if (!activeProfile || !activeProject) return;
-    void window.hibit.projects.openFolder(activeProfile.id, activeProject.id).catch((caught) => {
+    if (!activeProfile) return;
+    void window.hibit.projects.openFolder(activeProfile.id).catch((caught) => {
       setError(caught instanceof Error ? caught.message : String(caught));
     });
-  }, [activeProfile, activeProject]);
+  }, [activeProfile]);
 
   if (loadState === "loading") {
     return (
@@ -276,37 +231,22 @@ export function App() {
     );
   }
 
-  if (!activeProject) {
-    return (
-      <ProjectPicker
-        profile={activeProfile}
-        projects={projects}
-        busy={busy}
-        error={error}
-        onCreate={createProject}
-        onOpen={(project) => setActiveProjectId(project.id)}
-        onSwitchProfile={switchProfile}
-        onUpdateProfile={updateProfile}
-      />
-    );
-  }
-
   return (
     <ChatWorkspace
       authStatus={authStatus}
       profile={activeProfile}
-      project={activeProject}
       messages={messages}
       tools={tools}
       draft={draft}
       running={running}
+      busy={busy}
       error={error}
       onDraftChange={setDraft}
       onSend={send}
       onAbort={abort}
-      onBack={() => setActiveProjectId(null)}
       onOpenFolder={openFolder}
       onSwitchProfile={switchProfile}
+      onUpdateProfile={updateProfile}
     />
   );
 }
@@ -335,6 +275,8 @@ function applyChatEvent(
           status: "running",
           args: event.args,
           content: [],
+          projectId: event.projectId,
+          projectTitle: event.projectTitle,
         },
       ]);
       break;

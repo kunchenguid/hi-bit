@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defaultHiBitConfig } from "@shared/config";
 import { describe, expect, it } from "vitest";
-import { assertSafeId, bootstrapLayout, projectDir } from "./layout";
+import {
+  assertSafeId,
+  bootstrapLayout,
+  buildLayout,
+  profileConversationDir,
+  profileConversationPaths,
+  projectDir,
+} from "./layout";
 
 async function tempRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "hibit-layout-"));
@@ -52,6 +59,33 @@ describe("bootstrapLayout", () => {
     });
   });
 });
+
+describe("profileConversationPaths", () => {
+  it("places the transcript and mayor sessions under the profile conversation dir", async () => {
+    const root = await tempRoot();
+    const layout = await bootstrapLayout(root);
+
+    const dir = profileConversationDir(layout, "ada");
+    expect(dir).toBe(join(profileDirFor(layout, "ada"), "conversation"));
+
+    const paths = profileConversationPaths(layout, "ada");
+    expect(paths).toEqual({
+      conversationDir: dir,
+      transcriptPath: join(dir, "transcript.jsonl"),
+      mayorSessionsDir: join(dir, "sessions", "mayor"),
+      conversationStatePath: join(dir, "conversation.json"),
+    });
+  });
+
+  it("rejects path traversal profile ids", () => {
+    const layout = buildLayout("/tmp/hi-bit");
+    expect(() => profileConversationDir(layout, "../secret")).toThrow(/Invalid profile id/);
+  });
+});
+
+function profileDirFor(layout: ReturnType<typeof buildLayout>, profileId: string): string {
+  return join(layout.defaultFactoryProfilesDir, profileId);
+}
 
 describe("assertSafeId", () => {
   it("rejects path traversal ids", () => {

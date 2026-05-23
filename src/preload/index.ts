@@ -29,16 +29,15 @@ const api: HiBitApi = {
       ipcRenderer.invoke("hibit:projects:list", profileId),
     create: (profileId: string, input: CreateProjectInput): Promise<ProjectSummary> =>
       ipcRenderer.invoke("hibit:projects:create", profileId, input),
-    openFolder: (profileId: string, projectId: string): Promise<void> =>
-      ipcRenderer.invoke("hibit:projects:open-folder", profileId, projectId),
+    openFolder: (profileId: string): Promise<void> =>
+      ipcRenderer.invoke("hibit:projects:open-folder", profileId),
   },
   chat: {
-    load: (profileId: string, projectId: string): Promise<ChatSnapshot> =>
-      ipcRenderer.invoke("hibit:chat:load", profileId, projectId),
-    send: (profileId: string, projectId: string, text: string): Promise<SendMessageResult> =>
-      ipcRenderer.invoke("hibit:chat:send", profileId, projectId, text),
-    abort: (profileId: string, projectId: string): Promise<void> =>
-      ipcRenderer.invoke("hibit:chat:abort", profileId, projectId),
+    load: (profileId: string): Promise<ChatSnapshot> =>
+      ipcRenderer.invoke("hibit:chat:load", profileId),
+    send: (profileId: string, text: string): Promise<SendMessageResult> =>
+      ipcRenderer.invoke("hibit:chat:send", profileId, text),
+    abort: (profileId: string): Promise<void> => ipcRenderer.invoke("hibit:chat:abort", profileId),
     onEvent: (listener: (event: ChatEvent) => void): (() => void) => {
       const handler = (_event: unknown, payload: ChatEvent) => listener(payload);
       ipcRenderer.on("hibit:chat:event", handler);

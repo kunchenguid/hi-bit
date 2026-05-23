@@ -53,11 +53,14 @@ export function toolContentFromResult(result: unknown): ToolContent[] {
   });
 }
 
-export function chatEventsFromPiEvent(
-  event: unknown,
-  projectId: string,
-  turnId: string,
-): ChatEvent[] {
+export type ChatEventMeta = {
+  profileId: string;
+  turnId: string;
+  projectId?: string;
+  projectTitle?: string;
+};
+
+export function chatEventsFromPiEvent(event: unknown, meta: ChatEventMeta): ChatEvent[] {
   if (
     !event ||
     typeof event !== "object" ||
@@ -66,6 +69,7 @@ export function chatEventsFromPiEvent(
     return [];
   }
   const typed = event as Record<string, unknown>;
+  const turnId = meta.turnId;
   switch (typed.type) {
     case "message_update": {
       const assistantMessageEvent = typed.assistantMessageEvent as
@@ -77,14 +81,13 @@ export function chatEventsFromPiEvent(
       ) {
         return [];
       }
-      return [{ type: "assistant_delta", projectId, turnId, text: assistantMessageEvent.delta }];
+      return [{ type: "assistant_delta", ...meta, text: assistantMessageEvent.delta }];
     }
     case "tool_execution_start": {
       return [
         {
           type: "tool_start",
-          projectId,
-          turnId,
+          ...meta,
           callId: String(typed.toolCallId),
           toolName: String(typed.toolName),
           args: typed.args,
@@ -95,8 +98,7 @@ export function chatEventsFromPiEvent(
       return [
         {
           type: "tool_update",
-          projectId,
-          turnId,
+          ...meta,
           callId: String(typed.toolCallId),
           content: toolContentFromResult(typed.partialResult),
         },
@@ -106,8 +108,7 @@ export function chatEventsFromPiEvent(
       return [
         {
           type: "tool_end",
-          projectId,
-          turnId,
+          ...meta,
           callId: String(typed.toolCallId),
           isError: Boolean(typed.isError),
           content: toolContentFromResult(typed.result),
@@ -118,8 +119,7 @@ export function chatEventsFromPiEvent(
       return [
         {
           type: "tool_start",
-          projectId,
-          turnId,
+          ...meta,
           callId: `${turnId}:compaction`,
           toolName: "compact_context",
           args: { reason: typed.reason },
@@ -130,8 +130,7 @@ export function chatEventsFromPiEvent(
       return [
         {
           type: "tool_end",
-          projectId,
-          turnId,
+          ...meta,
           callId: `${turnId}:compaction`,
           isError: Boolean(typed.errorMessage),
           content: typed.errorMessage
@@ -145,8 +144,7 @@ export function chatEventsFromPiEvent(
       return [
         {
           type: "tool_start",
-          projectId,
-          turnId,
+          ...meta,
           callId: `${turnId}:retry:${attempt}`,
           toolName: "retry",
           args: {
@@ -163,8 +161,7 @@ export function chatEventsFromPiEvent(
       return [
         {
           type: "tool_end",
-          projectId,
-          turnId,
+          ...meta,
           callId: `${turnId}:retry:${attempt}`,
           isError: typed.success === false,
           content: typed.finalError

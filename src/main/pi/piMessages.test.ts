@@ -40,17 +40,32 @@ describe("chatMessagesFromPiMessages", () => {
 });
 
 describe("chatEventsFromPiEvent", () => {
-  it("maps assistant text deltas", () => {
+  const meta = {
+    profileId: "ada",
+    turnId: "turn-1",
+    projectId: "project-1",
+    projectTitle: "Cat Jump",
+  };
+
+  it("maps assistant text deltas with profile routing and creation attribution", () => {
     expect(
       chatEventsFromPiEvent(
         {
           type: "message_update",
           assistantMessageEvent: { type: "text_delta", delta: "Hi" },
         },
-        "project-1",
-        "turn-1",
+        meta,
       ),
-    ).toEqual([{ type: "assistant_delta", projectId: "project-1", turnId: "turn-1", text: "Hi" }]);
+    ).toEqual([
+      {
+        type: "assistant_delta",
+        profileId: "ada",
+        turnId: "turn-1",
+        projectId: "project-1",
+        projectTitle: "Cat Jump",
+        text: "Hi",
+      },
+    ]);
   });
 
   it("maps tool lifecycle events", () => {
@@ -62,14 +77,15 @@ describe("chatEventsFromPiEvent", () => {
           toolName: "write",
           args: { path: "index.html" },
         },
-        "project-1",
-        "turn-1",
+        meta,
       ),
     ).toEqual([
       {
         type: "tool_start",
-        projectId: "project-1",
+        profileId: "ada",
         turnId: "turn-1",
+        projectId: "project-1",
+        projectTitle: "Cat Jump",
         callId: "call-1",
         toolName: "write",
         args: { path: "index.html" },
@@ -85,14 +101,15 @@ describe("chatEventsFromPiEvent", () => {
           result: { content: [{ type: "text", text: "done" }] },
           isError: false,
         },
-        "project-1",
-        "turn-1",
+        meta,
       ),
     ).toEqual([
       {
         type: "tool_end",
-        projectId: "project-1",
+        profileId: "ada",
         turnId: "turn-1",
+        projectId: "project-1",
+        projectTitle: "Cat Jump",
         callId: "call-1",
         isError: false,
         content: [{ type: "text", text: "done" }],
@@ -104,13 +121,15 @@ describe("chatEventsFromPiEvent", () => {
     expect(
       chatEventsFromPiEvent(
         { type: "compaction_start", reason: "threshold" },
-        "project-1",
-        "turn-1",
+        {
+          profileId: "ada",
+          turnId: "turn-1",
+        },
       ),
     ).toEqual([
       {
         type: "tool_start",
-        projectId: "project-1",
+        profileId: "ada",
         turnId: "turn-1",
         callId: "turn-1:compaction",
         toolName: "compact_context",
@@ -127,13 +146,12 @@ describe("chatEventsFromPiEvent", () => {
           delayMs: 100,
           errorMessage: "busy",
         },
-        "project-1",
-        "turn-1",
+        { profileId: "ada", turnId: "turn-1" },
       ),
     ).toEqual([
       {
         type: "tool_start",
-        projectId: "project-1",
+        profileId: "ada",
         turnId: "turn-1",
         callId: "turn-1:retry:1",
         toolName: "retry",

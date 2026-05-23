@@ -98,18 +98,24 @@ describe("PiRuntimeService", () => {
     expect(fakeSession.accessTokens).toEqual(["token-1", "token-2"]);
     expect(events).toContainEqual({
       type: "turn_start",
+      profileId: "ada",
       projectId: "project-1",
+      projectTitle: "Project",
       turnId: first.turnId,
     });
     expect(events).toContainEqual({
       type: "assistant_delta",
+      profileId: "ada",
       projectId: "project-1",
+      projectTitle: "Project",
       turnId: first.turnId,
       text: "Done",
     });
     expect(events).toContainEqual({
       type: "turn_end",
+      profileId: "ada",
       projectId: "project-1",
+      projectTitle: "Project",
       turnId: second.turnId,
       status: "completed",
     });

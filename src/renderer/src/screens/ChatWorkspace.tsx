@@ -1,43 +1,43 @@
 import type { AuthStatus } from "@shared/auth";
 import type { ChatMessage, ToolActivity } from "@shared/chat";
-import type { ProfileSummary } from "@shared/profile";
-import type { ProjectSummary } from "@shared/project";
+import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import { Composer } from "../components/Composer";
 import { MessageList } from "../components/MessageList";
+import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
 import { ToolActivity as ToolActivityList } from "../components/ToolActivity";
 
 type ChatWorkspaceProps = {
   authStatus: AuthStatus | null;
   profile: ProfileSummary;
-  project: ProjectSummary;
   messages: ChatMessage[];
   tools: ToolActivity[];
   draft: string;
   running: boolean;
+  busy: boolean;
   error: string | null;
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onAbort: () => void;
-  onBack: () => void;
   onOpenFolder: () => void;
   onSwitchProfile: () => void;
+  onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
 };
 
 export function ChatWorkspace({
   authStatus,
   profile,
-  project,
   messages,
   tools,
   draft,
   running,
+  busy,
   error,
   onDraftChange,
   onSend,
   onAbort,
-  onBack,
   onOpenFolder,
   onSwitchProfile,
+  onUpdateProfile,
 }: ChatWorkspaceProps) {
   const providerStatus = authStatus?.accountId
     ? `Codex provider connected (${authStatus.accountId})`
@@ -46,24 +46,27 @@ export function ChatWorkspace({
   return (
     <main className="hb-workspace">
       <header className="hb-workspace-header">
-        <button className="hb-button hb-button-secondary" type="button" onClick={onBack}>
-          Projects
-        </button>
         <div className="hb-project-title">
-          <p className="t-pixel">openai-codex/gpt-5.5</p>
-          <h1>{project.title}</h1>
-          <p className="t-small">
-            {profile.name}'s project - {providerStatus}
-          </p>
+          <p className="t-pixel">Hi-Bit</p>
+          <h1>Hi {profile.name} - what should we build?</h1>
+          <p className="t-small">Tell Bit your idea. {providerStatus}</p>
         </div>
-        <div className="hb-header-actions">
-          <button className="hb-button hb-button-secondary" type="button" onClick={onSwitchProfile}>
-            Switch profile
-          </button>
-          <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
-            Open folder
-          </button>
-        </div>
+        <details className="hb-parent-menu hb-header-actions">
+          <summary className="hb-button hb-button-secondary">Grown-up menu</summary>
+          <div className="hb-card hb-parent-menu-popover">
+            <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
+            <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
+              Open creations folder
+            </button>
+            <button
+              className="hb-button hb-button-secondary"
+              type="button"
+              onClick={onSwitchProfile}
+            >
+              Switch profile
+            </button>
+          </div>
+        </details>
       </header>
 
       <section className="hb-chat-layout">

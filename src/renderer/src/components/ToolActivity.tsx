@@ -7,13 +7,15 @@ type ToolActivityProps = {
 export function ToolActivity({ tools }: ToolActivityProps) {
   if (tools.length === 0) return null;
   return (
-    <section className="hb-tool-panel" aria-label="Tool activity">
-      <h2>Tool activity</h2>
+    <section className="hb-tool-panel" aria-label="Build activity">
+      <h2>What Bit is building</h2>
       <div className="hb-tool-list">
         {tools.map((tool) => (
           <details className="hb-tool-row" key={tool.callId}>
             <summary>
-              <span>{tool.toolName}</span>
+              <span>
+                {tool.projectTitle ? `${tool.projectTitle}: ${tool.toolName}` : tool.toolName}
+              </span>
               <span className={`hb-tool-status hb-tool-status-${tool.status}`}>{tool.status}</span>
             </summary>
             {tool.args !== undefined ? <pre>{JSON.stringify(tool.args, null, 2)}</pre> : null}

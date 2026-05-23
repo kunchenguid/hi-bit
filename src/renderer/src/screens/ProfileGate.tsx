@@ -1,3 +1,4 @@
+import mascotBit from "@design/assets/mascot-boo.svg";
 import type { ProfileInput, ProfileSummary } from "@shared/profile";
 import { CreateProfileForm } from "./CreateProfileForm";
 
@@ -16,9 +17,14 @@ export function ProfileGate({ profiles, busy, error, onCreate, onSelect }: Profi
     <main className="hb-shell hb-profile-shell">
       <section className="hb-card hb-profile-gate-card">
         <div className="hb-profile-gate-header">
+          <img
+            className="hb-bit-mascot pixel-art hb-bob"
+            src={mascotBit}
+            alt="Bit"
+            width={64}
+            height={64}
+          />
           <div className="hb-profile-gate-copy">
-            <div className="hb-bit-badge">Bit</div>
-            <p className="t-pixel">Who's using Hi-Bit?</p>
             <h1>{hasProfiles ? "Pick a profile." : "Create your first kid profile."}</h1>
             <p>
               Bit uses a kid profile to remember who is building, keep projects separate, and choose
