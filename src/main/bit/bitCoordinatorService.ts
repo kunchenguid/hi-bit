@@ -260,7 +260,7 @@ export class BitCoordinatorService {
         const project = await self.projects.create(profileId, { title });
         const job = await self.slingWorker(profileId, project.id, instructions);
         return {
-          content: [{ type: "text", text: `Started "${title}". Worker ${job.id} is building it.` }],
+          content: [{ type: "text", text: `Started "${title}". A helper is building it now.` }],
           details: { created: true, projectId: project.id, jobId: job.id } as CreateDetails,
         };
       },
@@ -284,7 +284,7 @@ export class BitCoordinatorService {
         try {
           const job = await self.slingWorker(profileId, creationId, instructions);
           return {
-            content: [{ type: "text", text: `Worker ${job.id} started on ${creationId}.` }],
+            content: [{ type: "text", text: "A helper started working on that creation." }],
             details: { jobId: job.id, projectId: creationId } as BuildDetails,
           };
         } catch (error) {

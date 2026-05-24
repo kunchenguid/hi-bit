@@ -256,6 +256,42 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(toolResult).toMatchObject({ details: { created: false } });
   });
 
+  it("keeps internal build ids out of model-visible tool content", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    const toolResults: unknown[] = [];
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      toolResults.push(
+        await callTool("create_creation", {
+          title: "Space Garden",
+          instructions: "build it",
+          confirmed: true,
+        }),
+      );
+      toolResults.push(
+        await callTool("delegate_build", {
+          creationId: game.id,
+          instructions: "add stars",
+        }),
+      );
+      return "I started those builds.";
+    };
+
+    await s.coordinator.send(s.profile.id, "build space stuff");
+    await s.drain();
+
+    expect(toolResults).toHaveLength(2);
+    for (const result of toolResults) {
+      expect(result).toMatchObject({ details: { jobId: expect.stringMatching(/^bot_job_/) } });
+      const text = (result as { content: Array<{ text: string }> }).content
+        .map((item) => item.text)
+        .join("\n");
+      expect(text).not.toMatch(/Worker|bot_job_|\bcreation id\b/i);
+      expect(text).not.toContain(game.id);
+    }
+  });
+
   it("delegates an edit on an existing creation immediately and surfaces worker activity", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
