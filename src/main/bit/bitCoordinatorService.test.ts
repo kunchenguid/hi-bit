@@ -182,11 +182,7 @@ async function createCoordinator() {
 }
 
 function isCompletion(text: string): boolean {
-  return (
-    text.includes("is ready") ||
-    text.includes("hit a snag") ||
-    text.includes("was stopped")
-  );
+  return text.includes("is ready") || text.includes("hit a snag") || text.includes("was stopped");
 }
 
 describe("BitCoordinatorService (Mayor)", () => {
@@ -215,7 +211,9 @@ describe("BitCoordinatorService (Mayor)", () => {
     await s.coordinator.send(s.profile.id, "second");
 
     const transcript = await s.conversation.readTranscript(s.profile.id);
-    const userIds = transcript.filter((message) => message.role === "user").map((message) => message.id);
+    const userIds = transcript
+      .filter((message) => message.role === "user")
+      .map((message) => message.id);
     expect(new Set(userIds).size).toBe(userIds.length);
   });
 
