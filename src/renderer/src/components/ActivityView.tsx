@@ -55,7 +55,7 @@ export function ActivityView({ activity, onClose }: ActivityViewProps) {
                   <p className="t-small">Getting started...</p>
                 ) : (
                   creation.steps.map((step) => (
-                    <div className="hb-step" key={step.callId}>
+                    <div className="hb-step" key={`${step.turnId ?? ""}:${step.callId}`}>
                       <span className="hb-step-grow">{friendlyStep(step.toolName)}</span>
                       <span className={`hb-tool-status hb-tool-status-${step.status}`}>
                         {stepStatusLabel(step.status)}

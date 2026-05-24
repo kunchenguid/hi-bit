@@ -589,6 +589,28 @@ describe("BitCoordinatorService (Mayor)", () => {
     });
   });
 
+  it("emits worker tool activity with the build job turn id", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.emitsToolEnd = false;
+    s.worker.status = "failed";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (text.includes("snag")) return "Hmm, let's try again.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "change it");
+    await s.drain();
+
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "tool_start", callId: "w1", turnId: "bot_job_1" }),
+    );
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id, turnId: "bot_job_1" }),
+    );
+  });
+
   it("does not treat orphaned persisted running tool steps as active work on load", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
