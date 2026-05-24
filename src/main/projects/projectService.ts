@@ -166,7 +166,7 @@ export class ProjectService {
     projectId: string,
     status: Extract<ToolActivity["status"], "completed" | "failed">,
     turnId?: string,
-  ): Promise<void> {
+  ): Promise<ToolActivity[]> {
     const running = (await this.readActivity(profileId, projectId)).filter(
       (step) => step.status === "running" && (!turnId || step.turnId === turnId),
     );
@@ -179,6 +179,7 @@ export class ProjectService {
         content: step.content,
       });
     }
+    return running.map((step) => ({ ...step, status }));
   }
 
   /**

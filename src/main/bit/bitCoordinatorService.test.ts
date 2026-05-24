@@ -17,7 +17,10 @@ class FakeWorkerRuntime implements BitRuntime {
   prompts: Array<{ project: RuntimeProject; text: string }> = [];
   disposed: string[] = [];
   status: "completed" | "cancelled" | "failed" = "completed";
+  statuses: Array<"completed" | "cancelled" | "failed"> = [];
+  statusByRuntimeKey = new Map<string, "completed" | "cancelled" | "failed">();
   emitsToolEnd = true;
+  beforeReturn?: (project: RuntimeProject) => Promise<void> | void;
 
   async sendPrompt(project: RuntimeProject, text: string, onEvent: (event: ChatEvent) => void) {
     this.prompts.push({ project, text });
@@ -32,7 +35,11 @@ class FakeWorkerRuntime implements BitRuntime {
       onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
     }
     onEvent({ ...meta, type: "assistant_delta", text: "Added the thing." });
-    return { turnId: meta.turnId, status: this.status };
+    await this.beforeReturn?.(project);
+    return {
+      turnId: meta.turnId,
+      status: this.statusByRuntimeKey.get(project.runtimeKey ?? "") ?? this.statuses.shift() ?? this.status,
+    };
   }
 
   async abort(): Promise<void> {}
@@ -609,6 +616,64 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(s.events).toContainEqual(
       expect.objectContaining({ type: "build_end", projectId: game.id, turnId: "bot_job_1" }),
     );
+  });
+
+  it("emits a live tool end when an earlier concurrent build closes stale activity", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let promptsStarted = 0;
+    let releaseFirst: (() => void) | undefined;
+    const firstCanReturn = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const bothPromptsStarted = new Promise<void>((resolve) => {
+      s.worker.beforeReturn = async () => {
+        promptsStarted += 1;
+        if (promptsStarted === 1) await firstCanReturn;
+        if (promptsStarted === 2) resolve();
+      };
+    });
+    let releaseSecondInstall: (() => void) | undefined;
+    const secondCanInstall = new Promise<void>((resolve) => {
+      releaseSecondInstall = resolve;
+    });
+    const secondInstallStarted = new Promise<void>((resolve) => {
+      s.pipeline.beforeInstall = async () => {
+        resolve();
+        await secondCanInstall;
+      };
+    });
+    s.worker.emitsToolEnd = false;
+    s.worker.statusByRuntimeKey.set("bot_job_1", "failed");
+    s.worker.statusByRuntimeKey.set("bot_job_2", "completed");
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      await callTool("delegate_build", { creationId: game.id, instructions: "fix it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add two things");
+    await bothPromptsStarted;
+    releaseFirst?.();
+    await secondInstallStarted;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(s.events).toContainEqual(
+      expect.objectContaining({
+        type: "tool_end",
+        projectId: game.id,
+        turnId: "bot_job_1",
+        callId: "w1",
+        isError: true,
+      }),
+    );
+    expect(s.events).not.toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id, turnId: "bot_job_1" }),
+    );
+
+    releaseSecondInstall?.();
+    await s.drain();
   });
 
   it("does not treat orphaned persisted running tool steps as active work on load", async () => {

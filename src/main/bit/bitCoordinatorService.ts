@@ -6,6 +6,7 @@ import type {
   ChatSnapshot,
   CreationActivity,
   SendMessageResult,
+  ToolActivity,
 } from "@shared/chat";
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
@@ -465,7 +466,16 @@ export class BitCoordinatorService {
     } finally {
       this.worker.disposeProject?.(job.id);
       this.removeInflight(profileId, job.id);
-      await this.closeRunningActivity(profileId, project.id, job.id, outcome);
+      const closedSteps = await this.closeRunningActivity(profileId, project.id, job.id, outcome);
+      for (const step of closedSteps) {
+        this.emit({
+          type: "tool_end",
+          ...buildMeta,
+          callId: step.callId,
+          isError: step.status === "failed",
+          content: step.content,
+        });
+      }
       if (!this.hasInflightForProject(profileId, project.id)) {
         this.emit({ type: "build_end", ...buildMeta, status: outcome });
       }
@@ -538,10 +548,10 @@ export class BitCoordinatorService {
     projectId: string,
     jobId: string,
     outcome: "completed" | "cancelled" | "failed",
-  ): Promise<void> {
+  ): Promise<ToolActivity[]> {
     const key = `${profileId}:${projectId}`;
     await this.activityWrites.get(key)?.catch(() => {});
-    await this.projects.closeRunningActivity(
+    return this.projects.closeRunningActivity(
       profileId,
       projectId,
       outcome === "completed" ? "completed" : "failed",
