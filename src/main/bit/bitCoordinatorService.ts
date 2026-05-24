@@ -130,7 +130,7 @@ export class BitCoordinatorService {
     const activity: CreationActivity[] = [];
     for (const project of portfolio) {
       const steps = await this.projects.readActivity(profileId, project.id);
-      const isWorking = working.has(project.id) || steps.some((step) => step.status === "running");
+      const isWorking = working.has(project.id);
       if (steps.length === 0 && !isWorking) continue;
       activity.push({
         projectId: project.id,
@@ -463,6 +463,7 @@ export class BitCoordinatorService {
     } finally {
       this.worker.disposeProject?.(job.id);
       this.removeInflight(profileId, job.id);
+      await this.closeRunningActivity(profileId, project.id, outcome);
       this.emit({ type: "build_end", ...buildMeta, status: outcome });
     }
 
@@ -526,6 +527,20 @@ export class BitCoordinatorService {
     this.activityWrites.set(key, next);
     this.pending.add(next);
     void next.catch(() => {}).finally(() => this.pending.delete(next));
+  }
+
+  private async closeRunningActivity(
+    profileId: string,
+    projectId: string,
+    outcome: "completed" | "cancelled" | "failed",
+  ): Promise<void> {
+    const key = `${profileId}:${projectId}`;
+    await this.activityWrites.get(key)?.catch(() => {});
+    await this.projects.closeRunningActivity(
+      profileId,
+      projectId,
+      outcome === "completed" ? "completed" : "failed",
+    );
   }
 
   // --- In-flight registry ----------------------------------------------------

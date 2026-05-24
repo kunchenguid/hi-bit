@@ -17,6 +17,7 @@ class FakeWorkerRuntime implements BitRuntime {
   prompts: Array<{ project: RuntimeProject; text: string }> = [];
   disposed: string[] = [];
   status: "completed" | "cancelled" | "failed" = "completed";
+  emitsToolEnd = true;
 
   async sendPrompt(project: RuntimeProject, text: string, onEvent: (event: ChatEvent) => void) {
     this.prompts.push({ project, text });
@@ -27,7 +28,9 @@ class FakeWorkerRuntime implements BitRuntime {
       turnId: `worker-${project.runtimeKey}`,
     };
     onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
-    onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+    if (this.emitsToolEnd) {
+      onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+    }
     onEvent({ ...meta, type: "assistant_delta", text: "Added the thing." });
     return { turnId: meta.turnId, status: this.status };
   }
@@ -520,6 +523,43 @@ describe("BitCoordinatorService (Mayor)", () => {
         status: "completed",
       }),
     );
+  });
+
+  it("closes persisted running tool steps when a worker build fails before tool_end", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.emitsToolEnd = false;
+    s.worker.status = "failed";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (text.includes("snag")) return "Hmm, let's try again.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "change it");
+    await s.drain();
+
+    await expect(s.projects.readActivity(s.profile.id, game.id)).resolves.toMatchObject([
+      { callId: "w1", toolName: "write", status: "failed" },
+    ]);
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, status: "done" }],
+    });
+  });
+
+  it("does not treat orphaned persisted running tool steps as active work on load", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    await s.projects.appendActivity(s.profile.id, game.id, {
+      type: "tool_step",
+      callId: "w1",
+      toolName: "write",
+      status: "running",
+    });
+
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, status: "done" }],
+    });
   });
 
   it("loads the continuous profile transcript", async () => {

@@ -160,6 +160,24 @@ export class ProjectService {
     await appendJsonl(paths.projectLogbookPath, value);
   }
 
+  async closeRunningActivity(
+    profileId: string,
+    projectId: string,
+    status: Extract<ToolActivity["status"], "completed" | "failed">,
+  ): Promise<void> {
+    const running = (await this.readActivity(profileId, projectId)).filter(
+      (step) => step.status === "running",
+    );
+    for (const step of running) {
+      await this.appendActivity(profileId, projectId, {
+        type: "tool_step",
+        callId: step.callId,
+        status,
+        content: step.content,
+      });
+    }
+  }
+
   /**
    * Reads persisted worker tool steps from a creation's logbook, reduced to one
    * row per callId (later rows merge onto earlier ones), kept in first-seen order.
