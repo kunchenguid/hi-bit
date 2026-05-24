@@ -700,7 +700,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     await s.drain();
   });
 
-  it("waits for queued activity writes when loading active work", async () => {
+  it("does not report closed activity as active work after waiting for queued writes", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     let releaseAppend: (() => void) | undefined;
@@ -747,8 +747,8 @@ describe("BitCoordinatorService (Mayor)", () => {
       activity: [
         {
           projectId: game.id,
-          status: "working",
-          steps: [{ callId: "w1", status: "running" }],
+          status: "done",
+          steps: [{ callId: "w1", status: "failed" }],
         },
       ],
     });

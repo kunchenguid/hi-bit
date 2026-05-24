@@ -127,18 +127,18 @@ export class BitCoordinatorService {
    */
   private async buildActivity(profileId: string): Promise<CreationActivity[]> {
     const portfolio = await this.projects.list(profileId);
-    const working = new Set(this.listInflight(profileId).map((worker) => worker.projectId));
     const activity: CreationActivity[] = [];
     for (const project of portfolio) {
-      const isWorking = working.has(project.id);
+      const wasWorking = this.hasInflightForProject(profileId, project.id);
       await this.waitForActivityWrites(profileId, project.id);
+      const isWorking = this.hasInflightForProject(profileId, project.id);
       if (!isWorking) {
         await this.projects.closeRunningActivity(profileId, project.id, "failed");
       }
       const latestActivityAt = await this.projects.latestActivityAt(profileId, project.id);
       const updatedAt = latestActivityAt ?? project.updatedAt;
       const steps = await this.projects.readActivity(profileId, project.id);
-      if (steps.length === 0 && !isWorking && !latestActivityAt) continue;
+      if (steps.length === 0 && !isWorking && !wasWorking && !latestActivityAt) continue;
       activity.push({
         projectId: project.id,
         title: project.title,
@@ -476,6 +476,7 @@ export class BitCoordinatorService {
       summary = error instanceof Error ? error.message : String(error);
     } finally {
       this.worker.disposeProject?.(job.id);
+      this.removeInflight(profileId, job.id);
       const closedSteps = await this.closeRunningActivity(profileId, project.id, job.id, outcome);
       for (const step of closedSteps) {
         this.emit({
@@ -486,7 +487,6 @@ export class BitCoordinatorService {
           content: step.content,
         });
       }
-      this.removeInflight(profileId, job.id);
       await this.persistActivity(profileId, project.id, {
         type: "build_activity",
         turnId: job.id,
