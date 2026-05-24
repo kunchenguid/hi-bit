@@ -18,7 +18,7 @@ This file is the canonical architecture and workflow guide for the current app. 
   Each profile has one continuous Bit/Mayor conversation under `conversation/`, with Mayor sessions under `conversation/sessions/mayor`. Project folders live under `<userData>/.hi-bit/factories/default/profiles/<profileId>/projects/<projectId>/` and include `build-plans`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
-- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace; `components/` holds the chat composer, message list, profile settings menu, and tool activity pieces.
+- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace; `components/` holds the chat composer, message list, profile settings menu, activity chip, and full activity log.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
 - `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
 - `prompts/mayor.md` and `prompts/worker.md` - Bit-as-Mayor and worker bot system prompts. Product content, not code; edit them like you'd edit docs.
