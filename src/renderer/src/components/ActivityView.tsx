@@ -1,4 +1,5 @@
 import type { CreationActivity, ToolActivity } from "@shared/chat";
+import { type KeyboardEvent, useEffect, useRef } from "react";
 import { friendlyStep } from "../activity";
 
 type ActivityViewProps = {
@@ -11,9 +12,59 @@ type ActivityViewProps = {
  * every step the bots took by creation, newest first, read from the durable log.
  */
 export function ActivityView({ activity, onClose }: ActivityViewProps) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const returnFocusRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    returnFocusRef.current = document.activeElement;
+    dialogRef.current?.focus();
+  }, []);
+
+  const close = () => {
+    const returnFocus = returnFocusRef.current;
+    if (returnFocus instanceof HTMLElement) returnFocus.focus();
+    onClose();
+  };
+
+  const keepFocusInside = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = getFocusableElements(dialog);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
     <div className="hb-activity-view-backdrop">
-      <section className="hb-card hb-activity-view" aria-label="All activities">
+      <section
+        className="hb-card hb-activity-view"
+        aria-label="All activities"
+        aria-modal="true"
+        onKeyDown={keepFocusInside}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+      >
         <header className="hb-activity-view-head">
           <span className="hb-bit-badge" aria-hidden="true">
             🤖
@@ -22,7 +73,7 @@ export function ActivityView({ activity, onClose }: ActivityViewProps) {
             <h2>Everything the bots worked on</h2>
             <p className="t-small">Tap a creation to see every step the bots took.</p>
           </div>
-          <button type="button" className="hb-button hb-button-secondary" onClick={onClose}>
+          <button type="button" className="hb-button hb-button-secondary" onClick={close}>
             Close
           </button>
         </header>
@@ -79,6 +130,14 @@ function creationSubtitle(creation: CreationActivity): string {
 
 function stepStatusLabel(status: ToolActivity["status"]): string {
   if (status === "completed") return "done";
-  if (status === "failed") return "retried";
+  if (status === "failed") return "stopped";
   return "running";
+}
+
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => !element.hasAttribute("disabled") && element.tabIndex >= 0);
 }

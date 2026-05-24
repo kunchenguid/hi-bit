@@ -46,4 +46,59 @@ describe("ActivityView", () => {
 
     expect(error.mock.calls.join("\n")).not.toContain("Encountered two children with the same key");
   });
+
+  it("labels failed steps as stopped", () => {
+    const activity: CreationActivity[] = [
+      {
+        projectId: "cat-jump",
+        title: "Cat Jump",
+        status: "done",
+        updatedAt: "",
+        steps: [
+          { callId: "w1", turnId: "bot_job_1", toolName: "write", status: "failed", content: [] },
+        ],
+      },
+    ];
+
+    act(() => root.render(<ActivityView activity={activity} onClose={() => {}} />));
+
+    expect(host.textContent).toContain("stopped");
+    expect(host.textContent).not.toContain("retried");
+  });
+
+  it("acts like a modal dialog and returns focus on close", () => {
+    const onClose = vi.fn();
+    const trigger = document.createElement("button");
+    trigger.textContent = "Open activity";
+    document.body.prepend(trigger);
+    trigger.focus();
+
+    act(() => root.render(<ActivityView activity={[]} onClose={onClose} />));
+
+    const dialog = host.querySelector<HTMLElement>("[role='dialog']");
+    expect(dialog).not.toBeNull();
+    expect(dialog?.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(dialog);
+
+    act(() => {
+      dialog?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
+  it("keeps tab focus inside the modal", () => {
+    act(() => root.render(<ActivityView activity={[]} onClose={() => {}} />));
+
+    const close = host.querySelector<HTMLButtonElement>("button");
+    expect(close).not.toBeNull();
+    close?.focus();
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+
+    const propagated = close?.dispatchEvent(event);
+
+    expect(propagated).toBe(false);
+  });
 });

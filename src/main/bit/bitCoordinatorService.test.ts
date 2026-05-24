@@ -679,6 +679,50 @@ describe("BitCoordinatorService (Mayor)", () => {
     await s.drain();
   });
 
+  it("keeps a worker in flight while queued activity cleanup drains", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let releaseAppend: (() => void) | undefined;
+    const appendStarted = new Promise<void>((resolve) => {
+      const appendActivity = s.projects.appendActivity.bind(s.projects);
+      s.projects.appendActivity = async (profileId, projectId, value) => {
+        if (
+          value &&
+          typeof value === "object" &&
+          "type" in value &&
+          value.type === "tool_step" &&
+          "status" in value &&
+          value.status === "running"
+        ) {
+          resolve();
+          await new Promise<void>((release) => {
+            releaseAppend = release;
+          });
+        }
+        return appendActivity(profileId, projectId, value);
+      };
+    });
+    s.worker.emitsToolEnd = false;
+    s.worker.status = "failed";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Hmm, let's try again.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      return "On it!";
+    };
+
+    const send = s.coordinator.send(s.profile.id, "change it");
+    await appendStarted;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, status: "working" }],
+    });
+
+    releaseAppend?.();
+    await send;
+    await s.drain();
+  });
+
   it("does not treat orphaned persisted running tool steps as active work on load", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });

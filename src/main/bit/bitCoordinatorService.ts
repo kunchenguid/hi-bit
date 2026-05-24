@@ -470,7 +470,6 @@ export class BitCoordinatorService {
       summary = error instanceof Error ? error.message : String(error);
     } finally {
       this.worker.disposeProject?.(job.id);
-      this.removeInflight(profileId, job.id);
       const closedSteps = await this.closeRunningActivity(profileId, project.id, job.id, outcome);
       for (const step of closedSteps) {
         this.emit({
@@ -481,6 +480,7 @@ export class BitCoordinatorService {
           content: step.content,
         });
       }
+      this.removeInflight(profileId, job.id);
       if (!this.hasInflightForProject(profileId, project.id)) {
         this.emit({ type: "build_end", ...buildMeta, status: outcome });
       }
