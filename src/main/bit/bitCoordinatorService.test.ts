@@ -79,6 +79,7 @@ type MayorHandler = (ctx: {
 class FakeMayorRuntime implements MayorRuntime {
   prompts: string[] = [];
   handler: MayorHandler = async () => "";
+  failCompletions = false;
   private turn = 0;
   private runningSet = new Set<string>();
 
@@ -88,6 +89,9 @@ class FakeMayorRuntime implements MayorRuntime {
     onEvent: (event: ChatEvent) => void,
   ): Promise<MayorTurnResult> {
     this.prompts.push(text);
+    if (this.failCompletions && isCompletion(text)) {
+      throw new Error("Mayor completion failed");
+    }
     this.runningSet.add(input.profileId);
     const turnId = `mayor-turn-${++this.turn}`;
     onEvent({ type: "turn_start", profileId: input.profileId, turnId });
@@ -313,6 +317,47 @@ describe("BitCoordinatorService (Mayor)", () => {
 
     const toolEvent = s.events.find((event) => event.type === "tool_start");
     expect(toolEvent).toMatchObject({ projectId: game.id, projectTitle: "Cat Jump" });
+  });
+
+  it("touches creation metadata after a successful build install", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    expect(game.updatedAt).toBe("2026-01-02T03:04:05.000Z");
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    await expect(s.projects.get(s.profile.id, game.id)).resolves.toMatchObject({
+      updatedAt: "2026-01-02T03:04:10.000Z",
+    });
+  });
+
+  it("persists a fallback message when the completion turn fails", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.mayor.failCompletions = true;
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    await expect(s.conversation.readTranscript(s.profile.id)).resolves.toMatchObject([
+      { role: "user", text: "add stars" },
+      { role: "assistant", text: "On it!" },
+      { role: "assistant", text: "Cat Jump is ready." },
+    ]);
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "assistant_delta", text: "Cat Jump is ready." }),
+    );
   });
 
   it("returns from send after the ack while the worker keeps building in the background", async () => {

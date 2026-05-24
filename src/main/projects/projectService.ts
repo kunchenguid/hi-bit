@@ -125,6 +125,25 @@ export class ProjectService {
     await writeJsonFile(project.projectJsonPath, next);
   }
 
+  async touch(
+    profileId: string,
+    projectId: string,
+    updatedAt = this.now().toISOString(),
+  ): Promise<void> {
+    const project = await this.get(profileId, projectId);
+    const next: ProjectRecord = {
+      schemaVersion: 1,
+      id: project.id,
+      factoryId: project.factoryId,
+      profileId: project.profileId,
+      title: project.title,
+      createdAt: project.createdAt,
+      updatedAt,
+      activeSession: project.activeSession,
+    };
+    await writeJsonFile(project.projectJsonPath, next);
+  }
+
   async appendActivity(profileId: string, projectId: string, value: unknown): Promise<void> {
     const paths = this.pathsFor(profileId, projectId);
     await appendJsonl(paths.projectLogbookPath, value);

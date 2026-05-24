@@ -393,6 +393,7 @@ export class BitCoordinatorService {
         } else {
           const build = await this.pipeline.installBotBuild(project, job, workbench as never);
           await this.botJobs.complete(project, job, inspections, build);
+          await this.projects.touch(profileId, project.id, this.now().toISOString());
           summary = workerText.trim() || "All done.";
         }
       }
@@ -405,7 +406,9 @@ export class BitCoordinatorService {
       this.removeInflight(profileId, job.id);
     }
 
-    await this.runCompletionTurn(profileId, project, outcome, summary).catch(() => {});
+    await this.runCompletionTurn(profileId, project, outcome, summary).catch(async () => {
+      await this.appendCompletionFallback(profileId, project, outcome);
+    });
   }
 
   private async runCompletionTurn(
@@ -421,6 +424,35 @@ export class BitCoordinatorService {
           ? `The build for "${project.title}" (id: ${project.id}) was stopped before finishing. Let the builder know gently in one short sentence.`
           : `A worker ran into a problem building "${project.title}" (id: ${project.id}): ${summary}\n\nLet the builder know gently in one short sentence and offer to try again.`;
     await this.runMayorTurn(profileId, text, { lifecycle: false });
+  }
+
+  private async appendCompletionFallback(
+    profileId: string,
+    project: RuntimeProject,
+    outcome: "completed" | "cancelled" | "failed",
+  ): Promise<void> {
+    const text =
+      outcome === "completed"
+        ? `${project.title} is ready.`
+        : outcome === "cancelled"
+          ? `The build for ${project.title} was stopped.`
+          : `${project.title} hit a snag. We can try again.`;
+    const turnId = `completion-fallback-${project.id}-${this.now().getTime()}`;
+    await this.conversation.appendMessage(profileId, {
+      id: `assistant-${turnId}`,
+      role: "assistant",
+      text,
+      createdAt: this.now().toISOString(),
+      projectId: project.id,
+    });
+    this.emit({
+      type: "assistant_delta",
+      profileId,
+      projectId: project.id,
+      projectTitle: project.title,
+      turnId,
+      text,
+    });
   }
 
   // --- In-flight registry ----------------------------------------------------
