@@ -130,14 +130,19 @@ export class BitCoordinatorService {
     const working = new Set(this.listInflight(profileId).map((worker) => worker.projectId));
     const activity: CreationActivity[] = [];
     for (const project of portfolio) {
-      const steps = await this.projects.readActivity(profileId, project.id);
       const isWorking = working.has(project.id);
+      if (!isWorking) {
+        await this.projects.closeRunningActivity(profileId, project.id, "failed");
+      }
+      const steps = await this.projects.readActivity(profileId, project.id);
       if (steps.length === 0 && !isWorking) continue;
+      const updatedAt =
+        (await this.projects.latestActivityAt(profileId, project.id)) ?? project.updatedAt;
       activity.push({
         projectId: project.id,
         title: project.title,
         status: isWorking ? "working" : "done",
-        updatedAt: project.updatedAt,
+        updatedAt,
         steps: steps.map((step) => ({
           ...step,
           projectId: project.id,
@@ -145,7 +150,7 @@ export class BitCoordinatorService {
         })),
       });
     }
-    return activity;
+    return activity.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
   async send(profileId: string, text: string): Promise<SendMessageResult> {

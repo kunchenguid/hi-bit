@@ -38,7 +38,10 @@ class FakeWorkerRuntime implements BitRuntime {
     await this.beforeReturn?.(project);
     return {
       turnId: meta.turnId,
-      status: this.statusByRuntimeKey.get(project.runtimeKey ?? "") ?? this.statuses.shift() ?? this.status,
+      status:
+        this.statusByRuntimeKey.get(project.runtimeKey ?? "") ??
+        this.statuses.shift() ??
+        this.status,
     };
   }
 
@@ -689,6 +692,37 @@ describe("BitCoordinatorService (Mayor)", () => {
     await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
       activity: [{ projectId: game.id, status: "done" }],
     });
+    await expect(s.projects.readActivity(s.profile.id, game.id)).resolves.toMatchObject([
+      { callId: "w1", status: "failed" },
+    ]);
+  });
+
+  it("orders reloaded activity by latest activity instead of project update time", async () => {
+    const s = await createCoordinator();
+    const oldGame = await s.projects.create(s.profile.id, { title: "Old Game" });
+    const newGame = await s.projects.create(s.profile.id, { title: "New Game" });
+    await s.projects.touch(s.profile.id, oldGame.id, "2026-01-01T00:00:00.000Z");
+    await s.projects.touch(s.profile.id, newGame.id, "2026-01-03T00:00:00.000Z");
+    await s.projects.appendActivity(s.profile.id, oldGame.id, {
+      type: "tool_step",
+      callId: "w1",
+      toolName: "write",
+      status: "completed",
+    });
+    await s.projects.appendActivity(s.profile.id, newGame.id, {
+      type: "tool_step",
+      callId: "w2",
+      toolName: "read",
+      status: "completed",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const snapshot = await s.coordinator.load(s.profile.id);
+
+    expect(snapshot.activity.map((activity) => activity.projectId)).toEqual([
+      oldGame.id,
+      newGame.id,
+    ]);
   });
 
   it("loads the continuous profile transcript", async () => {

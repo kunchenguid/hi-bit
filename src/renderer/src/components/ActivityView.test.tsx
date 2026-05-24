@@ -44,8 +44,6 @@ describe("ActivityView", () => {
 
     act(() => root.render(<ActivityView activity={activity} onClose={() => {}} />));
 
-    expect(error.mock.calls.join("\n")).not.toContain(
-      "Encountered two children with the same key",
-    );
+    expect(error.mock.calls.join("\n")).not.toContain("Encountered two children with the same key");
   });
 });

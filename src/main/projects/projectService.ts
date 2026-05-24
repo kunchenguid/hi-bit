@@ -15,7 +15,10 @@ type ToolStepRow = {
   status?: ToolActivity["status"];
   args?: unknown;
   content?: ToolContent[];
+  createdAt?: string;
 };
+
+type ActivityLogRow = ToolStepRow | { type?: string; createdAt?: string };
 
 export type ProjectPaths = {
   projectDir: string;
@@ -158,7 +161,11 @@ export class ProjectService {
 
   async appendActivity(profileId: string, projectId: string, value: unknown): Promise<void> {
     const paths = this.pathsFor(profileId, projectId);
-    await appendJsonl(paths.projectLogbookPath, value);
+    const row =
+      value && typeof value === "object" && !Array.isArray(value) && !("createdAt" in value)
+        ? { ...value, createdAt: this.now().toISOString() }
+        : value;
+    await appendJsonl(paths.projectLogbookPath, row);
   }
 
   async closeRunningActivity(
@@ -217,6 +224,15 @@ export class ProjectService {
       });
     }
     return order.map((key) => byCallId.get(key) as ToolActivity);
+  }
+
+  async latestActivityAt(profileId: string, projectId: string): Promise<string | undefined> {
+    const paths = this.pathsFor(profileId, projectId);
+    const rows = await readJsonl<ActivityLogRow>(paths.projectLogbookPath);
+    return rows.reduce<string | undefined>((latest, row) => {
+      if (row.type === "project_created" || !row.createdAt) return latest;
+      return !latest || row.createdAt > latest ? row.createdAt : latest;
+    }, undefined);
   }
 
   /** The folder holding all of a profile's creations, for a parent to browse on disk. */
