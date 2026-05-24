@@ -131,6 +131,7 @@ export class BitCoordinatorService {
     const activity: CreationActivity[] = [];
     for (const project of portfolio) {
       const isWorking = working.has(project.id);
+      await this.waitForActivityWrites(profileId, project.id);
       if (!isWorking) {
         await this.projects.closeRunningActivity(profileId, project.id, "failed");
       }
@@ -563,14 +564,18 @@ export class BitCoordinatorService {
     void this.persistActivity(profileId, projectId, row);
   }
 
+  private async waitForActivityWrites(profileId: string, projectId: string): Promise<void> {
+    const key = `${profileId}:${projectId}`;
+    await this.activityWrites.get(key)?.catch(() => {});
+  }
+
   private async closeRunningActivity(
     profileId: string,
     projectId: string,
     jobId: string,
     outcome: "completed" | "cancelled" | "failed",
   ): Promise<ToolActivity[]> {
-    const key = `${profileId}:${projectId}`;
-    await this.activityWrites.get(key)?.catch(() => {});
+    await this.waitForActivityWrites(profileId, projectId);
     return this.projects.closeRunningActivity(
       profileId,
       projectId,

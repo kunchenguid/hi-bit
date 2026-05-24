@@ -700,10 +700,11 @@ describe("BitCoordinatorService (Mayor)", () => {
     await s.drain();
   });
 
-  it("keeps a worker in flight while queued activity cleanup drains", async () => {
+  it("waits for queued activity writes when loading active work", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     let releaseAppend: (() => void) | undefined;
+    let loadResolved = false;
     const appendStarted = new Promise<void>((resolve) => {
       const appendActivity = s.projects.appendActivity.bind(s.projects);
       s.projects.appendActivity = async (profileId, projectId, value) => {
@@ -733,13 +734,24 @@ describe("BitCoordinatorService (Mayor)", () => {
 
     const send = s.coordinator.send(s.profile.id, "change it");
     await appendStarted;
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
-      activity: [{ projectId: game.id, status: "working" }],
+    const load = s.coordinator.load(s.profile.id).then((snapshot) => {
+      loadResolved = true;
+      return snapshot;
     });
 
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(loadResolved).toBe(false);
+
     releaseAppend?.();
+    await expect(load).resolves.toMatchObject({
+      activity: [
+        {
+          projectId: game.id,
+          status: "working",
+          steps: [{ callId: "w1", status: "running" }],
+        },
+      ],
+    });
     await send;
     await s.drain();
   });
