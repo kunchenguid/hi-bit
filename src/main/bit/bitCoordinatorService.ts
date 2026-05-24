@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent, ChatMessage, ChatSnapshot, SendMessageResult } from "@shared/chat";
 import type { ProfileSummary } from "@shared/profile";
@@ -118,7 +119,7 @@ export class BitCoordinatorService {
     try {
       const profile = await this.profiles.get(profileId);
       await this.conversation.appendMessage(profileId, {
-        id: `user-${this.now().getTime()}`,
+        id: `user-${randomUUID()}`,
         role: "user",
         text: prompt,
         createdAt: this.now().toISOString(),

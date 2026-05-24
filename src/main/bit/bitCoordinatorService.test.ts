@@ -207,6 +207,18 @@ describe("BitCoordinatorService (Mayor)", () => {
     ]);
   });
 
+  it("persists unique user message ids for rapid sends", async () => {
+    const s = await createCoordinator();
+    s.mayor.handler = async () => "";
+
+    await s.coordinator.send(s.profile.id, "first");
+    await s.coordinator.send(s.profile.id, "second");
+
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    const userIds = transcript.filter((message) => message.role === "user").map((message) => message.id);
+    expect(new Set(userIds).size).toBe(userIds.length);
+  });
+
   it("confirms a new idea on one turn, then creates and builds it after the kid agrees", async () => {
     const s = await createCoordinator();
     s.mayor.handler = async ({ text, callTool }) => {
