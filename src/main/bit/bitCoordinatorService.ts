@@ -418,12 +418,13 @@ export class BitCoordinatorService {
     outcome: "completed" | "cancelled" | "failed",
     summary: string,
   ): Promise<void> {
+    const safeSummary = kidSafeCompletionSummary(summary);
     const text =
       outcome === "completed"
-        ? `A worker just finished building "${project.title}" (id: ${project.id}). What it did: ${summary}\n\nTell the builder warmly that "${project.title}" is ready, in one or two short sentences.`
+        ? `"${project.title}" is ready. What changed: ${safeSummary}\n\nTell the builder warmly that "${project.title}" is ready, in one or two short sentences.`
         : outcome === "cancelled"
-          ? `The build for "${project.title}" (id: ${project.id}) was stopped before finishing. Let the builder know gently in one short sentence.`
-          : `A worker ran into a problem building "${project.title}" (id: ${project.id}): ${summary}\n\nLet the builder know gently in one short sentence and offer to try again.`;
+          ? `The build for "${project.title}" was stopped before finishing. Let the builder know gently in one short sentence.`
+          : `"${project.title}" hit a snag: ${safeSummary}\n\nLet the builder know gently in one short sentence and offer to try again.`;
     await this.runMayorTurn(profileId, text, { lifecycle: false });
   }
 
@@ -514,6 +515,15 @@ Job:
 ${input.instructions}
 
 Do the work in this Workbench only. Bit will run Machines and the Assembly Line after you finish.`;
+}
+
+function kidSafeCompletionSummary(summary: string): string {
+  const trimmed = summary.trim();
+  if (!trimmed) return "All done.";
+  return trimmed
+    .replace(/\bworker\b/gi, "helper")
+    .replace(/\bbot_job_[a-z0-9_-]+\b/gi, "the helper")
+    .replace(/\bproject_[a-z0-9_-]+\b/gi, "the creation");
 }
 
 export type { ChatMessage };

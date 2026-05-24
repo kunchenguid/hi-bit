@@ -183,8 +183,8 @@ async function createCoordinator() {
 
 function isCompletion(text: string): boolean {
   return (
-    text.includes("just finished building") ||
-    text.includes("ran into a problem") ||
+    text.includes("is ready") ||
+    text.includes("hit a snag") ||
     text.includes("was stopped")
   );
 }
@@ -248,8 +248,10 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(s.worker.disposed).toEqual(["bot_job_1"]);
 
     // Completion turn ran and posted a kid-facing update.
-    const completionPrompt = s.mayor.prompts.find((p) => p.includes("just finished building"));
+    const completionPrompt = s.mayor.prompts.find((p) => p.includes("is ready"));
     expect(completionPrompt).toContain("Cat Jump");
+    expect(completionPrompt).not.toMatch(/worker|id:/i);
+    expect(completionPrompt).not.toContain(portfolio[0]?.id);
   });
 
   it("refuses to create when the kid has not confirmed", async () => {
@@ -416,8 +418,11 @@ describe("BitCoordinatorService (Mayor)", () => {
 
     expect(s.worker.prompts).toHaveLength(2);
     expect(s.pipeline.installed).toHaveLength(2);
-    const completions = s.mayor.prompts.filter((p) => p.includes("just finished building"));
+    const completions = s.mayor.prompts.filter((p) => p.includes("is ready"));
     expect(completions).toHaveLength(2);
+    for (const completion of completions) {
+      expect(completion).not.toMatch(/worker|id:/i);
+    }
   });
 
   it("reports a worker failure through a gentle completion turn", async () => {
@@ -425,8 +430,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.worker.status = "failed";
     s.mayor.handler = async ({ text, callTool }) => {
-      if (text.includes("just finished") || text.includes("problem"))
-        return "Hmm, let's try again.";
+      if (text.includes("ready") || text.includes("snag")) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
       return "On it!";
     };
@@ -435,8 +439,10 @@ describe("BitCoordinatorService (Mayor)", () => {
     await s.drain();
 
     expect(s.pipeline.installed).toHaveLength(0);
-    const failurePrompt = s.mayor.prompts.find((p) => p.includes("ran into a problem"));
+    const failurePrompt = s.mayor.prompts.find((p) => p.includes("hit a snag"));
     expect(failurePrompt).toContain("Cat Jump");
+    expect(failurePrompt).not.toMatch(/worker|id:/i);
+    expect(failurePrompt).not.toContain(game.id);
   });
 
   it("loads the continuous profile transcript", async () => {
