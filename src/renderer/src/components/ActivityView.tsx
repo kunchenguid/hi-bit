@@ -103,7 +103,9 @@ export function ActivityView({ activity, onClose }: ActivityViewProps) {
               </summary>
               <div className="hb-creation-steps">
                 {creation.steps.length === 0 ? (
-                  <p className="t-small">Getting started...</p>
+                  <p className="t-small">
+                    {creation.status === "working" ? "Getting started..." : "No visible steps"}
+                  </p>
                 ) : (
                   creation.steps.map((step) => (
                     <div className="hb-step" key={`${step.turnId ?? ""}:${step.callId}`}>

@@ -22,7 +22,7 @@ export function ActivityChip({ activity, onSeeAll }: ActivityChipProps) {
           {summary.detail ? <span>{summary.detail}</span> : null}
         </span>
       </div>
-      {summary.working || summary.count > 0 ? (
+      {activity.length > 0 ? (
         <button type="button" className="hb-activity-seeall" onClick={onSeeAll}>
           See all activities
           {summary.count > 0 ? <span className="hb-activity-count">{summary.count}</span> : null}

@@ -66,6 +66,23 @@ describe("ActivityView", () => {
     expect(host.textContent).not.toContain("retried");
   });
 
+  it("shows finished no-step builds as completed activity", () => {
+    const activity: CreationActivity[] = [
+      {
+        projectId: "cat-jump",
+        title: "Cat Jump",
+        status: "done",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        steps: [],
+      },
+    ];
+
+    act(() => root.render(<ActivityView activity={activity} onClose={() => {}} />));
+
+    expect(host.textContent).toContain("No visible steps");
+    expect(host.textContent).not.toContain("Getting started");
+  });
+
   it("acts like a modal dialog and returns focus on close", () => {
     const onClose = vi.fn();
     const trigger = document.createElement("button");
