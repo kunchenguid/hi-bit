@@ -416,6 +416,7 @@ export class BitCoordinatorService {
             this.persistToolStep(profileId, project.id, {
               type: "tool_step",
               callId: event.callId,
+              turnId: job.id,
               toolName: event.toolName,
               status: "running",
               args: event.args,
@@ -427,6 +428,7 @@ export class BitCoordinatorService {
             this.persistToolStep(profileId, project.id, {
               type: "tool_step",
               callId: event.callId,
+              turnId: job.id,
               status: event.isError ? "failed" : "completed",
               content: event.content,
             });
@@ -463,8 +465,10 @@ export class BitCoordinatorService {
     } finally {
       this.worker.disposeProject?.(job.id);
       this.removeInflight(profileId, job.id);
-      await this.closeRunningActivity(profileId, project.id, outcome);
-      this.emit({ type: "build_end", ...buildMeta, status: outcome });
+      await this.closeRunningActivity(profileId, project.id, job.id, outcome);
+      if (!this.hasInflightForProject(profileId, project.id)) {
+        this.emit({ type: "build_end", ...buildMeta, status: outcome });
+      }
     }
 
     await this.runCompletionTurn(profileId, project, outcome, summary).catch(async () => {
@@ -532,6 +536,7 @@ export class BitCoordinatorService {
   private async closeRunningActivity(
     profileId: string,
     projectId: string,
+    jobId: string,
     outcome: "completed" | "cancelled" | "failed",
   ): Promise<void> {
     const key = `${profileId}:${projectId}`;
@@ -540,6 +545,7 @@ export class BitCoordinatorService {
       profileId,
       projectId,
       outcome === "completed" ? "completed" : "failed",
+      jobId,
     );
   }
 
@@ -557,6 +563,10 @@ export class BitCoordinatorService {
 
   private listInflight(profileId: string): InflightWorker[] {
     return [...(this.inflight.get(profileId)?.values() ?? [])];
+  }
+
+  private hasInflightForProject(profileId: string, projectId: string): boolean {
+    return this.listInflight(profileId).some((worker) => worker.projectId === projectId);
   }
 
   private buildRequestContext(

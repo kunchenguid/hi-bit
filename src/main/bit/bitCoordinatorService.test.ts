@@ -525,6 +525,48 @@ describe("BitCoordinatorService (Mayor)", () => {
     );
   });
 
+  it("keeps grouped activity working until every build for a creation finishes", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    const releases: Array<() => void> = [];
+    let installCount = 0;
+    let resolveBothInstalls!: () => void;
+    const bothInstallsStarted = new Promise<void>((resolve) => {
+      resolveBothInstalls = resolve;
+    });
+    s.pipeline.beforeInstall = () =>
+      new Promise<void>((release) => {
+        releases.push(release);
+        installCount += 1;
+        if (installCount === 2) resolveBothInstalls();
+      });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      await callTool("delegate_build", { creationId: game.id, instructions: "add badges" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add two things");
+    await bothInstallsStarted;
+
+    releases[0]?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(s.events).not.toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id }),
+    );
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, status: "working" }],
+    });
+
+    releases[1]?.();
+    await s.drain();
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id, status: "completed" }),
+    );
+  });
+
   it("closes persisted running tool steps when a worker build fails before tool_end", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });

@@ -10,6 +10,7 @@ import { type HiBitLayout, projectDir, projectsDir } from "../storage/layout";
 type ToolStepRow = {
   type: "tool_step";
   callId: string;
+  turnId?: string;
   toolName?: string;
   status?: ToolActivity["status"];
   args?: unknown;
@@ -164,14 +165,16 @@ export class ProjectService {
     profileId: string,
     projectId: string,
     status: Extract<ToolActivity["status"], "completed" | "failed">,
+    turnId?: string,
   ): Promise<void> {
     const running = (await this.readActivity(profileId, projectId)).filter(
-      (step) => step.status === "running",
+      (step) => step.status === "running" && (!turnId || step.turnId === turnId),
     );
     for (const step of running) {
       await this.appendActivity(profileId, projectId, {
         type: "tool_step",
         callId: step.callId,
+        turnId: step.turnId,
         status,
         content: step.content,
       });
@@ -189,11 +192,13 @@ export class ProjectService {
     const byCallId = new Map<string, ToolActivity>();
     for (const row of rows) {
       if (row.type !== "tool_step" || !row.callId) continue;
-      const existing = byCallId.get(row.callId);
+      const key = `${row.turnId ?? ""}:${row.callId}`;
+      const existing = byCallId.get(key);
       if (!existing) {
-        order.push(row.callId);
-        byCallId.set(row.callId, {
+        order.push(key);
+        byCallId.set(key, {
           callId: row.callId,
+          turnId: row.turnId,
           toolName: row.toolName ?? "",
           status: row.status ?? "running",
           args: row.args,
@@ -201,15 +206,16 @@ export class ProjectService {
         });
         continue;
       }
-      byCallId.set(row.callId, {
+      byCallId.set(key, {
         ...existing,
+        turnId: row.turnId ?? existing.turnId,
         toolName: row.toolName ?? existing.toolName,
         status: row.status ?? existing.status,
         args: row.args ?? existing.args,
         content: row.content ?? existing.content,
       });
     }
-    return order.map((callId) => byCallId.get(callId) as ToolActivity);
+    return order.map((key) => byCallId.get(key) as ToolActivity);
   }
 
   /** The folder holding all of a profile's creations, for a parent to browse on disk. */

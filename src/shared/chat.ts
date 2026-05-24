@@ -13,6 +13,7 @@ export type ChatMessage = {
 
 export type ToolActivity = {
   callId: string;
+  turnId?: string;
   toolName: string;
   status: "running" | "completed" | "failed";
   args?: unknown;
