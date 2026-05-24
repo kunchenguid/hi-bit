@@ -28,7 +28,17 @@ export function applyEventToActivity(
     case "build_end": {
       if (!event.projectId) return activity;
       return activity.map((creation) =>
-        creation.projectId === event.projectId ? { ...creation, status: "done" } : creation,
+        creation.projectId === event.projectId
+          ? {
+              ...creation,
+              status: "done",
+              steps: creation.steps.map((step) =>
+                step.status === "running" && step.turnId === event.turnId
+                  ? { ...step, status: event.status === "completed" ? "completed" : "failed" }
+                  : step,
+              ),
+            }
+          : creation,
       );
     }
     case "tool_start": {
@@ -38,22 +48,23 @@ export function applyEventToActivity(
         status: "running",
         args: event.args,
         content: [],
+        turnId: event.turnId,
         projectId: event.projectId,
         projectTitle: event.projectTitle,
       };
       return upsertStep(activity, event, step, (steps) => [
-        ...steps.filter((existing) => existing.callId !== event.callId),
+        ...steps.filter((existing) => !isSameStep(existing, event)),
         step,
       ]);
     }
     case "tool_update": {
-      return mapStep(activity, event.projectId, event.callId, (step) => ({
+      return mapStep(activity, event, (step) => ({
         ...step,
         content: event.content,
       }));
     }
     case "tool_end": {
-      return mapStep(activity, event.projectId, event.callId, (step) => ({
+      return mapStep(activity, event, (step) => ({
         ...step,
         status: event.isError ? "failed" : "completed",
         content: event.content,
@@ -143,17 +154,20 @@ function upsertStep(
 
 function mapStep(
   activity: CreationActivity[],
-  projectId: string | undefined,
-  callId: string,
+  event: ChatEvent & { callId: string; projectId?: string },
   update: (step: ToolActivity) => ToolActivity,
 ): CreationActivity[] {
-  if (!projectId) return activity;
+  if (!event.projectId) return activity;
   return activity.map((creation) =>
-    creation.projectId === projectId
+    creation.projectId === event.projectId
       ? {
           ...creation,
-          steps: creation.steps.map((step) => (step.callId === callId ? update(step) : step)),
+          steps: creation.steps.map((step) => (isSameStep(step, event) ? update(step) : step)),
         }
       : creation,
   );
+}
+
+function isSameStep(step: ToolActivity, event: { callId: string; turnId: string }): boolean {
+  return step.callId === event.callId && step.turnId === event.turnId;
 }

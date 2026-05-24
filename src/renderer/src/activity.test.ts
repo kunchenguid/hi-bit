@@ -43,6 +43,7 @@ describe("applyEventToActivity", () => {
     expect(activity[0].steps).toEqual([
       {
         callId: "c1",
+        turnId: "t",
         toolName: "write",
         status: "completed",
         args: {},
@@ -74,6 +75,65 @@ describe("applyEventToActivity", () => {
     }
     expect(activity[0].status).toBe("done");
     expect(activity[0].steps).toHaveLength(1);
+  });
+
+  it("closes running steps from the same turn on build_end", () => {
+    let activity: CreationActivity[] = [];
+    for (const event of [
+      { type: "build_start", ...meta({ projectId: "a", projectTitle: "Cat Jump" }) },
+      {
+        type: "tool_start",
+        ...meta({ projectId: "a", projectTitle: "Cat Jump" }),
+        callId: "c1",
+        toolName: "write",
+        args: {},
+      },
+      {
+        type: "build_end",
+        ...meta({ projectId: "a", projectTitle: "Cat Jump" }),
+        status: "failed",
+      },
+    ] as ChatEvent[]) {
+      activity = applyEventToActivity(activity, event);
+    }
+
+    expect(activity[0].steps).toMatchObject([{ callId: "c1", turnId: "t", status: "failed" }]);
+  });
+
+  it("keeps same-call tool steps separate across concurrent turns", () => {
+    let activity: CreationActivity[] = [];
+    for (const event of [
+      { type: "build_start", ...meta({ projectId: "a", projectTitle: "Cat Jump" }) },
+      {
+        type: "tool_start",
+        ...meta({ projectId: "a", projectTitle: "Cat Jump" }),
+        callId: "c1",
+        toolName: "write",
+        args: { path: "one" },
+      },
+      {
+        type: "tool_start",
+        ...meta({ projectId: "a", projectTitle: "Cat Jump" }),
+        turnId: "other-turn",
+        callId: "c1",
+        toolName: "read",
+        args: { path: "two" },
+      },
+      {
+        type: "tool_end",
+        ...meta({ projectId: "a", projectTitle: "Cat Jump" }),
+        callId: "c1",
+        isError: false,
+        content: [],
+      },
+    ] as ChatEvent[]) {
+      activity = applyEventToActivity(activity, event);
+    }
+
+    expect(activity[0].steps).toMatchObject([
+      { callId: "c1", turnId: "t", toolName: "write", status: "completed" },
+      { callId: "c1", turnId: "other-turn", toolName: "read", status: "running" },
+    ]);
   });
 
   it("moves the freshly started creation to the front", () => {
