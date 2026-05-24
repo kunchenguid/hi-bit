@@ -17,6 +17,11 @@ class FakeWorkerRuntime implements BitRuntime {
   prompts: Array<{ project: RuntimeProject; text: string }> = [];
   disposed: string[] = [];
   status: "completed" | "cancelled" | "failed" = "completed";
+  statuses: Array<"completed" | "cancelled" | "failed"> = [];
+  statusByRuntimeKey = new Map<string, "completed" | "cancelled" | "failed">();
+  emitsTools = true;
+  emitsToolEnd = true;
+  beforeReturn?: (project: RuntimeProject) => Promise<void> | void;
 
   async sendPrompt(project: RuntimeProject, text: string, onEvent: (event: ChatEvent) => void) {
     this.prompts.push({ project, text });
@@ -26,10 +31,21 @@ class FakeWorkerRuntime implements BitRuntime {
       projectTitle: project.title,
       turnId: `worker-${project.runtimeKey}`,
     };
-    onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
-    onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+    if (this.emitsTools) {
+      onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
+      if (this.emitsToolEnd) {
+        onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+      }
+    }
     onEvent({ ...meta, type: "assistant_delta", text: "Added the thing." });
-    return { turnId: meta.turnId, status: this.status };
+    await this.beforeReturn?.(project);
+    return {
+      turnId: meta.turnId,
+      status:
+        this.statusByRuntimeKey.get(project.runtimeKey ?? "") ??
+        this.statuses.shift() ??
+        this.status,
+    };
   }
 
   async abort(): Promise<void> {}
@@ -441,6 +457,349 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(failurePrompt).toContain("Cat Jump");
     expect(failurePrompt).not.toMatch(/worker|id:/i);
     expect(failurePrompt).not.toContain(game.id);
+  });
+
+  it("persists worker tool steps and returns them grouped by creation on load", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    // A fresh coordinator load (mimicking a renderer reload) rebuilds activity from disk.
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.activity).toMatchObject([
+      {
+        projectId: game.id,
+        title: "Cat Jump",
+        status: "done",
+        steps: [{ callId: "w1", toolName: "write", status: "completed" }],
+      },
+    ]);
+  });
+
+  it("persists build activity when a worker finishes without tool steps", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.emitsTools = false;
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "think quietly" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "think quietly");
+    await s.drain();
+
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, title: "Cat Jump", status: "done", steps: [] }],
+    });
+  });
+
+  it("marks a creation as working while its build is still in flight", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let releaseInstall!: () => void;
+    const installStarted = new Promise<void>((resolve) => {
+      s.pipeline.beforeInstall = () =>
+        new Promise<void>((release) => {
+          releaseInstall = release;
+          resolve();
+        });
+    });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await installStarted;
+
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.activity).toMatchObject([{ projectId: game.id, status: "working" }]);
+
+    releaseInstall();
+    await s.drain();
+  });
+
+  it("emits build_start and build_end around a worker build", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    expect(s.events).toContainEqual(
+      expect.objectContaining({
+        type: "build_start",
+        projectId: game.id,
+        projectTitle: "Cat Jump",
+      }),
+    );
+    expect(s.events).toContainEqual(
+      expect.objectContaining({
+        type: "build_end",
+        projectId: game.id,
+        status: "completed",
+      }),
+    );
+  });
+
+  it("keeps grouped activity working until every build for a creation finishes", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    const releases: Array<() => void> = [];
+    let installCount = 0;
+    let resolveBothInstalls!: () => void;
+    const bothInstallsStarted = new Promise<void>((resolve) => {
+      resolveBothInstalls = resolve;
+    });
+    s.pipeline.beforeInstall = () =>
+      new Promise<void>((release) => {
+        releases.push(release);
+        installCount += 1;
+        if (installCount === 2) resolveBothInstalls();
+      });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      await callTool("delegate_build", { creationId: game.id, instructions: "add badges" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add two things");
+    await bothInstallsStarted;
+
+    releases[0]?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(s.events).not.toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id }),
+    );
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, status: "working" }],
+    });
+
+    releases[1]?.();
+    await s.drain();
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id, status: "completed" }),
+    );
+  });
+
+  it("closes persisted running tool steps when a worker build fails before tool_end", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.emitsToolEnd = false;
+    s.worker.status = "failed";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (text.includes("snag")) return "Hmm, let's try again.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "change it");
+    await s.drain();
+
+    await expect(s.projects.readActivity(s.profile.id, game.id)).resolves.toMatchObject([
+      { callId: "w1", toolName: "write", status: "failed" },
+    ]);
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, status: "done" }],
+    });
+  });
+
+  it("emits worker tool activity with the build job turn id", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.emitsToolEnd = false;
+    s.worker.status = "failed";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (text.includes("snag")) return "Hmm, let's try again.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "change it");
+    await s.drain();
+
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "tool_start", callId: "w1", turnId: "bot_job_1" }),
+    );
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id, turnId: "bot_job_1" }),
+    );
+  });
+
+  it("emits a live tool end when an earlier concurrent build closes stale activity", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let promptsStarted = 0;
+    let releaseFirst: (() => void) | undefined;
+    const firstCanReturn = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const bothPromptsStarted = new Promise<void>((resolve) => {
+      s.worker.beforeReturn = async () => {
+        promptsStarted += 1;
+        if (promptsStarted === 1) await firstCanReturn;
+        if (promptsStarted === 2) resolve();
+      };
+    });
+    let releaseSecondInstall: (() => void) | undefined;
+    const secondCanInstall = new Promise<void>((resolve) => {
+      releaseSecondInstall = resolve;
+    });
+    const secondInstallStarted = new Promise<void>((resolve) => {
+      s.pipeline.beforeInstall = async () => {
+        resolve();
+        await secondCanInstall;
+      };
+    });
+    s.worker.emitsToolEnd = false;
+    s.worker.statusByRuntimeKey.set("bot_job_1", "failed");
+    s.worker.statusByRuntimeKey.set("bot_job_2", "completed");
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      await callTool("delegate_build", { creationId: game.id, instructions: "fix it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add two things");
+    await bothPromptsStarted;
+    releaseFirst?.();
+    await secondInstallStarted;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(s.events).toContainEqual(
+      expect.objectContaining({
+        type: "tool_end",
+        projectId: game.id,
+        turnId: "bot_job_1",
+        callId: "w1",
+        isError: true,
+      }),
+    );
+    expect(s.events).not.toContainEqual(
+      expect.objectContaining({ type: "build_end", projectId: game.id, turnId: "bot_job_1" }),
+    );
+
+    releaseSecondInstall?.();
+    await s.drain();
+  });
+
+  it("does not report closed activity as active work after waiting for queued writes", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let releaseAppend: (() => void) | undefined;
+    let loadResolved = false;
+    const appendStarted = new Promise<void>((resolve) => {
+      const appendActivity = s.projects.appendActivity.bind(s.projects);
+      s.projects.appendActivity = async (profileId, projectId, value) => {
+        if (
+          value &&
+          typeof value === "object" &&
+          "type" in value &&
+          value.type === "tool_step" &&
+          "status" in value &&
+          value.status === "running"
+        ) {
+          resolve();
+          await new Promise<void>((release) => {
+            releaseAppend = release;
+          });
+        }
+        return appendActivity(profileId, projectId, value);
+      };
+    });
+    s.worker.emitsToolEnd = false;
+    s.worker.status = "failed";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Hmm, let's try again.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
+      return "On it!";
+    };
+
+    const send = s.coordinator.send(s.profile.id, "change it");
+    await appendStarted;
+    const load = s.coordinator.load(s.profile.id).then((snapshot) => {
+      loadResolved = true;
+      return snapshot;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(loadResolved).toBe(false);
+
+    releaseAppend?.();
+    await expect(load).resolves.toMatchObject({
+      activity: [
+        {
+          projectId: game.id,
+          status: "done",
+          steps: [{ callId: "w1", status: "failed" }],
+        },
+      ],
+    });
+    await send;
+    await s.drain();
+  });
+
+  it("does not treat orphaned persisted running tool steps as active work on load", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    await s.projects.appendActivity(s.profile.id, game.id, {
+      type: "tool_step",
+      callId: "w1",
+      toolName: "write",
+      status: "running",
+    });
+
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, status: "done" }],
+    });
+    await expect(s.projects.readActivity(s.profile.id, game.id)).resolves.toMatchObject([
+      { callId: "w1", status: "failed" },
+    ]);
+  });
+
+  it("orders reloaded activity by latest activity instead of project update time", async () => {
+    const s = await createCoordinator();
+    const oldGame = await s.projects.create(s.profile.id, { title: "Old Game" });
+    const newGame = await s.projects.create(s.profile.id, { title: "New Game" });
+    await s.projects.touch(s.profile.id, oldGame.id, "2026-01-01T00:00:00.000Z");
+    await s.projects.touch(s.profile.id, newGame.id, "2026-01-03T00:00:00.000Z");
+    await s.projects.appendActivity(s.profile.id, oldGame.id, {
+      type: "tool_step",
+      callId: "w1",
+      toolName: "write",
+      status: "completed",
+    });
+    await s.projects.appendActivity(s.profile.id, newGame.id, {
+      type: "tool_step",
+      callId: "w2",
+      toolName: "read",
+      status: "completed",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const snapshot = await s.coordinator.load(s.profile.id);
+
+    expect(snapshot.activity.map((activity) => activity.projectId)).toEqual([
+      oldGame.id,
+      newGame.id,
+    ]);
   });
 
   it("loads the continuous profile transcript", async () => {

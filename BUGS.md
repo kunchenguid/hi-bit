@@ -2,17 +2,7 @@
 
 Issues found during the Bit-as-Mayor play test, kept here until fixed.
 
-## 1. Build-activity rows accumulate and never clear
-
-Status: documented; proper solution to be designed later.
-
-The "What Bit is building" panel appends every worker tool row (`ls`, `read`, `write`, ...) and leaves them at "completed" for the whole session.
-Each new build piles more rows on top of the finished ones, so the panel grows unbounded and keeps showing stale, already-done work.
-Only a reload clears it, because `chat.load` returns `tools: []`.
-
-- Where: `tool_*` handling in `src/renderer/src/App.tsx` (`applyChatEvent`) and `src/renderer/src/components/ToolActivity.tsx`.
-- Impact: cluttered, confusing panel within a long session; no real per-creation lifecycle.
-- Not fixing yet. A proper solution needs a lifecycle for the rows - e.g. clear a creation's rows shortly after its completion turn posts, group rows by creation, or age/cap them. Think this through before implementing.
+(No open bugs.)
 
 ## Design notes (not bugs)
 

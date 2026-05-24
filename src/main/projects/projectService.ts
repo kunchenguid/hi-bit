@@ -1,9 +1,31 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import type { ToolActivity, ToolContent } from "@shared/chat";
 import type { CreateProjectInput, ProjectRecord, ProjectSummary } from "@shared/project";
-import { appendJsonl, readJsonFile, writeJsonFile } from "../storage/json";
+import { appendJsonl, readJsonFile, readJsonl, writeJsonFile } from "../storage/json";
 import { type HiBitLayout, projectDir, projectsDir } from "../storage/layout";
+
+/** One appended logbook line recording a worker tool step (start or end). */
+type ToolStepRow = {
+  type: "tool_step";
+  callId: string;
+  turnId?: string;
+  toolName?: string;
+  status?: ToolActivity["status"];
+  args?: unknown;
+  content?: ToolContent[];
+  createdAt?: string;
+};
+
+type BuildActivityRow = {
+  type: "build_activity";
+  turnId?: string;
+  status: "started" | "completed" | "cancelled" | "failed";
+  createdAt?: string;
+};
+
+type ActivityLogRow = ToolStepRow | BuildActivityRow | { type?: string; createdAt?: string };
 
 export type ProjectPaths = {
   projectDir: string;
@@ -146,7 +168,78 @@ export class ProjectService {
 
   async appendActivity(profileId: string, projectId: string, value: unknown): Promise<void> {
     const paths = this.pathsFor(profileId, projectId);
-    await appendJsonl(paths.projectLogbookPath, value);
+    const row =
+      value && typeof value === "object" && !Array.isArray(value) && !("createdAt" in value)
+        ? { ...value, createdAt: this.now().toISOString() }
+        : value;
+    await appendJsonl(paths.projectLogbookPath, row);
+  }
+
+  async closeRunningActivity(
+    profileId: string,
+    projectId: string,
+    status: Extract<ToolActivity["status"], "completed" | "failed">,
+    turnId?: string,
+  ): Promise<ToolActivity[]> {
+    const running = (await this.readActivity(profileId, projectId)).filter(
+      (step) => step.status === "running" && (!turnId || step.turnId === turnId),
+    );
+    for (const step of running) {
+      await this.appendActivity(profileId, projectId, {
+        type: "tool_step",
+        callId: step.callId,
+        turnId: step.turnId,
+        status,
+        content: step.content,
+      });
+    }
+    return running.map((step) => ({ ...step, status }));
+  }
+
+  /**
+   * Reads persisted worker tool steps from a creation's logbook, reduced to one
+   * row per callId (later rows merge onto earlier ones), kept in first-seen order.
+   */
+  async readActivity(profileId: string, projectId: string): Promise<ToolActivity[]> {
+    const paths = this.pathsFor(profileId, projectId);
+    const rows = await readJsonl<ToolStepRow>(paths.projectLogbookPath);
+    const order: string[] = [];
+    const byCallId = new Map<string, ToolActivity>();
+    for (const row of rows) {
+      if (row.type !== "tool_step" || !row.callId) continue;
+      const key = `${row.turnId ?? ""}:${row.callId}`;
+      const existing = byCallId.get(key);
+      if (!existing) {
+        order.push(key);
+        byCallId.set(key, {
+          callId: row.callId,
+          turnId: row.turnId,
+          toolName: row.toolName ?? "",
+          status: row.status ?? "running",
+          args: row.args,
+          content: row.content ?? [],
+        });
+        continue;
+      }
+      byCallId.set(key, {
+        ...existing,
+        turnId: row.turnId ?? existing.turnId,
+        toolName: row.toolName ?? existing.toolName,
+        status: row.status ?? existing.status,
+        args: row.args ?? existing.args,
+        content: row.content ?? existing.content,
+      });
+    }
+    return order.map((key) => byCallId.get(key) as ToolActivity);
+  }
+
+  async latestActivityAt(profileId: string, projectId: string): Promise<string | undefined> {
+    const paths = this.pathsFor(profileId, projectId);
+    const rows = await readJsonl<ActivityLogRow>(paths.projectLogbookPath);
+    return rows.reduce<string | undefined>((latest, row) => {
+      if (row.type === "project_created" || !row.createdAt) return latest;
+      return !latest || row.createdAt > latest ? row.createdAt : latest;
+    }, undefined);
   }
 
   /** The folder holding all of a profile's creations, for a parent to browse on disk. */

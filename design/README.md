@@ -92,7 +92,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Bit:** Hey - ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
 >
-> **Tool activity:** Bit is updating the project files.
+> **Activity chip:** A bot is working on the project files.
 >
 > **Open folder:** Open creations folder.
 

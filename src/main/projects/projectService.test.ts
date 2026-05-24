@@ -100,4 +100,50 @@ describe("ProjectService", () => {
     expect(() => service.pathsFor("../secret", "project-1")).toThrow(/Invalid profile id/);
     expect(() => service.pathsFor(adaId, "../secret")).toThrow(/Invalid project id/);
   });
+
+  it("reads persisted tool steps from the logbook, reduced by callId", async () => {
+    const project = await service.create(adaId, { title: "Cat Jump" });
+    await service.appendActivity(adaId, project.id, {
+      type: "tool_step",
+      callId: "c1",
+      toolName: "write",
+      status: "running",
+      args: { path: "index.html" },
+    });
+    await service.appendActivity(adaId, project.id, {
+      type: "tool_step",
+      callId: "c1",
+      status: "completed",
+      content: [{ type: "text", text: "wrote it" }],
+    });
+    await service.appendActivity(adaId, project.id, {
+      type: "tool_step",
+      callId: "c2",
+      toolName: "read",
+      status: "running",
+    });
+
+    await expect(service.readActivity(adaId, project.id)).resolves.toEqual([
+      {
+        callId: "c1",
+        toolName: "write",
+        status: "completed",
+        args: { path: "index.html" },
+        content: [{ type: "text", text: "wrote it" }],
+      },
+      {
+        callId: "c2",
+        toolName: "read",
+        status: "running",
+        args: undefined,
+        content: [],
+      },
+    ]);
+  });
+
+  it("ignores non-tool logbook rows when reading activity", async () => {
+    const project = await service.create(adaId, { title: "Cat Jump" });
+    // create() already wrote a project_created row; readActivity must skip it.
+    await expect(service.readActivity(adaId, project.id)).resolves.toEqual([]);
+  });
 });

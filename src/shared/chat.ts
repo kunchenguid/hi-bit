@@ -13,6 +13,7 @@ export type ChatMessage = {
 
 export type ToolActivity = {
   callId: string;
+  turnId?: string;
   toolName: string;
   status: "running" | "completed" | "failed";
   args?: unknown;
@@ -22,10 +23,22 @@ export type ToolActivity = {
   projectTitle?: string;
 };
 
+/**
+ * One creation's build activity: the worker tool steps it accumulated, plus
+ * whether a bot is working on it right now. Drives the "See all activities" view.
+ */
+export type CreationActivity = {
+  projectId: string;
+  title: string;
+  status: "working" | "done";
+  updatedAt: string;
+  steps: ToolActivity[];
+};
+
 export type ChatSnapshot = {
   profileId: string;
   messages: ChatMessage[];
-  tools: ToolActivity[];
+  activity: CreationActivity[];
   isRunning: boolean;
 };
 
@@ -44,6 +57,11 @@ type ChatEventMeta = {
 export type ChatEvent =
   | ({ type: "turn_start" } & ChatEventMeta)
   | ({ type: "assistant_delta"; text: string } & ChatEventMeta)
+  | ({ type: "build_start" } & ChatEventMeta)
+  | ({
+      type: "build_end";
+      status: "completed" | "cancelled" | "failed";
+    } & ChatEventMeta)
   | ({
       type: "tool_start";
       callId: string;

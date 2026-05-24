@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { ChatEvent } from "@shared/chat";
 import type { HiBitApi } from "@shared/ipc";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -174,7 +175,7 @@ describe("App", () => {
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       ],
-      tools: [],
+      activity: [],
       isRunning: false,
     }));
 
@@ -198,6 +199,67 @@ describe("App", () => {
     await clickButton(host, "Send");
 
     expect(api.chat.send).toHaveBeenCalledWith("ada", "make a cat game");
+  });
+
+  it("rests the activity chip and opens the full activities view", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
+      messages: [],
+      activity: [
+        {
+          projectId: "p1",
+          title: "Cat Jump",
+          status: "done" as const,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          steps: [{ callId: "c1", toolName: "write", status: "completed" as const, content: [] }],
+        },
+      ],
+      isRunning: false,
+    }));
+
+    await renderApp(root);
+
+    // Resting chip, no growing panel on the main screen.
+    expect(host.textContent).toContain("All caught up");
+    expect(host.textContent).toContain("last worked on Cat Jump");
+    expect(host.textContent).not.toContain("What Bit is building");
+
+    await clickButton(host, "See all activities");
+    expect(host.textContent).toContain("Everything the bots worked on");
+    expect(host.textContent).toContain("Cat Jump");
+  });
+
+  it("shows a bot working when a build starts", async () => {
+    let emit: (event: ChatEvent) => void = () => {};
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.onEvent = vi.fn((listener) => {
+      emit = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    await act(async () => {
+      emit({
+        type: "build_start",
+        profileId: "ada",
+        turnId: "t1",
+        projectId: "p1",
+        projectTitle: "Cat Jump",
+      });
+    });
+
+    expect(host.textContent).toContain("A bot is working on Cat Jump");
   });
 
   it("switches from chat back to the kid profile gate", async () => {
@@ -346,7 +408,7 @@ function createApiMock(): HiBitApi {
       load: vi.fn(async (profileId) => ({
         profileId,
         messages: [],
-        tools: [],
+        activity: [],
         isRunning: false,
       })),
       send: vi.fn(async () => ({
