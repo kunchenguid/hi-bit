@@ -134,10 +134,10 @@ export class BitCoordinatorService {
       if (!isWorking) {
         await this.projects.closeRunningActivity(profileId, project.id, "failed");
       }
+      const latestActivityAt = await this.projects.latestActivityAt(profileId, project.id);
+      const updatedAt = latestActivityAt ?? project.updatedAt;
       const steps = await this.projects.readActivity(profileId, project.id);
-      if (steps.length === 0 && !isWorking) continue;
-      const updatedAt =
-        (await this.projects.latestActivityAt(profileId, project.id)) ?? project.updatedAt;
+      if (steps.length === 0 && !isWorking && !latestActivityAt) continue;
       activity.push({
         projectId: project.id,
         title: project.title,
@@ -398,6 +398,11 @@ export class BitCoordinatorService {
       turnId: job.id,
     };
     this.emit({ type: "build_start", ...buildMeta });
+    this.persistActivity(profileId, project.id, {
+      type: "build_activity",
+      turnId: job.id,
+      status: "started",
+    });
     try {
       const botProject: RuntimeProject = {
         ...project,
@@ -481,6 +486,11 @@ export class BitCoordinatorService {
         });
       }
       this.removeInflight(profileId, job.id);
+      await this.persistActivity(profileId, project.id, {
+        type: "build_activity",
+        turnId: job.id,
+        status: outcome,
+      });
       if (!this.hasInflightForProject(profileId, project.id)) {
         this.emit({ type: "build_end", ...buildMeta, status: outcome });
       }
@@ -537,7 +547,7 @@ export class BitCoordinatorService {
   }
 
   /** Queues a logbook append per creation so concurrent steps keep their order. */
-  private persistToolStep(profileId: string, projectId: string, row: unknown): void {
+  private persistActivity(profileId: string, projectId: string, row: unknown): Promise<void> {
     const key = `${profileId}:${projectId}`;
     const previous = this.activityWrites.get(key) ?? Promise.resolve();
     const next = previous
@@ -546,6 +556,11 @@ export class BitCoordinatorService {
     this.activityWrites.set(key, next);
     this.pending.add(next);
     void next.catch(() => {}).finally(() => this.pending.delete(next));
+    return next;
+  }
+
+  private persistToolStep(profileId: string, projectId: string, row: unknown): void {
+    void this.persistActivity(profileId, projectId, row);
   }
 
   private async closeRunningActivity(

@@ -18,7 +18,14 @@ type ToolStepRow = {
   createdAt?: string;
 };
 
-type ActivityLogRow = ToolStepRow | { type?: string; createdAt?: string };
+type BuildActivityRow = {
+  type: "build_activity";
+  turnId?: string;
+  status: "started" | "completed" | "cancelled" | "failed";
+  createdAt?: string;
+};
+
+type ActivityLogRow = ToolStepRow | BuildActivityRow | { type?: string; createdAt?: string };
 
 export type ProjectPaths = {
   projectDir: string;

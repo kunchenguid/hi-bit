@@ -19,6 +19,7 @@ class FakeWorkerRuntime implements BitRuntime {
   status: "completed" | "cancelled" | "failed" = "completed";
   statuses: Array<"completed" | "cancelled" | "failed"> = [];
   statusByRuntimeKey = new Map<string, "completed" | "cancelled" | "failed">();
+  emitsTools = true;
   emitsToolEnd = true;
   beforeReturn?: (project: RuntimeProject) => Promise<void> | void;
 
@@ -30,9 +31,11 @@ class FakeWorkerRuntime implements BitRuntime {
       projectTitle: project.title,
       turnId: `worker-${project.runtimeKey}`,
     };
-    onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
-    if (this.emitsToolEnd) {
-      onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+    if (this.emitsTools) {
+      onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
+      if (this.emitsToolEnd) {
+        onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+      }
     }
     onEvent({ ...meta, type: "assistant_delta", text: "Added the thing." });
     await this.beforeReturn?.(project);
@@ -478,6 +481,24 @@ describe("BitCoordinatorService (Mayor)", () => {
         steps: [{ callId: "w1", toolName: "write", status: "completed" }],
       },
     ]);
+  });
+
+  it("persists build activity when a worker finishes without tool steps", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.emitsTools = false;
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "think quietly" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "think quietly");
+    await s.drain();
+
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({
+      activity: [{ projectId: game.id, title: "Cat Jump", status: "done", steps: [] }],
+    });
   });
 
   it("marks a creation as working while its build is still in flight", async () => {
