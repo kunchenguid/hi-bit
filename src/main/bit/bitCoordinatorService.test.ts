@@ -443,6 +443,85 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(failurePrompt).not.toContain(game.id);
   });
 
+  it("persists worker tool steps and returns them grouped by creation on load", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    // A fresh coordinator load (mimicking a renderer reload) rebuilds activity from disk.
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.activity).toMatchObject([
+      {
+        projectId: game.id,
+        title: "Cat Jump",
+        status: "done",
+        steps: [{ callId: "w1", toolName: "write", status: "completed" }],
+      },
+    ]);
+  });
+
+  it("marks a creation as working while its build is still in flight", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let releaseInstall!: () => void;
+    const installStarted = new Promise<void>((resolve) => {
+      s.pipeline.beforeInstall = () =>
+        new Promise<void>((release) => {
+          releaseInstall = release;
+          resolve();
+        });
+    });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await installStarted;
+
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.activity).toMatchObject([{ projectId: game.id, status: "working" }]);
+
+    releaseInstall();
+    await s.drain();
+  });
+
+  it("emits build_start and build_end around a worker build", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    expect(s.events).toContainEqual(
+      expect.objectContaining({
+        type: "build_start",
+        projectId: game.id,
+        projectTitle: "Cat Jump",
+      }),
+    );
+    expect(s.events).toContainEqual(
+      expect.objectContaining({
+        type: "build_end",
+        projectId: game.id,
+        status: "completed",
+      }),
+    );
+  });
+
   it("loads the continuous profile transcript", async () => {
     const s = await createCoordinator();
     s.mayor.handler = async () => "Hello!";

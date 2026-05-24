@@ -1,0 +1,159 @@
+import type { ChatEvent, CreationActivity, ToolActivity } from "@shared/chat";
+
+/**
+ * Folds a chat event into the per-creation activity log the renderer holds.
+ * `build_start`/`build_end` drive a creation's working/done status; `tool_*`
+ * events add and update its steps. Pure and immutable so it is easy to test.
+ */
+export function applyEventToActivity(
+  activity: CreationActivity[],
+  event: ChatEvent,
+): CreationActivity[] {
+  switch (event.type) {
+    case "build_start": {
+      if (!event.projectId) return activity;
+      const rest = activity.filter((creation) => creation.projectId !== event.projectId);
+      const existing = activity.find((creation) => creation.projectId === event.projectId);
+      return [
+        {
+          projectId: event.projectId,
+          title: event.projectTitle ?? existing?.title ?? "your creation",
+          status: "working",
+          updatedAt: existing?.updatedAt ?? "",
+          steps: existing?.steps ?? [],
+        },
+        ...rest,
+      ];
+    }
+    case "build_end": {
+      if (!event.projectId) return activity;
+      return activity.map((creation) =>
+        creation.projectId === event.projectId ? { ...creation, status: "done" } : creation,
+      );
+    }
+    case "tool_start": {
+      const step: ToolActivity = {
+        callId: event.callId,
+        toolName: event.toolName,
+        status: "running",
+        args: event.args,
+        content: [],
+        projectId: event.projectId,
+        projectTitle: event.projectTitle,
+      };
+      return upsertStep(activity, event, step, (steps) => [
+        ...steps.filter((existing) => existing.callId !== event.callId),
+        step,
+      ]);
+    }
+    case "tool_update": {
+      return mapStep(activity, event.projectId, event.callId, (step) => ({
+        ...step,
+        content: event.content,
+      }));
+    }
+    case "tool_end": {
+      return mapStep(activity, event.projectId, event.callId, (step) => ({
+        ...step,
+        status: event.isError ? "failed" : "completed",
+        content: event.content,
+      }));
+    }
+    default:
+      return activity;
+  }
+}
+
+/** Chip-level summary: is a bot working, what to say, and how many steps so far. */
+export type ActivitySummary = {
+  working: boolean;
+  headline: string;
+  detail: string;
+  count: number;
+};
+
+export function summarizeActivity(activity: CreationActivity[]): ActivitySummary {
+  const count = activity.reduce((total, creation) => total + creation.steps.length, 0);
+  const workingCreations = activity.filter((creation) => creation.status === "working");
+
+  if (workingCreations.length > 0) {
+    const headline =
+      workingCreations.length === 1
+        ? `A bot is working on ${workingCreations[0].title}`
+        : `${workingCreations.length} bots are working on your creations`;
+    return { working: true, headline, detail: currentStepDetail(workingCreations), count };
+  }
+
+  const recent = activity[0];
+  return {
+    working: false,
+    headline: recent ? "All caught up" : "Ready when you are",
+    detail: recent ? `last worked on ${recent.title}` : "",
+    count,
+  };
+}
+
+function currentStepDetail(workingCreations: CreationActivity[]): string {
+  for (const creation of workingCreations) {
+    const running = [...creation.steps].reverse().find((step) => step.status === "running");
+    if (running) return friendlyStep(running.toolName);
+  }
+  return "";
+}
+
+const STEP_VERBS: Record<string, string> = {
+  write: "writing files",
+  edit: "editing files",
+  read: "reading files",
+  ls: "looking at files",
+  compact_context: "tidying up",
+  retry: "trying again",
+};
+
+export function friendlyStep(toolName: string): string {
+  return STEP_VERBS[toolName] ?? `running ${toolName}`;
+}
+
+function upsertStep(
+  activity: CreationActivity[],
+  event: ChatEvent & { projectId?: string; projectTitle?: string },
+  fallbackStep: ToolActivity,
+  nextSteps: (steps: ToolActivity[]) => ToolActivity[],
+): CreationActivity[] {
+  if (!event.projectId) return activity;
+  const existing = activity.find((creation) => creation.projectId === event.projectId);
+  if (!existing) {
+    return [
+      {
+        projectId: event.projectId,
+        title: event.projectTitle ?? "your creation",
+        status: "working",
+        updatedAt: "",
+        steps: [fallbackStep],
+      },
+      ...activity,
+    ];
+  }
+  return activity.map((creation) =>
+    creation.projectId === event.projectId
+      ? { ...creation, steps: nextSteps(creation.steps) }
+      : creation,
+  );
+}
+
+function mapStep(
+  activity: CreationActivity[],
+  projectId: string | undefined,
+  callId: string,
+  update: (step: ToolActivity) => ToolActivity,
+): CreationActivity[] {
+  if (!projectId) return activity;
+  return activity.map((creation) =>
+    creation.projectId === projectId
+      ? {
+          ...creation,
+          steps: creation.steps.map((step) => (step.callId === callId ? update(step) : step)),
+        }
+      : creation,
+  );
+}

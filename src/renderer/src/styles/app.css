@@ -377,12 +377,13 @@ pre {
 }
 
 .hb-workspace {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
   gap: var(--s-2);
   padding: var(--s-2);
   background: var(--paper);
+  overflow: hidden;
 }
 
 .hb-workspace-header {
@@ -405,22 +406,19 @@ pre {
 .hb-chat-layout {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--s-2);
 }
 
-.hb-chat-card,
-.hb-tool-panel {
+.hb-chat-card {
   min-height: 0;
   border: var(--border-hairline);
   border-radius: var(--r-2xl);
   background: var(--paper-2);
   box-shadow: var(--shadow-soft);
-}
-
-.hb-chat-card {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
   overflow: hidden;
 }
 
@@ -511,42 +509,224 @@ pre {
   align-items: end;
 }
 
-.hb-tool-panel {
-  overflow: auto;
-  padding: var(--s-2);
+/* Persistent build heartbeat, between the messages and the composer. */
+.hb-activity-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-1\.5);
+  padding: var(--s-1) var(--s-1\.5);
+  border-top: var(--border-hairline);
+  background: var(--paper-3);
 }
 
-.hb-tool-list {
+.hb-activity-status {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.hb-activity-text {
+  min-width: 0;
+}
+
+.hb-activity-text strong {
+  display: block;
+  font-size: var(--t-small-size);
+}
+
+.hb-activity-text span {
+  display: block;
+  font-size: var(--t-small-size);
+  color: var(--ink-64);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hb-activity-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--ink);
+}
+
+.hb-activity-chip[data-state="working"] .hb-activity-dot {
+  border-color: var(--brand);
+  border-top-color: transparent;
+  animation: hb-spin 0.8s linear infinite;
+}
+
+.hb-activity-chip[data-state="idle"] .hb-activity-dot {
+  background: var(--success);
+}
+
+@keyframes hb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hb-activity-seeall {
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--s-1\.5);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-pill);
+  background: var(--subject-js);
+  box-shadow: var(--shadow-pixel-sm);
+  font-weight: 700;
+  font-size: var(--t-small-size);
+  color: var(--ink);
+}
+
+.hb-activity-count {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--paper-2);
+}
+
+/* "See all activities" full view, floating above the workspace. */
+.hb-activity-view-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--s-3);
+  background: var(--ink-40);
+}
+
+.hb-activity-view {
+  width: min(720px, 100%);
+  max-height: calc(100vh - var(--s-6));
+  overflow: auto;
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+}
+
+.hb-activity-view-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.hb-activity-view-head .hb-bit-badge {
+  width: 48px;
+  height: 48px;
+  font-size: 22px;
+}
+
+.hb-activity-view-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.hb-activity-view-head .hb-button {
+  margin-left: auto;
+}
+
+.hb-creation-group {
+  border: var(--border-hairline);
+  border-radius: var(--r-xl);
+  background: var(--paper-3);
+  overflow: hidden;
+}
+
+.hb-creation-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1\.5);
+  padding: var(--s-1\.5) var(--s-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.hb-creation-head::-webkit-details-marker {
+  display: none;
+}
+
+.hb-creation-chiplet {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  border: 2px solid var(--ink);
+  display: grid;
+  place-items: center;
+  background: var(--subject-css);
+  font-weight: 800;
+}
+
+.hb-creation-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.hb-creation-meta strong {
+  display: block;
+}
+
+.hb-creation-meta span {
+  font-size: var(--t-small-size);
+  color: var(--ink-64);
+}
+
+.hb-creation-state {
+  flex: none;
+  font-size: var(--t-small-size);
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--ink-06);
+}
+
+.hb-creation-state.is-done {
+  background: var(--success-wash);
+}
+
+.hb-creation-state.is-working {
+  background: var(--info-wash);
+}
+
+.hb-creation-steps {
   display: grid;
   gap: var(--s-1);
-  margin-top: var(--s-2);
+  padding: 0 var(--s-2) var(--s-2);
 }
 
-.hb-tool-row {
-  border: var(--border-hairline);
-  border-radius: var(--r-lg);
-  background: var(--paper-3);
-  padding: var(--s-1);
-}
-
-.hb-tool-row summary {
+.hb-step {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--s-1);
-  font-weight: 700;
-  cursor: pointer;
+  padding: var(--s-1);
+  border: var(--border-hairline);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  font-size: var(--t-small-size);
 }
 
-.hb-tool-row pre {
-  overflow: auto;
-  margin: var(--s-1) 0 0;
-  padding: var(--s-1);
-  border-radius: var(--r-md);
-  background: var(--ink-06);
-  white-space: pre-wrap;
+.hb-step-grow {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-64);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hb-tool-status {
+  flex: none;
   border-radius: var(--r-pill);
   padding: 2px 8px;
   font-size: var(--t-small-size);

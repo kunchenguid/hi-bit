@@ -1,16 +1,18 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatMessage, ToolActivity } from "@shared/chat";
+import type { ChatMessage, CreationActivity } from "@shared/chat";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
+import { ActivityChip } from "../components/ActivityChip";
+import { ActivityView } from "../components/ActivityView";
 import { Composer } from "../components/Composer";
 import { MessageList } from "../components/MessageList";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
-import { ToolActivity as ToolActivityList } from "../components/ToolActivity";
 
 type ChatWorkspaceProps = {
   authStatus: AuthStatus | null;
   profile: ProfileSummary;
   messages: ChatMessage[];
-  tools: ToolActivity[];
+  activity: CreationActivity[];
+  showActivity: boolean;
   draft: string;
   running: boolean;
   busy: boolean;
@@ -21,13 +23,16 @@ type ChatWorkspaceProps = {
   onOpenFolder: () => void;
   onSwitchProfile: () => void;
   onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
+  onShowActivity: () => void;
+  onHideActivity: () => void;
 };
 
 export function ChatWorkspace({
   authStatus,
   profile,
   messages,
-  tools,
+  activity,
+  showActivity,
   draft,
   running,
   busy,
@@ -38,6 +43,8 @@ export function ChatWorkspace({
   onOpenFolder,
   onSwitchProfile,
   onUpdateProfile,
+  onShowActivity,
+  onHideActivity,
 }: ChatWorkspaceProps) {
   const providerStatus = authStatus?.accountId
     ? `Codex provider connected (${authStatus.accountId})`
@@ -72,6 +79,7 @@ export function ChatWorkspace({
       <section className="hb-chat-layout">
         <div className="hb-chat-card">
           <MessageList messages={messages} />
+          <ActivityChip activity={activity} onSeeAll={onShowActivity} />
           {error ? <p className="hb-error">{error}</p> : null}
           <Composer
             value={draft}
@@ -81,8 +89,9 @@ export function ChatWorkspace({
             onAbort={onAbort}
           />
         </div>
-        <ToolActivityList tools={tools} />
       </section>
+
+      {showActivity ? <ActivityView activity={activity} onClose={onHideActivity} /> : null}
     </main>
   );
 }

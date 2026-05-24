@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { ChatEvent, ChatMessage, ChatSnapshot, SendMessageResult } from "@shared/chat";
+import type {
+  ChatEvent,
+  ChatMessage,
+  ChatSnapshot,
+  CreationActivity,
+  SendMessageResult,
+} from "@shared/chat";
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { Type } from "typebox";
@@ -74,6 +80,8 @@ export class BitCoordinatorService {
   private readonly toolCache = new Map<string, ToolDefinition[]>();
   private readonly inflight = new Map<string, Map<string, InflightWorker>>();
   private readonly mayorLocks = new Map<string, Promise<unknown>>();
+  /** Serializes logbook appends per creation so persisted steps keep their order. */
+  private readonly activityWrites = new Map<string, Promise<unknown>>();
   /** Tracks background worker pipelines so tests/shutdown can await them. */
   readonly pending = new Set<Promise<unknown>>();
 
@@ -102,12 +110,41 @@ export class BitCoordinatorService {
   async load(profileId: string): Promise<ChatSnapshot> {
     await this.profiles.get(profileId);
     const messages = await this.conversation.readTranscript(profileId);
+    const activity = await this.buildActivity(profileId);
     return {
       profileId,
       messages,
-      tools: [],
+      activity,
       isRunning: this.mayor.isRunning(profileId),
     };
+  }
+
+  /**
+   * Rebuilds the per-creation activity log from each creation's on-disk logbook,
+   * marking a creation "working" when a worker is currently in flight for it.
+   * This is what lets the activity view survive a renderer reload.
+   */
+  private async buildActivity(profileId: string): Promise<CreationActivity[]> {
+    const portfolio = await this.projects.list(profileId);
+    const working = new Set(this.listInflight(profileId).map((worker) => worker.projectId));
+    const activity: CreationActivity[] = [];
+    for (const project of portfolio) {
+      const steps = await this.projects.readActivity(profileId, project.id);
+      const isWorking = working.has(project.id) || steps.some((step) => step.status === "running");
+      if (steps.length === 0 && !isWorking) continue;
+      activity.push({
+        projectId: project.id,
+        title: project.title,
+        status: isWorking ? "working" : "done",
+        updatedAt: project.updatedAt,
+        steps: steps.map((step) => ({
+          ...step,
+          projectId: project.id,
+          projectTitle: project.title,
+        })),
+      });
+    }
+    return activity;
   }
 
   async send(profileId: string, text: string): Promise<SendMessageResult> {
@@ -348,6 +385,13 @@ export class BitCoordinatorService {
     const profile = await this.profiles.get(profileId).catch(() => undefined);
     let outcome: "completed" | "cancelled" | "failed" = "completed";
     let summary = "";
+    const buildMeta = {
+      profileId,
+      projectId: project.id,
+      projectTitle: project.title,
+      turnId: job.id,
+    };
+    this.emit({ type: "build_start", ...buildMeta });
     try {
       const botProject: RuntimeProject = {
         ...project,
@@ -365,13 +409,27 @@ export class BitCoordinatorService {
             workerText += event.text;
             return;
           }
-          // Surface only ambient build activity (tool rows), tagged with the creation.
-          if (
-            event.type === "tool_start" ||
-            event.type === "tool_update" ||
-            event.type === "tool_end"
-          ) {
+          // Surface ambient build activity (tool rows), tagged with the creation,
+          // and persist start/end to the creation's logbook so it survives reloads.
+          if (event.type === "tool_start") {
             this.emit(event);
+            this.persistToolStep(profileId, project.id, {
+              type: "tool_step",
+              callId: event.callId,
+              toolName: event.toolName,
+              status: "running",
+              args: event.args,
+            });
+          } else if (event.type === "tool_update") {
+            this.emit(event);
+          } else if (event.type === "tool_end") {
+            this.emit(event);
+            this.persistToolStep(profileId, project.id, {
+              type: "tool_step",
+              callId: event.callId,
+              status: event.isError ? "failed" : "completed",
+              content: event.content,
+            });
           }
         },
       );
@@ -405,6 +463,7 @@ export class BitCoordinatorService {
     } finally {
       this.worker.disposeProject?.(job.id);
       this.removeInflight(profileId, job.id);
+      this.emit({ type: "build_end", ...buildMeta, status: outcome });
     }
 
     await this.runCompletionTurn(profileId, project, outcome, summary).catch(async () => {
@@ -455,6 +514,18 @@ export class BitCoordinatorService {
       turnId,
       text,
     });
+  }
+
+  /** Queues a logbook append per creation so concurrent steps keep their order. */
+  private persistToolStep(profileId: string, projectId: string, row: unknown): void {
+    const key = `${profileId}:${projectId}`;
+    const previous = this.activityWrites.get(key) ?? Promise.resolve();
+    const next = previous
+      .catch(() => {})
+      .then(() => this.projects.appendActivity(profileId, projectId, row));
+    this.activityWrites.set(key, next);
+    this.pending.add(next);
+    void next.catch(() => {}).finally(() => this.pending.delete(next));
   }
 
   // --- In-flight registry ----------------------------------------------------

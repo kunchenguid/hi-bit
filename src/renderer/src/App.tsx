@@ -1,5 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatEvent, ChatMessage, ToolActivity } from "@shared/chat";
+import type { ChatEvent, ChatMessage, CreationActivity } from "@shared/chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import {
   type Dispatch,
@@ -9,6 +9,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { applyEventToActivity } from "./activity";
 import { AuthGate } from "./screens/AuthGate";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
 import { ProfileGate } from "./screens/ProfileGate";
@@ -21,7 +22,8 @@ export function App() {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [tools, setTools] = useState<ToolActivity[]>([]);
+  const [activity, setActivity] = useState<CreationActivity[]>([]);
+  const [showActivity, setShowActivity] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
@@ -34,7 +36,8 @@ export function App() {
 
   const clearChatState = useCallback(() => {
     setMessages([]);
-    setTools([]);
+    setActivity([]);
+    setShowActivity(false);
     setRunning(false);
   }, []);
 
@@ -77,7 +80,7 @@ export function App() {
     void window.hibit.chat.load(activeProfileId).then((snapshot) => {
       if (cancelled) return;
       setMessages(snapshot.messages);
-      setTools(snapshot.tools);
+      setActivity(snapshot.activity);
       setRunning(snapshot.isRunning);
     });
     return () => {
@@ -88,7 +91,7 @@ export function App() {
   useEffect(() => {
     return window.hibit.chat.onEvent((event) => {
       if (event.profileId !== activeProfileId) return;
-      applyChatEvent(event, setMessages, setTools, setRunning, setError);
+      applyChatEvent(event, setMessages, setActivity, setRunning, setError);
     });
   }, [activeProfileId]);
 
@@ -236,7 +239,8 @@ export function App() {
       authStatus={authStatus}
       profile={activeProfile}
       messages={messages}
-      tools={tools}
+      activity={activity}
+      showActivity={showActivity}
       draft={draft}
       running={running}
       busy={busy}
@@ -247,6 +251,8 @@ export function App() {
       onOpenFolder={openFolder}
       onSwitchProfile={switchProfile}
       onUpdateProfile={updateProfile}
+      onShowActivity={() => setShowActivity(true)}
+      onHideActivity={() => setShowActivity(false)}
     />
   );
 }
@@ -254,7 +260,7 @@ export function App() {
 function applyChatEvent(
   event: ChatEvent,
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
-  setTools: Dispatch<SetStateAction<ToolActivity[]>>,
+  setActivity: Dispatch<SetStateAction<CreationActivity[]>>,
   setRunning: Dispatch<SetStateAction<boolean>>,
   setError: Dispatch<SetStateAction<string | null>>,
 ): void {
@@ -266,35 +272,12 @@ function applyChatEvent(
     case "assistant_delta":
       setMessages((current) => upsertAssistantDelta(current, event.turnId, event.text));
       break;
+    case "build_start":
+    case "build_end":
     case "tool_start":
-      setTools((current) => [
-        ...current.filter((tool) => tool.callId !== event.callId),
-        {
-          callId: event.callId,
-          toolName: event.toolName,
-          status: "running",
-          args: event.args,
-          content: [],
-          projectId: event.projectId,
-          projectTitle: event.projectTitle,
-        },
-      ]);
-      break;
     case "tool_update":
-      setTools((current) =>
-        current.map((tool) =>
-          tool.callId === event.callId ? { ...tool, content: event.content } : tool,
-        ),
-      );
-      break;
     case "tool_end":
-      setTools((current) =>
-        current.map((tool) =>
-          tool.callId === event.callId
-            ? { ...tool, status: event.isError ? "failed" : "completed", content: event.content }
-            : tool,
-        ),
-      );
+      setActivity((current) => applyEventToActivity(current, event));
       break;
     case "turn_end":
       setRunning(false);

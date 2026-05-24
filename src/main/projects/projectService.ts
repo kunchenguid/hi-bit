@@ -1,9 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import type { ToolActivity, ToolContent } from "@shared/chat";
 import type { CreateProjectInput, ProjectRecord, ProjectSummary } from "@shared/project";
-import { appendJsonl, readJsonFile, writeJsonFile } from "../storage/json";
+import { appendJsonl, readJsonFile, readJsonl, writeJsonFile } from "../storage/json";
 import { type HiBitLayout, projectDir, projectsDir } from "../storage/layout";
+
+/** One appended logbook line recording a worker tool step (start or end). */
+type ToolStepRow = {
+  type: "tool_step";
+  callId: string;
+  toolName?: string;
+  status?: ToolActivity["status"];
+  args?: unknown;
+  content?: ToolContent[];
+};
 
 export type ProjectPaths = {
   projectDir: string;
@@ -147,6 +158,40 @@ export class ProjectService {
   async appendActivity(profileId: string, projectId: string, value: unknown): Promise<void> {
     const paths = this.pathsFor(profileId, projectId);
     await appendJsonl(paths.projectLogbookPath, value);
+  }
+
+  /**
+   * Reads persisted worker tool steps from a creation's logbook, reduced to one
+   * row per callId (later rows merge onto earlier ones), kept in first-seen order.
+   */
+  async readActivity(profileId: string, projectId: string): Promise<ToolActivity[]> {
+    const paths = this.pathsFor(profileId, projectId);
+    const rows = await readJsonl<ToolStepRow>(paths.projectLogbookPath);
+    const order: string[] = [];
+    const byCallId = new Map<string, ToolActivity>();
+    for (const row of rows) {
+      if (row.type !== "tool_step" || !row.callId) continue;
+      const existing = byCallId.get(row.callId);
+      if (!existing) {
+        order.push(row.callId);
+        byCallId.set(row.callId, {
+          callId: row.callId,
+          toolName: row.toolName ?? "",
+          status: row.status ?? "running",
+          args: row.args,
+          content: row.content ?? [],
+        });
+        continue;
+      }
+      byCallId.set(row.callId, {
+        ...existing,
+        toolName: row.toolName ?? existing.toolName,
+        status: row.status ?? existing.status,
+        args: row.args ?? existing.args,
+        content: row.content ?? existing.content,
+      });
+    }
+    return order.map((callId) => byCallId.get(callId) as ToolActivity);
   }
 
   /** The folder holding all of a profile's creations, for a parent to browse on disk. */
