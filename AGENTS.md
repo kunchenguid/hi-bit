@@ -14,21 +14,21 @@ This file is the canonical architecture and workflow guide for the current app. 
 ## Stack and layout
 
 - Electron 41, electron-vite, React 19, Vitest, Biome. TypeScript throughout.
-- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory/profile layout; `auth/` owns Codex OAuth and token refresh; `profiles/` owns kid profile records and the active profile id; `projects/` owns profile-scoped project records, starter files, workbench paths, and project logbooks; `pi/` adapts the Pi coding runtime; `bots/` owns build plans, bot jobs, isolated git worktree workbenches, machine inspections, and assembly-line installs; `bit/` coordinates chat turns around profile-scoped projects.
-  Each Bit turn runs in an isolated bot job runtime keyed by job id, writes Pi sessions under `sessions/bots`, and disposes that runtime when the job finishes. Project folders live under `<userData>/.hi-bit/factories/default/profiles/<profileId>/projects/<projectId>/` and include `build-plans`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
+- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory/profile layout; `auth/` owns Codex OAuth and token refresh; `profiles/` owns kid profile records and the active profile id; `conversation/` owns the profile-level transcript and active Mayor session state; `projects/` owns profile-scoped creation records, starter files, workbench paths, and project logbooks; `pi/` adapts the Pi coding runtime; `bots/` owns build plans, bot jobs, isolated git worktree workbenches, machine inspections, and assembly-line installs; `bit/` coordinates the profile-level Bit-as-Mayor chat and delegates work to background workers.
+  Each profile has one continuous Bit/Mayor conversation under `conversation/`, with Mayor sessions under `conversation/sessions/mayor`. Project folders live under `<userData>/.hi-bit/factories/default/profiles/<profileId>/projects/<projectId>/` and include `build-plans`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer. Every renderer IPC call goes through here.
-- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, project picker, and chat workspace; `components/` holds the chat composer, message list, and tool activity pieces.
+- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace; `components/` holds the chat composer, message list, profile settings menu, and tool activity pieces.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
 - `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
-- `prompts/bit.md` - Bit's system prompt. Product content, not code; edit it like you'd edit docs.
+- `prompts/mayor.md` and `prompts/worker.md` - Bit-as-Mayor and worker bot system prompts. Product content, not code; edit them like you'd edit docs.
 - `design/` - design tokens and the shared stylesheet the renderer consumes.
 
 ## E2E testing the Electron app via chrome-devtools-axi
 
 Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
 
-Manual E2E testing should exercise the Codex connection gate, kid profile gate, project picker, and Pi-backed chat workspace unless the task explicitly narrows scope.
+Manual E2E testing should exercise the Codex connection gate, kid profile gate, profile-level Pi-backed chat workspace, and creations-folder action unless the task explicitly narrows scope.
 Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`; use the app's Codex connection flow or a clean `userData` state appropriate for the test.
 
 ### One-time understanding
@@ -96,7 +96,7 @@ Do not leave background dev apps, CDP endpoints, or AXI bridge processes running
 
 ### What E2E can and can't cover
 
-- Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-scoped project creation/picking, chat, abort, and opening a project folder.
+- Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-level chat, Bit-delegated creation work, abort, and opening the creations folder.
 - Can: IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
 - Cannot directly: main-process internals such as token refresh, project file writes, or Pi runtime turns except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
 - Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).

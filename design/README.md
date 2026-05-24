@@ -18,7 +18,7 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 ### Sources used to build this system
 
 - **Brand:** greenfield - no prior marks. This design system *is* the brand spec. Iterate it here, then implement.
-- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection, kid profiles, profile-scoped project picking, and a Pi-backed Bit chat workspace.
+- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection, kid profiles, a profile-level Pi-backed Bit chat workspace, and creations managed through chat.
 - **User brief:** desktop Electron AI tutor, kids 7-12, aesthetic that parents trust and kids find friendly.
 
 ---
@@ -88,13 +88,13 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Profile gate:** Who's using Hi-Bit?
 >
-> **Project picker:** What does Maya want to build?
+> **Chat workspace:** What should Maya build next?
 >
 > **Bit:** Hey - ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
 >
 > **Tool activity:** Bit is updating the project files.
 >
-> **Open folder:** Open project folder.
+> **Open folder:** Open creations folder.
 
 ### What we avoid
 
@@ -254,6 +254,6 @@ The canonical Hi-Bit project card:
 1. Read this file top to bottom.
 2. Import `tokens/colors_and_type.css` - everything uses these tokens.
 3. Preview tokens in the **Design System** tab (cards in `preview/`).
-4. For the current product surfaces, review the renderer screens: Codex connection, profile gate, project picker, and chat workspace.
+4. For the current product surfaces, review the renderer screens: Codex connection, profile gate, and chat workspace.
 5. Treat `ui-kits/desktop/index.html` as a legacy brand prototype for visual patterns, not the current product shell.
 6. If you're building a new screen: start from the current renderer flow, keep the subject-rainbow rule (one hue per project moment, not all of them at once), and remember - **pixel is a spice, not the stew.**
