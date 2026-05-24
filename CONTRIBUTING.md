@@ -60,7 +60,7 @@ One file per dream under `graph/dreams/<id>.yml`. Follow existing files (e.g. `g
 
 ## Adding to the system prompt
 
-`prompts/bit.md` is the voice and pedagogy spec. Changes there affect every kid session and are reviewed with extra care.
+`prompts/mayor.md` and `prompts/worker.md` are the voice and pedagogy specs. Changes there affect kid sessions and are reviewed with extra care.
 
 ## Review process
 

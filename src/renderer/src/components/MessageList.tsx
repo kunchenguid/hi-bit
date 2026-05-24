@@ -1,4 +1,5 @@
 import type { ChatMessage } from "@shared/chat";
+import { MarkdownText } from "./MarkdownText";
 
 type MessageListProps = {
   messages: ChatMessage[];
@@ -20,7 +21,11 @@ export function MessageList({ messages }: MessageListProps) {
       {messages.map((message) => (
         <li className={`hb-message hb-message-${message.role}`} key={message.id}>
           <span className="hb-message-label">{message.role === "user" ? "You" : "Bit"}</span>
-          <p>{message.text}</p>
+          {message.role === "assistant" ? (
+            <MarkdownText text={message.text} />
+          ) : (
+            <p>{message.text}</p>
+          )}
         </li>
       ))}
     </ol>

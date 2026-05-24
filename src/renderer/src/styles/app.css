@@ -81,12 +81,18 @@ pre {
 
 .hb-profile-gate-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--s-2);
 }
 
+.hb-bit-mascot {
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+
 .hb-profile-gate-copy {
+  flex: 1;
   min-width: 0;
   display: grid;
   gap: var(--s-1);
@@ -163,6 +169,41 @@ pre {
   z-index: 2;
   width: min(420px, calc(100vw - var(--s-4)));
   padding: var(--s-3);
+}
+
+.hb-parent-menu {
+  position: relative;
+}
+
+.hb-parent-menu summary.hb-button {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.hb-parent-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.hb-parent-menu-popover {
+  position: absolute;
+  top: calc(100% + var(--s-1));
+  right: 0;
+  z-index: 3;
+  display: grid;
+  gap: var(--s-1);
+  width: min(440px, calc(100vw - var(--s-4)));
+  padding: var(--s-3);
+}
+
+.hb-parent-menu-popover .hb-profile-settings-menu {
+  width: 100%;
+}
+
+.hb-parent-menu-popover .hb-profile-settings-menu summary.hb-button {
+  width: 100%;
+  justify-content: center;
 }
 
 .hb-profile-form {
@@ -418,6 +459,25 @@ pre {
   font-size: var(--t-small-size);
   font-weight: 700;
   color: var(--ink-64);
+}
+
+.hb-message p {
+  margin: 0;
+}
+
+.hb-message-list-md {
+  margin: 0;
+  padding-left: var(--s-2);
+  display: grid;
+  gap: var(--s-0\.5);
+}
+
+.hb-message code {
+  font-family: var(--font-pixel, monospace);
+  font-size: 0.85em;
+  padding: 0 0.25em;
+  border-radius: var(--r-sm, 4px);
+  background: var(--paper-3, rgba(0, 0, 0, 0.08));
 }
 
 .hb-empty-chat {

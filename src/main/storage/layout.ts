@@ -146,6 +146,35 @@ export function projectsDir(
   return join(profileDir(layout, profileId, factoryId), "projects");
 }
 
+export type ProfileConversationPaths = {
+  conversationDir: string;
+  transcriptPath: string;
+  mayorSessionsDir: string;
+  conversationStatePath: string;
+};
+
+export function profileConversationDir(
+  layout: HiBitLayout,
+  profileId: string,
+  factoryId = layout.defaultFactoryId,
+): string {
+  return join(profileDir(layout, profileId, factoryId), "conversation");
+}
+
+export function profileConversationPaths(
+  layout: HiBitLayout,
+  profileId: string,
+  factoryId = layout.defaultFactoryId,
+): ProfileConversationPaths {
+  const dir = profileConversationDir(layout, profileId, factoryId);
+  return {
+    conversationDir: dir,
+    transcriptPath: join(dir, "transcript.jsonl"),
+    mayorSessionsDir: join(dir, "sessions", "mayor"),
+    conversationStatePath: join(dir, "conversation.json"),
+  };
+}
+
 export function projectDir(
   layout: HiBitLayout,
   profileId: string,

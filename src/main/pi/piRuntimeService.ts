@@ -10,7 +10,7 @@ import {
 import type { ChatEvent } from "@shared/chat";
 import type { RuntimeProject } from "../projects/projectService";
 import { chatEventsFromPiEvent } from "./piMessages";
-import { createHiBitResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
+import { createWorkerResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
 
 export type RuntimePiSession = {
   sessionId: string;
@@ -77,12 +77,18 @@ export class PiRuntimeService {
     session.setAccessToken?.(accessToken);
 
     const turnId = randomUUID();
+    const meta = {
+      profileId: project.profileId,
+      projectId: project.id,
+      projectTitle: project.title,
+      turnId,
+    };
     const running: RunningTurn = { turnId, session, cancelled: false };
     this.running.set(runtimeKey, running);
-    onEvent({ type: "turn_start", projectId: project.id, turnId });
+    onEvent({ type: "turn_start", ...meta });
 
     const unsubscribe = session.subscribe((event) => {
-      for (const chatEvent of chatEventsFromPiEvent(event, project.id, turnId)) {
+      for (const chatEvent of chatEventsFromPiEvent(event, meta)) {
         onEvent(chatEvent);
       }
     });
@@ -106,7 +112,7 @@ export class PiRuntimeService {
 
     const result: SendPromptResult = { turnId, status, sessionFile: session.sessionFile, error };
     await this.options.onSessionFile?.(project.id, session.sessionFile);
-    onEvent({ type: "turn_end", projectId: project.id, turnId, status, error });
+    onEvent({ type: "turn_end", ...meta, status, error });
     return result;
   }
 
@@ -218,7 +224,7 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     enableInstallTelemetry: false,
   });
 
-  const resourceLoader = createHiBitResourceLoader();
+  const resourceLoader = createWorkerResourceLoader();
   await resourceLoader.reload();
 
   const { session } = await createAgentSession({

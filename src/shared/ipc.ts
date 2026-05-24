@@ -43,12 +43,12 @@ export type HiBitApi = {
   projects: {
     list: (profileId: string) => Promise<ProjectSummary[]>;
     create: (profileId: string, input: CreateProjectInput) => Promise<ProjectSummary>;
-    openFolder: (profileId: string, projectId: string) => Promise<void>;
+    openFolder: (profileId: string) => Promise<void>;
   };
   chat: {
-    load: (profileId: string, projectId: string) => Promise<ChatSnapshot>;
-    send: (profileId: string, projectId: string, text: string) => Promise<SendMessageResult>;
-    abort: (profileId: string, projectId: string) => Promise<void>;
+    load: (profileId: string) => Promise<ChatSnapshot>;
+    send: (profileId: string, text: string) => Promise<SendMessageResult>;
+    abort: (profileId: string) => Promise<void>;
     onEvent: (listener: (event: ChatEvent) => void) => Unsubscribe;
   };
 };

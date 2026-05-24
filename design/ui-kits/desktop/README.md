@@ -7,7 +7,7 @@ Legacy visual prototype for the old Electron shell. Five surfaces, all reachable
 - **Code** - legacy code editor + live preview with Code, Page, and Split views.
 - **Lessons / Trophies** - legacy stubbed simple views.
 
-The production app now centers on a Codex provider connection, kid profile selection, profile-scoped project picking, and a Pi-backed Bit chat workspace.
+The production app now centers on a Codex provider connection, kid profile selection, and a profile-level Pi-backed Bit chat workspace where creations are managed through chat.
 
 ### Components
 
@@ -26,4 +26,4 @@ The production app now centers on a Codex provider connection, kid profile selec
 - Bit is the single signature character across the app. Appears in Home hero, sidebar logo, chat avatar.
 - Code editor syntax highlighting is deliberately simple; the current product edits files through the Pi-backed project workspace rather than an embedded editor.
 - Only 3 of 5 nav destinations are fully mocked (Home, Tutor, Code). Lessons mirrors Home; Trophies is a stub.
-- Codex provider connection, profile selection, profile switching, and project picking are not part of this click-thru prototype.
+- Codex provider connection, profile selection, profile switching, and profile-level creation management are not part of this click-thru prototype.

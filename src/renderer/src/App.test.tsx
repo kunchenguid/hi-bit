@@ -46,7 +46,7 @@ describe("App", () => {
     expect(host.textContent).toContain("Hi-Bit stores your token locally");
   });
 
-  it("requires a kid profile before listing projects", async () => {
+  it("requires a kid profile before chatting", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
@@ -58,10 +58,10 @@ describe("App", () => {
     expect(host.textContent).toContain("Who's using Hi-Bit?");
     expect(host.textContent).toContain("Create profile");
     expect(host.textContent).not.toContain("Log out");
-    expect(api.projects.list).not.toHaveBeenCalled();
+    expect(api.chat.load).not.toHaveBeenCalled();
   });
 
-  it("creates the first kid profile before opening projects", async () => {
+  it("creates the first kid profile and lands straight in chat", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
@@ -80,8 +80,8 @@ describe("App", () => {
       notes: undefined,
     });
     expect(api.profiles.setActiveId).toHaveBeenCalledWith("ada");
-    expect(api.projects.list).toHaveBeenCalledWith("ada");
-    expect(host.textContent).toContain("What does Ada want to build?");
+    expect(api.chat.load).toHaveBeenCalledWith("ada");
+    expect(host.textContent).toContain("Hi Ada - what should we build?");
   });
 
   it("rejects fractional ages before creating a kid profile", async () => {
@@ -100,7 +100,7 @@ describe("App", () => {
     expect(host.textContent).toContain("Age must be a whole number between 3 and 18.");
   });
 
-  it("shows profile-scoped project picker after authentication", async () => {
+  it("opens chat directly for the active profile (no project picker)", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       accountId: "acct-1",
@@ -108,20 +108,20 @@ describe("App", () => {
     }));
     api.profiles.getActiveId = vi.fn(async () => "ada");
     api.profiles.list = vi.fn(async () => [adaProfile()]);
-    api.projects.list = vi.fn(async () => []);
 
     await renderApp(root);
 
-    expect(api.projects.list).toHaveBeenCalledWith("ada");
-    expect(host.textContent).toContain("What does Ada want to build?");
-    expect(host.textContent).toContain("New project");
+    expect(api.chat.load).toHaveBeenCalledWith("ada");
+    expect(host.textContent).toContain("Hi Ada - what should we build?");
+    expect(host.textContent).toContain("Codex provider connected");
+    expect(host.textContent).toContain("Ask Bit to build");
+    expect(host.textContent).not.toContain("New project");
     expect(host.textContent).not.toContain("Log out");
 
     const editProfile = Array.from(host.querySelectorAll("summary")).find((summary) =>
       summary.textContent?.includes("Edit profile"),
     );
     expect(editProfile?.classList.contains("hb-button")).toBe(true);
-    expect(editProfile?.closest(".hb-header-actions")).not.toBeNull();
   });
 
   it("rejects fractional ages before updating a kid profile", async () => {
@@ -132,10 +132,8 @@ describe("App", () => {
     }));
     api.profiles.getActiveId = vi.fn(async () => "ada");
     api.profiles.list = vi.fn(async () => [adaProfile()]);
-    api.projects.list = vi.fn(async () => []);
 
     await renderApp(root);
-    await openDetails(host, "Edit profile");
     await fillInput(host, "profileAge", "9.5");
     await clickButton(host, "Save profile");
 
@@ -143,7 +141,7 @@ describe("App", () => {
     expect(host.textContent).toContain("Age must be a whole number between 3 and 18.");
   });
 
-  it("opens profile-scoped projects after selecting a kid", async () => {
+  it("opens chat after selecting a kid", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
@@ -155,30 +153,19 @@ describe("App", () => {
     await clickButton(host, "Ada");
 
     expect(api.profiles.setActiveId).toHaveBeenCalledWith("ada");
-    expect(api.projects.list).toHaveBeenCalledWith("ada");
-    expect(host.textContent).toContain("What does Ada want to build?");
+    expect(api.chat.load).toHaveBeenCalledWith("ada");
+    expect(host.textContent).toContain("Hi Ada - what should we build?");
   });
 
-  it("renders a chat workspace for the selected profile project", async () => {
+  it("renders the profile-level transcript in chat", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
     }));
     api.profiles.getActiveId = vi.fn(async () => "ada");
     api.profiles.list = vi.fn(async () => [adaProfile()]);
-    api.projects.list = vi.fn(async () => [
-      {
-        schemaVersion: 1 as const,
-        id: "project-1",
-        factoryId: "default",
-        profileId: "ada",
-        title: "Maze",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ]);
-    api.chat.load = vi.fn(async () => ({
-      projectId: "project-1",
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
       messages: [
         {
           id: "m1",
@@ -193,33 +180,24 @@ describe("App", () => {
 
     await renderApp(root);
 
-    expect(api.chat.load).toHaveBeenCalledWith("ada", "project-1");
-    expect(host.textContent).toContain("Maze");
-    expect(host.textContent).toContain("Ada's project");
-    expect(host.textContent).toContain("Codex provider connected");
+    expect(api.chat.load).toHaveBeenCalledWith("ada");
     expect(host.textContent).toContain("Ready when you are.");
     expect(host.textContent).toContain("Ask Bit to build");
-    expect(host.textContent).not.toContain("Log out");
-    expect(host.textContent).not.toContain("signed in as");
   });
 
-  it("switches from the project picker back to the kid profile gate", async () => {
+  it("sends a message scoped to the profile, not a project", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
     }));
     api.profiles.getActiveId = vi.fn(async () => "ada");
-    api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
-    api.projects.list = vi.fn(async (profileId) => (profileId === "ada" ? [] : [samProject()]));
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
 
     await renderApp(root);
-    await clickButton(host, "Switch profile");
-    await clickButton(host, "Sam");
+    await fillInput(host, "hibit-composer", "make a cat game");
+    await clickButton(host, "Send");
 
-    expect(api.profiles.setActiveId).toHaveBeenCalledWith(null);
-    expect(api.profiles.setActiveId).toHaveBeenCalledWith("sam");
-    expect(api.projects.list).toHaveBeenLastCalledWith("sam");
-    expect(host.textContent).toContain("Sam site");
+    expect(api.chat.send).toHaveBeenCalledWith("ada", "make a cat game");
   });
 
   it("switches from chat back to the kid profile gate", async () => {
@@ -229,9 +207,6 @@ describe("App", () => {
     }));
     api.profiles.getActiveId = vi.fn(async () => "ada");
     api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
-    api.projects.list = vi.fn(async (profileId) =>
-      profileId === "ada" ? [adaProject()] : [samProject()],
-    );
 
     await renderApp(root);
     await clickButton(host, "Switch profile");
@@ -240,7 +215,7 @@ describe("App", () => {
     expect(host.textContent).toContain("Pick a profile.");
     expect(host.textContent).toContain("Ada");
     expect(host.textContent).toContain("Sam");
-    expect(host.textContent).not.toContain("Maze");
+    expect(host.textContent).not.toContain("what should we build?");
   });
 });
 
@@ -262,19 +237,10 @@ async function clickButton(host: HTMLElement, label: string): Promise<void> {
   await flushAsyncWork();
 }
 
-async function openDetails(host: HTMLElement, label: string): Promise<void> {
-  const summary = Array.from(host.querySelectorAll("summary")).find((candidate) =>
-    candidate.textContent?.includes(label),
-  );
-  if (!summary) throw new Error(`Summary not found: ${label}`);
-  await act(async () => {
-    summary.click();
-  });
-  await flushAsyncWork();
-}
-
 async function fillInput(host: HTMLElement, name: string, value: string): Promise<void> {
-  const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`);
+  const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+    `[name="${name}"], #${name}`,
+  );
   if (!input) throw new Error(`Input not found: ${name}`);
   await act(async () => {
     const prototype =
@@ -315,30 +281,6 @@ function samProfile() {
     name: "Sam",
     age: 10,
     interests: ["music"],
-    createdAt: "2026-01-02T00:00:00.000Z",
-    updatedAt: "2026-01-02T00:00:00.000Z",
-  };
-}
-
-function adaProject() {
-  return {
-    schemaVersion: 1 as const,
-    id: "project-1",
-    factoryId: "default",
-    profileId: "ada",
-    title: "Maze",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-}
-
-function samProject() {
-  return {
-    schemaVersion: 1 as const,
-    id: "project-2",
-    factoryId: "default",
-    profileId: "sam",
-    title: "Sam site",
     createdAt: "2026-01-02T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
   };
@@ -401,8 +343,8 @@ function createApiMock(): HiBitApi {
       openFolder: vi.fn(async () => {}),
     },
     chat: {
-      load: vi.fn(async (_profileId, projectId) => ({
-        projectId,
+      load: vi.fn(async (profileId) => ({
+        profileId,
         messages: [],
         tools: [],
         isRunning: false,

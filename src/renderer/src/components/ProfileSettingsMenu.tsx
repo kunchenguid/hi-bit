@@ -1,103 +1,13 @@
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
-import type { ProjectSummary } from "@shared/project";
 import { type FormEvent, useEffect, useState } from "react";
 
-type ProjectPickerProps = {
+type ProfileSettingsMenuProps = {
   profile: ProfileSummary;
-  projects: ProjectSummary[];
   busy: boolean;
-  error: string | null;
-  onCreate: (title: string) => Promise<void>;
-  onOpen: (project: ProjectSummary) => void;
-  onSwitchProfile: () => void;
   onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
 };
 
-export function ProjectPicker({
-  profile,
-  projects,
-  busy,
-  error,
-  onCreate,
-  onOpen,
-  onSwitchProfile,
-  onUpdateProfile,
-}: ProjectPickerProps) {
-  const [title, setTitle] = useState("");
-
-  return (
-    <main className="hb-shell hb-picker-shell">
-      <header className="hb-topbar">
-        <div>
-          <p className="t-pixel">{profile.name}'s Hi-Bit</p>
-          <h1>What does {profile.name} want to build?</h1>
-          <p className="t-small">
-            Age {profile.age}
-            {profile.interests.length ? ` - ${profile.interests.join(", ")}` : ""}
-          </p>
-        </div>
-        <div className="hb-header-actions">
-          <button className="hb-button hb-button-secondary" type="button" onClick={onSwitchProfile}>
-            Switch profile
-          </button>
-          <ProfileSettingsCard profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
-        </div>
-      </header>
-
-      {error ? <p className="hb-error">{error}</p> : null}
-
-      <section className="hb-card hb-new-project-card">
-        <h2>New project</h2>
-        <p className="t-small">
-          Start with a tiny local web page. Bit can turn it into a game, tool, or experiment.
-        </p>
-        <form
-          className="hb-new-project-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onCreate(title).then(() => setTitle(""));
-          }}
-        >
-          <label htmlFor="project-title">Project name</label>
-          <input
-            id="project-title"
-            value={title}
-            onChange={(event) => setTitle(event.currentTarget.value)}
-            placeholder="Space garden"
-          />
-          <button className="hb-button hb-button-primary" type="submit" disabled={busy}>
-            Create
-          </button>
-        </form>
-      </section>
-
-      <section className="hb-project-grid" aria-label="Projects">
-        {projects.map((project) => (
-          <button
-            className="hb-project-card"
-            key={project.id}
-            type="button"
-            onClick={() => onOpen(project)}
-          >
-            <span className="t-pixel">Project</span>
-            <strong>{project.title}</strong>
-            <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
-          </button>
-        ))}
-      </section>
-    </main>
-  );
-}
-
-function ProfileSettingsCard({
-  profile,
-  busy,
-  onUpdateProfile,
-}: {
-  profile: ProfileSummary;
-  busy: boolean;
-  onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
-}) {
+export function ProfileSettingsMenu({ profile, busy, onUpdateProfile }: ProfileSettingsMenuProps) {
   const [name, setName] = useState(profile.name);
   const [age, setAge] = useState(String(profile.age));
   const [interests, setInterests] = useState(profile.interests.join(", "));

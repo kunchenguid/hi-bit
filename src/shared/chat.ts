@@ -7,6 +7,8 @@ export type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   createdAt: string;
+  /** Which creation this message acted on, when Bit delegated work. */
+  projectId?: string;
 };
 
 export type ToolActivity = {
@@ -15,48 +17,55 @@ export type ToolActivity = {
   status: "running" | "completed" | "failed";
   args?: unknown;
   content: ToolContent[];
+  /** Which creation a worker is building, for kid-facing labels. */
+  projectId?: string;
+  projectTitle?: string;
 };
 
 export type ChatSnapshot = {
-  projectId: string;
+  profileId: string;
   messages: ChatMessage[];
   tools: ToolActivity[];
   isRunning: boolean;
 };
 
+/**
+ * Every chat event is routed to the renderer by `profileId` (one continuous
+ * profile-level transcript). `projectId`/`projectTitle` are optional attribution
+ * marking which creation a worker turn or tool touched.
+ */
+type ChatEventMeta = {
+  profileId: string;
+  turnId: string;
+  projectId?: string;
+  projectTitle?: string;
+};
+
 export type ChatEvent =
-  | { type: "turn_start"; projectId: string; turnId: string }
-  | { type: "assistant_delta"; projectId: string; turnId: string; text: string }
-  | {
+  | ({ type: "turn_start" } & ChatEventMeta)
+  | ({ type: "assistant_delta"; text: string } & ChatEventMeta)
+  | ({
       type: "tool_start";
-      projectId: string;
-      turnId: string;
       callId: string;
       toolName: string;
       args: unknown;
-    }
-  | {
+    } & ChatEventMeta)
+  | ({
       type: "tool_update";
-      projectId: string;
-      turnId: string;
       callId: string;
       content: ToolContent[];
-    }
-  | {
+    } & ChatEventMeta)
+  | ({
       type: "tool_end";
-      projectId: string;
-      turnId: string;
       callId: string;
       isError: boolean;
       content: ToolContent[];
-    }
-  | {
+    } & ChatEventMeta)
+  | ({
       type: "turn_end";
-      projectId: string;
-      turnId: string;
       status: "completed" | "cancelled" | "failed";
       error?: string;
-    };
+    } & ChatEventMeta);
 
 export type SendMessageResult =
   | { ok: true; turnId: string; status: "completed" | "cancelled" }

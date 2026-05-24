@@ -6,6 +6,8 @@ import type { AppInfo, Platform } from "@shared/ipc";
 import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
+import { ConversationService } from "./conversation/conversationService";
+import { MayorRuntimeService } from "./pi/mayorRuntimeService";
 import { PiRuntimeService } from "./pi/piRuntimeService";
 import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
@@ -20,8 +22,10 @@ type Services = {
   auth: CodexAuthService;
   profiles: ProfileService;
   projects: ProjectService;
+  conversation: ConversationService;
   bit: BitCoordinatorService;
   runtime: PiRuntimeService;
+  mayor: MayorRuntimeService;
 };
 
 function hiBitRootFor(): string {
@@ -68,13 +72,28 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   });
   const profiles = new ProfileService(layout);
   const projects = new ProjectService(layout);
+  const conversation = new ConversationService(layout);
+  const modelId = modelIdFromConfig(config.defaultModel);
   const runtime = new PiRuntimeService({
     agentDir: layout.piAgentDir,
-    modelId: modelIdFromConfig(config.defaultModel),
+    modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
   });
-  const bit = new BitCoordinatorService({ profiles, projects, runtime });
-  return { layout, auth, profiles, projects, bit, runtime };
+  const mayor = new MayorRuntimeService({
+    agentDir: layout.piAgentDir,
+    modelId,
+    getFreshAccessToken: () => auth.getFreshAccessToken(),
+    onSessionFile: (profileId, sessionFile) =>
+      conversation.setMayorSessionFile(profileId, sessionFile),
+  });
+  const bit = new BitCoordinatorService({
+    profiles,
+    projects,
+    conversation,
+    mayor,
+    worker: runtime,
+  });
+  return { layout, auth, profiles, projects, conversation, bit, runtime, mayor };
 }
 
 export function registerIpc(services: Services): void {
@@ -93,6 +112,7 @@ export function registerIpc(services: Services): void {
   ipcMain.handle("hibit:auth:logout", async () => {
     await services.auth.logout();
     services.runtime.disposeAll();
+    services.mayor.disposeAll();
   });
 
   ipcMain.handle("hibit:profiles:list", () => services.profiles.list());
@@ -114,37 +134,32 @@ export function registerIpc(services: Services): void {
     await services.profiles.get(profileId);
     return services.projects.create(profileId, input);
   });
-  ipcMain.handle(
-    "hibit:projects:open-folder",
-    async (_event, profileId: string, projectId: string) => {
-      const project = await services.projects.get(profileId, projectId);
-      const failure = await shell.openPath(project.mainWorkbenchDir);
-      if (failure) throw new Error(failure);
-    },
-  );
+  ipcMain.handle("hibit:projects:open-folder", async (_event, profileId: string) => {
+    await services.profiles.get(profileId);
+    const dir = await services.projects.profileProjectsDir(profileId);
+    const failure = await shell.openPath(dir);
+    if (failure) throw new Error(failure);
+  });
 
-  ipcMain.handle("hibit:chat:load", (_event, profileId: string, projectId: string) =>
-    services.bit.load(profileId, projectId),
+  ipcMain.handle("hibit:chat:load", (_event, profileId: string) => services.bit.load(profileId));
+  ipcMain.handle("hibit:chat:send", (_event, profileId: string, text: string) =>
+    services.bit.send(profileId, text),
   );
-  ipcMain.handle(
-    "hibit:chat:send",
-    async (event, profileId: string, projectId: string, text: string) => {
-      const sendEvent = (payload: ChatEvent) => {
-        if (!event.sender.isDestroyed()) {
-          event.sender.send("hibit:chat:event", payload);
-        }
-      };
-      return services.bit.send(profileId, projectId, text, sendEvent);
-    },
-  );
-  ipcMain.handle("hibit:chat:abort", (_event, profileId: string, projectId: string) =>
-    services.bit.abort(profileId, projectId),
-  );
+  ipcMain.handle("hibit:chat:abort", (_event, profileId: string) => services.bit.abort(profileId));
+}
+
+function broadcastChatEvent(event: ChatEvent): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send("hibit:chat:event", event);
+    }
+  }
 }
 
 void app.whenReady().then(async () => {
   const layout = await bootstrapLayout(hiBitRootFor());
   const services = await createServices(layout);
+  services.bit.subscribe(broadcastChatEvent);
   registerIpc(services);
   createMainWindow();
 
@@ -156,6 +171,7 @@ void app.whenReady().then(async () => {
 
   app.once("before-quit", () => {
     services.runtime.disposeAll();
+    services.mayor.disposeAll();
   });
 });
 
