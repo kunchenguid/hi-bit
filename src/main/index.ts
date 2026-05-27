@@ -91,6 +91,8 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   const preview = new PreviewService({
     resolveWorkbenchDir: (profileId, projectId) =>
       projects.pathsFor(profileId, projectId).mainWorkbenchDir,
+    onStopped: ({ profileId, projectId }) =>
+      broadcastChatEvent({ type: "preview_stopped", profileId, projectId }),
   });
   const bit = new BitCoordinatorService({
     profiles,
@@ -118,6 +120,7 @@ export function registerIpc(services: Services): void {
   ipcMain.handle("hibit:auth:login", () => services.auth.login());
   ipcMain.handle("hibit:auth:logout", async () => {
     await services.auth.logout();
+    services.preview.stopAll();
     services.runtime.disposeAll();
     services.mayor.disposeAll();
   });

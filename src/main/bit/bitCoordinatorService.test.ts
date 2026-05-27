@@ -952,6 +952,30 @@ describe("BitCoordinatorService (Mayor)", () => {
     await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({ previews: [] });
   });
 
+  it("does not stop another profile's preview", async () => {
+    const s = await createCoordinator();
+    const other = await s.profiles.create({ name: "Sam", age: 10, interests: [], notes: "" });
+    const otherGame = await s.projects.create(other.id, { title: "Sam's Game" });
+    await s.preview.start(other.id, otherGame.id, "python3 -m http.server", otherGame.title);
+    let toolResult: { content: Array<{ text: string }>; details: { stopped: boolean } } | undefined;
+    s.mayor.handler = async ({ callTool }) => {
+      toolResult = (await callTool("stop_preview", {
+        projectId: otherGame.id,
+      })) as typeof toolResult;
+      return "Tried.";
+    };
+
+    await s.coordinator.send(s.profile.id, "stop that other game");
+    await s.drain();
+
+    expect(s.preview.list(other.id)).toHaveLength(1);
+    expect(toolResult?.details.stopped).toBe(false);
+    expect(toolResult?.content[0]?.text).toBe("That preview was not running.");
+    expect(s.events).not.toContainEqual(
+      expect.objectContaining({ type: "preview_stopped", projectId: otherGame.id }),
+    );
+  });
+
   it("tags the completion message with its creation so the renderer can light up Play", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });

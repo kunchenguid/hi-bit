@@ -460,8 +460,8 @@ export class BitCoordinatorService {
       }),
       async execute(_callId, params) {
         const { projectId } = params as { projectId: string };
-        const stopped = self.preview.stop(projectId);
-        self.emit({ type: "preview_stopped", profileId, projectId });
+        const stopped = self.preview.stop(projectId, profileId);
+        if (stopped) self.emit({ type: "preview_stopped", profileId, projectId });
         return {
           content: [
             {

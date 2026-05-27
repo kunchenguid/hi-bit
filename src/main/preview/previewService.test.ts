@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type PreviewChild, PreviewService, type SpawnLike } from "./previewService";
 
 /** A spawned child stand-in: records the kill signal, never touches a real process. */
-function fakeChild(): PreviewChild & { killed: boolean } {
+function fakeChild(): PreviewChild & {
+  killed: boolean;
+  emit: (event: string, ...args: unknown[]) => void;
+} {
+  const listeners = new Map<string, Array<(...args: unknown[]) => void>>();
   const child = {
     pid: undefined,
     killed: false,
@@ -10,7 +14,12 @@ function fakeChild(): PreviewChild & { killed: boolean } {
       child.killed = true;
       return true;
     },
-    on() {},
+    on(event: string, listener: (...args: unknown[]) => void) {
+      listeners.set(event, [...(listeners.get(event) ?? []), listener]);
+    },
+    emit(event: string, ...args: unknown[]) {
+      for (const listener of listeners.get(event) ?? []) listener(...args);
+    },
   };
   return child;
 }
@@ -18,12 +27,16 @@ function fakeChild(): PreviewChild & { killed: boolean } {
 type Harness = {
   service: PreviewService;
   spawns: Array<{ command: string; cwd: string; env: NodeJS.ProcessEnv }>;
-  children: Array<PreviewChild & { killed: boolean }>;
+  children: Array<
+    PreviewChild & { killed: boolean; emit: (event: string, ...args: unknown[]) => void }
+  >;
   ports: number[];
   waited: number[];
 };
 
-function createService(overrides: { failHealthCheck?: boolean } = {}): Harness {
+function createService(
+  overrides: { failHealthCheck?: boolean; onStopped?: (info: { projectId: string }) => void } = {},
+): Harness {
   const spawns: Harness["spawns"] = [];
   const children: Harness["children"] = [];
   const ports = [4310, 4311, 4312];
@@ -43,6 +56,7 @@ function createService(overrides: { failHealthCheck?: boolean } = {}): Harness {
       waited.push(port);
       if (overrides.failHealthCheck) throw new Error("port never answered");
     },
+    onStopped: overrides.onStopped,
     now: () => new Date("2026-05-27T10:00:00.000Z"),
   });
   return { service, spawns, children, ports, waited };
@@ -144,5 +158,38 @@ describe("PreviewService", () => {
 
     exitListeners[0]?.();
     expect(service.list("ada")).toEqual([]);
+  });
+
+  it("rejects start and cleans up when the spawned child emits an error", async () => {
+    let child: ReturnType<typeof fakeChild> | undefined;
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => {
+        child = fakeChild();
+        return child;
+      },
+      findFreePort: async () => 4310,
+      waitForPort: async () => new Promise(() => {}),
+    });
+    const start = service.start("ada", "project_1", "cmd");
+    await Promise.resolve();
+
+    child?.emit("error", new Error("spawn failed"));
+
+    await expect(start).rejects.toThrow("spawn failed");
+    expect(child?.killed).toBe(true);
+    expect(service.list("ada")).toEqual([]);
+  });
+
+  it("notifies when a running preview process exits on its own", async () => {
+    const onStopped = vi.fn();
+    const h = createService({ onStopped });
+    await h.service.start("ada", "project_1", "cmd");
+
+    h.children[0]?.emit("exit");
+
+    expect(onStopped).toHaveBeenCalledWith(
+      expect.objectContaining({ profileId: "ada", projectId: "project_1" }),
+    );
   });
 });

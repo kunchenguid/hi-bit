@@ -21,6 +21,7 @@ export type PreviewServiceOptions = {
   findFreePort?: () => Promise<number>;
   waitForPort?: (port: number) => Promise<void>;
   terminate?: (child: PreviewChild) => void;
+  onStopped?: (preview: PreviewInfo & { profileId: string }) => void;
   now?: () => Date;
 };
 
@@ -44,6 +45,7 @@ export class PreviewService {
   private readonly findFreePort: () => Promise<number>;
   private readonly waitForPort: (port: number) => Promise<void>;
   private readonly terminate: (child: PreviewChild) => void;
+  private readonly onStopped?: (preview: PreviewInfo & { profileId: string }) => void;
   private readonly now: () => Date;
 
   constructor(options: PreviewServiceOptions) {
@@ -52,6 +54,7 @@ export class PreviewService {
     this.findFreePort = options.findFreePort ?? findFreePort;
     this.waitForPort = options.waitForPort ?? waitForPort;
     this.terminate = options.terminate ?? terminateTree;
+    this.onStopped = options.onStopped;
     this.now = options.now ?? (() => new Date());
   }
 
@@ -80,24 +83,41 @@ export class PreviewService {
       child,
     };
     this.running.set(projectId, entry);
-    // A server that dies on its own must not linger as a live preview.
+    let started = false;
+    let rejectStart: (error: Error) => void = () => {};
+    const childError = new Promise<never>((_resolve, reject) => {
+      rejectStart = reject;
+    });
     child.on("exit", () => {
-      if (this.running.get(projectId) === entry) this.running.delete(projectId);
+      if (this.running.get(projectId) === entry) {
+        this.running.delete(projectId);
+        if (started) this.onStopped?.(toScopedInfo(entry));
+      }
+    });
+    child.on("error", (error) => {
+      if (this.running.get(projectId) === entry) {
+        this.terminate(child);
+        this.running.delete(projectId);
+        if (started) this.onStopped?.(toScopedInfo(entry));
+      }
+      rejectStart(error instanceof Error ? error : new Error(String(error)));
     });
 
     try {
-      await this.waitForPort(port);
+      await Promise.race([childError, this.waitForPort(port)]);
     } catch (error) {
       this.terminate(child);
       if (this.running.get(projectId) === entry) this.running.delete(projectId);
       throw error;
     }
+    started = true;
     return toInfo(entry);
   }
 
-  stop(projectId: string): boolean {
+  stop(projectId: string, profileId?: string): boolean {
     const entry = this.running.get(projectId);
     if (!entry) return false;
+    if (profileId && entry.profileId !== profileId) return false;
     this.terminate(entry.child);
     this.running.delete(projectId);
     return true;
@@ -127,6 +147,10 @@ function toInfo(entry: PreviewProcess): PreviewInfo {
     url: entry.url,
     startedAt: entry.startedAt,
   };
+}
+
+function toScopedInfo(entry: PreviewProcess): PreviewInfo & { profileId: string } {
+  return { ...toInfo(entry), profileId: entry.profileId };
 }
 
 function defaultSpawn(
