@@ -903,6 +903,36 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(reply?.projectId).toBe(game.id);
   });
 
+  it("keeps a live preview successful when recording preview history fails", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    s.projects.recordPreviewServer = async () => {
+      throw new Error("logbook full");
+    };
+    let toolResult: unknown;
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      toolResult = await callTool("start_preview", {
+        projectId: game.id,
+        command: "python3 -m http.server",
+      });
+      return "Press Play to try it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "let me play it");
+    await s.drain();
+
+    expect(s.preview.list(s.profile.id)).toMatchObject([
+      { projectId: game.id, title: "Snake Game", url: "http://127.0.0.1:4310/" },
+    ]);
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "preview_ready", projectId: game.id }),
+    );
+    expect(toolResult).toMatchObject({
+      details: { projectId: game.id, url: "http://127.0.0.1:4310/" },
+    });
+  });
+
   it("lists running previews for the profile", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Snake Game" });

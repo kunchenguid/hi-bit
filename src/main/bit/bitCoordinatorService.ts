@@ -406,7 +406,9 @@ export class BitCoordinatorService {
             projectTitle: project.title,
             url: info.url,
           });
-          await self.projects.recordPreviewServer(profileId, projectId, info);
+          try {
+            await self.projects.recordPreviewServer(profileId, projectId, info);
+          } catch {}
           // Tag this turn's reply with the creation so the bubble can offer Play.
           self.pendingPreviewAttribution.set(profileId, projectId);
           const details: PreviewToolDetails = { projectId, url: info.url };

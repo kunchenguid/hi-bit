@@ -181,6 +181,32 @@ describe("PreviewService", () => {
     expect(service.list("ada")).toEqual([]);
   });
 
+  it("rejects start promptly when the spawned child exits before the port answers", async () => {
+    let child: ReturnType<typeof fakeChild> | undefined;
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => {
+        child = fakeChild();
+        return child;
+      },
+      findFreePort: async () => 4310,
+      waitForPort: async () => new Promise(() => {}),
+    });
+    const start = service.start("ada", "project_1", "cmd");
+    await Promise.resolve();
+
+    child?.emit("exit");
+
+    const result = Promise.race([
+      start,
+      new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new Error("start still pending")), 10);
+      }),
+    ]);
+    await expect(result).rejects.toThrow("Preview server exited before it started");
+    expect(service.list("ada")).toEqual([]);
+  });
+
   it("notifies when a running preview process exits on its own", async () => {
     const onStopped = vi.fn();
     const h = createService({ onStopped });

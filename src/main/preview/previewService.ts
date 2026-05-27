@@ -84,15 +84,21 @@ export class PreviewService {
     };
     this.running.set(projectId, entry);
     let started = false;
-    let rejectStart: (error: Error) => void = () => {};
-    const childError = new Promise<never>((_resolve, reject) => {
-      rejectStart = reject;
+    let startupSettled = false;
+    let rejectStartup: (error: Error) => void = () => {};
+    const childFailure = new Promise<never>((_resolve, reject) => {
+      rejectStartup = (error) => {
+        if (startupSettled) return;
+        startupSettled = true;
+        reject(error);
+      };
     });
     child.on("exit", () => {
       if (this.running.get(projectId) === entry) {
         this.running.delete(projectId);
         if (started) this.onStopped?.(toScopedInfo(entry));
       }
+      if (!started) rejectStartup(new Error("Preview server exited before it started"));
     });
     child.on("error", (error) => {
       if (this.running.get(projectId) === entry) {
@@ -100,16 +106,18 @@ export class PreviewService {
         this.running.delete(projectId);
         if (started) this.onStopped?.(toScopedInfo(entry));
       }
-      rejectStart(error instanceof Error ? error : new Error(String(error)));
+      if (!started) rejectStartup(error instanceof Error ? error : new Error(String(error)));
     });
 
     try {
-      await Promise.race([childError, this.waitForPort(port)]);
+      await Promise.race([childFailure, this.waitForPort(port)]);
     } catch (error) {
+      startupSettled = true;
       this.terminate(child);
       if (this.running.get(projectId) === entry) this.running.delete(projectId);
       throw error;
     }
+    startupSettled = true;
     started = true;
     return toInfo(entry);
   }
