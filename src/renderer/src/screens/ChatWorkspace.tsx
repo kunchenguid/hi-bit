@@ -1,10 +1,11 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatMessage, CreationActivity } from "@shared/chat";
+import type { ChatMessage, CreationActivity, PreviewInfo } from "@shared/chat";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import { ActivityChip } from "../components/ActivityChip";
 import { ActivityView } from "../components/ActivityView";
 import { Composer } from "../components/Composer";
 import { MessageList } from "../components/MessageList";
+import { PreviewPane } from "../components/PreviewPane";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
 
 type ChatWorkspaceProps = {
@@ -17,6 +18,9 @@ type ChatWorkspaceProps = {
   running: boolean;
   busy: boolean;
   error: string | null;
+  previews: PreviewInfo[];
+  activePreview: PreviewInfo | null;
+  reloadSignal: number;
   onDraftChange: (value: string) => void;
   onSend: () => void;
   onAbort: () => void;
@@ -25,6 +29,9 @@ type ChatWorkspaceProps = {
   onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
   onShowActivity: () => void;
   onHideActivity: () => void;
+  onPlayPreview: (projectId: string) => void;
+  onClosePreview: () => void;
+  onOpenPreviewExternal: (url: string) => void;
 };
 
 export function ChatWorkspace({
@@ -37,6 +44,9 @@ export function ChatWorkspace({
   running,
   busy,
   error,
+  previews,
+  activePreview,
+  reloadSignal,
   onDraftChange,
   onSend,
   onAbort,
@@ -45,10 +55,22 @@ export function ChatWorkspace({
   onUpdateProfile,
   onShowActivity,
   onHideActivity,
+  onPlayPreview,
+  onClosePreview,
+  onOpenPreviewExternal,
 }: ChatWorkspaceProps) {
   const providerStatus = authStatus?.accountId
     ? `Codex provider connected (${authStatus.accountId})`
     : "Codex provider connected";
+
+  // Show the pending Bit bubble during the gap before Bit's first streamed
+  // token (and any tool-only stretches). Once an assistant bubble exists, its
+  // streaming text is the liveness cue and the dots step aside.
+  const thinking = running && messages.at(-1)?.role !== "assistant";
+
+  const livePreviewProjectIds = new Set(previews.map((preview) => preview.projectId));
+  // The persistent bar offers Play for the most recent live preview.
+  const barPreview = previews[0] ?? null;
 
   return (
     <main className="hb-workspace">
@@ -76,10 +98,21 @@ export function ChatWorkspace({
         </details>
       </header>
 
-      <section className="hb-chat-layout">
+      <section className="hb-chat-layout" data-preview={activePreview ? "open" : "closed"}>
         <div className="hb-chat-card">
-          <MessageList messages={messages} />
-          <ActivityChip activity={activity} onSeeAll={onShowActivity} />
+          <MessageList
+            messages={messages}
+            thinking={thinking}
+            livePreviewProjectIds={livePreviewProjectIds}
+            onPlay={onPlayPreview}
+          />
+          <ActivityChip
+            activity={activity}
+            running={running}
+            preview={barPreview}
+            onPlay={onPlayPreview}
+            onSeeAll={onShowActivity}
+          />
           {error ? <p className="hb-error">{error}</p> : null}
           <Composer
             value={draft}
@@ -89,6 +122,14 @@ export function ChatWorkspace({
             onAbort={onAbort}
           />
         </div>
+        {activePreview ? (
+          <PreviewPane
+            preview={activePreview}
+            reloadSignal={reloadSignal}
+            onOpenExternal={onOpenPreviewExternal}
+            onClose={onClosePreview}
+          />
+        ) : null}
       </section>
 
       {showActivity ? <ActivityView activity={activity} onClose={onHideActivity} /> : null}

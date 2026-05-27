@@ -1,12 +1,45 @@
 import type { ChatMessage } from "@shared/chat";
+import { useLayoutEffect, useRef } from "react";
 import { MarkdownText } from "./MarkdownText";
 
 type MessageListProps = {
   messages: ChatMessage[];
+  thinking: boolean;
+  /** Creations with a live preview server, so their "ready" message can offer Play. */
+  livePreviewProjectIds?: Set<string>;
+  onPlay?: (projectId: string) => void;
 };
 
-export function MessageList({ messages }: MessageListProps) {
-  if (messages.length === 0) {
+/** How close to the bottom (px) still counts as "looking at the latest". */
+const STICK_THRESHOLD = 24;
+
+export function MessageList({
+  messages,
+  thinking,
+  livePreviewProjectIds,
+  onPlay,
+}: MessageListProps) {
+  const listRef = useRef<HTMLOListElement>(null);
+  // Whether the kid is parked at the bottom. Stays true until they scroll up to
+  // re-read, so streaming text and new bubbles only auto-follow when wanted.
+  const stickToBottom = useRef(true);
+
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_THRESHOLD;
+  };
+
+  // Runs on every message/thinking change (including each streamed delta, since
+  // each delta hands us a fresh messages array). Pin to the bottom only when the
+  // kid was already there.
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el || (messages.length === 0 && !thinking)) return;
+    if (stickToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [messages, thinking]);
+
+  if (messages.length === 0 && !thinking) {
     return (
       <div className="hb-empty-chat">
         <p className="t-small">
@@ -17,17 +50,47 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <ol className="hb-message-list" aria-label="Conversation">
-      {messages.map((message) => (
-        <li className={`hb-message hb-message-${message.role}`} key={message.id}>
-          <span className="hb-message-label">{message.role === "user" ? "You" : "Bit"}</span>
-          {message.role === "assistant" ? (
-            <MarkdownText text={message.text} />
-          ) : (
-            <p>{message.text}</p>
-          )}
+    <ol className="hb-message-list" aria-label="Conversation" ref={listRef} onScroll={handleScroll}>
+      {messages.map((message) => {
+        const canPlay =
+          message.role === "assistant" &&
+          !!message.projectId &&
+          !!onPlay &&
+          !!livePreviewProjectIds?.has(message.projectId);
+        return (
+          <li className={`hb-message hb-message-${message.role}`} key={message.id}>
+            <span className="hb-message-label">{message.role === "user" ? "You" : "Bit"}</span>
+            {message.role === "assistant" ? (
+              <MarkdownText text={message.text} />
+            ) : (
+              <p>{message.text}</p>
+            )}
+            {canPlay ? (
+              <button
+                type="button"
+                className="hb-play-button"
+                onClick={() => onPlay?.(message.projectId as string)}
+              >
+                <span aria-hidden="true">▶</span> Play
+              </button>
+            ) : null}
+          </li>
+        );
+      })}
+      {thinking ? (
+        <li
+          className="hb-message hb-message-assistant hb-message-thinking"
+          aria-live="polite"
+          aria-label="Bit is thinking"
+        >
+          <span className="hb-message-label">Bit</span>
+          <span className="hb-thinking-dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
         </li>
-      ))}
+      ) : null}
     </ol>
   );
 }

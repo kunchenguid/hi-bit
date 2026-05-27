@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
-import type { ToolActivity, ToolContent } from "@shared/chat";
+import type { PreviewInfo, ToolActivity, ToolContent } from "@shared/chat";
 import type { CreateProjectInput, ProjectRecord, ProjectSummary } from "@shared/project";
 import { appendJsonl, readJsonFile, readJsonl, writeJsonFile } from "../storage/json";
 import { type HiBitLayout, projectDir, projectsDir } from "../storage/layout";
@@ -164,6 +164,24 @@ export class ProjectService {
       activeSession: project.activeSession,
     };
     await writeJsonFile(project.projectJsonPath, next);
+  }
+
+  /**
+   * Records that a creation got a live preview server, so the parent-visible
+   * project logbook reflects it. Live state is tracked in memory by
+   * PreviewService; this row is the durable history note.
+   */
+  async recordPreviewServer(
+    profileId: string,
+    projectId: string,
+    preview: PreviewInfo,
+  ): Promise<void> {
+    await this.appendActivity(profileId, projectId, {
+      type: "preview_server",
+      projectId,
+      url: preview.url,
+      startedAt: preview.startedAt,
+    });
   }
 
   async appendActivity(profileId: string, projectId: string, value: unknown): Promise<void> {

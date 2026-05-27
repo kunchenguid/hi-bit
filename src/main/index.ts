@@ -9,6 +9,7 @@ import { BitCoordinatorService } from "./bit/bitCoordinatorService";
 import { ConversationService } from "./conversation/conversationService";
 import { MayorRuntimeService } from "./pi/mayorRuntimeService";
 import { PiRuntimeService } from "./pi/piRuntimeService";
+import { PreviewService } from "./preview/previewService";
 import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
 import { readJsonFile } from "./storage/json";
@@ -26,6 +27,7 @@ type Services = {
   bit: BitCoordinatorService;
   runtime: PiRuntimeService;
   mayor: MayorRuntimeService;
+  preview: PreviewService;
 };
 
 function hiBitRootFor(): string {
@@ -86,14 +88,19 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     onSessionFile: (profileId, sessionFile) =>
       conversation.setMayorSessionFile(profileId, sessionFile),
   });
+  const preview = new PreviewService({
+    resolveWorkbenchDir: (profileId, projectId) =>
+      projects.pathsFor(profileId, projectId).mainWorkbenchDir,
+  });
   const bit = new BitCoordinatorService({
     profiles,
     projects,
     conversation,
     mayor,
     worker: runtime,
+    preview,
   });
-  return { layout, auth, profiles, projects, conversation, bit, runtime, mayor };
+  return { layout, auth, profiles, projects, conversation, bit, runtime, mayor, preview };
 }
 
 export function registerIpc(services: Services): void {
@@ -146,6 +153,23 @@ export function registerIpc(services: Services): void {
     services.bit.send(profileId, text),
   );
   ipcMain.handle("hibit:chat:abort", (_event, profileId: string) => services.bit.abort(profileId));
+
+  ipcMain.handle("hibit:preview:open-external", async (_event, url: string) => {
+    // Only ever hand the OS a local preview URL - never an arbitrary scheme.
+    if (!isLoopbackHttpUrl(url)) throw new Error("Refusing to open a non-preview URL.");
+    await shell.openExternal(url);
+  });
+}
+
+function isLoopbackHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "http:" && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function broadcastChatEvent(event: ChatEvent): void {
@@ -170,6 +194,7 @@ void app.whenReady().then(async () => {
   });
 
   app.once("before-quit", () => {
+    services.preview.stopAll();
     services.runtime.disposeAll();
     services.mayor.disposeAll();
   });

@@ -1,3 +1,4 @@
+import mascotBit from "@design/assets/mascot-boo.svg";
 import type { CreationActivity, ToolActivity } from "@shared/chat";
 import { type KeyboardEvent, useEffect, useRef } from "react";
 import { friendlyStep } from "../activity";
@@ -67,7 +68,13 @@ export function ActivityView({ activity, onClose }: ActivityViewProps) {
       >
         <header className="hb-activity-view-head">
           <span className="hb-bit-badge" aria-hidden="true">
-            🤖
+            <img
+              className="hb-bit-badge-mascot pixel-art"
+              src={mascotBit}
+              alt=""
+              width={36}
+              height={36}
+            />
           </span>
           <div className="hb-activity-view-title">
             <h2>Everything the bots worked on</h2>

@@ -7,6 +7,7 @@ import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import type { BotBuild, BotPipeline, BotWorkbench } from "../bots/botPipeline";
 import { ConversationService } from "../conversation/conversationService";
 import type { MayorPromptInput, MayorRuntime, MayorTurnResult } from "../pi/mayorRuntimeService";
+import { PreviewService } from "../preview/previewService";
 import { ProfileService } from "../profiles/profileService";
 import { ProjectService, type RuntimeProject } from "../projects/projectService";
 import { bootstrapLayout } from "../storage/layout";
@@ -163,6 +164,19 @@ async function createCoordinator() {
   const worker = new FakeWorkerRuntime();
   const pipeline = new FakePipeline();
   const mayor = new FakeMayorRuntime();
+  // Preview server with everything that touches a real process faked out.
+  const previewSpawns: Array<{ command: string; cwd: string }> = [];
+  let previewPort = 4310;
+  const preview = new PreviewService({
+    resolveWorkbenchDir: (pid, projId) => projects.pathsFor(pid, projId).mainWorkbenchDir,
+    spawn: (command, options) => {
+      previewSpawns.push({ command, cwd: options.cwd });
+      return { pid: undefined, kill: () => true, on: () => {} };
+    },
+    findFreePort: async () => previewPort++,
+    waitForPort: async () => {},
+    now,
+  });
   let counter = 0;
   const coordinator = new BitCoordinatorService({
     profiles,
@@ -171,6 +185,7 @@ async function createCoordinator() {
     mayor,
     worker,
     pipeline,
+    preview,
     botJobs: new BotJobService({
       now,
       nextBuildPlanId: () => `build_plan_${++counter}`,
@@ -191,6 +206,8 @@ async function createCoordinator() {
     worker,
     pipeline,
     mayor,
+    preview,
+    previewSpawns,
     profile: ada,
     events,
     drain,
@@ -815,5 +832,140 @@ describe("BitCoordinatorService (Mayor)", () => {
       { role: "user", text: "hi" },
       { role: "assistant", text: "Hello!" },
     ]);
+  });
+
+  it("keeps the transcript even when activity rebuild fails on load", async () => {
+    const s = await createCoordinator();
+    s.mayor.handler = async () => "Hello!";
+    await s.coordinator.send(s.profile.id, "hi");
+    await s.drain();
+
+    // A logbook hiccup while rebuilding activity must not swallow the chat the
+    // kid actually cares about. The transcript is on disk; the load must show it.
+    s.projects.list = async () => {
+      throw new Error("logbook unreadable");
+    };
+
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.messages).toMatchObject([
+      { role: "user", text: "hi" },
+      { role: "assistant", text: "Hello!" },
+    ]);
+    expect(snapshot.activity).toEqual([]);
+  });
+
+  it("starts a preview server, runs the command in the creation workbench, and emits preview_ready", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    let toolResult: unknown;
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      toolResult = await callTool("start_preview", {
+        projectId: game.id,
+        command: "python3 -m http.server",
+      });
+      return "Press Play to try it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "let me play it");
+    await s.drain();
+
+    expect(s.previewSpawns).toMatchObject([
+      {
+        command: "python3 -m http.server",
+        cwd: s.projects.pathsFor(s.profile.id, game.id).mainWorkbenchDir,
+      },
+    ]);
+    expect(s.events).toContainEqual(
+      expect.objectContaining({
+        type: "preview_ready",
+        profileId: s.profile.id,
+        projectId: game.id,
+        projectTitle: "Snake Game",
+        url: "http://127.0.0.1:4310/",
+      }),
+    );
+    expect(toolResult).toMatchObject({
+      details: { projectId: game.id, url: "http://127.0.0.1:4310/" },
+    });
+
+    // A fresh load surfaces the live preview so Play survives a renderer reload.
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.previews).toMatchObject([
+      { projectId: game.id, title: "Snake Game", url: "http://127.0.0.1:4310/" },
+    ]);
+    // And the project logbook keeps a durable record of it.
+    await expect(s.projects.latestActivityAt(s.profile.id, game.id)).resolves.toBeDefined();
+
+    // The reply that announced the preview is tagged so its bubble can show Play.
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    const reply = transcript.find((message) => message.text === "Press Play to try it!");
+    expect(reply?.projectId).toBe(game.id);
+  });
+
+  it("lists running previews for the profile", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    let listText = "";
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("start_preview", { projectId: game.id, command: "python3 -m http.server" });
+      const result = (await callTool("list_previews", {})) as {
+        content: Array<{ text: string }>;
+      };
+      listText = result.content.map((item) => item.text).join("\n");
+      return "Here they are.";
+    };
+
+    await s.coordinator.send(s.profile.id, "what's running");
+    await s.drain();
+
+    expect(listText).toContain("Snake Game");
+    expect(listText).toContain(game.id);
+    expect(listText).toContain("http://127.0.0.1:4310/");
+  });
+
+  it("stops a preview, emits preview_stopped, and drops it from the snapshot", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      if (text.includes("stop it")) {
+        await callTool("stop_preview", { projectId: game.id });
+        return "Closed it.";
+      }
+      await callTool("start_preview", { projectId: game.id, command: "python3 -m http.server" });
+      return "Press Play!";
+    };
+
+    await s.coordinator.send(s.profile.id, "play it");
+    await s.drain();
+    expect(s.preview.list(s.profile.id)).toHaveLength(1);
+
+    await s.coordinator.send(s.profile.id, "stop it");
+    await s.drain();
+
+    expect(s.preview.list(s.profile.id)).toEqual([]);
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "preview_stopped", projectId: game.id }),
+    );
+    await expect(s.coordinator.load(s.profile.id)).resolves.toMatchObject({ previews: [] });
+  });
+
+  it("tags the completion message with its creation so the renderer can light up Play", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.mayor.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Cat Jump is ready! 🎉";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    const ready = transcript.find((message) => message.text.includes("is ready"));
+    expect(ready?.projectId).toBe(game.id);
   });
 });

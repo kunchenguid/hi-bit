@@ -1,5 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatEvent, ChatMessage, CreationActivity } from "@shared/chat";
+import type { ChatEvent, ChatMessage, CreationActivity, PreviewInfo } from "@shared/chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import {
   type Dispatch,
@@ -28,6 +28,10 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<PreviewInfo[]>([]);
+  const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+  // Per-creation reload counters: bumped on build_end so an open pane refreshes.
+  const [reloadSignals, setReloadSignals] = useState<Record<string, number>>({});
 
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
@@ -39,7 +43,16 @@ export function App() {
     setActivity([]);
     setShowActivity(false);
     setRunning(false);
+    setPreviews([]);
+    setActivePreviewId(null);
+    setReloadSignals({});
   }, []);
+
+  const activePreview = useMemo(
+    () => previews.find((preview) => preview.projectId === activePreviewId) ?? null,
+    [previews, activePreviewId],
+  );
+  const activeReloadSignal = activePreview ? (reloadSignals[activePreview.projectId] ?? 0) : 0;
 
   const loadProfileState = useCallback(async () => {
     const [nextProfiles, storedActiveProfileId] = await Promise.all([
@@ -77,12 +90,21 @@ export function App() {
   useEffect(() => {
     if (!activeProfileId || !authStatus?.authenticated) return;
     let cancelled = false;
-    void window.hibit.chat.load(activeProfileId).then((snapshot) => {
-      if (cancelled) return;
-      setMessages(snapshot.messages);
-      setActivity(snapshot.activity);
-      setRunning(snapshot.isRunning);
-    });
+    window.hibit.chat
+      .load(activeProfileId)
+      .then((snapshot) => {
+        if (cancelled) return;
+        setMessages(snapshot.messages);
+        setActivity(snapshot.activity);
+        setRunning(snapshot.isRunning);
+        setPreviews(snapshot.previews);
+      })
+      .catch((caught) => {
+        // Never leave the kid staring at a silently empty chat: surface the
+        // failure so it is visible (and reload-retryable) instead.
+        if (cancelled) return;
+        setError(caught instanceof Error ? caught.message : String(caught));
+      });
     return () => {
       cancelled = true;
     };
@@ -91,7 +113,14 @@ export function App() {
   useEffect(() => {
     return window.hibit.chat.onEvent((event) => {
       if (event.profileId !== activeProfileId) return;
-      applyChatEvent(event, setMessages, setActivity, setRunning, setError);
+      applyChatEvent(event, {
+        setMessages,
+        setActivity,
+        setRunning,
+        setError,
+        setPreviews,
+        setReloadSignals,
+      });
     });
   }, [activeProfileId]);
 
@@ -210,6 +239,20 @@ export function App() {
     });
   }, [activeProfile]);
 
+  const playPreview = useCallback((projectId: string) => {
+    setActivePreviewId(projectId);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setActivePreviewId(null);
+  }, []);
+
+  const openPreviewExternal = useCallback((url: string) => {
+    void window.hibit.preview.openExternal(url).catch((caught) => {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    });
+  }, []);
+
   if (loadState === "loading") {
     return (
       <main className="hb-shell hb-loading-shell">
@@ -245,6 +288,9 @@ export function App() {
       running={running}
       busy={busy}
       error={error}
+      previews={previews}
+      activePreview={activePreview}
+      reloadSignal={activeReloadSignal}
       onDraftChange={setDraft}
       onSend={send}
       onAbort={abort}
@@ -253,31 +299,63 @@ export function App() {
       onUpdateProfile={updateProfile}
       onShowActivity={() => setShowActivity(true)}
       onHideActivity={() => setShowActivity(false)}
+      onPlayPreview={playPreview}
+      onClosePreview={closePreview}
+      onOpenPreviewExternal={openPreviewExternal}
     />
   );
 }
 
-function applyChatEvent(
-  event: ChatEvent,
-  setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
-  setActivity: Dispatch<SetStateAction<CreationActivity[]>>,
-  setRunning: Dispatch<SetStateAction<boolean>>,
-  setError: Dispatch<SetStateAction<string | null>>,
-): void {
+type ChatEventHandlers = {
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+  setActivity: Dispatch<SetStateAction<CreationActivity[]>>;
+  setRunning: Dispatch<SetStateAction<boolean>>;
+  setError: Dispatch<SetStateAction<string | null>>;
+  setPreviews: Dispatch<SetStateAction<PreviewInfo[]>>;
+  setReloadSignals: Dispatch<SetStateAction<Record<string, number>>>;
+};
+
+function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
+  const { setMessages, setActivity, setRunning, setError, setPreviews, setReloadSignals } =
+    handlers;
   switch (event.type) {
     case "turn_start":
       setRunning(true);
       setError(null);
       break;
     case "assistant_delta":
-      setMessages((current) => upsertAssistantDelta(current, event.turnId, event.text));
+      setMessages((current) =>
+        upsertAssistantDelta(current, event.turnId, event.text, event.projectId),
+      );
+      break;
+    case "build_end":
+      setActivity((current) => applyEventToActivity(current, event));
+      // A finished rebuild means newer files: nudge an open pane to reload.
+      if (event.projectId) {
+        const projectId = event.projectId;
+        setReloadSignals((current) => ({ ...current, [projectId]: (current[projectId] ?? 0) + 1 }));
+      }
       break;
     case "build_start":
-    case "build_end":
     case "tool_start":
     case "tool_update":
     case "tool_end":
       setActivity((current) => applyEventToActivity(current, event));
+      break;
+    case "preview_ready":
+      setPreviews((current) => [
+        {
+          projectId: event.projectId,
+          title: event.projectTitle,
+          url: event.url,
+          startedAt: new Date().toISOString(),
+        },
+        ...current.filter((preview) => preview.projectId !== event.projectId),
+      ]);
+      break;
+    case "preview_stopped":
+      // Dropping it here also closes the pane: activePreview is derived from this list.
+      setPreviews((current) => current.filter((preview) => preview.projectId !== event.projectId));
       break;
     case "turn_end":
       setRunning(false);
@@ -292,15 +370,24 @@ function upsertAssistantDelta(
   messages: ChatMessage[],
   turnId: string,
   text: string,
+  projectId?: string,
 ): ChatMessage[] {
   const existing = messages.find((message) => message.id === `assistant-${turnId}`);
   if (!existing) {
     return [
       ...messages,
-      { id: `assistant-${turnId}`, role: "assistant", text, createdAt: new Date().toISOString() },
+      {
+        id: `assistant-${turnId}`,
+        role: "assistant",
+        text,
+        createdAt: new Date().toISOString(),
+        projectId,
+      },
     ];
   }
   return messages.map((message) =>
-    message.id === existing.id ? { ...message, text: message.text + text } : message,
+    message.id === existing.id
+      ? { ...message, text: message.text + text, projectId: message.projectId ?? projectId }
+      : message,
   );
 }

@@ -177,6 +177,7 @@ describe("App", () => {
       ],
       activity: [],
       isRunning: false,
+      previews: [],
     }));
 
     await renderApp(root);
@@ -184,6 +185,23 @@ describe("App", () => {
     expect(api.chat.load).toHaveBeenCalledWith("ada");
     expect(host.textContent).toContain("Ready when you are.");
     expect(host.textContent).toContain("Ask Bit to build");
+  });
+
+  it("surfaces a load failure instead of silently blanking the chat", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.load = vi.fn(async () => {
+      throw new Error("could not read chat");
+    });
+
+    await renderApp(root);
+
+    expect(host.textContent).toContain("Hi Ada - what should we build?");
+    expect(host.textContent).toContain("could not read chat");
   });
 
   it("sends a message scoped to the profile, not a project", async () => {
@@ -221,6 +239,7 @@ describe("App", () => {
         },
       ],
       isRunning: false,
+      previews: [],
     }));
 
     await renderApp(root);
@@ -260,6 +279,78 @@ describe("App", () => {
     });
 
     expect(host.textContent).toContain("A bot is working on Cat Jump");
+  });
+
+  it("opens the preview pane when the kid presses Play after a preview is ready", async () => {
+    let emit: (event: ChatEvent) => void = () => {};
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.onEvent = vi.fn((listener) => {
+      emit = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    await act(async () => {
+      emit({
+        type: "preview_ready",
+        profileId: "ada",
+        projectId: "p1",
+        projectTitle: "Snake Game",
+        url: "http://127.0.0.1:4310/",
+      });
+    });
+
+    expect(host.querySelector("iframe")).toBeNull(); // not until the kid presses Play
+    await clickButton(host, "Play");
+
+    const frame = host.querySelector("iframe");
+    expect(frame?.getAttribute("src")).toBe("http://127.0.0.1:4310/");
+    expect(host.textContent).toContain("Snake Game");
+  });
+
+  it("shows Play on the live 'ready' bubble whose delta is tagged with the creation", async () => {
+    let emit: (event: ChatEvent) => void = () => {};
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.onEvent = vi.fn((listener) => {
+      emit = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    await act(async () => {
+      emit({ type: "turn_start", profileId: "ada", turnId: "t9" });
+      emit({
+        type: "preview_ready",
+        profileId: "ada",
+        projectId: "p1",
+        projectTitle: "Snake Game",
+        url: "http://127.0.0.1:4310/",
+      });
+      // The streamed reply carries the previewed creation (server-decorated).
+      emit({
+        type: "assistant_delta",
+        profileId: "ada",
+        turnId: "t9",
+        projectId: "p1",
+        text: "Snake Game is ready! Press Play.",
+      });
+      emit({ type: "turn_end", profileId: "ada", turnId: "t9", status: "completed" });
+    });
+
+    // Two Play buttons now: one on the bubble, one in the persistent bar.
+    const playButtons = host.querySelectorAll(".hb-play-button");
+    expect(playButtons.length).toBe(2);
+    expect(host.querySelector(".hb-message-assistant .hb-play-button")).not.toBeNull();
   });
 
   it("switches from chat back to the kid profile gate", async () => {
@@ -410,6 +501,7 @@ function createApiMock(): HiBitApi {
         messages: [],
         activity: [],
         isRunning: false,
+        previews: [],
       })),
       send: vi.fn(async () => ({
         ok: true as const,
@@ -418,6 +510,9 @@ function createApiMock(): HiBitApi {
       })),
       abort: vi.fn(async () => {}),
       onEvent: vi.fn(() => () => {}),
+    },
+    preview: {
+      openExternal: vi.fn(async () => {}),
     },
   };
 }
