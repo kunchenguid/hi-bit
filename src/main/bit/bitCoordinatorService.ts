@@ -588,6 +588,7 @@ export class BitCoordinatorService {
     const profile = await this.profiles.get(profileId).catch(() => undefined);
     let outcome: "completed" | "cancelled" | "failed" = "completed";
     let summary = "";
+    let readyToPlay = false;
     const buildMeta = {
       profileId,
       projectId: project.id,
@@ -663,7 +664,9 @@ export class BitCoordinatorService {
           const build = await this.pipeline.installBotBuild(project, job, workbench as never);
           await this.botJobs.complete(project, job, inspections, build);
           await this.projects.touch(profileId, project.id, this.now().toISOString());
-          summary = workerText.trim() || "All done.";
+          const parsed = extractReadyToPlay(workerText);
+          readyToPlay = parsed.readyToPlay;
+          summary = parsed.summary || "All done.";
         }
       }
     } catch (error) {
@@ -693,9 +696,11 @@ export class BitCoordinatorService {
       }
     }
 
-    await this.runCompletionTurn(profileId, project, outcome, summary).catch(async () => {
-      await this.appendCompletionFallback(profileId, project, outcome);
-    });
+    await this.runCompletionTurn(profileId, project, outcome, summary, readyToPlay).catch(
+      async () => {
+        await this.appendCompletionFallback(profileId, project, outcome);
+      },
+    );
   }
 
   private async runCompletionTurn(
@@ -703,14 +708,15 @@ export class BitCoordinatorService {
     project: RuntimeProject,
     outcome: "completed" | "cancelled" | "failed",
     summary: string,
+    readyToPlay = false,
   ): Promise<void> {
-    const safeSummary = kidSafeCompletionSummary(summary);
-    const text =
-      outcome === "completed"
-        ? `"${project.title}" is ready. What changed: ${safeSummary}\n\nTell the builder warmly that "${project.title}" is ready, in one or two short sentences.`
-        : outcome === "cancelled"
-          ? `The build for "${project.title}" was stopped before finishing. Let the builder know gently in one short sentence.`
-          : `"${project.title}" hit a snag: ${safeSummary}\n\nLet the builder know gently in one short sentence and offer to try again.`;
+    const text = buildCompletionPrompt({
+      outcome,
+      projectId: project.id,
+      title: project.title,
+      summary: kidSafeCompletionSummary(summary),
+      readyToPlay,
+    });
     await this.runBitTurn(profileId, text, { lifecycle: false, projectId: project.id });
   }
 
@@ -851,6 +857,42 @@ function kidSafeCompletionSummary(summary: string): string {
     .replace(/\bworker\b/gi, "helper")
     .replace(/\bbot_job_[a-z0-9_-]+\b/gi, "the helper")
     .replace(/\bproject_[a-z0-9_-]+\b/gi, "the creation");
+}
+
+/**
+ * The worker tags its final note with [[READY_TO_PLAY]] when the creation is
+ * something the builder can open and play right now. We strip the tag out of the
+ * kid-facing summary and use it to decide whether Bit should start a preview, so
+ * the Play affordance only appears when the worker judged the build playable.
+ */
+export function extractReadyToPlay(workerText: string): { readyToPlay: boolean; summary: string } {
+  const readyToPlay = /\[\[\s*READY_TO_PLAY\s*\]\]/i.test(workerText);
+  const summary = workerText.replace(/\[\[\s*READY_TO_PLAY\s*\]\]/gi, "").trim();
+  return { readyToPlay, summary };
+}
+
+/** Builds the instruction Bit gets when a worker finishes. Only the playable,
+ * completed case asks Bit to start a preview. */
+export function buildCompletionPrompt(input: {
+  outcome: "completed" | "cancelled" | "failed";
+  projectId: string;
+  title: string;
+  /** Already run through kidSafeCompletionSummary. */
+  summary: string;
+  readyToPlay: boolean;
+}): string {
+  const { outcome, projectId, title, summary, readyToPlay } = input;
+  if (outcome === "cancelled") {
+    return `The build for "${title}" was stopped before finishing. Let the builder know gently in one short sentence.`;
+  }
+  if (outcome === "failed") {
+    return `"${title}" hit a snag: ${summary}\n\nLet the builder know gently in one short sentence and offer to try again.`;
+  }
+  const base = `"${title}" is ready. What changed: ${summary}`;
+  if (readyToPlay) {
+    return `${base}\n\nIt is ready to open and play right now. Call start_preview with projectId "${projectId}" and the correct preview command for this creation, so a live preview is running, then warmly invite the builder to press Play, in one or two short sentences.`;
+  }
+  return `${base}\n\nTell the builder warmly that "${title}" is ready, in one or two short sentences.`;
 }
 
 export type { ChatMessage };

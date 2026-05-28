@@ -14,6 +14,14 @@ type PreviewPaneProps = {
  * at the creation's own loopback server. Reload remounts the frame so freshly
  * built files load; Open-in-browser hands the URL to the system browser; Close
  * just hides the pane (the server keeps running until Bit stops it).
+ *
+ * The sandbox includes `allow-same-origin` so creations behave like real web
+ * pages - they can use localStorage, IndexedDB, and cookies (high scores, saves,
+ * settings are everywhere in kid games). Without it those APIs throw a
+ * SecurityError that silently aborts the creation's script. It stays safe because
+ * the iframe loads a loopback origin (127.0.0.1:PORT) that always differs from the
+ * app's own origin, so same-origin-policy still blocks the frame from reaching the
+ * parent to escape its sandbox.
  */
 export function PreviewPane({
   preview,
@@ -65,7 +73,7 @@ export function PreviewPane({
         className="hb-preview-frame"
         title={title}
         src={preview.url}
-        sandbox="allow-scripts allow-forms allow-pointer-lock allow-popups allow-modals"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups allow-modals"
       />
     </div>
   );

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeProject } from "../projects/projectService";
-import { PiRuntimeService, type RuntimePiSession } from "./piRuntimeService";
+import { HI_BIT_ACTIVE_TOOLS } from "./piResources";
+import {
+  type CreateRuntimeSessionInput,
+  PiRuntimeService,
+  type RuntimePiSession,
+  workerToolNames,
+} from "./piRuntimeService";
 
 function project(): RuntimeProject {
   return {
@@ -77,6 +83,43 @@ class FakeSession implements RuntimePiSession {
     for (const listener of this.listeners) listener(event);
   }
 }
+
+describe("workerToolNames", () => {
+  it("includes every registered custom tool name in the allowlist, not just built-ins", () => {
+    const names = workerToolNames([
+      { name: "generate_image" },
+      { name: "process_sprite_sheet" },
+    ] as never);
+    // Built-ins survive...
+    for (const builtin of HI_BIT_ACTIVE_TOOLS) expect(names).toContain(builtin);
+    // ...and the custom tools are enabled (Pi's allowlist gates these too).
+    expect(names).toContain("generate_image");
+    expect(names).toContain("process_sprite_sheet");
+  });
+});
+
+describe("PiRuntimeService custom tools", () => {
+  it("registers generate_image and process_sprite_sheet and enables them in the allowlist", async () => {
+    let captured: CreateRuntimeSessionInput | undefined;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async (input) => {
+        captured = input;
+        return new FakeSession();
+      },
+    });
+
+    await service.sendPrompt(project(), "Draw a sprite", () => {});
+
+    const toolNames = (captured?.customTools ?? []).map((tool) => tool.name);
+    expect(toolNames).toContain("generate_image");
+    expect(toolNames).toContain("process_sprite_sheet");
+    // The names the worker session is actually allowed to use must include them.
+    const allowed = workerToolNames(captured?.customTools ?? []);
+    expect(allowed).toEqual(expect.arrayContaining(["generate_image", "process_sprite_sheet"]));
+  });
+});
 
 describe("PiRuntimeService", () => {
   it("creates a warm Pi session, injects fresh Codex tokens, and streams normalized events", async () => {

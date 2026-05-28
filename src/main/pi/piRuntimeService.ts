@@ -13,6 +13,7 @@ import type { RuntimeProject } from "../projects/projectService";
 import { createGenerateImageTool } from "./imageGenTool";
 import { chatEventsFromPiEvent } from "./piMessages";
 import { createWorkerResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
+import { createProcessSpriteTool } from "./processSpriteTool";
 
 export type RuntimePiSession = {
   sessionId: string;
@@ -31,6 +32,8 @@ export type CreateRuntimeSessionInput = {
   agentDir: string;
   modelId: string;
   customTools: ToolDefinition[];
+  /** Directory of bundled skills (e.g. game-assets) exposed to the worker. */
+  skillsDir?: string;
 };
 
 export type SendPromptResult = {
@@ -46,6 +49,8 @@ type PiRuntimeServiceOptions = {
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   onSessionFile?: (projectId: string, sessionFile: string | undefined) => Promise<void> | void;
+  /** Directory of bundled skills (e.g. game-assets) exposed to workers. */
+  skillsDir?: string;
 };
 
 type RunningTurn = {
@@ -64,13 +69,16 @@ export class PiRuntimeService {
   constructor(private readonly options: PiRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
     this.createSession = options.createSession ?? createRealPiSession;
-    // Workers can draw real assets straight into their Workbench. The tool pulls a
-    // fresh Codex token per call so long builds don't fail on an expired session key.
+    // Workers can draw real assets straight into their Workbench. generate_image pulls
+    // a fresh Codex token per call so long builds don't fail on an expired session key;
+    // process_sprite_sheet is a free local pass that turns a raw magenta sheet into a
+    // game-ready transparent sprite sheet (see the game-assets skill).
     this.customTools = [
       createGenerateImageTool({
         getFreshAccessToken: options.getFreshAccessToken,
         model: this.modelId,
       }),
+      createProcessSpriteTool(),
     ];
   }
 
@@ -169,6 +177,7 @@ export class PiRuntimeService {
       agentDir: this.options.agentDir,
       modelId: this.modelId,
       customTools: this.customTools,
+      skillsDir: this.options.skillsDir,
     });
     this.sessions.set(runtimeKey, session);
     return session;
@@ -237,7 +246,7 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     enableInstallTelemetry: false,
   });
 
-  const resourceLoader = createWorkerResourceLoader();
+  const resourceLoader = createWorkerResourceLoader(undefined, { skillsDir: input.skillsDir });
   await resourceLoader.reload();
 
   const { session } = await createAgentSession({
@@ -250,7 +259,11 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     resourceLoader,
     sessionManager,
     settingsManager,
-    tools: [...HI_BIT_ACTIVE_TOOLS],
+    // The `tools` allowlist gates custom tools too: any custom tool whose name
+    // isn't listed is silently disabled. So the registered custom tools
+    // (generate_image, process_sprite_sheet) MUST be named here, or the worker
+    // never sees them and falls back to drawing art in code.
+    tools: workerToolNames(input.customTools),
     customTools: input.customTools,
   });
 
@@ -259,4 +272,13 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
 
 function runtimeKeyFor(project: RuntimeProject): string {
   return project.runtimeKey ?? project.id;
+}
+
+/**
+ * The worker's tool allowlist: the built-in file tools plus every registered
+ * custom tool by name. Pi's `tools` allowlist filters custom tools too, so the
+ * custom tool names must be included or they stay invisible to the agent.
+ */
+export function workerToolNames(customTools: ToolDefinition[]): string[] {
+  return [...HI_BIT_ACTIVE_TOOLS, ...customTools.map((tool) => tool.name)];
 }

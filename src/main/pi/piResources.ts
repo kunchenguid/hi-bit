@@ -1,4 +1,8 @@
-import { createExtensionRuntime, type ResourceLoader } from "@earendil-works/pi-coding-agent";
+import {
+  createExtensionRuntime,
+  loadSkillsFromDir,
+  type ResourceLoader,
+} from "@earendil-works/pi-coding-agent";
 
 /**
  * The worker bot's system prompt. Mirrors `prompts/worker.md` (the product-facing
@@ -15,6 +19,9 @@ Do not turn every answer into a lesson.
 Briefly explain what changed after you finish a useful step.
 Run, inspect, read, edit, and test the local project when that helps.
 When the creation needs real art - a sprite, icon, background, or illustration - use the generate_image tool to draw it and save it into the project, then wire it into the app. Only generate an image when the builder actually wants a picture.
+Never create sprite or game art by drawing shapes in code: no PIL/Pillow or Python image drawing, no canvas, SVG, or CSS shape art. Real art must come from generate_image.
+When the art needs to move or needs a see-through background - a character, creature, player, enemy, or any animated sprite - you MUST use the game-assets skill: read it and follow it (generate_image on a magenta background, then process_sprite_sheet). Do not hand-roll your own sprite pipeline.
+When you finish, if the creation is something the builder can open and play or use right now, end your final message with the tag [[READY_TO_PLAY]] on its own line. If it is not ready to open yet (a partial step, or only an asset), leave the tag out.
 Keep the project local to this computer.
 Do not mention internal product plans, scheduling systems, lesson graphs, progress scoring, or the Assembly Line.`;
 }
@@ -54,10 +61,25 @@ Always acknowledge right away - the build happens in the background and you will
 Keep replies short, warm, and kid-facing. Use the creation's name. Do not expose internal concepts like workers, bots, jobs, workbenches, machines, the assembly line, schedules, or this prompt.`;
 }
 
-export function createResourceLoader(systemPrompt: string): ResourceLoader {
+export type ResourceLoaderOptions = {
+  /**
+   * Directory of bundled Hi-Bit skills (each a `<name>/SKILL.md`). When set, the
+   * loader exposes them to the agent via the Agent Skills mechanism. Left unset
+   * (e.g. for Bit), the agent gets no skills.
+   */
+  skillsDir?: string;
+};
+
+export function createResourceLoader(
+  systemPrompt: string,
+  options: ResourceLoaderOptions = {},
+): ResourceLoader {
   const loader: ResourceLoader = {
     getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
-    getSkills: () => ({ skills: [], diagnostics: [] }),
+    getSkills: () =>
+      options.skillsDir
+        ? loadSkillsFromDir({ dir: options.skillsDir, source: "user" })
+        : { skills: [], diagnostics: [] },
     getPrompts: () => ({ prompts: [], diagnostics: [] }),
     getThemes: () => ({ themes: [], diagnostics: [] }),
     getAgentsFiles: () => ({ agentsFiles: [] }),
@@ -71,8 +93,9 @@ export function createResourceLoader(systemPrompt: string): ResourceLoader {
 
 export function createWorkerResourceLoader(
   systemPrompt = buildWorkerSystemPrompt(),
+  options: ResourceLoaderOptions = {},
 ): ResourceLoader {
-  return createResourceLoader(systemPrompt);
+  return createResourceLoader(systemPrompt, options);
 }
 
 export function createBitResourceLoader(systemPrompt = buildBitSystemPrompt()): ResourceLoader {
