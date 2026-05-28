@@ -34,6 +34,16 @@ function hiBitRootFor(): string {
   return join(app.getPath("userData"), ".hi-bit");
 }
 
+/**
+ * Bundled Hi-Bit skills (e.g. game-assets). In dev they live in the repo's
+ * `skills/`; packaged, electron-builder copies them to `resourcesPath/skills`
+ * (see `extraResources` in electron-builder.yml). The worker reads each
+ * SKILL.md on demand, so the directory just needs to be readable on disk.
+ */
+function skillsDirFor(): string {
+  return app.isPackaged ? join(process.resourcesPath, "skills") : join(__dirname, "../../skills");
+}
+
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -80,6 +90,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     agentDir: layout.piAgentDir,
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
+    skillsDir: skillsDirFor(),
   });
   const bitRuntime = new BitRuntimeService({
     agentDir: layout.piAgentDir,

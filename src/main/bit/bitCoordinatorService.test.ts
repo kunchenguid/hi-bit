@@ -11,7 +11,12 @@ import { PreviewService } from "../preview/previewService";
 import { ProfileService } from "../profiles/profileService";
 import { ProjectService, type RuntimeProject } from "../projects/projectService";
 import { bootstrapLayout } from "../storage/layout";
-import { BitCoordinatorService, type WorkerRuntime } from "./bitCoordinatorService";
+import {
+  BitCoordinatorService,
+  buildCompletionPrompt,
+  extractReadyToPlay,
+  type WorkerRuntime,
+} from "./bitCoordinatorService";
 
 /** Worker runtime stub: emits ambient tool activity, then a short completion note. */
 class FakeWorkerRuntime implements WorkerRuntime {
@@ -22,6 +27,7 @@ class FakeWorkerRuntime implements WorkerRuntime {
   statusByRuntimeKey = new Map<string, "completed" | "cancelled" | "failed">();
   emitsTools = true;
   emitsToolEnd = true;
+  completionNote = "Added the thing.";
   beforeReturn?: (project: RuntimeProject) => Promise<void> | void;
 
   async sendPrompt(project: RuntimeProject, text: string, onEvent: (event: ChatEvent) => void) {
@@ -38,7 +44,7 @@ class FakeWorkerRuntime implements WorkerRuntime {
         onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
       }
     }
-    onEvent({ ...meta, type: "assistant_delta", text: "Added the thing." });
+    onEvent({ ...meta, type: "assistant_delta", text: this.completionNote });
     await this.beforeReturn?.(project);
     return {
       turnId: meta.turnId,
@@ -362,6 +368,45 @@ describe("BitCoordinatorService (Bit)", () => {
 
     const toolEvent = s.events.find((event) => event.type === "tool_start");
     expect(toolEvent).toMatchObject({ projectId: game.id, projectTitle: "Cat Jump" });
+  });
+
+  it("asks Bit to start a preview only when the worker marks the build ready to play", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.completionNote = "Made the cat jump over boxes. [[READY_TO_PLAY]]";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "All set!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "build it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "build it");
+    await s.drain();
+
+    const completionPrompt = s.bit.prompts.find((p) => p.includes("is ready"));
+    expect(completionPrompt).toContain("start_preview");
+    expect(completionPrompt).toContain("Play");
+    // the internal tag never leaks into the kid-facing summary
+    expect(completionPrompt).not.toContain("READY_TO_PLAY");
+    expect(completionPrompt).toContain("Made the cat jump over boxes.");
+  });
+
+  it("does not ask Bit to start a preview when the worker leaves it unmarked", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.worker.completionNote = "Saved a new sprite, still wiring it up.";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Okay!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "step one" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "step one");
+    await s.drain();
+
+    const completionPrompt = s.bit.prompts.find((p) => p.includes("is ready"));
+    expect(completionPrompt).toBeDefined();
+    expect(completionPrompt).not.toContain("start_preview");
   });
 
   it("touches creation metadata after a successful build install", async () => {
@@ -1114,5 +1159,51 @@ describe("BitCoordinatorService (Bit)", () => {
     const transcript = await s.conversation.readTranscript(s.profile.id);
     const ready = transcript.find((message) => message.text.includes("is ready"));
     expect(ready?.projectId).toBe(game.id);
+  });
+});
+
+describe("extractReadyToPlay", () => {
+  it("detects the tag and strips it from the summary", () => {
+    expect(extractReadyToPlay("Made a robot that walks.\n[[READY_TO_PLAY]]")).toEqual({
+      readyToPlay: true,
+      summary: "Made a robot that walks.",
+    });
+  });
+
+  it("is false and leaves the summary intact when the tag is absent", () => {
+    expect(extractReadyToPlay("Saved a sprite, more to do.")).toEqual({
+      readyToPlay: false,
+      summary: "Saved a sprite, more to do.",
+    });
+  });
+
+  it("tolerates spacing and case in the tag", () => {
+    expect(extractReadyToPlay("done [[ ready_to_play ]]").readyToPlay).toBe(true);
+  });
+});
+
+describe("buildCompletionPrompt", () => {
+  const base = { title: "Robot Run", summary: "Built it." };
+
+  it("asks Bit to start a preview only when ready and completed", () => {
+    const ready = buildCompletionPrompt({ ...base, outcome: "completed", readyToPlay: true });
+    expect(ready).toContain("start_preview");
+    expect(ready).toContain("Play");
+    expect(ready).toContain("is ready");
+  });
+
+  it("just announces readiness when completed but not marked playable", () => {
+    const notReady = buildCompletionPrompt({ ...base, outcome: "completed", readyToPlay: false });
+    expect(notReady).toContain("is ready");
+    expect(notReady).not.toContain("start_preview");
+  });
+
+  it("never starts a preview for cancelled or failed builds", () => {
+    expect(
+      buildCompletionPrompt({ ...base, outcome: "cancelled", readyToPlay: true }),
+    ).not.toContain("start_preview");
+    expect(buildCompletionPrompt({ ...base, outcome: "failed", readyToPlay: true })).not.toContain(
+      "start_preview",
+    );
   });
 });

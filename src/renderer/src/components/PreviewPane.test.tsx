@@ -40,6 +40,10 @@ describe("PreviewPane", () => {
     const frame = host.querySelector("iframe");
     expect(frame?.getAttribute("src")).toBe("http://127.0.0.1:4310/");
     expect(frame?.getAttribute("sandbox")).toContain("allow-scripts");
+    // Creations run on their own loopback origin, so they need same-origin to use
+    // localStorage / IndexedDB / cookies (common in kid games). It stays safe
+    // because that origin differs from the app's, so SOP still blocks the parent.
+    expect(frame?.getAttribute("sandbox")).toContain("allow-same-origin");
     expect(host.textContent).toContain("Snake Game");
   });
 
