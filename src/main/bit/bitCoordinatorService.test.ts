@@ -1001,6 +1001,29 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(toolResult).toMatchObject({
       details: { projectId: game.id, url: "http://127.0.0.1:4310/" },
     });
+    await expect(s.projects.get(s.profile.id, game.id)).resolves.toMatchObject({
+      lastPreviewCommand: "python3 -m http.server",
+    });
+  });
+
+  it("remembers a recovered preview command when recording preview history fails", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    await s.projects.recordPreviewServer(s.profile.id, game.id, {
+      projectId: game.id,
+      title: "Snake Game",
+      url: "http://127.0.0.1:51913/",
+      startedAt: "2026-05-27T23:46:15.722Z",
+    });
+    s.projects.recordPreviewServer = async () => {
+      throw new Error("logbook full");
+    };
+
+    await s.coordinator.playPreview(s.profile.id, game.id);
+
+    await expect(s.projects.get(s.profile.id, game.id)).resolves.toMatchObject({
+      lastPreviewCommand: 'python3 -m http.server "$PORT" --bind 127.0.0.1',
+    });
   });
 
   it("lists running previews for the profile", async () => {

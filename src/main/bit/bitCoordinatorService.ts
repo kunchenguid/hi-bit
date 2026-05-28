@@ -261,7 +261,8 @@ export class BitCoordinatorService {
     });
     try {
       await this.projects.recordPreviewServer(profileId, projectId, info);
-      // Persist the command so future loads use it directly.
+    } catch {}
+    try {
       await this.projects.rememberPreviewCommand(profileId, projectId, command);
     } catch {}
     return info;
@@ -463,7 +464,8 @@ export class BitCoordinatorService {
           });
           try {
             await self.projects.recordPreviewServer(profileId, projectId, info);
-            // Remember the command so Play can restart this preview after a quit.
+          } catch {}
+          try {
             await self.projects.rememberPreviewCommand(profileId, projectId, command);
           } catch {}
           // Tag this turn's reply with the creation so the bubble can offer Play.
