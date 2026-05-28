@@ -80,6 +80,22 @@ type ToolParams = {
 
 type ToolCtx = { cwd: string };
 
+const MAX_OUTPUT_PIXELS = 4_194_304;
+
+export function assertSpriteOutputBudget(opts: {
+  rows: number;
+  cols: number;
+  cellSize: number;
+}): void {
+  const frames = opts.rows * opts.cols;
+  const outputPixels = frames * opts.cellSize * opts.cellSize;
+  if (outputPixels <= MAX_OUTPUT_PIXELS) return;
+  const maxSide = Math.floor(Math.sqrt(MAX_OUTPUT_PIXELS / frames));
+  throw new Error(
+    `Sprite output is too large: ${frames} frames at ${opts.cellSize}px each. Use ${maxSide}px or smaller for this grid, or reduce rows/cols.`,
+  );
+}
+
 /** Resolves a path under cwd, rejecting anything that escapes the Workbench. */
 function resolveInside(cwd: string, relPath: string, label: string): string {
   const target = resolve(cwd, relPath);
@@ -113,6 +129,8 @@ export function createProcessSpriteTool(): ToolDefinition {
       const scaleStrategy: ScaleStrategy = params.scaleStrategy ?? "preserve";
       const fps = params.fps ?? 8;
       const prefix = (params.frameName ?? "frame").replace(/[^a-zA-Z0-9_-]+/g, "-");
+
+      assertSpriteOutputBudget({ rows: params.rows, cols: params.cols, cellSize });
 
       const raw = decodePng(await readFile(inputPath));
       const result = processSheet(raw, {

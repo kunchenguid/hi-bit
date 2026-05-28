@@ -2,7 +2,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createProcessSpriteTool } from "./processSpriteTool";
+import { assertSpriteOutputBudget, createProcessSpriteTool } from "./processSpriteTool";
 import { encodePng } from "./spriteImageIo";
 import { createImage } from "./spriteProcessor";
 
@@ -51,6 +51,16 @@ afterEach(() => {
 });
 
 describe("process_sprite_sheet tool", () => {
+  it("rejects schema-valid sprite sheets that exceed the output pixel budget", () => {
+    expect(() => assertSpriteOutputBudget({ rows: 12, cols: 12, cellSize: 1024 })).toThrow(
+      /too large/,
+    );
+  });
+
+  it("allows the largest default-sized grid", () => {
+    expect(() => assertSpriteOutputBudget({ rows: 12, cols: 12, cellSize: 128 })).not.toThrow();
+  });
+
   it("writes a transparent sheet, frames, gif, and meta from a raw magenta sheet", async () => {
     cwd = await mkdtemp(join(tmpdir(), "hibit-sprite-"));
     await writeFile(join(cwd, "raw.png"), rawSheetPng(2, 2, 32, 32));
