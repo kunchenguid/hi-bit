@@ -6,9 +6,11 @@ import {
   ModelRegistry,
   SessionManager,
   SettingsManager,
+  type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import type { RuntimeProject } from "../projects/projectService";
+import { createGenerateImageTool } from "./imageGenTool";
 import { chatEventsFromPiEvent } from "./piMessages";
 import { createWorkerResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
 
@@ -28,6 +30,7 @@ export type CreateRuntimeSessionInput = {
   accessToken: string;
   agentDir: string;
   modelId: string;
+  customTools: ToolDefinition[];
 };
 
 export type SendPromptResult = {
@@ -56,10 +59,19 @@ export class PiRuntimeService {
   private readonly running = new Map<string, RunningTurn>();
   private readonly createSession: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   private readonly modelId: string;
+  private readonly customTools: ToolDefinition[];
 
   constructor(private readonly options: PiRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
     this.createSession = options.createSession ?? createRealPiSession;
+    // Workers can draw real assets straight into their Workbench. The tool pulls a
+    // fresh Codex token per call so long builds don't fail on an expired session key.
+    this.customTools = [
+      createGenerateImageTool({
+        getFreshAccessToken: options.getFreshAccessToken,
+        model: this.modelId,
+      }),
+    ];
   }
 
   async sendPrompt(
@@ -156,6 +168,7 @@ export class PiRuntimeService {
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
+      customTools: this.customTools,
     });
     this.sessions.set(runtimeKey, session);
     return session;
@@ -238,6 +251,7 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     sessionManager,
     settingsManager,
     tools: [...HI_BIT_ACTIVE_TOOLS],
+    customTools: input.customTools,
   });
 
   return new RealPiSessionAdapter(session, authStorage);
