@@ -1194,7 +1194,8 @@ describe("buildCompletionPrompt", () => {
     });
     expect(ready).toContain("start_preview");
     expect(ready).toContain("project_robot_run");
-    expect(ready).toContain('python3 -m http.server "$PORT" --bind 127.0.0.1');
+    expect(ready).toContain("correct preview command");
+    expect(ready).not.toContain('python3 -m http.server "$PORT" --bind 127.0.0.1');
     expect(ready).toContain("Play");
     expect(ready).toContain("is ready");
   });

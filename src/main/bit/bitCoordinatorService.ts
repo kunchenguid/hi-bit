@@ -890,7 +890,7 @@ export function buildCompletionPrompt(input: {
   }
   const base = `"${title}" is ready. What changed: ${summary}`;
   if (readyToPlay) {
-    return `${base}\n\nIt is ready to open and play right now. Call start_preview with projectId "${projectId}" and command 'python3 -m http.server "$PORT" --bind 127.0.0.1' so a live preview is running, then warmly invite the builder to press Play, in one or two short sentences.`;
+    return `${base}\n\nIt is ready to open and play right now. Call start_preview with projectId "${projectId}" and the correct preview command for this creation, so a live preview is running, then warmly invite the builder to press Play, in one or two short sentences.`;
   }
   return `${base}\n\nTell the builder warmly that "${title}" is ready, in one or two short sentences.`;
 }
