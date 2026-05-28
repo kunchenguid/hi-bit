@@ -77,7 +77,7 @@ Call `process_sprite_sheet` with the raw file, an output folder, and the grid:
 - Use the SAME strategy for every action sheet of one character. Mixing makes the body jump in size between actions.
 - Pass `rejectEdgeTouch: true` when you want the tool to fail (so you can regenerate) if any frame touches a cell edge.
 
-The tool writes `sheet-transparent.png`, the frame PNGs, `animation.gif`, and `sprite-meta.json` into the output folder.
+The tool writes `raw-sheet-clean.png`, `sheet-transparent.png`, the frame PNGs, `animation.gif`, and `sprite-meta.json` into the output folder.
 
 ## Step 4: check quality
 
