@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { applyEventToActivity } from "./activity";
@@ -35,6 +36,11 @@ export function App() {
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
   // Per-creation reload counters: bumped on build_end so an open pane refreshes.
   const [reloadSignals, setReloadSignals] = useState<Record<string, number>>({});
+  const activeProfileIdRef = useRef(activeProfileId);
+
+  useEffect(() => {
+    activeProfileIdRef.current = activeProfileId;
+  }, [activeProfileId]);
 
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
@@ -247,17 +253,20 @@ export function App() {
 
   const playPreview = useCallback(
     async (projectId: string) => {
-      if (!activeProfileId) return;
+      const requestedProfileId = activeProfileId;
+      if (!requestedProfileId) return;
       try {
         // Idempotent: ensures the server is up (restarting it after an app quit
         // if needed), then opens the pane. Repeated presses are harmless.
-        const info = await window.hibit.preview.play(activeProfileId, projectId);
+        const info = await window.hibit.preview.play(requestedProfileId, projectId);
+        if (activeProfileIdRef.current !== requestedProfileId) return;
         setPreviews((current) => [
           info,
           ...current.filter((preview) => preview.projectId !== projectId),
         ]);
         setActivePreviewId(projectId);
       } catch (caught) {
+        if (activeProfileIdRef.current !== requestedProfileId) return;
         setError(caught instanceof Error ? caught.message : String(caught));
       }
     },

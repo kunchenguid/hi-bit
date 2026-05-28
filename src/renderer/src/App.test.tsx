@@ -390,6 +390,54 @@ describe("App", () => {
     expect(host.querySelector("iframe")?.getAttribute("src")).toBe("http://127.0.0.1:4310/");
   });
 
+  it("ignores a Play result if the kid switches profiles before it resolves", async () => {
+    const playResult = deferred<Awaited<ReturnType<HiBitApi["preview"]["play"]>>>();
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
+      messages:
+        profileId === "ada"
+          ? [
+              {
+                id: "m1",
+                role: "assistant" as const,
+                text: "Snake Game is ready! Press Play.",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                projectId: "p1",
+              },
+            ]
+          : [],
+      activity: [],
+      isRunning: false,
+      previews: [],
+      playableProjectIds: profileId === "ada" ? ["p1"] : [],
+    }));
+    api.preview.play = vi.fn(() => playResult.promise);
+
+    await renderApp(root);
+    await clickButton(host, "Play");
+    await clickButton(host, "Switch profile");
+    await clickButton(host, "Sam");
+
+    await act(async () => {
+      playResult.resolve({
+        projectId: "p1",
+        title: "Snake Game",
+        url: "http://127.0.0.1:4310/",
+        startedAt: "2026-01-01T00:00:00.000Z",
+      });
+    });
+    await flushAsyncWork();
+
+    expect(host.textContent).toContain("Hi Sam - what should we build?");
+    expect(host.querySelector("iframe")).toBeNull();
+  });
+
   it("switches from chat back to the kid profile gate", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -450,6 +498,14 @@ async function flushAsyncWork(): Promise<void> {
       await Promise.resolve();
     }
   });
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
 }
 
 function adaProfile() {
