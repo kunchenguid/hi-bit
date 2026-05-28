@@ -147,9 +147,11 @@ export function projectsDir(
 }
 
 export type ProfileConversationPaths = {
+  /** The whole profile directory - the jail root for Bit's read-only tools. */
+  profileRoot: string;
   conversationDir: string;
   transcriptPath: string;
-  mayorSessionsDir: string;
+  bitSessionsDir: string;
   conversationStatePath: string;
 };
 
@@ -168,9 +170,10 @@ export function profileConversationPaths(
 ): ProfileConversationPaths {
   const dir = profileConversationDir(layout, profileId, factoryId);
   return {
+    profileRoot: profileDir(layout, profileId, factoryId),
     conversationDir: dir,
     transcriptPath: join(dir, "transcript.jsonl"),
-    mayorSessionsDir: join(dir, "sessions", "mayor"),
+    bitSessionsDir: join(dir, "sessions", "bit"),
     conversationStatePath: join(dir, "conversation.json"),
   };
 }

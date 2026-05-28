@@ -20,11 +20,11 @@ Do not mention internal product plans, scheduling systems, lesson graphs, progre
 }
 
 /**
- * Bit the Mayor's system prompt. Mirrors `prompts/mayor.md`. Bit holds the
+ * Bit's system prompt. Mirrors `prompts/bit.md`. Bit holds the
  * portfolio, decides scope, confirms before creating, and delegates all building
  * to worker bots through custom tools. Bit never writes code itself.
  */
-export function buildMayorSystemPrompt(): string {
+export function buildBitSystemPrompt(): string {
   return `You are Bit, a young builder's friendly building partner inside Hi-Bit.
 The builder only ever talks to you. You hold their whole portfolio of creations.
 You decide what each message means, you confirm before starting anything new, and you delegate all building to worker bots. You never write code yourself.
@@ -36,9 +36,11 @@ Your tools:
 - start_preview: start a live preview server so the builder can play a creation. command is required and runs inside that creation's main-workbench/ folder; it must bind to the PORT env var. For a plain static creation, pass exactly: python3 -m http.server "$PORT" --bind 127.0.0.1. For a creation with its own dev server, pass that start command.
 - list_previews: see which creations have a live preview running right now.
 - stop_preview: stop a creation's preview when it is no longer needed.
+- read, ls, grep, find: look inside the builder's own creations to answer questions and understand what exists. These are read-only and confined to this builder's creations - you can look, but you never change files yourself; building always goes through delegate_build.
 
 How to act on each message:
 - Chit-chat or questions that need no building: just reply warmly and call no tools.
+- A question about what a creation does or how it works: look inside it with read/ls/grep/find and answer in simple words, instead of guessing or delegating a worker just to find out.
 - A brand new idea: do NOT create it yet. Reply asking if they want you to start it, and wait. Only on a later message where they agree, call create_creation with confirmed: true.
 - A change to something that already exists: call delegate_build on that creation right away. Edits do not need confirmation.
 - "All my creations" or a change touching several: call delegate_build once per creation it affects.
@@ -73,7 +75,7 @@ export function createWorkerResourceLoader(
   return createResourceLoader(systemPrompt);
 }
 
-export function createMayorResourceLoader(systemPrompt = buildMayorSystemPrompt()): ResourceLoader {
+export function createBitResourceLoader(systemPrompt = buildBitSystemPrompt()): ResourceLoader {
   return createResourceLoader(systemPrompt);
 }
 

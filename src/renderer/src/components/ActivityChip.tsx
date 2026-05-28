@@ -1,11 +1,11 @@
-import type { CreationActivity, PreviewInfo } from "@shared/chat";
+import type { CreationActivity } from "@shared/chat";
 import { summarizeActivity } from "../activity";
 
 type ActivityChipProps = {
   activity: CreationActivity[];
   running?: boolean;
-  /** The live preview to offer Play for, so it never scrolls away. */
-  preview?: PreviewInfo | null;
+  /** The playable creation to offer Play for, so it never scrolls away. */
+  playProjectId?: string | null;
   onPlay?: (projectId: string) => void;
   onSeeAll: () => void;
 };
@@ -20,7 +20,7 @@ type ActivityChipProps = {
 export function ActivityChip({
   activity,
   running = false,
-  preview,
+  playProjectId,
   onPlay,
   onSeeAll,
 }: ActivityChipProps) {
@@ -35,11 +35,11 @@ export function ActivityChip({
         </span>
       </div>
       <div className="hb-activity-actions">
-        {preview && onPlay ? (
+        {playProjectId && onPlay ? (
           <button
             type="button"
             className="hb-play-button hb-play-button-chip"
-            onClick={() => onPlay(preview.projectId)}
+            onClick={() => onPlay(playProjectId)}
           >
             <span aria-hidden="true">▶</span> Play
           </button>

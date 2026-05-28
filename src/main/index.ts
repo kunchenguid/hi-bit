@@ -7,7 +7,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
 import { ConversationService } from "./conversation/conversationService";
-import { MayorRuntimeService } from "./pi/mayorRuntimeService";
+import { BitRuntimeService } from "./pi/bitRuntimeService";
 import { PiRuntimeService } from "./pi/piRuntimeService";
 import { PreviewService } from "./preview/previewService";
 import { ProfileService } from "./profiles/profileService";
@@ -26,7 +26,7 @@ type Services = {
   conversation: ConversationService;
   bit: BitCoordinatorService;
   runtime: PiRuntimeService;
-  mayor: MayorRuntimeService;
+  bitRuntime: BitRuntimeService;
   preview: PreviewService;
 };
 
@@ -81,12 +81,12 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
   });
-  const mayor = new MayorRuntimeService({
+  const bitRuntime = new BitRuntimeService({
     agentDir: layout.piAgentDir,
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
     onSessionFile: (profileId, sessionFile) =>
-      conversation.setMayorSessionFile(profileId, sessionFile),
+      conversation.setBitSessionFile(profileId, sessionFile),
   });
   const preview = new PreviewService({
     resolveWorkbenchDir: (profileId, projectId) =>
@@ -98,11 +98,11 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     profiles,
     projects,
     conversation,
-    mayor,
+    bit: bitRuntime,
     worker: runtime,
     preview,
   });
-  return { layout, auth, profiles, projects, conversation, bit, runtime, mayor, preview };
+  return { layout, auth, profiles, projects, conversation, bit, runtime, bitRuntime, preview };
 }
 
 export function registerIpc(services: Services): void {
@@ -122,7 +122,7 @@ export function registerIpc(services: Services): void {
     await services.auth.logout();
     services.preview.stopAll();
     services.runtime.disposeAll();
-    services.mayor.disposeAll();
+    services.bitRuntime.disposeAll();
   });
 
   ipcMain.handle("hibit:profiles:list", () => services.profiles.list());
@@ -156,6 +156,10 @@ export function registerIpc(services: Services): void {
     services.bit.send(profileId, text),
   );
   ipcMain.handle("hibit:chat:abort", (_event, profileId: string) => services.bit.abort(profileId));
+
+  ipcMain.handle("hibit:preview:play", (_event, profileId: string, projectId: string) =>
+    services.bit.playPreview(profileId, projectId),
+  );
 
   ipcMain.handle("hibit:preview:open-external", async (_event, url: string) => {
     // Only ever hand the OS a local preview URL - never an arbitrary scheme.
@@ -199,7 +203,7 @@ void app.whenReady().then(async () => {
   app.once("before-quit", () => {
     services.preview.stopAll();
     services.runtime.disposeAll();
-    services.mayor.disposeAll();
+    services.bitRuntime.disposeAll();
   });
 });
 

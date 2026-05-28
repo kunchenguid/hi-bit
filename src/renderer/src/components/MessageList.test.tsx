@@ -83,7 +83,7 @@ describe("MessageList", () => {
         <MessageList
           messages={[ready]}
           thinking={false}
-          livePreviewProjectIds={new Set(["project_1"])}
+          playableProjectIds={new Set(["project_1"])}
           onPlay={onPlay}
         />,
       ),
@@ -104,7 +104,7 @@ describe("MessageList", () => {
     };
     act(() =>
       root.render(
-        <MessageList messages={[ready]} thinking={false} livePreviewProjectIds={new Set()} />,
+        <MessageList messages={[ready]} thinking={false} playableProjectIds={new Set()} />,
       ),
     );
     expect(host.querySelector(".hb-play-button")).toBeNull();

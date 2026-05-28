@@ -54,6 +54,12 @@ export type ChatSnapshot = {
   isRunning: boolean;
   /** Creations with a live preview server right now, so Play is correct after a reload. */
   previews: PreviewInfo[];
+  /**
+   * Creations that can be played - those Bit has previewed before, so their
+   * server can be restarted on demand. Superset of `previews`; lets Play recover
+   * after an app restart killed the live servers.
+   */
+  playableProjectIds: string[];
 };
 
 /**

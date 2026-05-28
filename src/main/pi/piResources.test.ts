@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildMayorSystemPrompt,
-  buildWorkerSystemPrompt,
-  createResourceLoader,
-} from "./piResources";
+import { buildBitSystemPrompt, buildWorkerSystemPrompt, createResourceLoader } from "./piResources";
 
 describe("createResourceLoader", () => {
   it("returns only app-owned resources and no third-party package resources", async () => {
@@ -33,9 +29,9 @@ describe("buildWorkerSystemPrompt", () => {
   });
 });
 
-describe("buildMayorSystemPrompt", () => {
+describe("buildBitSystemPrompt", () => {
   it("frames Bit as the portfolio-holding partner who confirms and delegates", () => {
-    const prompt = buildMayorSystemPrompt();
+    const prompt = buildBitSystemPrompt();
 
     expect(prompt).toContain("You are Bit");
     expect(prompt).toContain("delegate_build");

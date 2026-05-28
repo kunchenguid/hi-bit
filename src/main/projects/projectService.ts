@@ -143,6 +143,7 @@ export class ProjectService {
       createdAt: project.createdAt,
       updatedAt: this.now().toISOString(),
       activeSession,
+      lastPreviewCommand: project.lastPreviewCommand,
     };
     await writeJsonFile(project.projectJsonPath, next);
   }
@@ -162,6 +163,7 @@ export class ProjectService {
       createdAt: project.createdAt,
       updatedAt,
       activeSession: project.activeSession,
+      lastPreviewCommand: project.lastPreviewCommand,
     };
     await writeJsonFile(project.projectJsonPath, next);
   }
@@ -182,6 +184,30 @@ export class ProjectService {
       url: preview.url,
       startedAt: preview.startedAt,
     });
+  }
+
+  /**
+   * Persists the command Bit used to preview this creation so Play can restart
+   * the server later (the live process is in-memory and dies on app quit).
+   */
+  async rememberPreviewCommand(
+    profileId: string,
+    projectId: string,
+    command: string,
+  ): Promise<void> {
+    const project = await this.get(profileId, projectId);
+    const next: ProjectRecord = {
+      schemaVersion: 1,
+      id: project.id,
+      factoryId: project.factoryId,
+      profileId: project.profileId,
+      title: project.title,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      activeSession: project.activeSession,
+      lastPreviewCommand: command,
+    };
+    await writeJsonFile(project.projectJsonPath, next);
   }
 
   async appendActivity(profileId: string, projectId: string, value: unknown): Promise<void> {
@@ -258,6 +284,17 @@ export class ProjectService {
       if (row.type === "project_created" || !row.createdAt) return latest;
       return !latest || row.createdAt > latest ? row.createdAt : latest;
     }, undefined);
+  }
+
+  /**
+   * Whether this creation has ever had a preview server, from the durable
+   * logbook. Lets Play recover for creations previewed before the command was
+   * persisted (their `project.json` has no `lastPreviewCommand`).
+   */
+  async hasPreviewHistory(profileId: string, projectId: string): Promise<boolean> {
+    const paths = this.pathsFor(profileId, projectId);
+    const rows = await readJsonl<{ type?: string }>(paths.projectLogbookPath);
+    return rows.some((row) => row.type === "preview_server");
   }
 
   /** The folder holding all of a profile's creations, for a parent to browse on disk. */

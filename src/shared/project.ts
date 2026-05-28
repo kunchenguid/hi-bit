@@ -16,6 +16,11 @@ export type ProjectSummary = {
   createdAt: string;
   updatedAt: string;
   activeSession?: ProjectSessionRef;
+  /**
+   * The last command Bit used to preview this creation, so Play can restart the
+   * server after the in-memory preview process is gone (e.g. after an app quit).
+   */
+  lastPreviewCommand?: string;
 };
 
 export type ProjectRecord = ProjectSummary;

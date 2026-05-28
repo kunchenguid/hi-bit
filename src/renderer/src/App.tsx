@@ -29,6 +29,9 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previews, setPreviews] = useState<PreviewInfo[]>([]);
+  // Creations that can be (re)played - running or restartable from a remembered
+  // command. Survives preview_stopped and an app restart, unlike `previews`.
+  const [playableProjectIds, setPlayableProjectIds] = useState<string[]>([]);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
   // Per-creation reload counters: bumped on build_end so an open pane refreshes.
   const [reloadSignals, setReloadSignals] = useState<Record<string, number>>({});
@@ -44,6 +47,7 @@ export function App() {
     setShowActivity(false);
     setRunning(false);
     setPreviews([]);
+    setPlayableProjectIds([]);
     setActivePreviewId(null);
     setReloadSignals({});
   }, []);
@@ -98,6 +102,7 @@ export function App() {
         setActivity(snapshot.activity);
         setRunning(snapshot.isRunning);
         setPreviews(snapshot.previews);
+        setPlayableProjectIds(snapshot.playableProjectIds);
       })
       .catch((caught) => {
         // Never leave the kid staring at a silently empty chat: surface the
@@ -119,6 +124,7 @@ export function App() {
         setRunning,
         setError,
         setPreviews,
+        setPlayableProjectIds,
         setReloadSignals,
       });
     });
@@ -239,9 +245,24 @@ export function App() {
     });
   }, [activeProfile]);
 
-  const playPreview = useCallback((projectId: string) => {
-    setActivePreviewId(projectId);
-  }, []);
+  const playPreview = useCallback(
+    async (projectId: string) => {
+      if (!activeProfileId) return;
+      try {
+        // Idempotent: ensures the server is up (restarting it after an app quit
+        // if needed), then opens the pane. Repeated presses are harmless.
+        const info = await window.hibit.preview.play(activeProfileId, projectId);
+        setPreviews((current) => [
+          info,
+          ...current.filter((preview) => preview.projectId !== projectId),
+        ]);
+        setActivePreviewId(projectId);
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : String(caught));
+      }
+    },
+    [activeProfileId],
+  );
 
   const closePreview = useCallback(() => {
     setActivePreviewId(null);
@@ -289,6 +310,7 @@ export function App() {
       busy={busy}
       error={error}
       previews={previews}
+      playableProjectIds={playableProjectIds}
       activePreview={activePreview}
       reloadSignal={activeReloadSignal}
       onDraftChange={setDraft}
@@ -312,12 +334,20 @@ type ChatEventHandlers = {
   setRunning: Dispatch<SetStateAction<boolean>>;
   setError: Dispatch<SetStateAction<string | null>>;
   setPreviews: Dispatch<SetStateAction<PreviewInfo[]>>;
+  setPlayableProjectIds: Dispatch<SetStateAction<string[]>>;
   setReloadSignals: Dispatch<SetStateAction<Record<string, number>>>;
 };
 
 function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
-  const { setMessages, setActivity, setRunning, setError, setPreviews, setReloadSignals } =
-    handlers;
+  const {
+    setMessages,
+    setActivity,
+    setRunning,
+    setError,
+    setPreviews,
+    setPlayableProjectIds,
+    setReloadSignals,
+  } = handlers;
   switch (event.type) {
     case "turn_start":
       setRunning(true);
@@ -352,9 +382,14 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
         },
         ...current.filter((preview) => preview.projectId !== event.projectId),
       ]);
+      // A previewed creation stays playable: Play can restart it on demand.
+      setPlayableProjectIds((current) =>
+        current.includes(event.projectId) ? current : [...current, event.projectId],
+      );
       break;
     case "preview_stopped":
-      // Dropping it here also closes the pane: activePreview is derived from this list.
+      // Dropping it here also closes the pane: activePreview is derived from this
+      // list. It stays in playableProjectIds, so Play can spin it back up.
       setPreviews((current) => current.filter((preview) => preview.projectId !== event.projectId));
       break;
     case "turn_end":

@@ -1,14 +1,14 @@
 import type { ChatEvent } from "@shared/chat";
 import { describe, expect, it } from "vitest";
 import {
-  type CreateMayorSessionInput,
-  MayorRuntimeService,
-  type MayorSession,
-} from "./mayorRuntimeService";
+  BitRuntimeService,
+  type BitSession,
+  type CreateBitSessionInput,
+} from "./bitRuntimeService";
 
-class FakeMayorSession implements MayorSession {
-  sessionId = "mayor-1";
-  sessionFile = "/tmp/conversation/sessions/mayor/s1.jsonl";
+class FakeBitSession implements BitSession {
+  sessionId = "bit-1";
+  sessionFile = "/tmp/conversation/sessions/bit/s1.jsonl";
   messages: unknown[] = [];
   accessTokens: string[] = [];
   private listeners: Array<(event: unknown) => void> = [];
@@ -33,7 +33,7 @@ class FakeMayorSession implements MayorSession {
       type: "message_update",
       assistantMessageEvent: { type: "text_delta", delta: "🐱" },
     });
-    // Mayor's own tool execution should not surface as chat activity.
+    // Bit's own tool execution should not surface as chat activity.
     this.emit({ type: "tool_execution_start", toolCallId: "c1", toolName: "delegate_build" });
   }
 
@@ -48,20 +48,21 @@ class FakeMayorSession implements MayorSession {
 function baseInput() {
   return {
     profileId: "ada",
+    profileRoot: "/tmp/profiles/ada",
     conversationDir: "/tmp/conversation",
-    mayorSessionsDir: "/tmp/conversation/sessions/mayor",
+    bitSessionsDir: "/tmp/conversation/sessions/bit",
     customTools: [],
   };
 }
 
-describe("MayorRuntimeService", () => {
+describe("BitRuntimeService", () => {
   it("streams assistant text as profile-routed events and returns the accumulated reply", async () => {
-    const session = new FakeMayorSession();
+    const session = new FakeBitSession();
     const sessionFiles: Array<string | undefined> = [];
-    const service = new MayorRuntimeService({
+    const service = new BitRuntimeService({
       agentDir: "/tmp/pi-agent",
       getFreshAccessToken: async () => "token-1",
-      createSession: async (_input: CreateMayorSessionInput) => session,
+      createSession: async (_input: CreateBitSessionInput) => session,
       onSessionFile: (_profileId, file) => {
         sessionFiles.push(file);
       },
@@ -75,7 +76,7 @@ describe("MayorRuntimeService", () => {
     expect(result.status).toBe("completed");
     expect(result.assistantText).toBe("On it! 🐱");
     expect(session.accessTokens).toEqual(["token-1"]);
-    expect(sessionFiles).toEqual(["/tmp/conversation/sessions/mayor/s1.jsonl"]);
+    expect(sessionFiles).toEqual(["/tmp/conversation/sessions/bit/s1.jsonl"]);
 
     expect(events.map((event) => event.type)).toEqual([
       "turn_start",
@@ -90,12 +91,12 @@ describe("MayorRuntimeService", () => {
   });
 
   it("reuses one session per profile across turns", async () => {
-    const sessions: FakeMayorSession[] = [];
-    const service = new MayorRuntimeService({
+    const sessions: FakeBitSession[] = [];
+    const service = new BitRuntimeService({
       agentDir: "/tmp/pi-agent",
       getFreshAccessToken: async () => "token",
       createSession: async () => {
-        const session = new FakeMayorSession();
+        const session = new FakeBitSession();
         sessions.push(session);
         return session;
       },

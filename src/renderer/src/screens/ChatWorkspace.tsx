@@ -19,6 +19,7 @@ type ChatWorkspaceProps = {
   busy: boolean;
   error: string | null;
   previews: PreviewInfo[];
+  playableProjectIds: string[];
   activePreview: PreviewInfo | null;
   reloadSignal: number;
   onDraftChange: (value: string) => void;
@@ -45,6 +46,7 @@ export function ChatWorkspace({
   busy,
   error,
   previews,
+  playableProjectIds,
   activePreview,
   reloadSignal,
   onDraftChange,
@@ -68,9 +70,20 @@ export function ChatWorkspace({
   // streaming text is the liveness cue and the dots step aside.
   const thinking = running && messages.at(-1)?.role !== "assistant";
 
-  const livePreviewProjectIds = new Set(previews.map((preview) => preview.projectId));
-  // The persistent bar offers Play for the most recent live preview.
-  const barPreview = previews[0] ?? null;
+  // A creation is playable if it has a remembered preview (running or
+  // restartable). Running previews are always playable too.
+  const playable = new Set([...playableProjectIds, ...previews.map((p) => p.projectId)]);
+  // The persistent bar offers Play for the most recent playable creation the
+  // chat referred to, so it survives a restart even with no live server.
+  const barPlayProjectId =
+    [...messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.role === "assistant" && message.projectId && playable.has(message.projectId),
+      )?.projectId ??
+    previews[0]?.projectId ??
+    null;
 
   return (
     <main className="hb-workspace">
@@ -103,13 +116,13 @@ export function ChatWorkspace({
           <MessageList
             messages={messages}
             thinking={thinking}
-            livePreviewProjectIds={livePreviewProjectIds}
+            playableProjectIds={playable}
             onPlay={onPlayPreview}
           />
           <ActivityChip
             activity={activity}
             running={running}
-            preview={barPreview}
+            playProjectId={barPlayProjectId}
             onPlay={onPlayPreview}
             onSeeAll={onShowActivity}
           />
