@@ -30,7 +30,7 @@ Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer
 
 Manual E2E testing should exercise the Codex connection gate, kid profile gate, profile-level Pi-backed chat workspace, live creation preview flow, and creations-folder action unless the task explicitly narrows scope.
 For real-art requests, verify that a worker calls `generate_image`, saves the generated image under the creation, wires it into the app, and shows it in the preview.
-For live previews, verify that Play is available from a ready message and the activity bar, opens a sandboxed split-pane iframe only after the kid presses it, supports Reload after rebuilds, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.
+For live previews, verify that Play is available from a ready message and the activity bar, opens a sandboxed split-pane iframe only after the kid presses it, is idempotent and can restart a persisted preview after an app restart, supports Reload after rebuilds, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.
 Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`; use the app's Codex connection flow or a clean `userData` state appropriate for the test.
 
 ### One-time understanding
