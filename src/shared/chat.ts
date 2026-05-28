@@ -35,11 +35,25 @@ export type CreationActivity = {
   steps: ToolActivity[];
 };
 
+/**
+ * A creation's live preview server: a per-project process Hi-Bit spawned so the
+ * kid can play what Bit built. `url` is the finished loopback URL the renderer
+ * points an iframe at; the renderer never sees a bare port.
+ */
+export type PreviewInfo = {
+  projectId: string;
+  title?: string;
+  url: string;
+  startedAt: string;
+};
+
 export type ChatSnapshot = {
   profileId: string;
   messages: ChatMessage[];
   activity: CreationActivity[];
   isRunning: boolean;
+  /** Creations with a live preview server right now, so Play is correct after a reload. */
+  previews: PreviewInfo[];
 };
 
 /**
@@ -83,7 +97,21 @@ export type ChatEvent =
       type: "turn_end";
       status: "completed" | "cancelled" | "failed";
       error?: string;
-    } & ChatEventMeta);
+    } & ChatEventMeta)
+  // Preview events carry no turn: Hi-Bit spawns/kills the server out of band and
+  // routes the result to the renderer by `profileId` to light up (or drop) Play.
+  | {
+      type: "preview_ready";
+      profileId: string;
+      projectId: string;
+      projectTitle?: string;
+      url: string;
+    }
+  | {
+      type: "preview_stopped";
+      profileId: string;
+      projectId: string;
+    };
 
 export type SendMessageResult =
   | { ok: true; turnId: string; status: "completed" | "cancelled" }

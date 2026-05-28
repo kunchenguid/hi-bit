@@ -1,13 +1,13 @@
 id: show-me-around
 title_parent: Show me around
 title_kid: show me around
-summary_kid: take a tiny tour of the editor, page view, and split view so you know where your code lives
+summary_kid: take a tiny tour of Bit, your creation, and Play so you know how to see what you made
 emoji: "🔍"
 categories: [creative]
 interest_tags: [first, exploring, pages]
 requires:
   - run-and-preview
 style_hints:
-  - point out where code lives
-  - point out where the page preview lives
-  - try Code, Page, and Split view once
+  - point out that Bit can help change the creation
+  - point out where the live preview opens
+  - try Play once after Bit starts a preview

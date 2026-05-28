@@ -83,7 +83,7 @@ export type ActivitySummary = {
   count: number;
 };
 
-export function summarizeActivity(activity: CreationActivity[]): ActivitySummary {
+export function summarizeActivity(activity: CreationActivity[], running = false): ActivitySummary {
   const count = activity.reduce((total, creation) => total + creation.steps.length, 0);
   const workingCreations = activity.filter((creation) => creation.status === "working");
 
@@ -93,6 +93,12 @@ export function summarizeActivity(activity: CreationActivity[]): ActivitySummary
         ? `A bot is working on ${workingCreations[0].title}`
         : `${workingCreations.length} bots are working on your creations`;
     return { working: true, headline, detail: currentStepDetail(workingCreations), count };
+  }
+
+  // No bot is mid-build, but Bit's own turn is still in flight: keep the
+  // heartbeat alive so the kid sees Bit is thinking, not stalled.
+  if (running) {
+    return { working: true, headline: "Bit is thinking", detail: "", count };
   }
 
   const recent = activity[0];
@@ -127,7 +133,7 @@ export function friendlyStep(toolName: string): string {
 
 function upsertStep(
   activity: CreationActivity[],
-  event: ChatEvent & { projectId?: string; projectTitle?: string },
+  event: ChatEvent & { callId: string; turnId: string; projectId?: string; projectTitle?: string },
   fallbackStep: ToolActivity,
   nextSteps: (steps: ToolActivity[]) => ToolActivity[],
 ): CreationActivity[] {
@@ -154,7 +160,7 @@ function upsertStep(
 
 function mapStep(
   activity: CreationActivity[],
-  event: ChatEvent & { callId: string; projectId?: string },
+  event: ChatEvent & { callId: string; turnId: string; projectId?: string },
   update: (step: ToolActivity) => ToolActivity,
 ): CreationActivity[] {
   if (!event.projectId) return activity;

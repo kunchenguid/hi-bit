@@ -47,4 +47,11 @@ describe("ActivityChip", () => {
 
     expect(onSeeAll).toHaveBeenCalledOnce();
   });
+
+  it("reflects Bit thinking when a turn is running with no build activity", () => {
+    act(() => root.render(<ActivityChip activity={[]} running={true} onSeeAll={vi.fn()} />));
+
+    expect(host.textContent).toContain("Bit is thinking");
+    expect(host.querySelector('[data-state="working"]')).not.toBeNull();
+  });
 });

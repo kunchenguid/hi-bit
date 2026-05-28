@@ -44,6 +44,10 @@ const api: HiBitApi = {
       return () => ipcRenderer.off("hibit:chat:event", handler);
     },
   },
+  preview: {
+    openExternal: (url: string): Promise<void> =>
+      ipcRenderer.invoke("hibit:preview:open-external", url),
+  },
 };
 
 contextBridge.exposeInMainWorld("hibit", api);

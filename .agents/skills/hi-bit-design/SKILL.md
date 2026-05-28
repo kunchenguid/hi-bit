@@ -27,7 +27,7 @@ All design sources are under `/design/` (relative to the repo root). From this s
 1. **Read `design/README.md` first.** It's the source of truth for brand voice, casing rules, color usage, type ramp, motion, and iconography.
 2. **Import tokens** from `design/tokens/colors_and_type.css` - subject rainbow (HTML coral, CSS cyan, JS amber, art magenta, math lime), paper/night neutrals, Fredoka + Fira Code + Press Start 2P type ramp.
 3. **Browse the preview cards** in `design/preview/` to see each token rendered in context.
-4. **Reference current product surfaces** in `src/renderer/src/screens/` for Codex connection, profile gate, and chat workspace flows.
+4. **Reference current product surfaces** in `src/renderer/src/screens/` for Codex connection, profile gate, chat workspace, and live preview flows.
 5. **Use the UI kit** at `design/ui-kits/desktop/index.html` as a legacy brand prototype for visual patterns, not as the current product shell.
 6. **Use assets** from `design/assets/`:
    - `mascot-boo.svg` - full-body Bit (filename kept for path stability; the character inside is Bit the robot)
@@ -46,7 +46,7 @@ All design sources are under `/design/` (relative to the repo root). From this s
 
 Ask what the user wants to build. Offer a few directions:
 
-- A new screen for the Hi-Bit app (Codex connection, profile gate, chat workspace, onboarding)
+- A new screen for the Hi-Bit app (Codex connection, profile gate, chat workspace, live preview, onboarding)
 - Marketing asset (app icon variations, a landing page)
 - A slide for a parent-facing pitch deck
 - A new subject added to the rainbow (e.g. Python - what color? what sticker?)

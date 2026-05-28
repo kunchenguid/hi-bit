@@ -189,4 +189,16 @@ describe("summarizeActivity", () => {
     const summary = summarizeActivity([working("a", "Cat Jump"), working("b", "Space Site")]);
     expect(summary.count).toBe(2);
   });
+
+  it("reports Bit thinking when a turn is running with no build activity", () => {
+    const summary = summarizeActivity([], true);
+    expect(summary.working).toBe(true);
+    expect(summary.headline).toBe("Bit is thinking");
+    expect(summary.detail).toBe("");
+  });
+
+  it("prefers a working build over the thinking state", () => {
+    const summary = summarizeActivity([working("a", "Cat Jump")], true);
+    expect(summary.headline).toBe("A bot is working on Cat Jump");
+  });
 });

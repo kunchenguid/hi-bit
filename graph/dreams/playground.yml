@@ -2,7 +2,7 @@ id: playground
 mode: freeform
 title_parent: Playground
 title_kid: playground
-summary_kid: use the editor, live preview, and Bit however you want, without following a fixed project path
+summary_kid: use Bit and live previews however you want, without following a fixed project path
 emoji: "💬"
 categories: [creative, personal]
 interest_tags: [chat, questions, ideas, exploring]
@@ -10,4 +10,4 @@ requires: []
 style_hints:
   - follow the kid's curiosity
   - ask one small question at a time
-  - help them use the editor and preview when they want to make something
+  - help them start a preview and press Play when they want to see something

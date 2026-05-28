@@ -51,6 +51,9 @@ export type HiBitApi = {
     abort: (profileId: string) => Promise<void>;
     onEvent: (listener: (event: ChatEvent) => void) => Unsubscribe;
   };
+  preview: {
+    openExternal: (url: string) => Promise<void>;
+  };
 };
 
 declare global {
