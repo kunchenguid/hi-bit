@@ -1,5 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatEvent, ChatSnapshot, SendMessageResult } from "@shared/chat";
+import type { ChatEvent, ChatSnapshot, PreviewInfo, SendMessageResult } from "@shared/chat";
 import type { AppInfo, HiBitApi } from "@shared/ipc";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { CreateProjectInput, ProjectSummary } from "@shared/project";
@@ -45,6 +45,8 @@ const api: HiBitApi = {
     },
   },
   preview: {
+    play: (profileId: string, projectId: string): Promise<PreviewInfo> =>
+      ipcRenderer.invoke("hibit:preview:play", profileId, projectId),
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke("hibit:preview:open-external", url),
   },

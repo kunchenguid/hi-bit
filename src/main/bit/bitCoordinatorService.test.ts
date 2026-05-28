@@ -6,15 +6,15 @@ import { describe, expect, it } from "vitest";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import type { BotBuild, BotPipeline, BotWorkbench } from "../bots/botPipeline";
 import { ConversationService } from "../conversation/conversationService";
-import type { MayorPromptInput, MayorRuntime, MayorTurnResult } from "../pi/mayorRuntimeService";
+import type { BitPromptInput, BitRuntime, BitTurnResult } from "../pi/bitRuntimeService";
 import { PreviewService } from "../preview/previewService";
 import { ProfileService } from "../profiles/profileService";
 import { ProjectService, type RuntimeProject } from "../projects/projectService";
 import { bootstrapLayout } from "../storage/layout";
-import { BitCoordinatorService, type BitRuntime } from "./bitCoordinatorService";
+import { BitCoordinatorService, type WorkerRuntime } from "./bitCoordinatorService";
 
 /** Worker runtime stub: emits ambient tool activity, then a short completion note. */
-class FakeWorkerRuntime implements BitRuntime {
+class FakeWorkerRuntime implements WorkerRuntime {
   prompts: Array<{ project: RuntimeProject; text: string }> = [];
   disposed: string[] = [];
   status: "completed" | "cancelled" | "failed" = "completed";
@@ -87,30 +87,30 @@ class FakePipeline implements BotPipeline {
   }
 }
 
-type MayorHandler = (ctx: {
+type BitHandler = (ctx: {
   text: string;
   profileId: string;
   callTool: (name: string, params: unknown) => Promise<unknown>;
 }) => Promise<string>;
 
-class FakeMayorRuntime implements MayorRuntime {
+class FakeBitRuntime implements BitRuntime {
   prompts: string[] = [];
-  handler: MayorHandler = async () => "";
+  handler: BitHandler = async () => "";
   failCompletions = false;
   private turn = 0;
   private runningSet = new Set<string>();
 
   async prompt(
-    input: MayorPromptInput,
+    input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
-  ): Promise<MayorTurnResult> {
+  ): Promise<BitTurnResult> {
     this.prompts.push(text);
     if (this.failCompletions && isCompletion(text)) {
-      throw new Error("Mayor completion failed");
+      throw new Error("Bit completion failed");
     }
     this.runningSet.add(input.profileId);
-    const turnId = `mayor-turn-${++this.turn}`;
+    const turnId = `bit-turn-${++this.turn}`;
     onEvent({ type: "turn_start", profileId: input.profileId, turnId });
     const callTool = async (name: string, params: unknown) => {
       const tool = input.customTools.find((candidate) => candidate.name === name);
@@ -136,7 +136,7 @@ class FakeMayorRuntime implements MayorRuntime {
       turnId,
       status: "completed",
       assistantText,
-      sessionFile: `/tmp/mayor/${input.profileId}.jsonl`,
+      sessionFile: `/tmp/bit/${input.profileId}.jsonl`,
     };
   }
 
@@ -149,7 +149,7 @@ class FakeMayorRuntime implements MayorRuntime {
 }
 
 async function createCoordinator() {
-  const root = await mkdtemp(join(tmpdir(), "hibit-mayor-"));
+  const root = await mkdtemp(join(tmpdir(), "hibit-bit-"));
   const layout = await bootstrapLayout(root);
   const now = () => new Date("2026-01-02T03:04:10.000Z");
   const profiles = new ProfileService(layout, () => new Date("2026-01-02T03:04:04.000Z"));
@@ -163,7 +163,7 @@ async function createCoordinator() {
   const conversation = new ConversationService(layout, now);
   const worker = new FakeWorkerRuntime();
   const pipeline = new FakePipeline();
-  const mayor = new FakeMayorRuntime();
+  const bit = new FakeBitRuntime();
   // Preview server with everything that touches a real process faked out.
   const previewSpawns: Array<{ command: string; cwd: string }> = [];
   let previewPort = 4310;
@@ -182,7 +182,7 @@ async function createCoordinator() {
     profiles,
     projects,
     conversation,
-    mayor,
+    bit,
     worker,
     pipeline,
     preview,
@@ -205,7 +205,7 @@ async function createCoordinator() {
     conversation,
     worker,
     pipeline,
-    mayor,
+    bit,
     preview,
     previewSpawns,
     profile: ada,
@@ -218,15 +218,15 @@ function isCompletion(text: string): boolean {
   return text.includes("is ready") || text.includes("hit a snag") || text.includes("was stopped");
 }
 
-describe("BitCoordinatorService (Mayor)", () => {
+describe("BitCoordinatorService (Bit)", () => {
   it("replies to chit-chat without creating anything", async () => {
     const s = await createCoordinator();
-    s.mayor.handler = async () => "Hi Ada! What should we build?";
+    s.bit.handler = async () => "Hi Ada! What should we build?";
 
     const result = await s.coordinator.send(s.profile.id, "hello");
     await s.drain();
 
-    expect(result).toEqual({ ok: true, turnId: "mayor-turn-1", status: "completed" });
+    expect(result).toEqual({ ok: true, turnId: "bit-turn-1", status: "completed" });
     await expect(s.projects.list(s.profile.id)).resolves.toEqual([]);
     expect(s.pipeline.prepared).toHaveLength(0);
     const transcript = await s.conversation.readTranscript(s.profile.id);
@@ -238,7 +238,7 @@ describe("BitCoordinatorService (Mayor)", () => {
 
   it("persists unique user message ids for rapid sends", async () => {
     const s = await createCoordinator();
-    s.mayor.handler = async () => "";
+    s.bit.handler = async () => "";
 
     await s.coordinator.send(s.profile.id, "first");
     await s.coordinator.send(s.profile.id, "second");
@@ -252,7 +252,7 @@ describe("BitCoordinatorService (Mayor)", () => {
 
   it("confirms a new idea on one turn, then creates and builds it after the kid agrees", async () => {
     const s = await createCoordinator();
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return `Your Cat Jump is ready! 🎉`;
       if (text.includes("make a cat game")) {
         return "Ooh, a cat game! Want me to start it? 🐱";
@@ -279,7 +279,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(s.worker.disposed).toEqual(["bot_job_1"]);
 
     // Completion turn ran and posted a kid-facing update.
-    const completionPrompt = s.mayor.prompts.find((p) => p.includes("is ready"));
+    const completionPrompt = s.bit.prompts.find((p) => p.includes("is ready"));
     expect(completionPrompt).toContain("Cat Jump");
     expect(completionPrompt).not.toMatch(/worker|id:/i);
     expect(completionPrompt).not.toContain(portfolio[0]?.id);
@@ -288,7 +288,7 @@ describe("BitCoordinatorService (Mayor)", () => {
   it("refuses to create when the kid has not confirmed", async () => {
     const s = await createCoordinator();
     let toolResult: unknown;
-    s.mayor.handler = async ({ callTool }) => {
+    s.bit.handler = async ({ callTool }) => {
       toolResult = await callTool("create_creation", {
         title: "Cat Jump",
         instructions: "build it",
@@ -309,7 +309,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     const toolResults: unknown[] = [];
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       toolResults.push(
         await callTool("create_creation", {
@@ -344,7 +344,7 @@ describe("BitCoordinatorService (Mayor)", () => {
   it("delegates an edit on an existing creation immediately and surfaces worker activity", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("delegate_build", {
         creationId: game.id,
@@ -368,7 +368,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     expect(game.updatedAt).toBe("2026-01-02T03:04:05.000Z");
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
@@ -385,8 +385,8 @@ describe("BitCoordinatorService (Mayor)", () => {
   it("persists a fallback message when the completion turn fails", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.mayor.failCompletions = true;
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.failCompletions = true;
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
@@ -416,7 +416,7 @@ describe("BitCoordinatorService (Mayor)", () => {
           resolve();
         });
     });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Ready!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
@@ -437,7 +437,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const s = await createCoordinator();
     const a = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     const b = await s.projects.create(s.profile.id, { title: "Space Site" });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (!text.includes("starrier")) return "";
       await callTool("delegate_build", { creationId: a.id, instructions: "add stars" });
       await callTool("delegate_build", { creationId: b.id, instructions: "add stars" });
@@ -449,7 +449,7 @@ describe("BitCoordinatorService (Mayor)", () => {
 
     expect(s.worker.prompts).toHaveLength(2);
     expect(s.pipeline.installed).toHaveLength(2);
-    const completions = s.mayor.prompts.filter((p) => p.includes("is ready"));
+    const completions = s.bit.prompts.filter((p) => p.includes("is ready"));
     expect(completions).toHaveLength(2);
     for (const completion of completions) {
       expect(completion).not.toMatch(/worker|id:/i);
@@ -460,7 +460,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.worker.status = "failed";
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (text.includes("ready") || text.includes("snag")) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
       return "On it!";
@@ -470,7 +470,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     await s.drain();
 
     expect(s.pipeline.installed).toHaveLength(0);
-    const failurePrompt = s.mayor.prompts.find((p) => p.includes("hit a snag"));
+    const failurePrompt = s.bit.prompts.find((p) => p.includes("hit a snag"));
     expect(failurePrompt).toContain("Cat Jump");
     expect(failurePrompt).not.toMatch(/worker|id:/i);
     expect(failurePrompt).not.toContain(game.id);
@@ -479,7 +479,7 @@ describe("BitCoordinatorService (Mayor)", () => {
   it("persists worker tool steps and returns them grouped by creation on load", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
@@ -504,7 +504,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.worker.emitsTools = false;
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "think quietly" });
       return "On it!";
@@ -529,7 +529,7 @@ describe("BitCoordinatorService (Mayor)", () => {
           resolve();
         });
     });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Ready!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
@@ -548,7 +548,7 @@ describe("BitCoordinatorService (Mayor)", () => {
   it("emits build_start and build_end around a worker build", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
@@ -588,7 +588,7 @@ describe("BitCoordinatorService (Mayor)", () => {
         installCount += 1;
         if (installCount === 2) resolveBothInstalls();
       });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Ready!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       await callTool("delegate_build", { creationId: game.id, instructions: "add badges" });
@@ -620,7 +620,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.worker.emitsToolEnd = false;
     s.worker.status = "failed";
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (text.includes("snag")) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
       return "On it!";
@@ -642,7 +642,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.worker.emitsToolEnd = false;
     s.worker.status = "failed";
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (text.includes("snag")) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
       return "On it!";
@@ -687,7 +687,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     s.worker.emitsToolEnd = false;
     s.worker.statusByRuntimeKey.set("bot_job_1", "failed");
     s.worker.statusByRuntimeKey.set("bot_job_2", "completed");
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Ready!";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
       await callTool("delegate_build", { creationId: game.id, instructions: "fix it" });
@@ -743,7 +743,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     });
     s.worker.emitsToolEnd = false;
     s.worker.status = "failed";
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
       return "On it!";
@@ -821,7 +821,7 @@ describe("BitCoordinatorService (Mayor)", () => {
 
   it("loads the continuous profile transcript", async () => {
     const s = await createCoordinator();
-    s.mayor.handler = async () => "Hello!";
+    s.bit.handler = async () => "Hello!";
     await s.coordinator.send(s.profile.id, "hi");
     await s.drain();
 
@@ -836,7 +836,7 @@ describe("BitCoordinatorService (Mayor)", () => {
 
   it("keeps the transcript even when activity rebuild fails on load", async () => {
     const s = await createCoordinator();
-    s.mayor.handler = async () => "Hello!";
+    s.bit.handler = async () => "Hello!";
     await s.coordinator.send(s.profile.id, "hi");
     await s.drain();
 
@@ -858,7 +858,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
     let toolResult: unknown;
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       toolResult = await callTool("start_preview", {
         projectId: game.id,
@@ -903,6 +903,76 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(reply?.projectId).toBe(game.id);
   });
 
+  it("remembers the preview command so the creation stays playable after a restart", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("start_preview", { projectId: game.id, command: "python3 -m http.server" });
+      return "Press Play!";
+    };
+    await s.coordinator.send(s.profile.id, "play it");
+    await s.drain();
+
+    // Simulate an app restart: the in-memory preview process is gone.
+    s.preview.stopAll();
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.previews).toHaveLength(0);
+    expect(snapshot.playableProjectIds).toContain(game.id);
+  });
+
+  it("plays a remembered creation idempotently, restarting the server on demand", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    await s.projects.rememberPreviewCommand(
+      s.profile.id,
+      game.id,
+      'python3 -m http.server "$PORT"',
+    );
+
+    const info = await s.coordinator.playPreview(s.profile.id, game.id);
+    expect(info).toMatchObject({ projectId: game.id, title: "Snake Game" });
+    expect(s.previewSpawns).toHaveLength(1);
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "preview_ready", projectId: game.id }),
+    );
+
+    // Pressing Play again must not spawn a second server.
+    await s.coordinator.playPreview(s.profile.id, game.id);
+    expect(s.previewSpawns).toHaveLength(1);
+  });
+
+  it("recovers a creation previewed before the command was persisted (old data)", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    // Simulate an old build: a preview happened (logbook row) but no command saved.
+    await s.projects.recordPreviewServer(s.profile.id, game.id, {
+      projectId: game.id,
+      title: "Snake Game",
+      url: "http://127.0.0.1:51913/",
+      startedAt: "2026-05-27T23:46:15.722Z",
+    });
+
+    // It is reported playable on load even with no remembered command.
+    const snapshot = await s.coordinator.load(s.profile.id);
+    expect(snapshot.playableProjectIds).toContain(game.id);
+
+    // Play restarts it using the static default and persists that command.
+    const info = await s.coordinator.playPreview(s.profile.id, game.id);
+    expect(info.projectId).toBe(game.id);
+    expect(s.previewSpawns).toHaveLength(1);
+    expect(s.previewSpawns[0].command).toBe('python3 -m http.server "$PORT" --bind 127.0.0.1');
+    await expect(s.projects.get(s.profile.id, game.id)).resolves.toMatchObject({
+      lastPreviewCommand: 'python3 -m http.server "$PORT" --bind 127.0.0.1',
+    });
+  });
+
+  it("refuses to play a creation that was never previewed", async () => {
+    const s = await createCoordinator();
+    const fresh = await s.projects.create(s.profile.id, { title: "Fresh" });
+    await expect(s.coordinator.playPreview(s.profile.id, fresh.id)).rejects.toThrow(/no preview/i);
+  });
+
   it("keeps a live preview successful when recording preview history fails", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
@@ -910,7 +980,7 @@ describe("BitCoordinatorService (Mayor)", () => {
       throw new Error("logbook full");
     };
     let toolResult: unknown;
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       toolResult = await callTool("start_preview", {
         projectId: game.id,
@@ -931,13 +1001,36 @@ describe("BitCoordinatorService (Mayor)", () => {
     expect(toolResult).toMatchObject({
       details: { projectId: game.id, url: "http://127.0.0.1:4310/" },
     });
+    await expect(s.projects.get(s.profile.id, game.id)).resolves.toMatchObject({
+      lastPreviewCommand: "python3 -m http.server",
+    });
+  });
+
+  it("remembers a recovered preview command when recording preview history fails", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
+    await s.projects.recordPreviewServer(s.profile.id, game.id, {
+      projectId: game.id,
+      title: "Snake Game",
+      url: "http://127.0.0.1:51913/",
+      startedAt: "2026-05-27T23:46:15.722Z",
+    });
+    s.projects.recordPreviewServer = async () => {
+      throw new Error("logbook full");
+    };
+
+    await s.coordinator.playPreview(s.profile.id, game.id);
+
+    await expect(s.projects.get(s.profile.id, game.id)).resolves.toMatchObject({
+      lastPreviewCommand: 'python3 -m http.server "$PORT" --bind 127.0.0.1',
+    });
   });
 
   it("lists running previews for the profile", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
     let listText = "";
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("start_preview", { projectId: game.id, command: "python3 -m http.server" });
       const result = (await callTool("list_previews", {})) as {
@@ -958,7 +1051,7 @@ describe("BitCoordinatorService (Mayor)", () => {
   it("stops a preview, emits preview_stopped, and drops it from the snapshot", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Snake Game" });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       if (text.includes("stop it")) {
         await callTool("stop_preview", { projectId: game.id });
@@ -988,7 +1081,7 @@ describe("BitCoordinatorService (Mayor)", () => {
     const otherGame = await s.projects.create(other.id, { title: "Sam's Game" });
     await s.preview.start(other.id, otherGame.id, "python3 -m http.server", otherGame.title);
     let toolResult: { content: Array<{ text: string }>; details: { stopped: boolean } } | undefined;
-    s.mayor.handler = async ({ callTool }) => {
+    s.bit.handler = async ({ callTool }) => {
       toolResult = (await callTool("stop_preview", {
         projectId: otherGame.id,
       })) as typeof toolResult;
@@ -1009,7 +1102,7 @@ describe("BitCoordinatorService (Mayor)", () => {
   it("tags the completion message with its creation so the renderer can light up Play", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.mayor.handler = async ({ text, callTool }) => {
+    s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Cat Jump is ready! 🎉";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";

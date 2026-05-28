@@ -92,6 +92,32 @@ describe("PreviewService", () => {
     expect(h.spawns).toHaveLength(1);
   });
 
+  it("is idempotent while a preview start is still in flight", async () => {
+    const portResolvers: Array<(port: number) => void> = [];
+    const spawns: Harness["spawns"] = [];
+    const service = new PreviewService({
+      resolveWorkbenchDir: (profileId, projectId) => `/work/${profileId}/${projectId}`,
+      spawn: (command, options) => {
+        spawns.push({ command, ...options });
+        return fakeChild();
+      },
+      findFreePort: () => new Promise((resolve) => portResolvers.push(resolve)),
+      waitForPort: async () => {},
+      now: () => new Date("2026-05-27T10:00:00.000Z"),
+    });
+
+    const first = service.start("ada", "project_1", "cmd");
+    const second = service.start("ada", "project_1", "cmd-again");
+    await Promise.resolve();
+    expect(portResolvers).toHaveLength(1);
+
+    portResolvers[0]?.(4310);
+    const [firstInfo, secondInfo] = await Promise.all([first, second]);
+
+    expect(secondInfo).toEqual(firstInfo);
+    expect(spawns).toHaveLength(1);
+  });
+
   it("stops a specific preview, killing the process and dropping it from the list", async () => {
     const h = createService();
     await h.service.start("ada", "project_1", "cmd");

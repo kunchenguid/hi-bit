@@ -1,5 +1,5 @@
 import type { AuthStatus } from "./auth";
-import type { ChatEvent, ChatSnapshot, SendMessageResult } from "./chat";
+import type { ChatEvent, ChatSnapshot, PreviewInfo, SendMessageResult } from "./chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "./profile";
 import type { CreateProjectInput, ProjectSummary } from "./project";
 
@@ -52,6 +52,7 @@ export type HiBitApi = {
     onEvent: (listener: (event: ChatEvent) => void) => Unsubscribe;
   };
   preview: {
+    play: (profileId: string, projectId: string) => Promise<PreviewInfo>;
     openExternal: (url: string) => Promise<void>;
   };
 };

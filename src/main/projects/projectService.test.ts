@@ -95,6 +95,41 @@ describe("ProjectService", () => {
     });
   });
 
+  it("remembers a creation's preview command and keeps it across a touch", async () => {
+    const command = 'python3 -m http.server "$PORT" --bind 127.0.0.1';
+    const project = await service.create(adaId, { title: "Snake Game" });
+
+    await service.rememberPreviewCommand(adaId, project.id, command);
+    await expect(service.get(adaId, project.id)).resolves.toMatchObject({
+      lastPreviewCommand: command,
+    });
+
+    // A later build completion touches the record; the command must survive.
+    await service.touch(adaId, project.id);
+    await expect(service.get(adaId, project.id)).resolves.toMatchObject({
+      lastPreviewCommand: command,
+    });
+    const listed = await service.list(adaId);
+    expect(listed.find((p) => p.id === project.id)?.lastPreviewCommand).toBe(command);
+  });
+
+  it("reports preview history from the logbook, even without a remembered command", async () => {
+    const project = await service.create(adaId, { title: "Snake Game" });
+    await expect(service.hasPreviewHistory(adaId, project.id)).resolves.toBe(false);
+
+    // A preview was recorded on an older build that never stored the command.
+    await service.recordPreviewServer(adaId, project.id, {
+      projectId: project.id,
+      title: "Snake Game",
+      url: "http://127.0.0.1:51913/",
+      startedAt: "2026-05-27T23:46:15.722Z",
+    });
+
+    await expect(service.hasPreviewHistory(adaId, project.id)).resolves.toBe(true);
+    // ...but the command was never persisted on that old data.
+    expect((await service.get(adaId, project.id)).lastPreviewCommand).toBeUndefined();
+  });
+
   it("rejects blank titles and unsafe project ids", async () => {
     await expect(service.create(adaId, { title: "   " })).rejects.toThrow(/project title/i);
     expect(() => service.pathsFor("../secret", "project-1")).toThrow(/Invalid profile id/);

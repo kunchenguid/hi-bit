@@ -5,20 +5,15 @@ import { MarkdownText } from "./MarkdownText";
 type MessageListProps = {
   messages: ChatMessage[];
   thinking: boolean;
-  /** Creations with a live preview server, so their "ready" message can offer Play. */
-  livePreviewProjectIds?: Set<string>;
+  /** Playable creations (running or restartable), so their "ready" message can offer Play. */
+  playableProjectIds?: Set<string>;
   onPlay?: (projectId: string) => void;
 };
 
 /** How close to the bottom (px) still counts as "looking at the latest". */
 const STICK_THRESHOLD = 24;
 
-export function MessageList({
-  messages,
-  thinking,
-  livePreviewProjectIds,
-  onPlay,
-}: MessageListProps) {
+export function MessageList({ messages, thinking, playableProjectIds, onPlay }: MessageListProps) {
   const listRef = useRef<HTMLOListElement>(null);
   // Whether the kid is parked at the bottom. Stays true until they scroll up to
   // re-read, so streaming text and new bubbles only auto-follow when wanted.
@@ -56,7 +51,7 @@ export function MessageList({
           message.role === "assistant" &&
           !!message.projectId &&
           !!onPlay &&
-          !!livePreviewProjectIds?.has(message.projectId);
+          !!playableProjectIds?.has(message.projectId);
         return (
           <li className={`hb-message hb-message-${message.role}`} key={message.id}>
             <span className="hb-message-label">{message.role === "user" ? "You" : "Bit"}</span>

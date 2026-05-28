@@ -37,7 +37,7 @@ describe("registerIpc", () => {
     const services = {
       auth: { status: vi.fn(), login: vi.fn(), logout: vi.fn() },
       runtime: { disposeAll: vi.fn() },
-      mayor: { disposeAll: vi.fn() },
+      bitRuntime: { disposeAll: vi.fn() },
       preview: { stopAll: vi.fn() },
       profiles: {},
       projects: {},
@@ -52,6 +52,6 @@ describe("registerIpc", () => {
     expect(services.auth.logout).toHaveBeenCalled();
     expect(services.preview.stopAll).toHaveBeenCalled();
     expect(services.runtime.disposeAll).toHaveBeenCalled();
-    expect(services.mayor.disposeAll).toHaveBeenCalled();
+    expect(services.bitRuntime.disposeAll).toHaveBeenCalled();
   });
 });

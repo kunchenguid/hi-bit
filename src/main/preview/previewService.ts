@@ -40,6 +40,7 @@ type PreviewProcess = PreviewInfo & {
  */
 export class PreviewService {
   private readonly running = new Map<string, PreviewProcess>();
+  private readonly starting = new Map<string, Promise<PreviewInfo>>();
   private readonly resolveWorkbenchDir: (profileId: string, projectId: string) => string;
   private readonly spawn: SpawnLike;
   private readonly findFreePort: () => Promise<number>;
@@ -66,7 +67,24 @@ export class PreviewService {
   ): Promise<PreviewInfo> {
     const existing = this.running.get(projectId);
     if (existing) return toInfo(existing);
+    const pending = this.starting.get(projectId);
+    if (pending) return pending;
 
+    const start = this.startFresh(profileId, projectId, command, title);
+    this.starting.set(projectId, start);
+    try {
+      return await start;
+    } finally {
+      if (this.starting.get(projectId) === start) this.starting.delete(projectId);
+    }
+  }
+
+  private async startFresh(
+    profileId: string,
+    projectId: string,
+    command: string,
+    title?: string,
+  ): Promise<PreviewInfo> {
     const port = await this.findFreePort();
     const cwd = this.resolveWorkbenchDir(profileId, projectId);
     const child = this.spawn(command, {

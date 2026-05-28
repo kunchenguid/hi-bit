@@ -61,7 +61,7 @@ describe("bootstrapLayout", () => {
 });
 
 describe("profileConversationPaths", () => {
-  it("places the transcript and mayor sessions under the profile conversation dir", async () => {
+  it("places the transcript and bit sessions under the profile conversation dir", async () => {
     const root = await tempRoot();
     const layout = await bootstrapLayout(root);
 
@@ -70,9 +70,10 @@ describe("profileConversationPaths", () => {
 
     const paths = profileConversationPaths(layout, "ada");
     expect(paths).toEqual({
+      profileRoot: profileDirFor(layout, "ada"),
       conversationDir: dir,
       transcriptPath: join(dir, "transcript.jsonl"),
-      mayorSessionsDir: join(dir, "sessions", "mayor"),
+      bitSessionsDir: join(dir, "sessions", "bit"),
       conversationStatePath: join(dir, "conversation.json"),
     });
   });

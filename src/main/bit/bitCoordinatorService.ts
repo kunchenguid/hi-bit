@@ -5,6 +5,7 @@ import type {
   ChatMessage,
   ChatSnapshot,
   CreationActivity,
+  PreviewInfo,
   SendMessageResult,
   ToolActivity,
 } from "@shared/chat";
@@ -14,12 +15,15 @@ import { Type } from "typebox";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
 import type { ConversationService } from "../conversation/conversationService";
-import type { MayorRuntime } from "../pi/mayorRuntimeService";
+import type { BitRuntime } from "../pi/bitRuntimeService";
 import { PreviewService } from "../preview/previewService";
 import type { ProjectService, RuntimeProject } from "../projects/projectService";
 
+/** Static-server fallback for replaying a creation previewed before its command was persisted. */
+const DEFAULT_PREVIEW_COMMAND = 'python3 -m http.server "$PORT" --bind 127.0.0.1';
+
 /** Worker runtime: runs a build for one creation in its isolated workbench. */
-export type BitRuntime = {
+export type WorkerRuntime = {
   sendPrompt: (
     project: RuntimeProject,
     text: string,
@@ -44,8 +48,8 @@ type BitCoordinatorServiceOptions = {
   profiles: ProfileReader;
   projects: ProjectService;
   conversation: ConversationService;
-  mayor: MayorRuntime;
-  worker: BitRuntime;
+  bit: BitRuntime;
+  worker: WorkerRuntime;
   preview?: PreviewService;
   botJobs?: BotJobService;
   pipeline?: BotPipeline;
@@ -65,7 +69,7 @@ type BuildDetails = { jobId: string | null; projectId: string };
 type PreviewToolDetails = { projectId: string; url: string | null };
 
 /**
- * Bit, the Mayor. The kid talks only to Bit through one profile-level conversation.
+ * Bit, the coordinator. The kid talks only to Bit through one profile-level conversation.
  * Each turn, Bit decides scope, confirms before creating, and delegates building to
  * worker bots via custom tools. Workers run in the background and Bit posts a
  * completion update when each finishes.
@@ -74,8 +78,8 @@ export class BitCoordinatorService {
   private readonly profiles: ProfileReader;
   private readonly projects: ProjectService;
   private readonly conversation: ConversationService;
-  private readonly mayor: MayorRuntime;
-  private readonly worker: BitRuntime;
+  private readonly bit: BitRuntime;
+  private readonly worker: WorkerRuntime;
   private readonly preview: PreviewService;
   private readonly botJobs: BotJobService;
   private readonly pipeline: BotPipeline;
@@ -84,7 +88,7 @@ export class BitCoordinatorService {
   private readonly listeners = new Set<(event: ChatEvent) => void>();
   private readonly toolCache = new Map<string, ToolDefinition[]>();
   private readonly inflight = new Map<string, Map<string, InflightWorker>>();
-  private readonly mayorLocks = new Map<string, Promise<unknown>>();
+  private readonly bitLocks = new Map<string, Promise<unknown>>();
   /** Serializes logbook appends per creation so persisted steps keep their order. */
   private readonly activityWrites = new Map<string, Promise<unknown>>();
   /** Creation a turn just started a preview for, so its reply can offer Play. */
@@ -96,7 +100,7 @@ export class BitCoordinatorService {
     this.profiles = options.profiles;
     this.projects = options.projects;
     this.conversation = options.conversation;
-    this.mayor = options.mayor;
+    this.bit = options.bit;
     this.worker = options.worker;
     this.now = options.now ?? (() => new Date());
     this.preview =
@@ -129,17 +133,32 @@ export class BitCoordinatorService {
     // the load and blank the transcript the kid actually cares about - degrade
     // to no activity instead.
     let activity: CreationActivity[] = [];
+    let playableProjectIds: string[] = [];
     try {
       activity = await this.buildActivity(profileId);
     } catch (error) {
       console.error(`Failed to rebuild activity for profile ${profileId}:`, error);
     }
+    try {
+      const portfolio = await this.projects.list(profileId);
+      const playable = await Promise.all(
+        portfolio.map(async (p) =>
+          p.lastPreviewCommand || (await this.projects.hasPreviewHistory(profileId, p.id))
+            ? p.id
+            : null,
+        ),
+      );
+      playableProjectIds = playable.filter((id): id is string => id !== null);
+    } catch (error) {
+      console.error(`Failed to read playable previews for profile ${profileId}:`, error);
+    }
     return {
       profileId,
       messages,
       activity,
-      isRunning: this.mayor.isRunning(profileId),
+      isRunning: this.bit.isRunning(profileId),
       previews: this.preview.list(profileId),
+      playableProjectIds,
     };
   }
 
@@ -194,7 +213,7 @@ export class BitCoordinatorService {
 
       const portfolio = await this.projects.list(profileId);
       const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${prompt}`;
-      const result = await this.runMayorTurn(profileId, requestText, { lifecycle: true });
+      const result = await this.runBitTurn(profileId, requestText, { lifecycle: true });
 
       if (result.status === "failed") {
         return { ok: false, turnId: result.turnId, error: result.error ?? "Bit hit a problem." };
@@ -207,23 +226,59 @@ export class BitCoordinatorService {
 
   async abort(profileId: string): Promise<void> {
     await this.profiles.get(profileId);
-    await this.mayor.abort(profileId);
+    await this.bit.abort(profileId);
     for (const worker of this.listInflight(profileId)) {
       await this.worker.abort(worker.jobId);
     }
   }
 
-  // --- Mayor turns -----------------------------------------------------------
+  /**
+   * Idempotently makes a creation playable: ensures its preview server is
+   * running (restarting it from the remembered command if the process is gone,
+   * e.g. after an app quit) and returns where to point the pane. PreviewService
+   * no-ops when the server is already up, so repeated Play presses are safe.
+   */
+  async playPreview(profileId: string, projectId: string): Promise<PreviewInfo> {
+    await this.profiles.get(profileId);
+    const project = await this.projects.get(profileId, projectId);
+    // Prefer the exact command Bit used; for creations previewed before it was
+    // persisted, fall back to the static default (the common kid case).
+    const command =
+      project.lastPreviewCommand ??
+      ((await this.projects.hasPreviewHistory(profileId, projectId))
+        ? DEFAULT_PREVIEW_COMMAND
+        : undefined);
+    if (!command) {
+      throw new Error("That creation has no preview to play yet.");
+    }
+    const info = await this.preview.start(profileId, projectId, command, project.title);
+    this.emit({
+      type: "preview_ready",
+      profileId,
+      projectId,
+      projectTitle: project.title,
+      url: info.url,
+    });
+    try {
+      await this.projects.recordPreviewServer(profileId, projectId, info);
+    } catch {}
+    try {
+      await this.projects.rememberPreviewCommand(profileId, projectId, command);
+    } catch {}
+    return info;
+  }
 
-  private async runMayorTurn(
+  // --- Bit turns -----------------------------------------------------------
+
+  private async runBitTurn(
     profileId: string,
     text: string,
     { lifecycle, projectId }: { lifecycle: boolean; projectId?: string },
   ) {
-    return this.withMayorLock(profileId, async () => {
+    return this.withBitLock(profileId, async () => {
       // Fresh attribution per turn: start_preview sets it mid-turn (below).
       this.pendingPreviewAttribution.delete(profileId);
-      const sessionFile = await this.conversation.getMayorSessionFile(profileId);
+      const sessionFile = await this.conversation.getBitSessionFile(profileId);
       const paths = this.conversation.paths(profileId);
       // Stamp the streamed reply with the creation it previewed, so the live
       // bubble (built from deltas) can show Play without waiting for a reload.
@@ -239,11 +294,12 @@ export class BitCoordinatorService {
               this.emit(decorate(event));
           };
 
-      const result = await this.mayor.prompt(
+      const result = await this.bit.prompt(
         {
           profileId,
+          profileRoot: paths.profileRoot,
           conversationDir: paths.conversationDir,
-          mayorSessionsDir: paths.mayorSessionsDir,
+          bitSessionsDir: paths.bitSessionsDir,
           sessionFile,
           customTools: this.toolsFor(profileId),
         },
@@ -252,7 +308,7 @@ export class BitCoordinatorService {
       );
 
       if (result.sessionFile) {
-        await this.conversation.setMayorSessionFile(profileId, result.sessionFile);
+        await this.conversation.setBitSessionFile(profileId, result.sessionFile);
       }
       if (result.assistantText.trim()) {
         await this.conversation.appendMessage(profileId, {
@@ -270,13 +326,13 @@ export class BitCoordinatorService {
     });
   }
 
-  private async withMayorLock<T>(profileId: string, fn: () => Promise<T>): Promise<T> {
-    const previous = this.mayorLocks.get(profileId) ?? Promise.resolve();
+  private async withBitLock<T>(profileId: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.bitLocks.get(profileId) ?? Promise.resolve();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    this.mayorLocks.set(
+    this.bitLocks.set(
       profileId,
       previous.then(() => gate),
     );
@@ -408,6 +464,9 @@ export class BitCoordinatorService {
           });
           try {
             await self.projects.recordPreviewServer(profileId, projectId, info);
+          } catch {}
+          try {
+            await self.projects.rememberPreviewCommand(profileId, projectId, command);
           } catch {}
           // Tag this turn's reply with the creation so the bubble can offer Play.
           self.pendingPreviewAttribution.set(profileId, projectId);
@@ -652,7 +711,7 @@ export class BitCoordinatorService {
         : outcome === "cancelled"
           ? `The build for "${project.title}" was stopped before finishing. Let the builder know gently in one short sentence.`
           : `"${project.title}" hit a snag: ${safeSummary}\n\nLet the builder know gently in one short sentence and offer to try again.`;
-    await this.runMayorTurn(profileId, text, { lifecycle: false, projectId: project.id });
+    await this.runBitTurn(profileId, text, { lifecycle: false, projectId: project.id });
   }
 
   private async appendCompletionFallback(

@@ -178,6 +178,7 @@ describe("App", () => {
       activity: [],
       isRunning: false,
       previews: [],
+      playableProjectIds: [],
     }));
 
     await renderApp(root);
@@ -240,6 +241,7 @@ describe("App", () => {
       ],
       isRunning: false,
       previews: [],
+      playableProjectIds: [],
     }));
 
     await renderApp(root);
@@ -353,6 +355,89 @@ describe("App", () => {
     expect(host.querySelector(".hb-message-assistant .hb-play-button")).not.toBeNull();
   });
 
+  it("recovers Play on the ready bubble and bar after a restart with no live server", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
+      messages: [
+        {
+          id: "m1",
+          role: "assistant" as const,
+          text: "Snake Game is ready! Press Play.",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          projectId: "p1",
+        },
+      ],
+      activity: [],
+      isRunning: false,
+      previews: [], // server was killed on the previous quit
+      playableProjectIds: ["p1"], // but Bit can restart it
+    }));
+
+    await renderApp(root);
+
+    // Both Play buttons come back even though nothing is running.
+    expect(host.querySelectorAll(".hb-play-button").length).toBe(2);
+
+    // Pressing Play restarts the server on demand and opens the pane.
+    await clickButton(host, "Play");
+    expect(api.preview.play).toHaveBeenCalledWith("ada", "p1");
+    expect(host.querySelector("iframe")?.getAttribute("src")).toBe("http://127.0.0.1:4310/");
+  });
+
+  it("ignores a Play result if the kid switches profiles before it resolves", async () => {
+    const playResult = deferred<Awaited<ReturnType<HiBitApi["preview"]["play"]>>>();
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
+      messages:
+        profileId === "ada"
+          ? [
+              {
+                id: "m1",
+                role: "assistant" as const,
+                text: "Snake Game is ready! Press Play.",
+                createdAt: "2026-01-01T00:00:00.000Z",
+                projectId: "p1",
+              },
+            ]
+          : [],
+      activity: [],
+      isRunning: false,
+      previews: [],
+      playableProjectIds: profileId === "ada" ? ["p1"] : [],
+    }));
+    api.preview.play = vi.fn(() => playResult.promise);
+
+    await renderApp(root);
+    await clickButton(host, "Play");
+    await clickButton(host, "Switch profile");
+    await clickButton(host, "Sam");
+
+    await act(async () => {
+      playResult.resolve({
+        projectId: "p1",
+        title: "Snake Game",
+        url: "http://127.0.0.1:4310/",
+        startedAt: "2026-01-01T00:00:00.000Z",
+      });
+    });
+    await flushAsyncWork();
+
+    expect(host.textContent).toContain("Hi Sam - what should we build?");
+    expect(host.querySelector("iframe")).toBeNull();
+  });
+
   it("switches from chat back to the kid profile gate", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -413,6 +498,14 @@ async function flushAsyncWork(): Promise<void> {
       await Promise.resolve();
     }
   });
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
 }
 
 function adaProfile() {
@@ -502,6 +595,7 @@ function createApiMock(): HiBitApi {
         activity: [],
         isRunning: false,
         previews: [],
+        playableProjectIds: [],
       })),
       send: vi.fn(async () => ({
         ok: true as const,
@@ -512,6 +606,12 @@ function createApiMock(): HiBitApi {
       onEvent: vi.fn(() => () => {}),
     },
     preview: {
+      play: vi.fn(async (_profileId, projectId) => ({
+        projectId,
+        title: "Snake Game",
+        url: "http://127.0.0.1:4310/",
+        startedAt: "2026-01-01T00:00:00.000Z",
+      })),
       openExternal: vi.fn(async () => {}),
     },
   };

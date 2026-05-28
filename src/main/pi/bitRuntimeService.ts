@@ -9,9 +9,10 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
-import { createMayorResourceLoader } from "./piResources";
+import { createBitResourceLoader } from "./piResources";
+import { createProfileReadTools } from "./profileJailedTools";
 
-export type MayorSession = {
+export type BitSession = {
   sessionId: string;
   sessionFile?: string;
   messages: unknown[];
@@ -22,21 +23,23 @@ export type MayorSession = {
   setAccessToken?: (accessToken: string) => void;
 };
 
-export type MayorPromptInput = {
+export type BitPromptInput = {
   profileId: string;
+  /** The kid's profile directory - read-only jail root for Bit's explorer tools. */
+  profileRoot: string;
   conversationDir: string;
-  mayorSessionsDir: string;
+  bitSessionsDir: string;
   sessionFile?: string;
   customTools: ToolDefinition[];
 };
 
-export type CreateMayorSessionInput = MayorPromptInput & {
+export type CreateBitSessionInput = BitPromptInput & {
   accessToken: string;
   agentDir: string;
   modelId: string;
 };
 
-export type MayorTurnResult = {
+export type BitTurnResult = {
   turnId: string;
   status: "completed" | "cancelled" | "failed";
   assistantText: string;
@@ -44,54 +47,54 @@ export type MayorTurnResult = {
   error?: string;
 };
 
-export type MayorRuntime = {
+export type BitRuntime = {
   prompt(
-    input: MayorPromptInput,
+    input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
-  ): Promise<MayorTurnResult>;
+  ): Promise<BitTurnResult>;
   abort(profileId: string): Promise<void>;
   isRunning(profileId: string): boolean;
   dispose(profileId: string): void;
   disposeAll(): void;
 };
 
-type MayorRuntimeServiceOptions = {
+type BitRuntimeServiceOptions = {
   agentDir: string;
   modelId?: string;
   getFreshAccessToken: () => Promise<string>;
-  createSession?: (input: CreateMayorSessionInput) => Promise<MayorSession>;
+  createSession?: (input: CreateBitSessionInput) => Promise<BitSession>;
   onSessionFile?: (profileId: string, sessionFile: string | undefined) => Promise<void> | void;
 };
 
 type RunningTurn = {
   turnId: string;
-  session: MayorSession;
+  session: BitSession;
   cancelled: boolean;
 };
 
 /**
- * Runs the per-profile Bit/Mayor Pi session. One persistent session per profile,
+ * Runs the per-profile Bit Pi session. One persistent session per profile,
  * created with the custom delegation tools and no built-in coding tools. Maps the
- * session's assistant text into profile-routed ChatEvents; the Mayor's own tool
+ * session's assistant text into profile-routed ChatEvents; Bit's own tool
  * calls (delegation) are intentionally not surfaced as chat activity.
  */
-export class MayorRuntimeService implements MayorRuntime {
-  private readonly sessions = new Map<string, MayorSession>();
+export class BitRuntimeService implements BitRuntime {
+  private readonly sessions = new Map<string, BitSession>();
   private readonly running = new Map<string, RunningTurn>();
-  private readonly createSession: (input: CreateMayorSessionInput) => Promise<MayorSession>;
+  private readonly createSession: (input: CreateBitSessionInput) => Promise<BitSession>;
   private readonly modelId: string;
 
-  constructor(private readonly options: MayorRuntimeServiceOptions) {
+  constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
-    this.createSession = options.createSession ?? createRealMayorSession;
+    this.createSession = options.createSession ?? createRealBitSession;
   }
 
   async prompt(
-    input: MayorPromptInput,
+    input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
-  ): Promise<MayorTurnResult> {
+  ): Promise<BitTurnResult> {
     const { profileId } = input;
     if (this.running.has(profileId)) {
       throw new Error("Bit is already replying.");
@@ -115,7 +118,7 @@ export class MayorRuntimeService implements MayorRuntime {
       }
     });
 
-    let status: MayorTurnResult["status"] = "completed";
+    let status: BitTurnResult["status"] = "completed";
     let error: string | undefined;
     try {
       await session.prompt(text);
@@ -162,9 +165,9 @@ export class MayorRuntimeService implements MayorRuntime {
   }
 
   private async getOrCreateSession(
-    input: MayorPromptInput,
+    input: BitPromptInput,
     accessToken: string,
-  ): Promise<MayorSession> {
+  ): Promise<BitSession> {
     const existing = this.sessions.get(input.profileId);
     if (existing) return existing;
     const session = await this.createSession({
@@ -192,7 +195,7 @@ function assistantDeltaFromPiEvent(event: unknown): string | null {
   return assistantMessageEvent.delta;
 }
 
-class RealMayorSessionAdapter implements MayorSession {
+class RealBitSessionAdapter implements BitSession {
   constructor(
     private readonly session: AgentSession,
     private readonly authStorage: AuthStorage,
@@ -231,7 +234,7 @@ class RealMayorSessionAdapter implements MayorSession {
   }
 }
 
-async function createRealMayorSession(input: CreateMayorSessionInput): Promise<MayorSession> {
+async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSession> {
   const authStorage = AuthStorage.inMemory();
   authStorage.setRuntimeApiKey("openai-codex", input.accessToken);
   const modelRegistry = ModelRegistry.inMemory(authStorage);
@@ -241,8 +244,8 @@ async function createRealMayorSession(input: CreateMayorSessionInput): Promise<M
   }
 
   const sessionManager = input.sessionFile
-    ? SessionManager.open(input.sessionFile, input.mayorSessionsDir, input.conversationDir)
-    : SessionManager.create(input.conversationDir, input.mayorSessionsDir);
+    ? SessionManager.open(input.sessionFile, input.bitSessionsDir, input.conversationDir)
+    : SessionManager.create(input.conversationDir, input.bitSessionsDir);
 
   const settingsManager = SettingsManager.inMemory({
     compaction: { enabled: true },
@@ -250,8 +253,13 @@ async function createRealMayorSession(input: CreateMayorSessionInput): Promise<M
     enableInstallTelemetry: false,
   });
 
-  const resourceLoader = createMayorResourceLoader();
+  const resourceLoader = createBitResourceLoader();
   await resourceLoader.reload();
+
+  // Bit gets the delegation tools plus read-only explorer tools confined to the
+  // kid's profile. noTools:"builtin" keeps the unguarded built-in file tools off,
+  // so these jailed tools are Bit's only path to disk.
+  const jailedTools = createProfileReadTools(input.profileRoot);
 
   const { session } = await createAgentSession({
     cwd: input.conversationDir,
@@ -264,8 +272,8 @@ async function createRealMayorSession(input: CreateMayorSessionInput): Promise<M
     sessionManager,
     settingsManager,
     noTools: "builtin",
-    customTools: input.customTools,
+    customTools: [...input.customTools, ...jailedTools],
   });
 
-  return new RealMayorSessionAdapter(session, authStorage);
+  return new RealBitSessionAdapter(session, authStorage);
 }
