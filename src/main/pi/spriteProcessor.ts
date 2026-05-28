@@ -119,6 +119,14 @@ export function chromaKeyMagenta(img: RgbaImage, threshold = 100, edgeThreshold 
     push(x, y + 1);
   }
 
+  for (let p = 0; p < width * height; p += 1) {
+    const i = p * 4;
+    if (data[i + 3] !== 0) continue;
+    data[i] = 0;
+    data[i + 1] = 0;
+    data[i + 2] = 0;
+  }
+
   return { width, height, data };
 }
 

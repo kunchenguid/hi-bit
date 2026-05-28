@@ -87,6 +87,17 @@ describe("chromaKeyMagenta", () => {
     chromaKeyMagenta(img);
     expect(img.data[3]).toBe(before);
   });
+
+  it("clears transparent pixel colors", () => {
+    const img = createImage(2, 1);
+    setPixel(img, 0, 0, MAGENTA);
+    setPixel(img, 1, 0, [10, 120, 200, 255]);
+
+    const out = chromaKeyMagenta(img);
+
+    expect(Array.from(out.data.slice(0, 4))).toEqual([0, 0, 0, 0]);
+    expect(Array.from(out.data.slice(4, 8))).toEqual([10, 120, 200, 255]);
+  });
 });
 
 describe("getBBox / cropImage", () => {
