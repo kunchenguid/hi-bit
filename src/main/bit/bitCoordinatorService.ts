@@ -712,6 +712,7 @@ export class BitCoordinatorService {
   ): Promise<void> {
     const text = buildCompletionPrompt({
       outcome,
+      projectId: project.id,
       title: project.title,
       summary: kidSafeCompletionSummary(summary),
       readyToPlay,
@@ -874,12 +875,13 @@ export function extractReadyToPlay(workerText: string): { readyToPlay: boolean; 
  * completed case asks Bit to start a preview. */
 export function buildCompletionPrompt(input: {
   outcome: "completed" | "cancelled" | "failed";
+  projectId: string;
   title: string;
   /** Already run through kidSafeCompletionSummary. */
   summary: string;
   readyToPlay: boolean;
 }): string {
-  const { outcome, title, summary, readyToPlay } = input;
+  const { outcome, projectId, title, summary, readyToPlay } = input;
   if (outcome === "cancelled") {
     return `The build for "${title}" was stopped before finishing. Let the builder know gently in one short sentence.`;
   }
@@ -888,7 +890,7 @@ export function buildCompletionPrompt(input: {
   }
   const base = `"${title}" is ready. What changed: ${summary}`;
   if (readyToPlay) {
-    return `${base}\n\nIt is ready to open and play right now. Call start_preview for "${title}" so a live preview is running, then warmly invite the builder to press Play, in one or two short sentences.`;
+    return `${base}\n\nIt is ready to open and play right now. Call start_preview with projectId "${projectId}" and command 'python3 -m http.server "$PORT" --bind 127.0.0.1' so a live preview is running, then warmly invite the builder to press Play, in one or two short sentences.`;
   }
   return `${base}\n\nTell the builder warmly that "${title}" is ready, in one or two short sentences.`;
 }

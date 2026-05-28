@@ -116,6 +116,19 @@ describe("resizeBilinear", () => {
     expect(out.height).toBe(8);
     expect(alphaAt(out, 4, 4)).toBe(255);
   });
+
+  it("clamps upscaled edge samples instead of extrapolating past the image", () => {
+    const img = createImage(2, 2);
+    img.data.set([10, 0, 0, 255], 0);
+    img.data.set([20, 0, 0, 255], 4);
+    img.data.set([30, 0, 0, 255], 8);
+    img.data.set([40, 0, 0, 255], 12);
+
+    const out = resizeBilinear(img, 4, 4);
+
+    expect(out.data[0]).toBe(10);
+    expect(out.data[3]).toBe(255);
+  });
 });
 
 describe("splitCells", () => {

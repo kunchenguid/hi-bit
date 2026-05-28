@@ -160,12 +160,12 @@ export function resizeBilinear(img: RgbaImage, newW: number, newH: number): Rgba
   const sx = img.width / newW;
   const sy = img.height / newH;
   for (let y = 0; y < newH; y += 1) {
-    const fy = Math.min(img.height - 1, (y + 0.5) * sy - 0.5);
+    const fy = Math.max(0, Math.min(img.height - 1, (y + 0.5) * sy - 0.5));
     const y0 = Math.max(0, Math.floor(fy));
     const y1 = Math.min(img.height - 1, y0 + 1);
     const wy = fy - y0;
     for (let x = 0; x < newW; x += 1) {
-      const fx = Math.min(img.width - 1, (x + 0.5) * sx - 0.5);
+      const fx = Math.max(0, Math.min(img.width - 1, (x + 0.5) * sx - 0.5));
       const x0 = Math.max(0, Math.floor(fx));
       const x1 = Math.min(img.width - 1, x0 + 1);
       const wx = fx - x0;
