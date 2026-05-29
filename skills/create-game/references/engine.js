@@ -91,6 +91,7 @@ const HiBitGame = (() => {
       last = now;
       if (dt > maxDt) dt = maxDt;
 
+      let consumedEdgeInputs = !update;
       if (update) {
         if (step > 0) {
           // dt is already capped at maxDt, so leftover grows by at most maxDt
@@ -99,14 +100,18 @@ const HiBitGame = (() => {
           while (leftover >= step) {
             update(step);
             leftover -= step;
+            consumedEdgeInputs = true;
           }
         } else {
           update(dt);
+          consumedEdgeInputs = true;
         }
       }
 
-      pressed.clear(); // edge presses last exactly one frame
-      pointer.clicked = false;
+      if (consumedEdgeInputs) {
+        pressed.clear(); // edge presses last exactly one frame
+        pointer.clicked = false;
+      }
       if (draw) draw(ctx);
     }
 
