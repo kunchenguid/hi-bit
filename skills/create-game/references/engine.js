@@ -25,7 +25,18 @@ const HiBitGame = (() => {
     action: [" ", "Enter", "z", "Z"],
   };
 
+  function isTextEntryTarget(target) {
+    if (!target) return false;
+    const tag = target.tagName;
+    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  }
+
+  function isGameplayKey(key) {
+    return Object.values(actionKeys).some((keys) => keys.includes(key));
+  }
+
   window.addEventListener("keydown", (e) => {
+    if (isGameplayKey(e.key) && !isTextEntryTarget(e.target) && e.preventDefault) e.preventDefault();
     if (!held.has(e.key)) pressed.add(e.key);
     held.add(e.key);
   });

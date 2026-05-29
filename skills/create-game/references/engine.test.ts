@@ -69,4 +69,34 @@ describe("create-game reference engine", () => {
 
     expect(observed).toEqual({ jump: true, click: true });
   });
+
+  it("prevents browser defaults for mapped gameplay keys outside text entry", () => {
+    const { dispatchWindow, engine } = loadEngine();
+    const preventedKeys: string[] = [];
+
+    engine.input.setKeys({ shoot: ["x"] });
+    dispatchWindow("keydown", {
+      key: "ArrowUp",
+      target: { tagName: "BODY" },
+      preventDefault() {
+        preventedKeys.push("ArrowUp");
+      },
+    });
+    dispatchWindow("keydown", {
+      key: "x",
+      target: { tagName: "BODY" },
+      preventDefault() {
+        preventedKeys.push("x");
+      },
+    });
+    dispatchWindow("keydown", {
+      key: " ",
+      target: { tagName: "INPUT" },
+      preventDefault() {
+        preventedKeys.push("input space");
+      },
+    });
+
+    expect(preventedKeys).toEqual(["ArrowUp", "x"]);
+  });
 });
