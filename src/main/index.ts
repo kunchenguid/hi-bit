@@ -35,7 +35,7 @@ function hiBitRootFor(): string {
 }
 
 /**
- * Bundled Hi-Bit skills (e.g. game-assets). In dev they live in the repo's
+ * Bundled Hi-Bit skills (e.g. create-game, game-assets). In dev they live in the repo's
  * `skills/`; packaged, electron-builder copies them to `resourcesPath/skills`
  * (see `extraResources` in electron-builder.yml). The worker reads each
  * SKILL.md on demand, so the directory just needs to be readable on disk.
