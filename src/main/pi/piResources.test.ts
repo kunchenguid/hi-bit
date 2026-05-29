@@ -32,6 +32,14 @@ describe("createWorkerResourceLoader skills", () => {
     expect(skill?.description).toMatch(/sprite|animation/i);
   });
 
+  it("loads the bundled create-game skill from a skillsDir", () => {
+    const loader = createWorkerResourceLoader(undefined, { skillsDir: resolve("skills") });
+    const { skills } = loader.getSkills();
+    const skill = skills.find((s) => s.name === "create-game");
+    expect(skill).toBeDefined();
+    expect(skill?.description).toMatch(/game|loop|platformer/i);
+  });
+
   it("exposes no skills when no skillsDir is given", () => {
     expect(createWorkerResourceLoader().getSkills()).toEqual({ skills: [], diagnostics: [] });
   });
@@ -55,6 +63,13 @@ describe("buildWorkerSystemPrompt", () => {
     expect(prompt).toMatch(/never|must/i);
     expect(prompt).toContain("game-assets skill");
     expect(prompt).toContain("process_sprite_sheet");
+  });
+
+  it("points playable game builds at the create-game skill", () => {
+    const prompt = buildWorkerSystemPrompt();
+
+    expect(prompt).toContain("create-game skill");
+    expect(prompt).toMatch(/game loop|platformer|playable game/i);
   });
 
   it("tells the worker to tag a finished playable build with READY_TO_PLAY", () => {
