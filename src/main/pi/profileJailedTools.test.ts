@@ -15,10 +15,15 @@ async function makeProfile() {
   const profileRoot = join(parent, "profiles", "profileA");
   const sibling = join(parent, "profiles", "profileB");
   const authDir = join(parent, "auth");
-  await mkdir(join(profileRoot, "projects", "p1"), { recursive: true });
+  await mkdir(join(profileRoot, "projects", "p1", "main-workbench"), { recursive: true });
+  await mkdir(join(profileRoot, "conversation"), { recursive: true });
   await mkdir(sibling, { recursive: true });
   await mkdir(authDir, { recursive: true });
-  await writeFile(join(profileRoot, "projects", "p1", "index.html"), "<h1>hi</h1>");
+  await writeFile(
+    join(profileRoot, "projects", "p1", "main-workbench", "index.html"),
+    "<h1>hi</h1>",
+  );
+  await writeFile(join(profileRoot, "conversation", "conversation.json"), "{}");
   await writeFile(join(sibling, "secret.txt"), "other kid's stuff");
   await writeFile(join(authDir, "codex.json"), "{}");
   return { parent, profileRoot, sibling, authDir };
@@ -112,7 +117,7 @@ describe("createProfileReadTools", () => {
 
   it("reads an in-jail file through the real read tool", async () => {
     const { profileRoot } = await makeProfile();
-    const result = await readTool(profileRoot)("projects/p1/index.html");
+    const result = await readTool(profileRoot)("projects/p1/main-workbench/index.html");
     expect(resultText(result)).toContain("<h1>hi</h1>");
   });
 
@@ -157,17 +162,38 @@ describe("createProfileTools", () => {
     );
   }
 
-  it("writes a new in-jail file through the real write tool", async () => {
+  it("writes a new workbench file through the real write tool", async () => {
     const { profileRoot } = await makeProfile();
     await toolNamed(
       profileRoot,
       "write",
     )({
-      path: "projects/p1/notes.txt",
+      path: "projects/p1/main-workbench/notes.txt",
       content: "hello kid",
     });
-    const written = await readFile(join(profileRoot, "projects", "p1", "notes.txt"), "utf8");
+    const written = await readFile(
+      join(profileRoot, "projects", "p1", "main-workbench", "notes.txt"),
+      "utf8",
+    );
     expect(written).toBe("hello kid");
+  });
+
+  it("refuses to write profile metadata through the real write tool", async () => {
+    const { profileRoot } = await makeProfile();
+    const outcome = await toolNamed(
+      profileRoot,
+      "write",
+    )({
+      path: "conversation/conversation.json",
+      content: "hacked",
+    }).then(
+      (result) => ({ threw: false, refused: refused(result) }),
+      () => ({ threw: true, refused: true }),
+    );
+    expect(outcome.threw || outcome.refused).toBe(true);
+    expect(await readFile(join(profileRoot, "conversation", "conversation.json"), "utf8")).toBe(
+      "{}",
+    );
   });
 
   it("refuses to write outside the jail through the real write tool", async () => {
@@ -193,11 +219,31 @@ describe("createProfileTools", () => {
       profileRoot,
       "edit",
     )({
-      path: "projects/p1/index.html",
+      path: "projects/p1/main-workbench/index.html",
       edits: [{ oldText: "hi", newText: "hello" }],
     });
-    const edited = await readFile(join(profileRoot, "projects", "p1", "index.html"), "utf8");
+    const edited = await readFile(
+      join(profileRoot, "projects", "p1", "main-workbench", "index.html"),
+      "utf8",
+    );
     expect(edited).toBe("<h1>hello</h1>");
+  });
+
+  it("refuses to edit project metadata through the real edit tool", async () => {
+    const { profileRoot } = await makeProfile();
+    await writeFile(join(profileRoot, "projects", "p1", "project.json"), "{}", "utf8");
+    const outcome = await toolNamed(
+      profileRoot,
+      "edit",
+    )({
+      path: "projects/p1/project.json",
+      edits: [{ oldText: "{}", newText: "hacked" }],
+    }).then(
+      (result) => ({ threw: false, refused: refused(result) }),
+      () => ({ threw: true, refused: true }),
+    );
+    expect(outcome.threw || outcome.refused).toBe(true);
+    expect(await readFile(join(profileRoot, "projects", "p1", "project.json"), "utf8")).toBe("{}");
   });
 
   it("refuses to edit outside the jail through the real edit tool", async () => {

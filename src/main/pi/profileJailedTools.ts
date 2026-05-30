@@ -1,6 +1,6 @@
 import { realpathSync } from "node:fs";
 import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   createEditToolDefinition,
   createFindToolDefinition,
@@ -20,7 +20,7 @@ import {
 /**
  * Filesystem tools for Bit, the coordinating session. Bit may look inside the
  * builder's own creations (read/grep/find/ls) but is confined to ONE kid's
- * profile directory and can never write. Pi has no global filesystem sandbox,
+ * profile directory. Pi has no global filesystem sandbox,
  * so the confinement is built here: every tool is created with custom
  * `operations` that route each path through {@link resolveWithinProfile} before
  * any disk access. `read` and `ls` are fully mediated this way. `grep` and
@@ -59,6 +59,17 @@ export function resolveWithinProfile(profileRoot: string, requested: string): st
   const realRoot = canonicalize(rootAbs);
   const canonical = canonicalize(abs);
   if (canonical !== realRoot && !canonical.startsWith(realRoot + sep)) {
+    throw new Error("That file is outside this builder's space.");
+  }
+  return abs;
+}
+
+function resolveWithinMainWorkbench(profileRoot: string, requested: string): string {
+  const abs = resolveWithinProfile(profileRoot, requested);
+  const realRoot = canonicalize(resolve(profileRoot));
+  const canonical = canonicalize(abs);
+  const parts = relative(realRoot, canonical).split(sep);
+  if (parts[0] !== "projects" || !parts[1] || parts[2] !== "main-workbench") {
     throw new Error("That file is outside this builder's space.");
   }
   return abs;
@@ -104,17 +115,17 @@ function grepOperations(profileRoot: string): GrepOperations {
 
 function writeOperations(profileRoot: string): WriteOperations {
   return {
-    writeFile: (path, content) => writeFile(resolveWithinProfile(profileRoot, path), content),
+    writeFile: (path, content) => writeFile(resolveWithinMainWorkbench(profileRoot, path), content),
     mkdir: (dir) =>
-      mkdir(resolveWithinProfile(profileRoot, dir), { recursive: true }).then(() => {}),
+      mkdir(resolveWithinMainWorkbench(profileRoot, dir), { recursive: true }).then(() => {}),
   };
 }
 
 function editOperations(profileRoot: string): EditOperations {
   return {
-    readFile: (path) => readFile(resolveWithinProfile(profileRoot, path)),
-    writeFile: (path, content) => writeFile(resolveWithinProfile(profileRoot, path), content),
-    access: (path) => access(resolveWithinProfile(profileRoot, path)).then(() => {}),
+    readFile: (path) => readFile(resolveWithinMainWorkbench(profileRoot, path)),
+    writeFile: (path, content) => writeFile(resolveWithinMainWorkbench(profileRoot, path), content),
+    access: (path) => access(resolveWithinMainWorkbench(profileRoot, path)).then(() => {}),
   };
 }
 
@@ -153,10 +164,10 @@ export function createProfileReadTools(profileRoot: string): ToolDefinition[] {
 
 /**
  * The full toolset for Bit, the coordinating session: the read explorers plus
- * `write` and `edit`, all confined to one profile through the same
- * {@link resolveWithinProfile} chokepoint. This lets Bit make tiny, trivial
- * fixes itself (a word, a color, one line) instead of waking a worker for
- * everything, while the prompt steers anything bigger to `delegate_build`.
+ * `write` and `edit`, confined to creation main-workbench directories. This
+ * lets Bit make tiny, trivial fixes itself (a word, a color, one line) instead
+ * of waking a worker for everything, while the prompt steers anything bigger to
+ * `delegate_build`.
  *
  * Bash is intentionally NOT included: it cannot be routed through the path
  * guard, so granting it would let Bit escape the profile jail. The worker keeps
