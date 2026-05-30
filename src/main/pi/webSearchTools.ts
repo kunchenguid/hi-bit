@@ -1,3 +1,5 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
@@ -35,6 +37,8 @@ const MAX_RETRIES = 2;
 const DEFAULT_STORE_THRESHOLD = 30_000;
 const MAX_STORED = 50;
 const REQUEST_TIMEOUT_MS = 60_000;
+const MAX_FETCH_BYTES = 1_000_000;
+const MAX_REDIRECTS = 5;
 
 export type WebSearchToolDeps = {
   /** Returns a current Codex access token; Hi-Bit refreshes it when expiring. */
@@ -49,6 +53,8 @@ export type WebSearchToolDeps = {
   responsesUrl?: string;
   /** Inline-vs-store cutoff in characters. */
   storeThreshold?: number;
+  lookupHost?: (hostname: string) => Promise<string[]>;
+  maxFetchBytes?: number;
 };
 
 type ToolResult = {
@@ -219,6 +225,137 @@ function htmlToMarkdown(html: string): { title: string; markdown: string } {
   return { title: article?.title?.trim() || pageTitle, markdown };
 }
 
+function isPrivateIpv4(address: string): boolean {
+  const parts = address.split(".").map((part) => Number(part));
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  ) {
+    return true;
+  }
+  const [a, b] = parts;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a >= 224
+  );
+}
+
+function isPrivateIpv6(address: string): boolean {
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("ff") ||
+    normalized.startsWith("::ffff:127.") ||
+    normalized.startsWith("::ffff:10.") ||
+    normalized.startsWith("::ffff:192.168.") ||
+    /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(normalized)
+  );
+}
+
+function isBlockedIp(address: string): boolean {
+  const family = isIP(address);
+  if (family === 4) return isPrivateIpv4(address);
+  if (family === 6) return isPrivateIpv6(address);
+  return true;
+}
+
+async function defaultLookupHost(hostname: string): Promise<string[]> {
+  const records = await lookup(hostname, { all: true, verbatim: true });
+  return records.map((record) => record.address);
+}
+
+async function validatePublicHttpUrl(
+  url: URL,
+  lookupHost: (hostname: string) => Promise<string[]>,
+): Promise<boolean> {
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  const hostname = url.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) return false;
+  const ipFamily = isIP(hostname);
+  if (ipFamily) return !isBlockedIp(hostname);
+  if (!hostname.includes(".")) return false;
+  let addresses: string[];
+  try {
+    addresses = await lookupHost(hostname);
+  } catch {
+    return false;
+  }
+  return addresses.length > 0 && addresses.every((address) => !isBlockedIp(address));
+}
+
+async function fetchWithSafeRedirects(
+  initialUrl: URL,
+  fetchFn: typeof fetch,
+  lookupHost: (hostname: string) => Promise<string[]>,
+  signal?: AbortSignal,
+): Promise<Response | null> {
+  let current = initialUrl;
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    if (!(await validatePublicHttpUrl(current, lookupHost))) return null;
+    const response = await fetchFn(current.toString(), {
+      headers: { accept: "text/html,application/xhtml+xml" },
+      redirect: "manual",
+      signal: requestSignal(signal),
+    });
+    if (response.url) {
+      let responseUrl: URL;
+      try {
+        responseUrl = new URL(response.url);
+      } catch {
+        return null;
+      }
+      if (!(await validatePublicHttpUrl(responseUrl, lookupHost))) return null;
+    }
+    if (response.status < 300 || response.status >= 400) return response;
+    const location = response.headers.get("location");
+    if (!location) return response;
+    current = new URL(location, current);
+  }
+  throw new Error("Too many redirects while reading the page.");
+}
+
+async function readResponseText(response: Response, maxBytes: number): Promise<string | null> {
+  const contentLength = response.headers.get("content-length");
+  if (contentLength !== null) {
+    const parsed = Number(contentLength);
+    if (!Number.isFinite(parsed) || parsed > maxBytes) return null;
+  }
+  if (!response.body) return await response.text();
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const combined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(combined);
+}
+
 // ---- tool factory -----------------------------------------------------------
 
 export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] {
@@ -227,6 +364,8 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
   const model = deps.model ?? DEFAULT_MODEL;
   const responsesUrl = deps.responsesUrl ?? CODEX_RESPONSES_URL;
   const storeThreshold = deps.storeThreshold ?? DEFAULT_STORE_THRESHOLD;
+  const maxFetchBytes = deps.maxFetchBytes ?? MAX_FETCH_BYTES;
+  const lookupHost = deps.lookupHost ?? defaultLookupHost;
   const store = createStore();
 
   const webSearch = defineTool({
@@ -337,10 +476,13 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
         };
       }
 
-      const response = await fetchFn(url, {
-        headers: { accept: "text/html,application/xhtml+xml" },
-        signal: requestSignal(signal),
-      });
+      const response = await fetchWithSafeRedirects(parsedUrl, fetchFn, lookupHost, signal);
+      if (response === null) {
+        return {
+          content: [{ type: "text", text: "I can only read public web pages." }],
+          details: undefined,
+        };
+      }
       if (!response.ok) {
         return {
           content: [{ type: "text", text: `Could not read ${url} (status ${response.status}).` }],
@@ -349,7 +491,13 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
       }
 
       const contentType = response.headers.get("content-type") ?? "";
-      const raw = await response.text();
+      const raw = await readResponseText(response, maxFetchBytes);
+      if (raw === null) {
+        return {
+          content: [{ type: "text", text: `Could not read ${url} because the page is too large.` }],
+          details: { url },
+        };
+      }
 
       let title = parsedUrl.hostname;
       let bodyText: string;

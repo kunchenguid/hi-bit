@@ -46,6 +46,22 @@ function htmlResponse(html: string, status = 200): Response {
   return new Response(html, { status, headers: { "content-type": "text/html; charset=utf-8" } });
 }
 
+function chunkedResponse(chunks: string[], headers: Record<string, string> = {}): Response {
+  const encoder = new TextEncoder();
+  let pulls = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (pulls >= chunks.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(encoder.encode(chunks[pulls]));
+      pulls += 1;
+    },
+  });
+  return new Response(body, { headers });
+}
+
 function findTool(tools: ToolDefinition[], name: string): ToolDefinition {
   const tool = tools.find((t) => t.name === name);
   if (!tool) throw new Error(`tool ${name} not found`);
@@ -172,6 +188,7 @@ describe("fetch_content tool", () => {
         tokenCalls += 1;
         return fakeCodexToken();
       },
+      lookupHost: async () => ["93.184.216.34"],
       fetchFn: async (url) => {
         capturedUrl = String(url);
         return htmlResponse(html);
@@ -201,11 +218,84 @@ describe("fetch_content tool", () => {
     expect(result.content[0].text as string).toMatch(/web address|http/i);
   });
 
+  it("refuses loopback URLs before fetching", async () => {
+    let calls = 0;
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => {
+        calls += 1;
+        return htmlResponse("<html></html>");
+      },
+    });
+
+    const result = await run(findTool(tools, "fetch_content"), { url: "http://127.0.0.1:3000" });
+
+    expect(calls).toBe(0);
+    expect(result.content[0].text as string).toMatch(/public web/i);
+  });
+
+  it("refuses redirects to private addresses before fetching the redirected URL", async () => {
+    const fetched: string[] = [];
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        fetched.push(String(url));
+        return new Response(null, {
+          status: 302,
+          headers: { location: "http://192.168.1.10/admin" },
+        });
+      },
+    });
+
+    const result = await run(findTool(tools, "fetch_content"), {
+      url: "https://example.com/start",
+    });
+
+    expect(fetched).toEqual(["https://example.com/start"]);
+    expect(result.content[0].text as string).toMatch(/public web/i);
+  });
+
+  it("rejects oversized content-length before reading the body", async () => {
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["93.184.216.34"],
+      storeThreshold: 10,
+      maxFetchBytes: 10,
+      fetchFn: async () =>
+        new Response("too much", {
+          headers: { "content-length": "1000000", "content-type": "text/html" },
+        }),
+    });
+
+    const result = await run(findTool(tools, "fetch_content"), { url: "https://example.com/huge" });
+
+    expect(result.content[0].text as string).toMatch(/too large/i);
+  });
+
+  it("stops streaming once the response exceeds the read limit", async () => {
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["93.184.216.34"],
+      storeThreshold: 10,
+      maxFetchBytes: 10,
+      fetchFn: async () =>
+        chunkedResponse(["12345", "67890", "extra"], { "content-type": "text/html" }),
+    });
+
+    const result = await run(findTool(tools, "fetch_content"), {
+      url: "https://example.com/stream",
+    });
+
+    expect(result.content[0].text as string).toMatch(/too large/i);
+  });
+
   it("parks a long page in the store and hands back an id for get_search_content", async () => {
     const big = `<p>${"word ".repeat(20_000)}</p>`;
     const html = `<!doctype html><html><head><title>Big</title></head><body><article><h1>Big</h1>${big}</article></body></html>`;
     const tools = createWebSearchTools({
       getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["93.184.216.34"],
       fetchFn: async () => htmlResponse(html),
     });
 
@@ -215,6 +305,25 @@ describe("fetch_content tool", () => {
 
     const got = await run(findTool(tools, "get_search_content"), { id });
     expect((got.content[0].text as string).length).toBeGreaterThan(50_000);
+  });
+
+  it("refuses hostnames that resolve to private addresses", async () => {
+    let calls = 0;
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["10.0.0.12"],
+      fetchFn: async () => {
+        calls += 1;
+        return htmlResponse("<html></html>");
+      },
+    });
+
+    const result = await run(findTool(tools, "fetch_content"), {
+      url: "https://docs.example.test/page",
+    });
+
+    expect(calls).toBe(0);
+    expect(result.content[0].text as string).toMatch(/public web/i);
   });
 });
 
