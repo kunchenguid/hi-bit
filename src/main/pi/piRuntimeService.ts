@@ -14,6 +14,7 @@ import { createGenerateImageTool } from "./imageGenTool";
 import { chatEventsFromPiEvent } from "./piMessages";
 import { createWorkerResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
 import { createProcessSpriteTool } from "./processSpriteTool";
+import { createWebSearchTools } from "./webSearchTools";
 
 export type RuntimePiSession = {
   sessionId: string;
@@ -72,13 +73,20 @@ export class PiRuntimeService {
     // Workers can draw real assets straight into their Workbench. generate_image pulls
     // a fresh Codex token per call so long builds don't fail on an expired session key;
     // process_sprite_sheet is a free local pass that turns a raw magenta sheet into a
-    // game-ready transparent sprite sheet (see the game-assets skill).
+    // game-ready transparent sprite sheet (see the game-assets skill). The web tools let
+    // a worker look up current docs/examples: web_search runs on the same Codex backend
+    // and token as generate_image, fetch_content reads a page locally - their names flow
+    // into the allowlist through workerToolNames().
     this.customTools = [
       createGenerateImageTool({
         getFreshAccessToken: options.getFreshAccessToken,
         model: this.modelId,
       }),
       createProcessSpriteTool(),
+      ...createWebSearchTools({
+        getFreshAccessToken: options.getFreshAccessToken,
+        model: this.modelId,
+      }),
     ];
   }
 
