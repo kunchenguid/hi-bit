@@ -1,13 +1,14 @@
 ---
 name: game-assets
-description: Make game-ready sprites and animations for a kid's creation - characters, creatures, players, enemies, icons, projectiles, pickups, and effects with see-through (transparent) backgrounds and frame-by-frame animation. Use this whenever a creation needs a moving character, an animated sprite, a sprite sheet, a walk/idle/jump/attack animation, or a transparent game image, instead of saving a plain picture with generate_image alone.
+description: Make 2D game-ready sprites and animations for a kid's creation - characters, creatures, players, enemies, icons, projectiles, pickups, and effects with see-through (transparent) backgrounds and frame-by-frame animation. Use this whenever a 2D creation needs a moving character, an animated sprite, a sprite sheet, a walk/idle/jump/attack animation, or a transparent game image, instead of saving a plain picture with generate_image alone.
 ---
 
 # Game assets
 
-Use this skill when a creation needs real game art that moves or needs a see-through background.
+Use this skill when a 2D creation needs real game art that moves or needs a see-through background.
 This includes characters, creatures, players, enemies, NPCs, projectiles, pickups, icons, and effects.
 For a single flat picture that does not move and does not need transparency (a background, a logo, a photo-like illustration), plain `generate_image` is enough and you do not need this skill.
+For 3D games, use plain `generate_image` textures on primitives from the `create-3d-game` skill instead of sprite sheets.
 
 ## Hard rule (read this first)
 
