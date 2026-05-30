@@ -10,7 +10,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import { createBitResourceLoader } from "./piResources";
-import { createProfileReadTools } from "./profileJailedTools";
+import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
 
 export type BitSession = {
   sessionId: string;
@@ -25,12 +25,13 @@ export type BitSession = {
 
 export type BitPromptInput = {
   profileId: string;
-  /** The kid's profile directory - read-only jail root for Bit's explorer tools. */
+  /** The kid's profile directory - jail root for Bit's explorer and tiny-edit tools. */
   profileRoot: string;
   conversationDir: string;
   bitSessionsDir: string;
   sessionFile?: string;
   customTools: ToolDefinition[];
+  onProfileMutation?: (mutation: ProfileDirectMutation) => Promise<void> | void;
 };
 
 export type CreateBitSessionInput = BitPromptInput & {
@@ -75,9 +76,10 @@ type RunningTurn = {
 
 /**
  * Runs the per-profile Bit Pi session. One persistent session per profile,
- * created with the custom delegation tools and no built-in coding tools. Maps the
- * session's assistant text into profile-routed ChatEvents; Bit's own tool
- * calls (delegation) are intentionally not surfaced as chat activity.
+ * created with custom delegation tools, jailed profile tools, and no built-in
+ * coding tools. Maps the session's assistant text into profile-routed
+ * ChatEvents; Bit's own tool calls are intentionally not surfaced as chat
+ * activity.
  */
 export class BitRuntimeService implements BitRuntime {
   private readonly sessions = new Map<string, BitSession>();
@@ -256,10 +258,13 @@ async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSe
   const resourceLoader = createBitResourceLoader();
   await resourceLoader.reload();
 
-  // Bit gets the delegation tools plus read-only explorer tools confined to the
-  // kid's profile. noTools:"builtin" keeps the unguarded built-in file tools off,
-  // so these jailed tools are Bit's only path to disk.
-  const jailedTools = createProfileReadTools(input.profileRoot);
+  // Bit gets the delegation tools plus read/write/edit/explorer tools confined
+  // to the kid's profile, so it can make tiny direct fixes and still delegate
+  // anything bigger. noTools:"builtin" keeps the unguarded built-in file tools
+  // (and bash) off, so these jailed tools are Bit's only path to disk.
+  const jailedTools = createProfileTools(input.profileRoot, {
+    onMutation: input.onProfileMutation,
+  });
 
   const { session } = await createAgentSession({
     cwd: input.conversationDir,

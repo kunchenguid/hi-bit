@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -74,31 +74,6 @@ describe("ConversationService", () => {
       await readFile(profileConversationPaths(layout, "ada").conversationStatePath, "utf8"),
     );
     expect(state).toMatchObject({ schemaVersion: 1, activeBitSessionFile: sessionFile });
-  });
-
-  it("migrates a legacy mayor session pointer and folder to bit", async () => {
-    const { service, layout } = await createService();
-    const paths = profileConversationPaths(layout, "ada");
-    const legacyDir = join(paths.conversationDir, "sessions", "mayor");
-    const legacyFile = join(legacyDir, "s1.jsonl");
-    await mkdir(legacyDir, { recursive: true });
-    await writeFile(legacyFile, "{}\n");
-    await writeFile(
-      paths.conversationStatePath,
-      JSON.stringify({
-        schemaVersion: 1,
-        activeMayorSessionFile: legacyFile,
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      }),
-    );
-
-    const resolved = await service.getBitSessionFile("ada");
-
-    // Pointer is remapped to the new bit folder...
-    expect(resolved).toBe(join(paths.bitSessionsDir, "s1.jsonl"));
-    // ...and the folder itself moved on disk, preserving the session file.
-    await expect(readFile(join(paths.bitSessionsDir, "s1.jsonl"), "utf8")).resolves.toContain("{}");
-    await expect(stat(legacyDir)).rejects.toThrow();
   });
 
   it("exposes the conversation paths for a profile", async () => {

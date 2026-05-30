@@ -7,7 +7,7 @@ export type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   createdAt: string;
-  /** Which creation this message acted on, when Bit delegated work. */
+  /** Which creation this message acted on, when Bit changed or delegated work. */
   projectId?: string;
 };
 
@@ -24,8 +24,9 @@ export type ToolActivity = {
 };
 
 /**
- * One creation's build activity: the worker tool steps it accumulated, plus
- * whether a bot is working on it right now. Drives the "See all activities" view.
+ * One creation's build activity: visible worker tool steps plus whether a bot is
+ * working on it right now. Direct Bit edits are durable logbook history, not
+ * worker activity rows. Drives the "See all activities" view.
  */
 export type CreationActivity = {
   projectId: string;

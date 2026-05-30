@@ -147,7 +147,7 @@ export function projectsDir(
 }
 
 export type ProfileConversationPaths = {
-  /** The whole profile directory - the jail root for Bit's read-only tools. */
+  /** The whole profile directory - the jail root for Bit's profile-scoped tools. */
   profileRoot: string;
   conversationDir: string;
   transcriptPath: string;
