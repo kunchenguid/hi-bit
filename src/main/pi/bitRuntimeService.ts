@@ -10,7 +10,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import { createBitResourceLoader } from "./piResources";
-import { createProfileTools } from "./profileJailedTools";
+import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
 
 export type BitSession = {
   sessionId: string;
@@ -31,6 +31,7 @@ export type BitPromptInput = {
   bitSessionsDir: string;
   sessionFile?: string;
   customTools: ToolDefinition[];
+  onProfileMutation?: (mutation: ProfileDirectMutation) => Promise<void> | void;
 };
 
 export type CreateBitSessionInput = BitPromptInput & {
@@ -260,7 +261,9 @@ async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSe
   // to the kid's profile, so it can make tiny direct fixes and still delegate
   // anything bigger. noTools:"builtin" keeps the unguarded built-in file tools
   // (and bash) off, so these jailed tools are Bit's only path to disk.
-  const jailedTools = createProfileTools(input.profileRoot);
+  const jailedTools = createProfileTools(input.profileRoot, {
+    onMutation: input.onProfileMutation,
+  });
 
   const { session } = await createAgentSession({
     cwd: input.conversationDir,

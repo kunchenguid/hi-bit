@@ -17,6 +17,16 @@ import {
   type WriteOperations,
 } from "@earendil-works/pi-coding-agent";
 
+export type ProfileDirectMutation = {
+  projectId: string;
+  path: string;
+  tool: "write" | "edit";
+};
+
+type ProfileToolsOptions = {
+  onMutation?: (mutation: ProfileDirectMutation) => Promise<void> | void;
+};
+
 /**
  * Filesystem tools for Bit, the coordinating session. Bit may look inside the
  * builder's own creations (read/grep/find/ls) but is confined to ONE kid's
@@ -69,10 +79,26 @@ function resolveWithinMainWorkbench(profileRoot: string, requested: string): str
   const realRoot = canonicalize(resolve(profileRoot));
   const canonical = canonicalize(abs);
   const parts = relative(realRoot, canonical).split(sep);
-  if (parts[0] !== "projects" || !parts[1] || parts[2] !== "main-workbench") {
+  if (
+    parts[0] !== "projects" ||
+    !parts[1] ||
+    parts[2] !== "main-workbench" ||
+    parts.slice(3).includes(".git")
+  ) {
     throw new Error("That file is outside this builder's space.");
   }
   return abs;
+}
+
+function mainWorkbenchMutation(
+  profileRoot: string,
+  requested: string,
+  tool: ProfileDirectMutation["tool"],
+): ProfileDirectMutation {
+  const abs = resolveWithinMainWorkbench(profileRoot, requested);
+  const realRoot = canonicalize(resolve(profileRoot));
+  const parts = relative(realRoot, canonicalize(abs)).split(sep);
+  return { projectId: parts[1], path: parts.join("/"), tool };
 }
 
 function readOperations(profileRoot: string): ReadOperations {
@@ -113,18 +139,26 @@ function grepOperations(profileRoot: string): GrepOperations {
   };
 }
 
-function writeOperations(profileRoot: string): WriteOperations {
+function writeOperations(profileRoot: string, options: ProfileToolsOptions = {}): WriteOperations {
   return {
-    writeFile: (path, content) => writeFile(resolveWithinMainWorkbench(profileRoot, path), content),
+    writeFile: async (path, content) => {
+      const mutation = mainWorkbenchMutation(profileRoot, path, "write");
+      await writeFile(resolveWithinMainWorkbench(profileRoot, path), content);
+      await options.onMutation?.(mutation);
+    },
     mkdir: (dir) =>
       mkdir(resolveWithinMainWorkbench(profileRoot, dir), { recursive: true }).then(() => {}),
   };
 }
 
-function editOperations(profileRoot: string): EditOperations {
+function editOperations(profileRoot: string, options: ProfileToolsOptions = {}): EditOperations {
   return {
     readFile: (path) => readFile(resolveWithinMainWorkbench(profileRoot, path)),
-    writeFile: (path, content) => writeFile(resolveWithinMainWorkbench(profileRoot, path), content),
+    writeFile: async (path, content) => {
+      const mutation = mainWorkbenchMutation(profileRoot, path, "edit");
+      await writeFile(resolveWithinMainWorkbench(profileRoot, path), content);
+      await options.onMutation?.(mutation);
+    },
     access: (path) => access(resolveWithinMainWorkbench(profileRoot, path)).then(() => {}),
   };
 }
@@ -173,11 +207,14 @@ export function createProfileReadTools(profileRoot: string): ToolDefinition[] {
  * guard, so granting it would let Bit escape the profile jail. The worker keeps
  * bash because it runs isolated in a git worktree.
  */
-export function createProfileTools(profileRoot: string): ToolDefinition[] {
+export function createProfileTools(
+  profileRoot: string,
+  options: ProfileToolsOptions = {},
+): ToolDefinition[] {
   return [
     ...createProfileReadTools(profileRoot),
-    createWriteToolDefinition(profileRoot, { operations: writeOperations(profileRoot) }),
-    createEditToolDefinition(profileRoot, { operations: editOperations(profileRoot) }),
+    createWriteToolDefinition(profileRoot, { operations: writeOperations(profileRoot, options) }),
+    createEditToolDefinition(profileRoot, { operations: editOperations(profileRoot, options) }),
   ] as ToolDefinition[];
 }
 

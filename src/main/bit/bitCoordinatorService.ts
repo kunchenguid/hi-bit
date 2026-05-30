@@ -302,6 +302,15 @@ export class BitCoordinatorService {
           bitSessionsDir: paths.bitSessionsDir,
           sessionFile,
           customTools: this.toolsFor(profileId),
+          onProfileMutation: async (mutation) => {
+            await this.projects.touch(profileId, mutation.projectId);
+            await this.projects.appendActivity(profileId, mutation.projectId, {
+              type: "direct_edit",
+              projectId: mutation.projectId,
+              tool: mutation.tool,
+              path: mutation.path,
+            });
+          },
         },
         text,
         onEvent,

@@ -10,6 +10,7 @@ import type { BitPromptInput, BitRuntime, BitTurnResult } from "../pi/bitRuntime
 import { PreviewService } from "../preview/previewService";
 import { ProfileService } from "../profiles/profileService";
 import { ProjectService, type RuntimeProject } from "../projects/projectService";
+import { readJsonl } from "../storage/json";
 import { bootstrapLayout } from "../storage/layout";
 import {
   BitCoordinatorService,
@@ -101,6 +102,7 @@ type BitHandler = (ctx: {
 
 class FakeBitRuntime implements BitRuntime {
   prompts: string[] = [];
+  inputs: BitPromptInput[] = [];
   handler: BitHandler = async () => "";
   failCompletions = false;
   private turn = 0;
@@ -112,6 +114,7 @@ class FakeBitRuntime implements BitRuntime {
     onEvent: (event: ChatEvent) => void,
   ): Promise<BitTurnResult> {
     this.prompts.push(text);
+    this.inputs.push(input);
     if (this.failCompletions && isCompletion(text)) {
       throw new Error("Bit completion failed");
     }
@@ -254,6 +257,35 @@ describe("BitCoordinatorService (Bit)", () => {
       .filter((message) => message.role === "user")
       .map((message) => message.id);
     expect(new Set(userIds).size).toBe(userIds.length);
+  });
+
+  it("records direct Bit file mutations on the affected creation", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Star game" });
+    s.bit.handler = async () => "Tweaked the title.";
+
+    await s.coordinator.send(s.profile.id, "make the title blue");
+    const mutation = s.bit.inputs[0].onProfileMutation;
+    expect(mutation).toBeTypeOf("function");
+
+    await mutation?.({
+      projectId: game.id,
+      path: `projects/${game.id}/main-workbench/styles.css`,
+      tool: "edit",
+    });
+
+    const [updated] = await s.projects.list(s.profile.id);
+    expect(updated.updatedAt).toBe("2026-01-02T03:04:05.000Z");
+    const rows = await readJsonl<Record<string, unknown>>(
+      s.projects.pathsFor(s.profile.id, game.id).projectLogbookPath,
+    );
+    expect(rows).toContainEqual({
+      type: "direct_edit",
+      projectId: game.id,
+      tool: "edit",
+      path: `projects/${game.id}/main-workbench/styles.css`,
+      createdAt: "2026-01-02T03:04:05.000Z",
+    });
   });
 
   it("confirms a new idea on one turn, then creates and builds it after the kid agrees", async () => {

@@ -178,6 +178,50 @@ describe("createProfileTools", () => {
     expect(written).toBe("hello kid");
   });
 
+  it("refuses to write inside a workbench git directory", async () => {
+    const { profileRoot } = await makeProfile();
+    await mkdir(join(profileRoot, "projects", "p1", "main-workbench", ".git"), {
+      recursive: true,
+    });
+    const outcome = await toolNamed(
+      profileRoot,
+      "write",
+    )({
+      path: "projects/p1/main-workbench/.git/config",
+      content: "hacked",
+    }).then(
+      (result) => ({ threw: false, refused: refused(result) }),
+      () => ({ threw: true, refused: true }),
+    );
+    expect(outcome.threw || outcome.refused).toBe(true);
+    await expect(
+      readFile(join(profileRoot, "projects", "p1", "main-workbench", ".git", "config"), "utf8"),
+    ).rejects.toThrow();
+  });
+
+  it("reports a successful direct write mutation", async () => {
+    const { profileRoot } = await makeProfile();
+    const mutations: Array<{ projectId: string; path: string; tool: string }> = [];
+    const tool = createProfileTools(profileRoot, {
+      onMutation: (mutation) => {
+        mutations.push(mutation);
+      },
+    }).find((candidate) => candidate.name === "write");
+    if (!tool) throw new Error("write tool missing");
+
+    await tool.execute(
+      "call-1",
+      { path: "projects/p1/main-workbench/notes.txt", content: "hello kid" },
+      undefined,
+      () => {},
+      {} as never,
+    );
+
+    expect(mutations).toEqual([
+      { projectId: "p1", path: "projects/p1/main-workbench/notes.txt", tool: "write" },
+    ]);
+  });
+
   it("refuses to write profile metadata through the real write tool", async () => {
     const { profileRoot } = await makeProfile();
     const outcome = await toolNamed(
@@ -227,6 +271,60 @@ describe("createProfileTools", () => {
       "utf8",
     );
     expect(edited).toBe("<h1>hello</h1>");
+  });
+
+  it("reports a successful direct edit mutation", async () => {
+    const { profileRoot } = await makeProfile();
+    const mutations: Array<{ projectId: string; path: string; tool: string }> = [];
+    const tool = createProfileTools(profileRoot, {
+      onMutation: (mutation) => {
+        mutations.push(mutation);
+      },
+    }).find((candidate) => candidate.name === "edit");
+    if (!tool) throw new Error("edit tool missing");
+
+    await tool.execute(
+      "call-1",
+      {
+        path: "projects/p1/main-workbench/index.html",
+        edits: [{ oldText: "hi", newText: "hello" }],
+      },
+      undefined,
+      () => {},
+      {} as never,
+    );
+
+    expect(mutations).toEqual([
+      { projectId: "p1", path: "projects/p1/main-workbench/index.html", tool: "edit" },
+    ]);
+  });
+
+  it("refuses to edit inside a workbench git directory", async () => {
+    const { profileRoot } = await makeProfile();
+    await mkdir(join(profileRoot, "projects", "p1", "main-workbench", ".git"), {
+      recursive: true,
+    });
+    await writeFile(
+      join(profileRoot, "projects", "p1", "main-workbench", ".git", "config"),
+      "safe",
+    );
+    const outcome = await toolNamed(
+      profileRoot,
+      "edit",
+    )({
+      path: "projects/p1/main-workbench/.git/config",
+      edits: [{ oldText: "safe", newText: "hacked" }],
+    }).then(
+      (result) => ({ threw: false, refused: refused(result) }),
+      () => ({ threw: true, refused: true }),
+    );
+    expect(outcome.threw || outcome.refused).toBe(true);
+    expect(
+      await readFile(
+        join(profileRoot, "projects", "p1", "main-workbench", ".git", "config"),
+        "utf8",
+      ),
+    ).toBe("safe");
   });
 
   it("refuses to edit project metadata through the real edit tool", async () => {
