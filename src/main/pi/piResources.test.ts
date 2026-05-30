@@ -105,7 +105,7 @@ describe("buildBitSystemPrompt", () => {
     expect(prompt).not.toContain("never write code");
     expect(prompt).toContain("edit");
     expect(prompt).toMatch(/tiny|trivial|one file|single/i);
-    // Anything bigger or uncertain still goes to a helper.
+    // Anything bigger or uncertain still goes to a bot.
     expect(prompt).toMatch(/delegate_build/);
   });
 

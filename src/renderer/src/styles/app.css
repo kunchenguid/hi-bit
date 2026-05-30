@@ -464,6 +464,12 @@ pre {
   color: var(--ink-64);
 }
 
+.hb-thinking-caption {
+  font-size: var(--t-small-size);
+  color: var(--boo-ink);
+  opacity: 0.85;
+}
+
 .hb-thinking-dots {
   display: inline-flex;
   align-items: center;

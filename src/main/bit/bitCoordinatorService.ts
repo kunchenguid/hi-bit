@@ -8,6 +8,7 @@ import type {
   PreviewInfo,
   SendMessageResult,
   ToolActivity,
+  TurnKind,
 } from "@shared/chat";
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
@@ -214,7 +215,7 @@ export class BitCoordinatorService {
 
       const portfolio = await this.projects.list(profileId);
       const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${prompt}`;
-      const result = await this.runBitTurn(profileId, requestText, { lifecycle: true });
+      const result = await this.runBitTurn(profileId, requestText, { kind: "reply" });
 
       if (result.status === "failed") {
         return { ok: false, turnId: result.turnId, error: result.error ?? "Bit hit a problem." };
@@ -274,26 +275,26 @@ export class BitCoordinatorService {
   private async runBitTurn(
     profileId: string,
     text: string,
-    { lifecycle, projectId }: { lifecycle: boolean; projectId?: string },
+    { kind, projectId }: { kind: TurnKind; projectId?: string },
   ) {
     return this.withBitLock(profileId, async () => {
       // Fresh attribution per turn: start_preview sets it mid-turn (below).
       this.pendingPreviewAttribution.delete(profileId);
       const sessionFile = await this.conversation.getBitSessionFile(profileId);
       const paths = this.conversation.paths(profileId);
-      // Stamp the streamed reply with the creation it previewed, so the live
+      // Tag the turn's lifecycle so the renderer can word the "thinking" bubble
+      // (a worker-result turn reads differently than Bit answering the kid), and
+      // stamp the streamed reply with the creation it previewed, so the live
       // bubble (built from deltas) can show Play without waiting for a reload.
       const decorate = (event: ChatEvent): ChatEvent => {
+        if (event.type === "turn_start" || event.type === "turn_end") {
+          return { ...event, kind };
+        }
         if (event.type !== "assistant_delta") return event;
         const attributed = projectId ?? this.pendingPreviewAttribution.get(profileId);
         return attributed ? { ...event, projectId: attributed } : event;
       };
-      const onEvent = lifecycle
-        ? (event: ChatEvent) => this.emit(decorate(event))
-        : (event: ChatEvent) => {
-            if (event.type !== "turn_start" && event.type !== "turn_end")
-              this.emit(decorate(event));
-          };
+      const onEvent = (event: ChatEvent) => this.emit(decorate(event));
 
       const result = await this.bit.prompt(
         {
@@ -408,7 +409,7 @@ export class BitCoordinatorService {
         const project = await self.projects.create(profileId, { title });
         const job = await self.slingWorker(profileId, project.id, instructions);
         return {
-          content: [{ type: "text", text: `Started "${title}". A helper is building it now.` }],
+          content: [{ type: "text", text: `Started "${title}". A bot is building it now.` }],
           details: { created: true, projectId: project.id, jobId: job.id } as CreateDetails,
         };
       },
@@ -432,7 +433,7 @@ export class BitCoordinatorService {
         try {
           const job = await self.slingWorker(profileId, creationId, instructions);
           return {
-            content: [{ type: "text", text: "A helper started working on that creation." }],
+            content: [{ type: "text", text: "A bot started working on that creation." }],
             details: { jobId: job.id, projectId: creationId } as BuildDetails,
           };
         } catch (error) {
@@ -727,7 +728,7 @@ export class BitCoordinatorService {
       summary: kidSafeCompletionSummary(summary),
       readyToPlay,
     });
-    await this.runBitTurn(profileId, text, { lifecycle: false, projectId: project.id });
+    await this.runBitTurn(profileId, text, { kind: "worker_result", projectId: project.id });
   }
 
   private async appendCompletionFallback(
@@ -864,8 +865,8 @@ function kidSafeCompletionSummary(summary: string): string {
   const trimmed = summary.trim();
   if (!trimmed) return "All done.";
   return trimmed
-    .replace(/\bworker\b/gi, "helper")
-    .replace(/\bbot_job_[a-z0-9_-]+\b/gi, "the helper")
+    .replace(/\bworker\b/gi, "bot")
+    .replace(/\bbot_job_[a-z0-9_-]+\b/gi, "the bot")
     .replace(/\bproject_[a-z0-9_-]+\b/gi, "the creation");
 }
 

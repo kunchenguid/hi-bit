@@ -1176,6 +1176,31 @@ describe("BitCoordinatorService (Bit)", () => {
     );
   });
 
+  it("emits worker_result lifecycle events around the completion turn, reply ones for the kid's turn", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Cat Jump is ready! 🎉";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    // The kid's own turn is a plain reply so the composer locks as usual.
+    expect(s.events).toContainEqual(expect.objectContaining({ type: "turn_start", kind: "reply" }));
+    expect(s.events).toContainEqual(expect.objectContaining({ type: "turn_end", kind: "reply" }));
+    // The worker-completion turn is tagged so the renderer can word "Bit is
+    // checking the bot's work" and avoid hijacking the composer.
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "turn_start", kind: "worker_result" }),
+    );
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "turn_end", kind: "worker_result" }),
+    );
+  });
+
   it("tags the completion message with its creation so the renderer can light up Play", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });

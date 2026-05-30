@@ -1,5 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatEvent, ChatMessage, CreationActivity, PreviewInfo } from "@shared/chat";
+import type { ChatEvent, ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import {
   type Dispatch,
@@ -28,6 +28,11 @@ export function App() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
+  // The Bit turn currently producing output, set on turn_start and cleared on
+  // turn_end. `running` drives the composer (a reply locks input); `activeTurn`
+  // drives the "thinking" bubble - including for background worker-result turns,
+  // which must NOT lock the kid's composer.
+  const [activeTurn, setActiveTurn] = useState<{ id: string; kind: TurnKind } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previews, setPreviews] = useState<PreviewInfo[]>([]);
   // Creations that can be (re)played - running or restartable from a remembered
@@ -52,6 +57,7 @@ export function App() {
     setActivity([]);
     setShowActivity(false);
     setRunning(false);
+    setActiveTurn(null);
     setPreviews([]);
     setPlayableProjectIds([]);
     setActivePreviewId(null);
@@ -128,6 +134,7 @@ export function App() {
         setMessages,
         setActivity,
         setRunning,
+        setActiveTurn,
         setError,
         setPreviews,
         setPlayableProjectIds,
@@ -242,6 +249,7 @@ export function App() {
     if (!activeProfile) return;
     await window.hibit.chat.abort(activeProfile.id);
     setRunning(false);
+    setActiveTurn(null);
   }, [activeProfile]);
 
   const openFolder = useCallback(() => {
@@ -316,6 +324,7 @@ export function App() {
       showActivity={showActivity}
       draft={draft}
       running={running}
+      activeTurn={activeTurn}
       busy={busy}
       error={error}
       previews={previews}
@@ -341,6 +350,7 @@ type ChatEventHandlers = {
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setActivity: Dispatch<SetStateAction<CreationActivity[]>>;
   setRunning: Dispatch<SetStateAction<boolean>>;
+  setActiveTurn: Dispatch<SetStateAction<{ id: string; kind: TurnKind } | null>>;
   setError: Dispatch<SetStateAction<string | null>>;
   setPreviews: Dispatch<SetStateAction<PreviewInfo[]>>;
   setPlayableProjectIds: Dispatch<SetStateAction<string[]>>;
@@ -352,16 +362,25 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
     setMessages,
     setActivity,
     setRunning,
+    setActiveTurn,
     setError,
     setPreviews,
     setPlayableProjectIds,
     setReloadSignals,
   } = handlers;
   switch (event.type) {
-    case "turn_start":
-      setRunning(true);
-      setError(null);
+    case "turn_start": {
+      const kind = event.kind ?? "reply";
+      setActiveTurn({ id: event.turnId, kind });
+      // A worker-result turn is Bit catching up on a background build: show it is
+      // thinking, but don't lock the composer or flip Send to Stop - the kid is
+      // free to keep chatting (their turn queues behind it on the server).
+      if (kind === "reply") {
+        setRunning(true);
+        setError(null);
+      }
       break;
+    }
     case "assistant_delta":
       setMessages((current) =>
         upsertAssistantDelta(current, event.turnId, event.text, event.projectId),
@@ -401,12 +420,19 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
       // list. It stays in playableProjectIds, so Play can spin it back up.
       setPreviews((current) => current.filter((preview) => preview.projectId !== event.projectId));
       break;
-    case "turn_end":
-      setRunning(false);
-      if (event.status === "failed") {
-        setError(event.error ?? "Bit hit a problem.");
+    case "turn_end": {
+      // Turns are serialized per profile, so the ending turn is the active one.
+      setActiveTurn((current) => (current?.id === event.turnId ? null : current));
+      // A worker-result turn never owned `running`, so leave the composer alone;
+      // its failures are handled by Bit's own gentle completion message.
+      if ((event.kind ?? "reply") === "reply") {
+        setRunning(false);
+        if (event.status === "failed") {
+          setError(event.error ?? "Bit hit a problem.");
+        }
       }
       break;
+    }
   }
 }
 
