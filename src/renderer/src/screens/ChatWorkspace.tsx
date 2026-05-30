@@ -1,5 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatMessage, CreationActivity, PreviewInfo } from "@shared/chat";
+import type { ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import { ActivityChip } from "../components/ActivityChip";
 import { ActivityView } from "../components/ActivityView";
@@ -16,6 +16,7 @@ type ChatWorkspaceProps = {
   showActivity: boolean;
   draft: string;
   running: boolean;
+  activeTurn: { id: string; kind: TurnKind } | null;
   busy: boolean;
   error: string | null;
   previews: PreviewInfo[];
@@ -43,6 +44,7 @@ export function ChatWorkspace({
   showActivity,
   draft,
   running,
+  activeTurn,
   busy,
   error,
   previews,
@@ -66,9 +68,17 @@ export function ChatWorkspace({
     : "Codex provider connected";
 
   // Show the pending Bit bubble during the gap before Bit's first streamed
-  // token (and any tool-only stretches). Once an assistant bubble exists, its
-  // streaming text is the liveness cue and the dots step aside.
-  const thinking = running && messages.at(-1)?.role !== "assistant";
+  // token (and any tool-only stretches). Once the active turn's own bubble is
+  // streaming, its text is the liveness cue and the dots step aside. Keying off
+  // the active turn's id (not "is the last message an assistant one") is what
+  // lets a worker-result turn surface dots even when an older Bit reply is the
+  // last message on screen.
+  const activeBubbleId = activeTurn ? `assistant-${activeTurn.id}` : null;
+  const streaming = activeBubbleId !== null && messages.some((m) => m.id === activeBubbleId);
+  const thinking = (running || activeTurn !== null) && !streaming;
+  // Word the bubble for the kid: a worker-result turn is Bit reading what a
+  // bot just built, anything else is Bit replying to the builder.
+  const thinkingReason: TurnKind = activeTurn?.kind === "worker_result" ? "worker_result" : "reply";
 
   // A creation is playable if it has a remembered preview (running or
   // restartable). Running previews are always playable too.
@@ -116,6 +126,7 @@ export function ChatWorkspace({
           <MessageList
             messages={messages}
             thinking={thinking}
+            thinkingReason={thinkingReason}
             playableProjectIds={playable}
             onPlay={onPlayPreview}
           />

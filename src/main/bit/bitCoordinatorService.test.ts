@@ -105,6 +105,7 @@ class FakeBitRuntime implements BitRuntime {
   inputs: BitPromptInput[] = [];
   handler: BitHandler = async () => "";
   failCompletions = false;
+  afterStart?: (ctx: { text: string; profileId: string; turnId: string }) => Promise<void> | void;
   private turn = 0;
   private runningSet = new Set<string>();
 
@@ -121,6 +122,7 @@ class FakeBitRuntime implements BitRuntime {
     this.runningSet.add(input.profileId);
     const turnId = `bit-turn-${++this.turn}`;
     onEvent({ type: "turn_start", profileId: input.profileId, turnId });
+    await this.afterStart?.({ text, profileId: input.profileId, turnId });
     const callTool = async (name: string, params: unknown) => {
       const tool = input.customTools.find((candidate) => candidate.name === name);
       if (!tool) throw new Error(`tool not registered: ${name}`);
@@ -1174,6 +1176,56 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(s.events).not.toContainEqual(
       expect.objectContaining({ type: "preview_stopped", projectId: otherGame.id }),
     );
+  });
+
+  it("emits worker_result lifecycle events around the completion turn, reply ones for the kid's turn", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Cat Jump is ready! 🎉";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    // The kid's own turn is a plain reply so the composer locks as usual.
+    expect(s.events).toContainEqual(expect.objectContaining({ type: "turn_start", kind: "reply" }));
+    expect(s.events).toContainEqual(expect.objectContaining({ type: "turn_end", kind: "reply" }));
+    // The worker-completion turn is tagged so the renderer can word "Bit is
+    // checking the bot's work" and avoid hijacking the composer.
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "turn_start", kind: "worker_result" }),
+    );
+    expect(s.events).toContainEqual(
+      expect.objectContaining({ type: "turn_end", kind: "worker_result" }),
+    );
+  });
+
+  it("reports an active worker-result turn in the loaded snapshot", async () => {
+    const s = await createCoordinator();
+    const snapshots: Array<Awaited<ReturnType<typeof s.coordinator.load>>> = [];
+    s.bit.afterStart = async ({ text }) => {
+      if (isCompletion(text)) {
+        snapshots.push(await s.coordinator.load(s.profile.id));
+      }
+    };
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Cat Jump is ready.";
+      await callTool("create_creation", {
+        title: "Cat Jump",
+        instructions: "make a cat game",
+        confirmed: true,
+      });
+      return "A bot is building Cat Jump.";
+    };
+
+    await s.coordinator.send(s.profile.id, "make a cat game");
+    await s.drain();
+
+    expect(snapshots[0]?.activeTurn).toEqual({ id: "bit-turn-2", kind: "worker_result" });
+    expect(snapshots[0]?.isRunning).toBe(true);
   });
 
   it("tags the completion message with its creation so the renderer can light up Play", async () => {

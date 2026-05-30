@@ -53,6 +53,12 @@ export type ChatSnapshot = {
   messages: ChatMessage[];
   activity: CreationActivity[];
   isRunning: boolean;
+  /**
+   * Bit turn currently producing output.
+   * `isRunning` may still be true for worker-result turns, but the renderer uses
+   * this kind to show the bot-review thinking bubble without locking input.
+   */
+  activeTurn?: { id: string; kind: TurnKind } | null;
   /** Creations with a live preview server right now, so Play is correct after a reload. */
   previews: PreviewInfo[];
   /**
@@ -75,8 +81,15 @@ type ChatEventMeta = {
   projectTitle?: string;
 };
 
+/**
+ * Why a Bit turn is running, so the renderer can word the "thinking" bubble for
+ * the kid. `reply` is Bit answering the builder; `worker_result` is Bit reading
+ * what a background bot just finished. Absent means `reply`.
+ */
+export type TurnKind = "reply" | "worker_result";
+
 export type ChatEvent =
-  | ({ type: "turn_start" } & ChatEventMeta)
+  | ({ type: "turn_start"; kind?: TurnKind } & ChatEventMeta)
   | ({ type: "assistant_delta"; text: string } & ChatEventMeta)
   | ({ type: "build_start" } & ChatEventMeta)
   | ({
@@ -104,6 +117,7 @@ export type ChatEvent =
       type: "turn_end";
       status: "completed" | "cancelled" | "failed";
       error?: string;
+      kind?: TurnKind;
     } & ChatEventMeta)
   // Preview events carry no turn: Hi-Bit spawns/kills the server out of band and
   // routes the result to the renderer by `profileId` to light up (or drop) Play.
