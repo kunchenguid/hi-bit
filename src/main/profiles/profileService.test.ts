@@ -136,6 +136,16 @@ describe("ProfileService", () => {
     });
   });
 
+  it("keeps every build counter bump when multiple builds start together", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+
+    await Promise.all(Array.from({ length: 10 }, () => service.bumpBuildsDelegated(ada.id)));
+
+    await expect(service.get(ada.id)).resolves.toMatchObject({
+      unlockStats: { buildsDelegated: 10, openedActivities: false },
+    });
+  });
+
   it("backfills unlock fields for profiles written before the ladder existed", async () => {
     const ada = await service.create({ name: "Ada", age: 9 });
     // Simulate an old on-disk record with no unlock fields.

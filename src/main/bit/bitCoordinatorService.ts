@@ -74,6 +74,11 @@ type InflightBot = {
   startedAt: string;
 };
 
+type TurnVocabulary = {
+  note: string;
+  newlyUnlocked: ConceptId | null;
+};
+
 type CreateDetails = { created: boolean; projectId: string | null; jobId: string | null };
 type BuildDetails = { jobId: string | null; projectId: string };
 type PreviewToolDetails = { projectId: string; url: string | null };
@@ -293,7 +298,8 @@ export class BitCoordinatorService {
       this.pendingPreviewAttribution.delete(profileId);
       // Gate Bit's vocabulary to this kid's unlocked inside words, unlocking at
       // most one new word this turn and asking Bit to reveal it warmly.
-      const promptText = `${text}\n\n${await this.resolveTurnVocabulary(profileId)}`;
+      const vocabulary = await this.resolveTurnVocabulary(profileId);
+      const promptText = `${text}\n\n${vocabulary.note}`;
       const sessionFile = await this.conversation.getBitSessionFile(profileId);
       const paths = this.conversation.paths(profileId);
       // Tag the turn's lifecycle so the renderer can word the "thinking" bubble
@@ -350,6 +356,14 @@ export class BitCoordinatorService {
           // this turn started, so the "ready" reply can show a Play button.
           projectId: projectId ?? this.pendingPreviewAttribution.get(profileId),
         });
+        if (vocabulary.newlyUnlocked) {
+          await this.profiles.unlockConcept(profileId, vocabulary.newlyUnlocked).catch((error) => {
+            console.error(
+              `Failed to persist unlocked concept ${vocabulary.newlyUnlocked} for profile ${profileId}:`,
+              error,
+            );
+          });
+        }
       }
       this.pendingPreviewAttribution.delete(profileId);
       return result;
@@ -853,25 +867,22 @@ export class BitCoordinatorService {
    * (the pacing guard) and asks Bit to reveal it once. Degrades to the base
    * words on any read/write hiccup so a vocabulary problem never breaks a turn.
    */
-  private async resolveTurnVocabulary(profileId: string): Promise<string> {
+  private async resolveTurnVocabulary(profileId: string): Promise<TurnVocabulary> {
     try {
-      let profile = await this.profiles.get(profileId);
+      const profile = await this.profiles.get(profileId);
       const creationCount = (await this.projects.list(profileId)).length;
       const facts: UnlockFacts = {
         buildsDelegated: profile.unlockStats.buildsDelegated,
         creationCount,
         openedActivities: profile.unlockStats.openedActivities,
       };
-      let unlocked = profile.unlockedConcepts.map((concept) => concept.id);
+      const unlocked = profile.unlockedConcepts.map((concept) => concept.id);
       const newlyUnlocked = nextConceptToUnlock(facts, unlocked);
-      if (newlyUnlocked) {
-        profile = await this.profiles.unlockConcept(profileId, newlyUnlocked);
-        unlocked = profile.unlockedConcepts.map((concept) => concept.id);
-      }
-      return buildVocabularyNote(unlocked, newlyUnlocked);
+      const allowed = newlyUnlocked ? [...unlocked, newlyUnlocked] : unlocked;
+      return { note: buildVocabularyNote(allowed, newlyUnlocked), newlyUnlocked };
     } catch (error) {
       console.error(`Failed to resolve unlock vocabulary for profile ${profileId}:`, error);
-      return buildVocabularyNote([], null);
+      return { note: buildVocabularyNote([], null), newlyUnlocked: null };
     }
   }
 

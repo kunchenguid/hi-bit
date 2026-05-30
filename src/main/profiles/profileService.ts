@@ -24,6 +24,8 @@ export function slugifyProfileName(name: string): string {
 }
 
 export class ProfileService {
+  private readonly profileWrites = new Map<string, Promise<unknown>>();
+
   constructor(
     private readonly layout: HiBitLayout,
     private readonly now: () => Date = () => new Date(),
@@ -70,27 +72,29 @@ export class ProfileService {
   }
 
   async update(profileId: string, settings: ProfileSettingsInput): Promise<ProfileSummary> {
-    const current = await this.get(profileId);
-    const next: ProfileRecord = { ...current, updatedAt: this.now().toISOString() };
-    if (settings.name !== undefined) {
-      const trimmed = settings.name.trim();
-      if (!trimmed) throw new Error("Profile name is required.");
-      next.name = trimmed;
-    }
-    if (settings.age !== undefined) {
-      validateAge(settings.age);
-      next.age = settings.age;
-    }
-    if (settings.interests !== undefined) {
-      next.interests = normalizeInterests(settings.interests ?? []);
-    }
-    if (settings.notes !== undefined) {
-      const notes = settings.notes?.trim();
-      if (notes) next.notes = notes;
-      else delete next.notes;
-    }
-    await writeJsonFile(this.profileJsonPath(profileId), next);
-    return next;
+    return this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      const next: ProfileRecord = { ...current, updatedAt: this.now().toISOString() };
+      if (settings.name !== undefined) {
+        const trimmed = settings.name.trim();
+        if (!trimmed) throw new Error("Profile name is required.");
+        next.name = trimmed;
+      }
+      if (settings.age !== undefined) {
+        validateAge(settings.age);
+        next.age = settings.age;
+      }
+      if (settings.interests !== undefined) {
+        next.interests = normalizeInterests(settings.interests ?? []);
+      }
+      if (settings.notes !== undefined) {
+        const notes = settings.notes?.trim();
+        if (notes) next.notes = notes;
+        else delete next.notes;
+      }
+      await writeJsonFile(this.profileJsonPath(profileId), next);
+      return next;
+    });
   }
 
   /**
@@ -99,44 +103,50 @@ export class ProfileService {
    * that keeps the original `firstSeenAt`.
    */
   async unlockConcept(profileId: string, conceptId: ConceptId): Promise<ProfileSummary> {
-    const current = await this.get(profileId);
-    if (current.unlockedConcepts.some((concept) => concept.id === conceptId)) {
-      return current;
-    }
-    const next: ProfileRecord = {
-      ...current,
-      unlockedConcepts: [
-        ...current.unlockedConcepts,
-        { id: conceptId, firstSeenAt: this.now().toISOString() },
-      ],
-    };
-    await writeJsonFile(this.profileJsonPath(profileId), next);
-    return next;
+    return this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      if (current.unlockedConcepts.some((concept) => concept.id === conceptId)) {
+        return current;
+      }
+      const next: ProfileRecord = {
+        ...current,
+        unlockedConcepts: [
+          ...current.unlockedConcepts,
+          { id: conceptId, firstSeenAt: this.now().toISOString() },
+        ],
+      };
+      await writeJsonFile(this.profileJsonPath(profileId), next);
+      return next;
+    });
   }
 
   /** Bumps the build counter the unlock ladder reads from (one per delegated build). */
   async bumpBuildsDelegated(profileId: string): Promise<void> {
-    const current = await this.get(profileId);
-    const next: ProfileRecord = {
-      ...current,
-      unlockStats: {
-        ...current.unlockStats,
-        buildsDelegated: current.unlockStats.buildsDelegated + 1,
-      },
-    };
-    await writeJsonFile(this.profileJsonPath(profileId), next);
+    await this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      const next: ProfileRecord = {
+        ...current,
+        unlockStats: {
+          ...current.unlockStats,
+          buildsDelegated: current.unlockStats.buildsDelegated + 1,
+        },
+      };
+      await writeJsonFile(this.profileJsonPath(profileId), next);
+    });
   }
 
   /** Marks that the kid has opened "See all activities" so the Logbook word can unlock. */
   async markActivitiesOpened(profileId: string): Promise<ProfileSummary> {
-    const current = await this.get(profileId);
-    if (current.unlockStats.openedActivities) return current;
-    const next: ProfileRecord = {
-      ...current,
-      unlockStats: { ...current.unlockStats, openedActivities: true },
-    };
-    await writeJsonFile(this.profileJsonPath(profileId), next);
-    return next;
+    return this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      if (current.unlockStats.openedActivities) return current;
+      const next: ProfileRecord = {
+        ...current,
+        unlockStats: { ...current.unlockStats, openedActivities: true },
+      };
+      await writeJsonFile(this.profileJsonPath(profileId), next);
+      return next;
+    });
   }
 
   async getActiveId(): Promise<string | null> {
@@ -174,6 +184,19 @@ export class ProfileService {
 
   private profileJsonPath(profileId: string): string {
     return join(profileDir(this.layout, profileId), "profile.json");
+  }
+
+  private async withProfileWrite<T>(profileId: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.profileWrites.get(profileId) ?? Promise.resolve();
+    const next = previous.catch(() => {}).then(fn);
+    this.profileWrites.set(profileId, next);
+    try {
+      return await next;
+    } finally {
+      if (this.profileWrites.get(profileId) === next) {
+        this.profileWrites.delete(profileId);
+      }
+    }
   }
 }
 

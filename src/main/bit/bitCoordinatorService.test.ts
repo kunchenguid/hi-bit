@@ -1284,6 +1284,24 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(profile.unlockStats.buildsDelegated).toBe(1);
   });
 
+  it("does not persist a new word when the reveal turn fails", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bit.failCompletions = true;
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "All done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.unlockStats.buildsDelegated).toBe(1);
+    expect(profile.unlockedConcepts.map((concept) => concept.id)).not.toContain("bot");
+  });
+
   it("reveals at most one new word per turn", async () => {
     const s = await createCoordinator();
     // Two creations plus several builds make bot, workshop, blueprint, machines
