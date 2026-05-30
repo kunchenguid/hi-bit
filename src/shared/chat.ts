@@ -53,6 +53,11 @@ export type ChatSnapshot = {
   messages: ChatMessage[];
   activity: CreationActivity[];
   isRunning: boolean;
+  /**
+   * Bit turn currently producing output.
+   * `isRunning` may still be true for worker-result turns, but the renderer uses
+   * this kind to show the bot-review thinking bubble without locking input.
+   */
   activeTurn?: { id: string; kind: TurnKind } | null;
   /** Creations with a live preview server right now, so Play is correct after a reload. */
   previews: PreviewInfo[];

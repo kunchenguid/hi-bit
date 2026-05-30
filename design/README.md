@@ -94,6 +94,8 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Activity chip:** Bit is thinking.
 >
+> **Bot review bubble:** Bit is checking out what the bot made...
+>
 > **Activity chip with preview:** Play.
 >
 > **Open folder:** Open creations folder.
