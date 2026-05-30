@@ -1,16 +1,20 @@
 import { realpathSync } from "node:fs";
-import { access, readdir, readFile, stat } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import {
+  createEditToolDefinition,
   createFindToolDefinition,
   createGrepToolDefinition,
   createLsToolDefinition,
   createReadToolDefinition,
+  createWriteToolDefinition,
+  type EditOperations,
   type FindOperations,
   type GrepOperations,
   type LsOperations,
   type ReadOperations,
   type ToolDefinition,
+  type WriteOperations,
 } from "@earendil-works/pi-coding-agent";
 
 /**
@@ -98,6 +102,22 @@ function grepOperations(profileRoot: string): GrepOperations {
   };
 }
 
+function writeOperations(profileRoot: string): WriteOperations {
+  return {
+    writeFile: (path, content) => writeFile(resolveWithinProfile(profileRoot, path), content),
+    mkdir: (dir) =>
+      mkdir(resolveWithinProfile(profileRoot, dir), { recursive: true }).then(() => {}),
+  };
+}
+
+function editOperations(profileRoot: string): EditOperations {
+  return {
+    readFile: (path) => readFile(resolveWithinProfile(profileRoot, path)),
+    writeFile: (path, content) => writeFile(resolveWithinProfile(profileRoot, path), content),
+    access: (path) => access(resolveWithinProfile(profileRoot, path)).then(() => {}),
+  };
+}
+
 function findOperations(profileRoot: string): FindOperations {
   return {
     exists: async (path) => {
@@ -128,6 +148,25 @@ export function createProfileReadTools(profileRoot: string): ToolDefinition[] {
     createLsToolDefinition(profileRoot, { operations: lsOperations(profileRoot) }),
     createGrepToolDefinition(profileRoot, { operations: grepOperations(profileRoot) }),
     createFindToolDefinition(profileRoot, { operations: findOperations(profileRoot) }),
+  ] as ToolDefinition[];
+}
+
+/**
+ * The full toolset for Bit, the coordinating session: the read explorers plus
+ * `write` and `edit`, all confined to one profile through the same
+ * {@link resolveWithinProfile} chokepoint. This lets Bit make tiny, trivial
+ * fixes itself (a word, a color, one line) instead of waking a worker for
+ * everything, while the prompt steers anything bigger to `delegate_build`.
+ *
+ * Bash is intentionally NOT included: it cannot be routed through the path
+ * guard, so granting it would let Bit escape the profile jail. The worker keeps
+ * bash because it runs isolated in a git worktree.
+ */
+export function createProfileTools(profileRoot: string): ToolDefinition[] {
+  return [
+    ...createProfileReadTools(profileRoot),
+    createWriteToolDefinition(profileRoot, { operations: writeOperations(profileRoot) }),
+    createEditToolDefinition(profileRoot, { operations: editOperations(profileRoot) }),
   ] as ToolDefinition[];
 }
 

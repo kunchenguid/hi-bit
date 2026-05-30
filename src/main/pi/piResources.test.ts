@@ -78,14 +78,35 @@ describe("buildWorkerSystemPrompt", () => {
 });
 
 describe("buildBitSystemPrompt", () => {
-  it("frames Bit as the portfolio-holding partner who confirms and delegates", () => {
+  it("frames Bit as the portfolio-holding partner who confirms and delegates by default", () => {
     const prompt = buildBitSystemPrompt();
 
     expect(prompt).toContain("You are Bit");
     expect(prompt).toContain("delegate_build");
     expect(prompt).toContain("create_creation");
     expect(prompt).toContain("confirmed: true");
-    expect(prompt).toContain("never write code");
     expect(prompt).not.toMatch(/studio/i);
+  });
+
+  it("lets Bit make tiny one-file tweaks directly with its own edit tools", () => {
+    const prompt = buildBitSystemPrompt();
+
+    // The whole point of this change: Bit is no longer forbidden from editing.
+    expect(prompt).not.toContain("never write code");
+    expect(prompt).toContain("edit");
+    expect(prompt).toMatch(/tiny|trivial|one file|single/i);
+    // Anything bigger or uncertain still goes to a helper.
+    expect(prompt).toMatch(/delegate_build/);
+  });
+
+  it("forbids Bit from editing a creation that is currently building, and from making art directly", () => {
+    const prompt = buildBitSystemPrompt();
+
+    expect(prompt).toMatch(/currently building|while a (worker|helper) is/i);
+    expect(prompt).toMatch(/art|picture|sprite/i);
+  });
+
+  it("tells Bit where creation files live so direct edits hit the right place", () => {
+    expect(buildBitSystemPrompt()).toContain("main-workbench");
   });
 });
