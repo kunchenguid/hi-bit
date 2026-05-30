@@ -78,6 +78,19 @@ describe("PreviewPane", () => {
     expect(after?.getAttribute("src")).toBe("http://127.0.0.1:4310/");
   });
 
+  it("focuses the iframe once it loads so game controls work without a click", () => {
+    act(() =>
+      root.render(<PreviewPane preview={snake} onOpenExternal={vi.fn()} onClose={vi.fn()} />),
+    );
+    const frame = host.querySelector("iframe");
+    expect(frame).not.toBe(null);
+    expect(document.activeElement).not.toBe(frame);
+    act(() => {
+      frame?.dispatchEvent(new Event("load"));
+    });
+    expect(document.activeElement).toBe(frame);
+  });
+
   it("remounts the iframe when the reload signal changes (e.g. after a rebuild)", () => {
     act(() =>
       root.render(

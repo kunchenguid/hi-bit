@@ -1,5 +1,5 @@
 import type { PreviewInfo } from "@shared/chat";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type PreviewPaneProps = {
   preview: PreviewInfo;
@@ -34,6 +34,8 @@ export function PreviewPane({
   useEffect(() => {
     if (reloadSignal > 0) setReloadCount((count) => count + 1);
   }, [reloadSignal]);
+
+  const frameRef = useRef<HTMLIFrameElement>(null);
 
   const title = preview.title ?? "Your creation";
   return (
@@ -70,10 +72,15 @@ export function PreviewPane({
       </div>
       <iframe
         key={reloadCount}
+        ref={frameRef}
         className="hb-preview-frame"
         title={title}
         src={preview.url}
         sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups allow-modals"
+        // Move keyboard focus into the creation as soon as it loads so game
+        // controls (arrows, space, WASD) work without the kid first clicking the
+        // page. Refires on every remount, so Reload/rebuild refocus too.
+        onLoad={() => frameRef.current?.focus()}
       />
     </div>
   );
