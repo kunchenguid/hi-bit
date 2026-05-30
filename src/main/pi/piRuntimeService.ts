@@ -268,9 +268,8 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     sessionManager,
     settingsManager,
     // The `tools` allowlist gates custom tools too: any custom tool whose name
-    // isn't listed is silently disabled. So the registered custom tools
-    // (generate_image, process_sprite_sheet) MUST be named here, or the worker
-    // never sees them and falls back to drawing art in code.
+    // isn't listed is silently disabled. So every registered custom tool MUST be
+    // named here, or the worker never sees art, sprite-processing, or web tools.
     tools: workerToolNames(input.customTools),
     customTools: input.customTools,
   });
