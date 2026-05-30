@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -127,5 +128,13 @@ describe("buildBitSystemPrompt", () => {
 
   it("tells Bit where creation files live so direct edits hit the right place", () => {
     expect(buildBitSystemPrompt()).toContain("main-workbench");
+  });
+
+  it("keeps the locked bot word out of the always-on Bit prompts", () => {
+    const runtimePrompt = buildBitSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
+
+    expect(runtimePrompt).not.toMatch(/\bbots?\b/i);
+    expect(mirroredPrompt).not.toMatch(/\bbots?\b/i);
   });
 });
