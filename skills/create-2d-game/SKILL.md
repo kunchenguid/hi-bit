@@ -1,5 +1,5 @@
 ---
-name: create-game
+name: create-2d-game
 description: Build the boilerplate of a real 2D game that runs right in the browser - the game loop, player movement, keyboard and mouse input, collision, and scenes - for platformers, top-down games, clicker/arcade games, and shooters. Use this whenever a creation should be a playable game with something that moves and is controlled, instead of a static page, a quiz, or a single picture.
 ---
 
@@ -38,7 +38,7 @@ The moment the game needs a character, creature, enemy, projectile, or any pictu
 
 So the normal flow for a game with a character is:
 
-1. `create-game` for the loop and rules (start with a plain colored rectangle as the player).
+1. `create-2d-game` for the loop and rules (start with a plain colored rectangle as the player).
 2. `game-assets` for the real sprite.
 3. Swap the rectangle for the sprite: where you drew a box, call the sprite's `draw(ctx, x, y)` instead. The box's `x, y, w, h` stay the rules of the game; the sprite is just what the builder sees.
 
