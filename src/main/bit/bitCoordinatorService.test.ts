@@ -1262,7 +1262,7 @@ describe("BitCoordinatorService (Bit)", () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.bit.handler = async ({ text, callTool }) => {
-      if (isCompletion(text)) return "All done!";
+      if (isCompletion(text)) return "The bot is all done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
     };
@@ -1288,7 +1288,7 @@ describe("BitCoordinatorService (Bit)", () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.bit.handler = async ({ text, callTool }) => {
-      if (isCompletion(text)) return "All done!";
+      if (isCompletion(text)) return "The bot is all done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       return "On it!";
     };
@@ -1313,7 +1313,7 @@ describe("BitCoordinatorService (Bit)", () => {
     });
     s.pipeline.beforeInstall = async () => buildPaused;
     s.bit.handler = async ({ text, callTool }) => {
-      if (isCompletion(text)) return "All done!";
+      if (isCompletion(text)) return "The bot is all done!";
       if (text.includes("add stars")) {
         await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
       }
@@ -1352,6 +1352,35 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(profile.unlockedConcepts.map((concept) => concept.id)).not.toContain("bot");
   });
 
+  it("keeps an unlocked word pending until Bit actually reveals it", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "All done!";
+      if (text.includes("what changed")) return "The bot finished your stars.";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    const pending = await s.profiles.get(s.profile.id);
+    expect(pending.pendingConceptReveals.map((concept) => concept.id)).toContain("bot");
+    expect(pending.unlockedConcepts.map((concept) => concept.id)).not.toContain("bot");
+
+    await s.coordinator.send(s.profile.id, "what changed?");
+    await s.drain();
+
+    const retryPrompt = s.bit.prompts.find((prompt) => prompt.includes("what changed?"));
+    expect(retryPrompt).toContain("Unlocked but not revealed");
+    expect(retryPrompt).toContain('"bot"');
+
+    const revealed = await s.profiles.get(s.profile.id);
+    expect(revealed.pendingConceptReveals.map((concept) => concept.id)).not.toContain("bot");
+    expect(revealed.unlockedConcepts.map((concept) => concept.id)).toContain("bot");
+  });
+
   it("reveals at most one new word per turn", async () => {
     const s = await createCoordinator();
     // Two creations plus several builds make bot, workshop, blueprint, machines
@@ -1378,7 +1407,7 @@ describe("BitCoordinatorService (Bit)", () => {
   it("unlocks the Logbook word after the kid opens the activities view", async () => {
     const s = await createCoordinator();
     await s.coordinator.markActivitiesOpened(s.profile.id);
-    s.bit.handler = async () => "Sure!";
+    s.bit.handler = async () => "Sure! Your Logbook keeps those steps.";
 
     await s.coordinator.send(s.profile.id, "what did we do?");
     await s.drain();

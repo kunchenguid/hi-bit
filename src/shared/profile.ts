@@ -37,6 +37,7 @@ export type ProfileSummary = {
   updatedAt: string;
   /** Inside words this kid has unlocked, each stamped when its trigger first fired. */
   unlockedConcepts: UnlockedConcept[];
+  pendingConceptReveals: UnlockedConcept[];
   /** Counters the unlock ladder reads from. */
   unlockStats: UnlockStats;
 };

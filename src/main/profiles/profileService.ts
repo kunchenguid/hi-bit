@@ -56,6 +56,7 @@ export class ProfileService {
       createdAt: timestamp,
       updatedAt: timestamp,
       unlockedConcepts: [],
+      pendingConceptReveals: [],
       unlockStats: { ...EMPTY_UNLOCK_STATS },
     };
     const notes = input.notes?.trim();
@@ -103,16 +104,45 @@ export class ProfileService {
    * that keeps the original `firstSeenAt`.
    */
   async unlockConcept(profileId: string, conceptId: ConceptId): Promise<ProfileSummary> {
+    return this.markConceptRevealed(profileId, conceptId);
+  }
+
+  async markConceptPendingReveal(profileId: string, conceptId: ConceptId): Promise<ProfileSummary> {
+    return this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      if (
+        current.unlockedConcepts.some((concept) => concept.id === conceptId) ||
+        current.pendingConceptReveals.some((concept) => concept.id === conceptId)
+      ) {
+        return current;
+      }
+      const next: ProfileRecord = {
+        ...current,
+        pendingConceptReveals: [
+          ...current.pendingConceptReveals,
+          { id: conceptId, firstSeenAt: this.now().toISOString() },
+        ],
+      };
+      await writeJsonFile(this.profileJsonPath(profileId), next);
+      return next;
+    });
+  }
+
+  async markConceptRevealed(profileId: string, conceptId: ConceptId): Promise<ProfileSummary> {
     return this.withProfileWrite(profileId, async () => {
       const current = await this.get(profileId);
       if (current.unlockedConcepts.some((concept) => concept.id === conceptId)) {
         return current;
       }
+      const pending = current.pendingConceptReveals.find((concept) => concept.id === conceptId);
       const next: ProfileRecord = {
         ...current,
+        pendingConceptReveals: current.pendingConceptReveals.filter(
+          (concept) => concept.id !== conceptId,
+        ),
         unlockedConcepts: [
           ...current.unlockedConcepts,
-          { id: conceptId, firstSeenAt: this.now().toISOString() },
+          pending ?? { id: conceptId, firstSeenAt: this.now().toISOString() },
         ],
       };
       await writeJsonFile(this.profileJsonPath(profileId), next);
@@ -206,10 +236,11 @@ function projectsDirForProfile(layout: HiBitLayout, profileId: string): string {
 
 /** Backfills unlock fields for profiles created before the unlock ladder existed. */
 function normalizeProfile(record: ProfileRecord): ProfileRecord {
-  if (record.unlockedConcepts && record.unlockStats) return record;
+  if (record.unlockedConcepts && record.pendingConceptReveals && record.unlockStats) return record;
   return {
     ...record,
     unlockedConcepts: record.unlockedConcepts ?? [],
+    pendingConceptReveals: record.pendingConceptReveals ?? [],
     unlockStats: record.unlockStats ?? { ...EMPTY_UNLOCK_STATS },
   };
 }

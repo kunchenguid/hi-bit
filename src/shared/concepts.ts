@@ -180,13 +180,17 @@ export function allowedWords(unlocked: ConceptId[]): string[] {
  */
 export function buildVocabularyNote(
   unlocked: ConceptId[],
-  newlyUnlocked: ConceptId | null,
+  pendingReveal: ConceptId | null,
+  newlyUnlocked: ConceptId | null = pendingReveal,
 ): string {
-  const lines = [`Words you may use: ${allowedWords(unlocked).join(", ")}.`];
-  if (newlyUnlocked) {
-    const def = conceptById(newlyUnlocked);
+  const allowed =
+    pendingReveal && !unlocked.includes(pendingReveal) ? [...unlocked, pendingReveal] : unlocked;
+  const lines = [`Words you may use: ${allowedWords(allowed).join(", ")}.`];
+  if (pendingReveal) {
+    const def = conceptById(pendingReveal);
+    const label = newlyUnlocked === pendingReveal ? "Newly unlocked" : "Unlocked but not revealed";
     lines.push(
-      `Newly unlocked - "${def.word}" (${def.gloss}). Say it warmly and naturally exactly once this message, then keep going.`,
+      `${label} - "${def.word}" (${def.gloss}). Say it warmly and naturally exactly once this message, then keep going.`,
     );
   }
   return lines.join("\n");

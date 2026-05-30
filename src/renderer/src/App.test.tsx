@@ -696,6 +696,7 @@ function adaProfile() {
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     unlockedConcepts: [],
+    pendingConceptReveals: [],
     unlockStats: { buildsDelegated: 0, openedActivities: false },
   };
 }
@@ -710,6 +711,7 @@ function samProfile() {
     createdAt: "2026-01-02T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
     unlockedConcepts: [],
+    pendingConceptReveals: [],
     unlockStats: { buildsDelegated: 0, openedActivities: false },
   };
 }
@@ -744,6 +746,7 @@ function createApiMock(): HiBitApi {
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
         unlockedConcepts: [],
+        pendingConceptReveals: [],
         unlockStats: { buildsDelegated: 0, openedActivities: false },
       })),
       update: vi.fn(async (profileId, settings) => ({
@@ -756,6 +759,7 @@ function createApiMock(): HiBitApi {
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
         unlockedConcepts: [],
+        pendingConceptReveals: [],
         unlockStats: { buildsDelegated: 0, openedActivities: false },
       })),
       getActiveId: vi.fn(async () => null),

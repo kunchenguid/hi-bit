@@ -13,6 +13,7 @@ import type {
 import {
   buildVocabularyNote,
   type ConceptId,
+  conceptById,
   nextConceptToUnlock,
   type UnlockFacts,
 } from "@shared/concepts";
@@ -50,6 +51,8 @@ export type BotRuntime = {
 export type ProfileReader = {
   get: (profileId: string) => Promise<ProfileSummary>;
   unlockConcept: (profileId: string, conceptId: ConceptId) => Promise<ProfileSummary>;
+  markConceptPendingReveal: (profileId: string, conceptId: ConceptId) => Promise<ProfileSummary>;
+  markConceptRevealed: (profileId: string, conceptId: ConceptId) => Promise<ProfileSummary>;
   bumpBuildsDelegated: (profileId: string) => Promise<void>;
   markActivitiesOpened: (profileId: string) => Promise<ProfileSummary>;
 };
@@ -76,7 +79,7 @@ type InflightBot = {
 
 type TurnVocabulary = {
   note: string;
-  newlyUnlocked: ConceptId | null;
+  pendingReveal: ConceptId | null;
 };
 
 type CreateDetails = { created: boolean; projectId: string | null; jobId: string | null };
@@ -356,13 +359,16 @@ export class BitCoordinatorService {
           // this turn started, so the "ready" reply can show a Play button.
           projectId: projectId ?? this.pendingPreviewAttribution.get(profileId),
         });
-        if (vocabulary.newlyUnlocked) {
+        if (
+          vocabulary.pendingReveal &&
+          assistantRevealedConcept(result.assistantText, vocabulary.pendingReveal)
+        ) {
           await this.profiles
-            .unlockConcept(profileId, vocabulary.newlyUnlocked)
+            .markConceptRevealed(profileId, vocabulary.pendingReveal)
             .then(() => this.emit({ type: "profile_updated", profileId, turnId: result.turnId }))
             .catch((error) => {
               console.error(
-                `Failed to persist unlocked concept ${vocabulary.newlyUnlocked} for profile ${profileId}:`,
+                `Failed to persist revealed concept ${vocabulary.pendingReveal} for profile ${profileId}:`,
                 error,
               );
             });
@@ -882,12 +888,19 @@ export class BitCoordinatorService {
         openedActivities: profile.unlockStats.openedActivities,
       };
       const unlocked = profile.unlockedConcepts.map((concept) => concept.id);
-      const newlyUnlocked = nextConceptToUnlock(facts, unlocked);
-      const allowed = newlyUnlocked ? [...unlocked, newlyUnlocked] : unlocked;
-      return { note: buildVocabularyNote(allowed, newlyUnlocked), newlyUnlocked };
+      const pending = profile.pendingConceptReveals.map((concept) => concept.id);
+      const pendingReveal = pending[0] ?? nextConceptToUnlock(facts, [...unlocked, ...pending]);
+      if (pendingReveal && !pending.includes(pendingReveal)) {
+        await this.profiles.markConceptPendingReveal(profileId, pendingReveal);
+      }
+      const newlyUnlocked = pending.includes(pendingReveal as ConceptId) ? null : pendingReveal;
+      return {
+        note: buildVocabularyNote(unlocked, pendingReveal, newlyUnlocked),
+        pendingReveal,
+      };
     } catch (error) {
       console.error(`Failed to resolve unlock vocabulary for profile ${profileId}:`, error);
-      return { note: buildVocabularyNote([], null), newlyUnlocked: null };
+      return { note: buildVocabularyNote([], null), pendingReveal: null };
     }
   }
 
@@ -933,6 +946,11 @@ Job:
 ${input.instructions}
 
 Do the work in this Workbench only. Bit will run Machines and the Assembly Line after you finish.`;
+}
+
+function assistantRevealedConcept(text: string, conceptId: ConceptId): boolean {
+  const word = conceptById(conceptId).word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|\\P{L})${word}(?=\\P{L}|$)`, "iu").test(text);
 }
 
 function kidSafeCompletionSummary(summary: string): string {

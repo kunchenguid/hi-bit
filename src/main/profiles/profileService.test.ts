@@ -51,6 +51,7 @@ describe("ProfileService", () => {
       createdAt: "2026-01-02T03:04:05.000Z",
       updatedAt: "2026-01-02T03:04:05.000Z",
       unlockedConcepts: [],
+      pendingConceptReveals: [],
       unlockStats: { buildsDelegated: 0, openedActivities: false },
     });
     await expect(service.list()).resolves.toEqual([profile]);
@@ -124,6 +125,22 @@ describe("ProfileService", () => {
     });
   });
 
+  it("tracks concepts that are unlocked but not revealed yet", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+
+    const pending = await service.markConceptPendingReveal(ada.id, "bot");
+    expect(pending.pendingConceptReveals).toEqual([
+      { id: "bot", firstSeenAt: "2026-01-02T03:04:06.000Z" },
+    ]);
+    expect(pending.unlockedConcepts).toEqual([]);
+
+    const revealed = await service.markConceptRevealed(ada.id, "bot");
+    expect(revealed.pendingConceptReveals).toEqual([]);
+    expect(revealed.unlockedConcepts).toEqual([
+      { id: "bot", firstSeenAt: "2026-01-02T03:04:06.000Z" },
+    ]);
+  });
+
   it("bumps the build counter and marks the activities view as opened", async () => {
     const ada = await service.create({ name: "Ada", age: 9 });
 
@@ -157,6 +174,7 @@ describe("ProfileService", () => {
 
     await expect(service.get(ada.id)).resolves.toMatchObject({
       unlockedConcepts: [],
+      pendingConceptReveals: [],
       unlockStats: { buildsDelegated: 0, openedActivities: false },
     });
   });
