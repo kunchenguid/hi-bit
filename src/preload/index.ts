@@ -38,6 +38,8 @@ const api: HiBitApi = {
     send: (profileId: string, text: string): Promise<SendMessageResult> =>
       ipcRenderer.invoke("hibit:chat:send", profileId, text),
     abort: (profileId: string): Promise<void> => ipcRenderer.invoke("hibit:chat:abort", profileId),
+    markActivitiesOpened: (profileId: string): Promise<void> =>
+      ipcRenderer.invoke("hibit:chat:mark-activities-opened", profileId),
     onEvent: (listener: (event: ChatEvent) => void): (() => void) => {
       const handler = (_event: unknown, payload: ChatEvent) => listener(payload);
       ipcRenderer.on("hibit:chat:event", handler);

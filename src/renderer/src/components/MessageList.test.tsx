@@ -50,14 +50,10 @@ describe("MessageList", () => {
     expect(host.querySelector(".hb-message-thinking")).toBeNull();
   });
 
-  it("captions the thinking bubble when Bit is digesting a worker result", () => {
+  it("captions the thinking bubble when Bit is digesting a bot result", () => {
     act(() =>
       root.render(
-        <MessageList
-          messages={[assistantMessage]}
-          thinking={true}
-          thinkingReason="worker_result"
-        />,
+        <MessageList messages={[assistantMessage]} thinking={true} thinkingReason="bot_result" />,
       ),
     );
     const bubble = host.querySelector(".hb-message-thinking");

@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildBitSystemPrompt,
-  buildWorkerSystemPrompt,
+  buildBotSystemPrompt,
+  createBotResourceLoader,
   createResourceLoader,
-  createWorkerResourceLoader,
 } from "./piResources";
 
 describe("createResourceLoader", () => {
@@ -23,9 +23,9 @@ describe("createResourceLoader", () => {
   });
 });
 
-describe("createWorkerResourceLoader skills", () => {
+describe("createBotResourceLoader skills", () => {
   it("loads the bundled game-assets skill from a skillsDir", () => {
-    const loader = createWorkerResourceLoader(undefined, { skillsDir: resolve("skills") });
+    const loader = createBotResourceLoader(undefined, { skillsDir: resolve("skills") });
     const { skills } = loader.getSkills();
     const skill = skills.find((s) => s.name === "game-assets");
     expect(skill).toBeDefined();
@@ -33,7 +33,7 @@ describe("createWorkerResourceLoader skills", () => {
   });
 
   it("loads the bundled create-2d-game skill from a skillsDir", () => {
-    const loader = createWorkerResourceLoader(undefined, { skillsDir: resolve("skills") });
+    const loader = createBotResourceLoader(undefined, { skillsDir: resolve("skills") });
     const { skills } = loader.getSkills();
     const skill = skills.find((s) => s.name === "create-2d-game");
     expect(skill).toBeDefined();
@@ -41,7 +41,7 @@ describe("createWorkerResourceLoader skills", () => {
   });
 
   it("loads the bundled create-3d-game skill from a skillsDir", () => {
-    const loader = createWorkerResourceLoader(undefined, { skillsDir: resolve("skills") });
+    const loader = createBotResourceLoader(undefined, { skillsDir: resolve("skills") });
     const { skills } = loader.getSkills();
     const skill = skills.find((s) => s.name === "create-3d-game");
     expect(skill).toBeDefined();
@@ -49,15 +49,15 @@ describe("createWorkerResourceLoader skills", () => {
   });
 
   it("exposes no skills when no skillsDir is given", () => {
-    expect(createWorkerResourceLoader().getSkills()).toEqual({ skills: [], diagnostics: [] });
+    expect(createBotResourceLoader().getSkills()).toEqual({ skills: [], diagnostics: [] });
   });
 });
 
-describe("buildWorkerSystemPrompt", () => {
-  it("describes a worker bot building in an isolated workbench", () => {
-    const prompt = buildWorkerSystemPrompt();
+describe("buildBotSystemPrompt", () => {
+  it("describes a bot building in an isolated workbench", () => {
+    const prompt = buildBotSystemPrompt();
 
-    expect(prompt).toContain("worker bot");
+    expect(prompt).toContain("a bot inside Hi-Bit");
     expect(prompt).toContain("isolated Workbench");
     expect(prompt).toContain("small visible changes");
     expect(prompt).toContain("Ask one short question");
@@ -65,7 +65,7 @@ describe("buildWorkerSystemPrompt", () => {
   });
 
   it("forbids code-drawn sprite art and points animated art at the game-assets skill", () => {
-    const prompt = buildWorkerSystemPrompt();
+    const prompt = buildBotSystemPrompt();
 
     expect(prompt).toMatch(/PIL|Pillow/);
     expect(prompt).toMatch(/never|must/i);
@@ -74,7 +74,7 @@ describe("buildWorkerSystemPrompt", () => {
   });
 
   it("points 2D and 3D playable game builds at their skills", () => {
-    const prompt = buildWorkerSystemPrompt();
+    const prompt = buildBotSystemPrompt();
 
     expect(prompt).toContain("create-2d-game skill");
     expect(prompt).toContain("create-3d-game skill");
@@ -82,12 +82,12 @@ describe("buildWorkerSystemPrompt", () => {
     expect(prompt).toMatch(/3d|first-person|third-person/i);
   });
 
-  it("tells the worker to tag a finished playable build with READY_TO_PLAY", () => {
-    expect(buildWorkerSystemPrompt()).toContain("[[READY_TO_PLAY]]");
+  it("tells the bot to tag a finished playable build with READY_TO_PLAY", () => {
+    expect(buildBotSystemPrompt()).toContain("[[READY_TO_PLAY]]");
   });
 
   it("offers the web tools for looking things up while keeping the builder's details private", () => {
-    const prompt = buildWorkerSystemPrompt();
+    const prompt = buildBotSystemPrompt();
 
     expect(prompt).toContain("web_search");
     expect(prompt).toContain("fetch_content");
@@ -121,7 +121,7 @@ describe("buildBitSystemPrompt", () => {
   it("forbids Bit from editing a creation that is currently building, and from making art directly", () => {
     const prompt = buildBitSystemPrompt();
 
-    expect(prompt).toMatch(/currently building|while a (worker|helper) is/i);
+    expect(prompt).toMatch(/currently building|while a bot is/i);
     expect(prompt).toMatch(/art|picture|sprite/i);
   });
 

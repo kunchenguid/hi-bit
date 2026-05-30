@@ -5,7 +5,7 @@ import { MarkdownText } from "./MarkdownText";
 type MessageListProps = {
   messages: ChatMessage[];
   thinking: boolean;
-  /** Why Bit is thinking, so the bubble can explain a worker-result wait to the kid. */
+  /** Why Bit is thinking, so the bubble can explain a bot-result wait to the kid. */
   thinkingReason?: TurnKind;
   /** Playable creations (running or restartable), so their "ready" message can offer Play. */
   playableProjectIds?: Set<string>;
@@ -13,7 +13,7 @@ type MessageListProps = {
 };
 
 /** Kid-facing caption for the pending Bit bubble while it digests a bot's build. */
-const WORKER_RESULT_CAPTION = "Bit is checking out what the bot made...";
+const BOT_RESULT_CAPTION = "Bit is checking out what the bot made...";
 
 /** How close to the bottom (px) still counts as "looking at the latest". */
 const STICK_THRESHOLD = 24;
@@ -87,13 +87,11 @@ export function MessageList({
         <li
           className="hb-message hb-message-assistant hb-message-thinking"
           aria-live="polite"
-          aria-label={
-            thinkingReason === "worker_result" ? WORKER_RESULT_CAPTION : "Bit is thinking"
-          }
+          aria-label={thinkingReason === "bot_result" ? BOT_RESULT_CAPTION : "Bit is thinking"}
         >
           <span className="hb-message-label">Bit</span>
-          {thinkingReason === "worker_result" ? (
-            <span className="hb-thinking-caption">{WORKER_RESULT_CAPTION}</span>
+          {thinkingReason === "bot_result" ? (
+            <span className="hb-thinking-caption">{BOT_RESULT_CAPTION}</span>
           ) : null}
           <span className="hb-thinking-dots" aria-hidden="true">
             <span />

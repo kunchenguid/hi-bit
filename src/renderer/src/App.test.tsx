@@ -283,7 +283,7 @@ describe("App", () => {
     expect(host.textContent).toContain("A bot is working on Cat Jump");
   });
 
-  it("shows a captioned thinking bubble while Bit digests a worker result, without locking the composer", async () => {
+  it("shows a captioned thinking bubble while Bit digests a bot result, without locking the composer", async () => {
     let emit: (event: ChatEvent) => void = () => {};
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -317,14 +317,14 @@ describe("App", () => {
     await act(async () => {
       emit({
         type: "turn_start",
-        kind: "worker_result",
+        kind: "bot_result",
         profileId: "ada",
         turnId: "w1",
         projectId: "p1",
       });
     });
 
-    // The dots show with the kid-friendly worker caption...
+    // The dots show with the kid-friendly bot caption...
     expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
     expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
     // ...but the composer stays open: Send (not Stop), input enabled.
@@ -334,12 +334,12 @@ describe("App", () => {
       false,
     );
 
-    // Once Bit's worker-result reply streams in, the dots step aside.
+    // Once Bit's bot-result reply streams in, the dots step aside.
     await act(async () => {
       emit({ type: "assistant_delta", profileId: "ada", turnId: "w1", text: "Cat Jump is ready!" });
       emit({
         type: "turn_end",
-        kind: "worker_result",
+        kind: "bot_result",
         profileId: "ada",
         turnId: "w1",
         status: "completed",
@@ -349,7 +349,7 @@ describe("App", () => {
     expect(host.textContent).toContain("Cat Jump is ready!");
   });
 
-  it("restores a worker-result thinking bubble from the loaded snapshot without locking the composer", async () => {
+  it("restores a bot-result thinking bubble from the loaded snapshot without locking the composer", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
@@ -368,7 +368,7 @@ describe("App", () => {
       ],
       activity: [],
       isRunning: true,
-      activeTurn: { id: "w1", kind: "worker_result" as const },
+      activeTurn: { id: "w1", kind: "bot_result" as const },
       previews: [],
       playableProjectIds: [],
     }));
@@ -383,7 +383,7 @@ describe("App", () => {
     );
   });
 
-  it("queues a kid reply behind a worker-result turn without showing Stop for the queued reply", async () => {
+  it("queues a kid reply behind a bot-result turn without showing Stop for the queued reply", async () => {
     let emit: (event: ChatEvent) => void = () => {};
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -400,7 +400,7 @@ describe("App", () => {
     await act(async () => {
       emit({
         type: "turn_start",
-        kind: "worker_result",
+        kind: "bot_result",
         profileId: "ada",
         turnId: "w1",
       });
@@ -649,6 +649,8 @@ function adaProfile() {
     interests: ["space"],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    unlockedConcepts: [],
+    unlockStats: { buildsDelegated: 0, openedActivities: false },
   };
 }
 
@@ -661,6 +663,8 @@ function samProfile() {
     interests: ["music"],
     createdAt: "2026-01-02T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
+    unlockedConcepts: [],
+    unlockStats: { buildsDelegated: 0, openedActivities: false },
   };
 }
 
@@ -693,6 +697,8 @@ function createApiMock(): HiBitApi {
         notes: input.notes,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
+        unlockedConcepts: [],
+        unlockStats: { buildsDelegated: 0, openedActivities: false },
       })),
       update: vi.fn(async (profileId, settings) => ({
         schemaVersion: 1 as const,
@@ -703,6 +709,8 @@ function createApiMock(): HiBitApi {
         notes: settings.notes ?? undefined,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
+        unlockedConcepts: [],
+        unlockStats: { buildsDelegated: 0, openedActivities: false },
       })),
       getActiveId: vi.fn(async () => null),
       setActiveId: vi.fn(async () => {}),
@@ -735,6 +743,7 @@ function createApiMock(): HiBitApi {
         status: "completed" as const,
       })),
       abort: vi.fn(async () => {}),
+      markActivitiesOpened: vi.fn(async () => {}),
       onEvent: vi.fn(() => () => {}),
     },
     preview: {

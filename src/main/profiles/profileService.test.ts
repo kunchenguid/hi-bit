@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -50,6 +50,8 @@ describe("ProfileService", () => {
       notes: "Gets frustrated fast.",
       createdAt: "2026-01-02T03:04:05.000Z",
       updatedAt: "2026-01-02T03:04:05.000Z",
+      unlockedConcepts: [],
+      unlockStats: { buildsDelegated: 0, openedActivities: false },
     });
     await expect(service.list()).resolves.toEqual([profile]);
 
@@ -102,5 +104,50 @@ describe("ProfileService", () => {
       updatedAt: "2026-01-02T03:04:06.000Z",
     });
     await expect(service.get(ada.id)).resolves.toEqual(updated);
+  });
+
+  it("unlocks a concept once and stamps when it first fired", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+
+    const afterFirst = await service.unlockConcept(ada.id, "bot");
+    expect(afterFirst.unlockedConcepts).toEqual([
+      { id: "bot", firstSeenAt: "2026-01-02T03:04:06.000Z" },
+    ]);
+
+    // Re-unlocking is a no-op that keeps the original timestamp.
+    const afterSecond = await service.unlockConcept(ada.id, "bot");
+    expect(afterSecond.unlockedConcepts).toEqual([
+      { id: "bot", firstSeenAt: "2026-01-02T03:04:06.000Z" },
+    ]);
+    await expect(service.get(ada.id)).resolves.toMatchObject({
+      unlockedConcepts: [{ id: "bot", firstSeenAt: "2026-01-02T03:04:06.000Z" }],
+    });
+  });
+
+  it("bumps the build counter and marks the activities view as opened", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+
+    await service.bumpBuildsDelegated(ada.id);
+    await service.bumpBuildsDelegated(ada.id);
+    await service.markActivitiesOpened(ada.id);
+
+    await expect(service.get(ada.id)).resolves.toMatchObject({
+      unlockStats: { buildsDelegated: 2, openedActivities: true },
+    });
+  });
+
+  it("backfills unlock fields for profiles written before the ladder existed", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+    // Simulate an old on-disk record with no unlock fields.
+    const path = join(profileDir(layout, ada.id), "profile.json");
+    const raw = JSON.parse(await readFile(path, "utf8"));
+    delete raw.unlockedConcepts;
+    delete raw.unlockStats;
+    await writeFile(path, JSON.stringify(raw), "utf8");
+
+    await expect(service.get(ada.id)).resolves.toMatchObject({
+      unlockedConcepts: [],
+      unlockStats: { buildsDelegated: 0, openedActivities: false },
+    });
   });
 });

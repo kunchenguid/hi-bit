@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { RuntimeProject } from "../projects/projectService";
 import { HI_BIT_ACTIVE_TOOLS } from "./piResources";
 import {
+  botToolNames,
   type CreateRuntimeSessionInput,
   PiRuntimeService,
   type RuntimePiSession,
-  workerToolNames,
 } from "./piRuntimeService";
 
 function project(): RuntimeProject {
@@ -23,7 +23,7 @@ function project(): RuntimeProject {
     workbenchesDir: "/tmp/project/workbenches",
     bitSessionsDir: "/tmp/project/sessions/bit",
     botSessionsDir: "/tmp/project/sessions/bots",
-    buildPlansDir: "/tmp/project/build-plans",
+    blueprintsDir: "/tmp/project/blueprints",
     botJobsDir: "/tmp/project/jobs",
     machinesDir: "/tmp/project/machines",
     assemblyLineDir: "/tmp/project/assembly-line",
@@ -84,9 +84,9 @@ class FakeSession implements RuntimePiSession {
   }
 }
 
-describe("workerToolNames", () => {
+describe("botToolNames", () => {
   it("includes every registered custom tool name in the allowlist, not just built-ins", () => {
-    const names = workerToolNames([
+    const names = botToolNames([
       { name: "generate_image" },
       { name: "process_sprite_sheet" },
     ] as never);
@@ -121,8 +121,8 @@ describe("PiRuntimeService custom tools", () => {
     ];
     const toolNames = (captured?.customTools ?? []).map((tool) => tool.name);
     expect(toolNames).toEqual(expect.arrayContaining(expected));
-    // The names the worker session is actually allowed to use must include them.
-    const allowed = workerToolNames(captured?.customTools ?? []);
+    // The names the bot session is actually allowed to use must include them.
+    const allowed = botToolNames(captured?.customTools ?? []);
     expect(allowed).toEqual(expect.arrayContaining(expected));
   });
 });

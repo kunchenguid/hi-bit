@@ -5,6 +5,8 @@ import { friendlyStep } from "../activity";
 
 type ActivityViewProps = {
   activity: CreationActivity[];
+  /** Whether the kid has unlocked the "Logbook" word, which retitles this surface. */
+  logbookUnlocked?: boolean;
   onClose: () => void;
 };
 
@@ -12,7 +14,7 @@ type ActivityViewProps = {
  * The full "See all activities" surface, openable by kid or grown-up. Groups
  * every step the bots took by creation, newest first, read from the durable log.
  */
-export function ActivityView({ activity, onClose }: ActivityViewProps) {
+export function ActivityView({ activity, logbookUnlocked = false, onClose }: ActivityViewProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const returnFocusRef = useRef<Element | null>(null);
 
@@ -77,7 +79,7 @@ export function ActivityView({ activity, onClose }: ActivityViewProps) {
             />
           </span>
           <div className="hb-activity-view-title">
-            <h2>Everything the bots worked on</h2>
+            <h2>{logbookUnlocked ? "Your Logbook" : "Everything the bots worked on"}</h2>
             <p className="t-small">Tap a creation to see every step the bots took.</p>
           </div>
           <button type="button" className="hb-button hb-button-secondary" onClick={close}>

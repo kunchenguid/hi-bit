@@ -14,13 +14,13 @@ import { readJsonl } from "../storage/json";
 import { bootstrapLayout } from "../storage/layout";
 import {
   BitCoordinatorService,
+  type BotRuntime,
   buildCompletionPrompt,
   extractReadyToPlay,
-  type WorkerRuntime,
 } from "./bitCoordinatorService";
 
-/** Worker runtime stub: emits ambient tool activity, then a short completion note. */
-class FakeWorkerRuntime implements WorkerRuntime {
+/** Bot runtime stub: emits ambient tool activity, then a short completion note. */
+class FakeBotRuntime implements BotRuntime {
   prompts: Array<{ project: RuntimeProject; text: string }> = [];
   disposed: string[] = [];
   status: "completed" | "cancelled" | "failed" = "completed";
@@ -37,7 +37,7 @@ class FakeWorkerRuntime implements WorkerRuntime {
       profileId: project.profileId,
       projectId: project.id,
       projectTitle: project.title,
-      turnId: `worker-${project.runtimeKey}`,
+      turnId: `bot-${project.runtimeKey}`,
     };
     if (this.emitsTools) {
       onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
@@ -172,7 +172,7 @@ async function createCoordinator() {
   });
   const projects = new ProjectService(layout, () => new Date("2026-01-02T03:04:05.000Z"));
   const conversation = new ConversationService(layout, now);
-  const worker = new FakeWorkerRuntime();
+  const bot = new FakeBotRuntime();
   const pipeline = new FakePipeline();
   const bit = new FakeBitRuntime();
   // Preview server with everything that touches a real process faked out.
@@ -194,12 +194,12 @@ async function createCoordinator() {
     projects,
     conversation,
     bit,
-    worker,
+    bot,
     pipeline,
     preview,
     botJobs: new BotJobService({
       now,
-      nextBuildPlanId: () => `build_plan_${++counter}`,
+      nextBlueprintId: () => `blueprint_${++counter}`,
       nextJobId: () => `bot_job_${counter}`,
     }),
     now,
@@ -214,7 +214,7 @@ async function createCoordinator() {
     profiles,
     projects,
     conversation,
-    worker,
+    bot,
     pipeline,
     bit,
     preview,
@@ -316,7 +316,7 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(portfolio[0]?.title).toBe("Cat Jump");
     expect(s.pipeline.prepared).toHaveLength(1);
     expect(s.pipeline.installed).toHaveLength(1);
-    expect(s.worker.disposed).toEqual(["bot_job_1"]);
+    expect(s.bot.disposed).toEqual(["bot_job_1"]);
 
     // Completion turn ran and posted a kid-facing update.
     const completionPrompt = s.bit.prompts.find((p) => p.includes("is ready"));
@@ -376,12 +376,12 @@ describe("BitCoordinatorService (Bit)", () => {
       const text = (result as { content: Array<{ text: string }> }).content
         .map((item) => item.text)
         .join("\n");
-      expect(text).not.toMatch(/Worker|bot_job_|\bcreation id\b/i);
+      expect(text).not.toMatch(/worker|bot_job_|\bcreation id\b/i);
       expect(text).not.toContain(game.id);
     }
   });
 
-  it("delegates an edit on an existing creation immediately and surfaces worker activity", async () => {
+  it("delegates an edit on an existing creation immediately and surfaces bot activity", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.bit.handler = async ({ text, callTool }) => {
@@ -396,18 +396,18 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.coordinator.send(s.profile.id, "make the cat orange");
     await s.drain();
 
-    expect(s.worker.prompts).toHaveLength(1);
-    expect(s.worker.prompts[0]?.text).toContain("make the cat orange");
+    expect(s.bot.prompts).toHaveLength(1);
+    expect(s.bot.prompts[0]?.text).toContain("make the cat orange");
     expect(s.pipeline.installed).toHaveLength(1);
 
     const toolEvent = s.events.find((event) => event.type === "tool_start");
     expect(toolEvent).toMatchObject({ projectId: game.id, projectTitle: "Cat Jump" });
   });
 
-  it("asks Bit to start a preview only when the worker marks the build ready to play", async () => {
+  it("asks Bit to start a preview only when the bot marks the build ready to play", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.worker.completionNote = "Made the cat jump over boxes. [[READY_TO_PLAY]]";
+    s.bot.completionNote = "Made the cat jump over boxes. [[READY_TO_PLAY]]";
     s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "All set!";
       await callTool("delegate_build", { creationId: game.id, instructions: "build it" });
@@ -425,10 +425,10 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(completionPrompt).toContain("Made the cat jump over boxes.");
   });
 
-  it("does not ask Bit to start a preview when the worker leaves it unmarked", async () => {
+  it("does not ask Bit to start a preview when the bot leaves it unmarked", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.worker.completionNote = "Saved a new sprite, still wiring it up.";
+    s.bot.completionNote = "Saved a new sprite, still wiring it up.";
     s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Okay!";
       await callTool("delegate_build", { creationId: game.id, instructions: "step one" });
@@ -484,7 +484,7 @@ describe("BitCoordinatorService (Bit)", () => {
     );
   });
 
-  it("returns from send after the ack while the worker keeps building in the background", async () => {
+  it("returns from send after the ack while the bot keeps building in the background", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     let releaseInstall!: () => void;
@@ -512,7 +512,7 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(s.pipeline.installed).toHaveLength(1);
   });
 
-  it("starts a parallel worker per creation for a multi-creation request", async () => {
+  it("starts a parallel bot per creation for a multi-creation request", async () => {
     const s = await createCoordinator();
     const a = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     const b = await s.projects.create(s.profile.id, { title: "Space Site" });
@@ -526,7 +526,7 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.coordinator.send(s.profile.id, "make all my creations starrier");
     await s.drain();
 
-    expect(s.worker.prompts).toHaveLength(2);
+    expect(s.bot.prompts).toHaveLength(2);
     expect(s.pipeline.installed).toHaveLength(2);
     const completions = s.bit.prompts.filter((p) => p.includes("is ready"));
     expect(completions).toHaveLength(2);
@@ -535,10 +535,10 @@ describe("BitCoordinatorService (Bit)", () => {
     }
   });
 
-  it("reports a worker failure through a gentle completion turn", async () => {
+  it("reports a bot failure through a gentle completion turn", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.worker.status = "failed";
+    s.bot.status = "failed";
     s.bit.handler = async ({ text, callTool }) => {
       if (text.includes("ready") || text.includes("snag")) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
@@ -555,7 +555,7 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(failurePrompt).not.toContain(game.id);
   });
 
-  it("persists worker tool steps and returns them grouped by creation on load", async () => {
+  it("persists bot tool steps and returns them grouped by creation on load", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.bit.handler = async ({ text, callTool }) => {
@@ -579,10 +579,10 @@ describe("BitCoordinatorService (Bit)", () => {
     ]);
   });
 
-  it("persists build activity when a worker finishes without tool steps", async () => {
+  it("persists build activity when a bot finishes without tool steps", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.worker.emitsTools = false;
+    s.bot.emitsTools = false;
     s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Done!";
       await callTool("delegate_build", { creationId: game.id, instructions: "think quietly" });
@@ -624,7 +624,7 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.drain();
   });
 
-  it("emits build_start and build_end around a worker build", async () => {
+  it("emits build_start and build_end around a bot build", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.bit.handler = async ({ text, callTool }) => {
@@ -694,11 +694,11 @@ describe("BitCoordinatorService (Bit)", () => {
     );
   });
 
-  it("closes persisted running tool steps when a worker build fails before tool_end", async () => {
+  it("closes persisted running tool steps when a bot build fails before tool_end", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.worker.emitsToolEnd = false;
-    s.worker.status = "failed";
+    s.bot.emitsToolEnd = false;
+    s.bot.status = "failed";
     s.bit.handler = async ({ text, callTool }) => {
       if (text.includes("snag")) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
@@ -716,11 +716,11 @@ describe("BitCoordinatorService (Bit)", () => {
     });
   });
 
-  it("emits worker tool activity with the build job turn id", async () => {
+  it("emits bot tool activity with the build job turn id", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
-    s.worker.emitsToolEnd = false;
-    s.worker.status = "failed";
+    s.bot.emitsToolEnd = false;
+    s.bot.status = "failed";
     s.bit.handler = async ({ text, callTool }) => {
       if (text.includes("snag")) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
@@ -747,7 +747,7 @@ describe("BitCoordinatorService (Bit)", () => {
       releaseFirst = resolve;
     });
     const bothPromptsStarted = new Promise<void>((resolve) => {
-      s.worker.beforeReturn = async () => {
+      s.bot.beforeReturn = async () => {
         promptsStarted += 1;
         if (promptsStarted === 1) await firstCanReturn;
         if (promptsStarted === 2) resolve();
@@ -763,9 +763,9 @@ describe("BitCoordinatorService (Bit)", () => {
         await secondCanInstall;
       };
     });
-    s.worker.emitsToolEnd = false;
-    s.worker.statusByRuntimeKey.set("bot_job_1", "failed");
-    s.worker.statusByRuntimeKey.set("bot_job_2", "completed");
+    s.bot.emitsToolEnd = false;
+    s.bot.statusByRuntimeKey.set("bot_job_1", "failed");
+    s.bot.statusByRuntimeKey.set("bot_job_2", "completed");
     s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Ready!";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
@@ -820,8 +820,8 @@ describe("BitCoordinatorService (Bit)", () => {
         return appendActivity(profileId, projectId, value);
       };
     });
-    s.worker.emitsToolEnd = false;
-    s.worker.status = "failed";
+    s.bot.emitsToolEnd = false;
+    s.bot.status = "failed";
     s.bit.handler = async ({ text, callTool }) => {
       if (isCompletion(text)) return "Hmm, let's try again.";
       await callTool("delegate_build", { creationId: game.id, instructions: "break it" });
@@ -1178,7 +1178,7 @@ describe("BitCoordinatorService (Bit)", () => {
     );
   });
 
-  it("emits worker_result lifecycle events around the completion turn, reply ones for the kid's turn", async () => {
+  it("emits bot_result lifecycle events around the completion turn, reply ones for the kid's turn", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     s.bit.handler = async ({ text, callTool }) => {
@@ -1193,17 +1193,17 @@ describe("BitCoordinatorService (Bit)", () => {
     // The kid's own turn is a plain reply so the composer locks as usual.
     expect(s.events).toContainEqual(expect.objectContaining({ type: "turn_start", kind: "reply" }));
     expect(s.events).toContainEqual(expect.objectContaining({ type: "turn_end", kind: "reply" }));
-    // The worker-completion turn is tagged so the renderer can word "Bit is
+    // The bot-completion turn is tagged so the renderer can word "Bit is
     // checking the bot's work" and avoid hijacking the composer.
     expect(s.events).toContainEqual(
-      expect.objectContaining({ type: "turn_start", kind: "worker_result" }),
+      expect.objectContaining({ type: "turn_start", kind: "bot_result" }),
     );
     expect(s.events).toContainEqual(
-      expect.objectContaining({ type: "turn_end", kind: "worker_result" }),
+      expect.objectContaining({ type: "turn_end", kind: "bot_result" }),
     );
   });
 
-  it("reports an active worker-result turn in the loaded snapshot", async () => {
+  it("reports an active bot-result turn in the loaded snapshot", async () => {
     const s = await createCoordinator();
     const snapshots: Array<Awaited<ReturnType<typeof s.coordinator.load>>> = [];
     s.bit.afterStart = async ({ text }) => {
@@ -1224,7 +1224,7 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.coordinator.send(s.profile.id, "make a cat game");
     await s.drain();
 
-    expect(snapshots[0]?.activeTurn).toEqual({ id: "bit-turn-2", kind: "worker_result" });
+    expect(snapshots[0]?.activeTurn).toEqual({ id: "bit-turn-2", kind: "bot_result" });
     expect(snapshots[0]?.isRunning).toBe(true);
   });
 
@@ -1243,6 +1243,84 @@ describe("BitCoordinatorService (Bit)", () => {
     const transcript = await s.conversation.readTranscript(s.profile.id);
     const ready = transcript.find((message) => message.text.includes("is ready"));
     expect(ready?.projectId).toBe(game.id);
+  });
+
+  it("gates Bit to the base words before anything is unlocked", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "Hi Ada!";
+
+    await s.coordinator.send(s.profile.id, "hello");
+    await s.drain();
+
+    const prompt = s.bit.prompts.at(-1);
+    expect(prompt).toContain("Words you may use: Bit, build, creation, Play.");
+    expect(prompt).not.toMatch(/newly unlocked/i);
+    expect(prompt).not.toMatch(/\bbot\b/i);
+  });
+
+  it("unlocks and reveals the word 'bot' on the kid's first finished build", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "All done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    // The kid's own turn started before any build, so it stays on base words.
+    const replyPrompt = s.bit.prompts.find((p) => p.includes("add stars"));
+    expect(replyPrompt).toContain("Words you may use: Bit, build, creation, Play.");
+
+    // The completion turn is the moment the build became real - "bot" unlocks here.
+    const completionPrompt = s.bit.prompts.find((p) => p.includes("is ready"));
+    expect(completionPrompt).toMatch(/newly unlocked/i);
+    expect(completionPrompt).toContain('"bot"');
+
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.unlockedConcepts.map((concept) => concept.id)).toContain("bot");
+    expect(profile.unlockStats.buildsDelegated).toBe(1);
+  });
+
+  it("reveals at most one new word per turn", async () => {
+    const s = await createCoordinator();
+    // Two creations plus several builds make bot, workshop, blueprint, machines
+    // all eligible at once, but each turn may surface only one.
+    const a = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    const b = await s.projects.create(s.profile.id, { title: "Space Site" });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      await callTool("delegate_build", { creationId: a.id, instructions: "x" });
+      await callTool("delegate_build", { creationId: b.id, instructions: "y" });
+      await callTool("delegate_build", { creationId: a.id, instructions: "z" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "build lots");
+    await s.drain();
+
+    for (const prompt of s.bit.prompts) {
+      const reveals = prompt.match(/newly unlocked/gi) ?? [];
+      expect(reveals.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("unlocks the Logbook word after the kid opens the activities view", async () => {
+    const s = await createCoordinator();
+    await s.coordinator.markActivitiesOpened(s.profile.id);
+    s.bit.handler = async () => "Sure!";
+
+    await s.coordinator.send(s.profile.id, "what did we do?");
+    await s.drain();
+
+    const prompt = s.bit.prompts.at(-1);
+    expect(prompt).toContain("Logbook");
+    expect(prompt).toMatch(/newly unlocked/i);
+
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.unlockedConcepts.map((concept) => concept.id)).toContain("logbook");
   });
 });
 

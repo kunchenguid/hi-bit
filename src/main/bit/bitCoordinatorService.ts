@@ -10,6 +10,12 @@ import type {
   ToolActivity,
   TurnKind,
 } from "@shared/chat";
+import {
+  buildVocabularyNote,
+  type ConceptId,
+  nextConceptToUnlock,
+  type UnlockFacts,
+} from "@shared/concepts";
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { Type } from "typebox";
@@ -23,8 +29,8 @@ import type { ProjectService, RuntimeProject } from "../projects/projectService"
 /** Static-server fallback for replaying a creation previewed before its command was persisted. */
 const DEFAULT_PREVIEW_COMMAND = 'python3 -m http.server "$PORT" --bind 127.0.0.1';
 
-/** Worker runtime: runs a build for one creation in its isolated workbench. */
-export type WorkerRuntime = {
+/** Bot runtime: runs a build for one creation in its isolated workbench. */
+export type BotRuntime = {
   sendPrompt: (
     project: RuntimeProject,
     text: string,
@@ -43,6 +49,9 @@ export type WorkerRuntime = {
 
 export type ProfileReader = {
   get: (profileId: string) => Promise<ProfileSummary>;
+  unlockConcept: (profileId: string, conceptId: ConceptId) => Promise<ProfileSummary>;
+  bumpBuildsDelegated: (profileId: string) => Promise<void>;
+  markActivitiesOpened: (profileId: string) => Promise<ProfileSummary>;
 };
 
 type BitCoordinatorServiceOptions = {
@@ -50,14 +59,14 @@ type BitCoordinatorServiceOptions = {
   projects: ProjectService;
   conversation: ConversationService;
   bit: BitRuntime;
-  worker: WorkerRuntime;
+  bot: BotRuntime;
   preview?: PreviewService;
   botJobs?: BotJobService;
   pipeline?: BotPipeline;
   now?: () => Date;
 };
 
-type InflightWorker = {
+type InflightBot = {
   jobId: string;
   projectId: string;
   title: string;
@@ -72,8 +81,8 @@ type PreviewToolDetails = { projectId: string; url: string | null };
 /**
  * Bit, the coordinator. The kid talks only to Bit through one profile-level conversation.
  * Each turn, Bit decides scope, confirms before creating, delegates substantive
- * building to background workers, or makes tiny direct edits through jailed
- * profile tools. Worker completions and direct edits are recorded in the
+ * building to background bots, or makes tiny direct edits through jailed
+ * profile tools. Bot completions and direct edits are recorded in the
  * creation logbook.
  */
 export class BitCoordinatorService {
@@ -81,7 +90,7 @@ export class BitCoordinatorService {
   private readonly projects: ProjectService;
   private readonly conversation: ConversationService;
   private readonly bit: BitRuntime;
-  private readonly worker: WorkerRuntime;
+  private readonly bot: BotRuntime;
   private readonly preview: PreviewService;
   private readonly botJobs: BotJobService;
   private readonly pipeline: BotPipeline;
@@ -89,14 +98,14 @@ export class BitCoordinatorService {
 
   private readonly listeners = new Set<(event: ChatEvent) => void>();
   private readonly toolCache = new Map<string, ToolDefinition[]>();
-  private readonly inflight = new Map<string, Map<string, InflightWorker>>();
+  private readonly inflight = new Map<string, Map<string, InflightBot>>();
   private readonly bitLocks = new Map<string, Promise<unknown>>();
   private readonly activeTurns = new Map<string, { id: string; kind: TurnKind }>();
   /** Serializes logbook appends per creation so persisted steps keep their order. */
   private readonly activityWrites = new Map<string, Promise<unknown>>();
   /** Creation a turn just started a preview for, so its reply can offer Play. */
   private readonly pendingPreviewAttribution = new Map<string, string>();
-  /** Tracks background worker pipelines so tests/shutdown can await them. */
+  /** Tracks background bot pipelines so tests/shutdown can await them. */
   readonly pending = new Set<Promise<unknown>>();
 
   constructor(options: BitCoordinatorServiceOptions) {
@@ -104,7 +113,7 @@ export class BitCoordinatorService {
     this.projects = options.projects;
     this.conversation = options.conversation;
     this.bit = options.bit;
-    this.worker = options.worker;
+    this.bot = options.bot;
     this.now = options.now ?? (() => new Date());
     this.preview =
       options.preview ??
@@ -168,7 +177,7 @@ export class BitCoordinatorService {
 
   /**
    * Rebuilds the per-creation activity log from each creation's on-disk logbook,
-   * marking a creation "working" when a worker is currently in flight for it.
+   * marking a creation "working" when a bot is currently in flight for it.
    * This is what lets the activity view survive a renderer reload.
    */
   private async buildActivity(profileId: string): Promise<CreationActivity[]> {
@@ -231,8 +240,8 @@ export class BitCoordinatorService {
   async abort(profileId: string): Promise<void> {
     await this.profiles.get(profileId);
     await this.bit.abort(profileId);
-    for (const worker of this.listInflight(profileId)) {
-      await this.worker.abort(worker.jobId);
+    for (const bot of this.listInflight(profileId)) {
+      await this.bot.abort(bot.jobId);
     }
   }
 
@@ -282,10 +291,13 @@ export class BitCoordinatorService {
     return this.withBitLock(profileId, async () => {
       // Fresh attribution per turn: start_preview sets it mid-turn (below).
       this.pendingPreviewAttribution.delete(profileId);
+      // Gate Bit's vocabulary to this kid's unlocked inside words, unlocking at
+      // most one new word this turn and asking Bit to reveal it warmly.
+      const promptText = `${text}\n\n${await this.resolveTurnVocabulary(profileId)}`;
       const sessionFile = await this.conversation.getBitSessionFile(profileId);
       const paths = this.conversation.paths(profileId);
       // Tag the turn's lifecycle so the renderer can word the "thinking" bubble
-      // (a worker-result turn reads differently than Bit answering the kid), and
+      // (a bot-result turn reads differently than Bit answering the kid), and
       // stamp the streamed reply with the creation it previewed, so the live
       // bubble (built from deltas) can show Play without waiting for a reload.
       const decorate = (event: ChatEvent): ChatEvent => {
@@ -321,7 +333,7 @@ export class BitCoordinatorService {
             });
           },
         },
-        text,
+        promptText,
         onEvent,
       );
 
@@ -387,10 +399,10 @@ export class BitCoordinatorService {
       name: "create_creation",
       label: "Create creation",
       description:
-        "Start a brand new creation. Only call after the builder agreed to make it; pass confirmed: true. Returns immediately while a worker builds it in the background.",
+        "Start a brand new creation. Only call after the builder agreed to make it; pass confirmed: true. Returns immediately while a bot builds it in the background.",
       parameters: Type.Object({
         title: Type.String({ description: "short name you pick for the new creation" }),
-        instructions: Type.String({ description: "what the worker should build first" }),
+        instructions: Type.String({ description: "what the bot should build first" }),
         confirmed: Type.Boolean({
           description: "true only after the builder said yes to making this",
         }),
@@ -414,7 +426,7 @@ export class BitCoordinatorService {
           };
         }
         const project = await self.projects.create(profileId, { title });
-        const job = await self.slingWorker(profileId, project.id, instructions);
+        const job = await self.slingBot(profileId, project.id, instructions);
         return {
           content: [{ type: "text", text: `Started "${title}". A bot is building it now.` }],
           details: { created: true, projectId: project.id, jobId: job.id } as CreateDetails,
@@ -426,10 +438,10 @@ export class BitCoordinatorService {
       name: "delegate_build",
       label: "Delegate build",
       description:
-        "Send a worker bot to build or change ONE existing creation. Returns immediately; the worker runs in the background.",
+        "Send a bot to build or change ONE existing creation. Returns immediately; the bot runs in the background.",
       parameters: Type.Object({
         creationId: Type.String({ description: "id of the creation to work on" }),
-        instructions: Type.String({ description: "what the worker should build or change" }),
+        instructions: Type.String({ description: "what the bot should build or change" }),
       }),
       executionMode: "parallel",
       async execute(_callId, params) {
@@ -438,7 +450,7 @@ export class BitCoordinatorService {
           instructions: string;
         };
         try {
-          const job = await self.slingWorker(profileId, creationId, instructions);
+          const job = await self.slingBot(profileId, creationId, instructions);
           return {
             content: [{ type: "text", text: "A bot started working on that creation." }],
             details: { jobId: job.id, projectId: creationId } as BuildDetails,
@@ -565,20 +577,23 @@ export class BitCoordinatorService {
     return tools;
   }
 
-  // --- Worker pipeline (background) -----------------------------------------
+  // --- Bot pipeline (background) -----------------------------------------
 
   /** Creates the job + workbench synchronously, then runs the build in the background. */
-  private async slingWorker(
+  private async slingBot(
     profileId: string,
     creationId: string,
     instructions: string,
   ): Promise<BotJobRecord> {
     const project = await this.projects.get(profileId, creationId);
     const portfolio = await this.projects.list(profileId);
-    const plan = await this.botJobs.createBuildPlan(project, instructions, portfolio);
-    let job = await this.botJobs.createJob(project, plan);
+    const blueprint = await this.botJobs.createBlueprint(project, instructions, portfolio);
+    let job = await this.botJobs.createJob(project, blueprint);
     const workbench = await this.pipeline.prepareBotWorkbench(project, job);
     job = await this.botJobs.markRunning(project, job, workbench);
+    // Count this delegated build toward the unlock ladder (drives "bot",
+    // "blueprint"/"machines", and the deep factory words).
+    await this.profiles.bumpBuildsDelegated(profileId).catch(() => {});
 
     this.addInflight(profileId, {
       jobId: job.id,
@@ -588,7 +603,7 @@ export class BitCoordinatorService {
       startedAt: this.now().toISOString(),
     });
 
-    const run = this.runWorkerPipeline(profileId, project, job, workbench, instructions).catch(
+    const run = this.runBotPipeline(profileId, project, job, workbench, instructions).catch(
       () => {},
     );
     this.pending.add(run);
@@ -596,7 +611,7 @@ export class BitCoordinatorService {
     return job;
   }
 
-  private async runWorkerPipeline(
+  private async runBotPipeline(
     profileId: string,
     project: RuntimeProject,
     job: BotJobRecord,
@@ -627,13 +642,13 @@ export class BitCoordinatorService {
         activeBitSessionFile: undefined,
         runtimeKey: job.id,
       };
-      let workerText = "";
-      const result = await this.worker.sendPrompt(
+      let botText = "";
+      const result = await this.bot.sendPrompt(
         botProject,
-        workerPrompt({ instructions, profile, project }),
+        botPrompt({ instructions, profile, project }),
         (event) => {
           if (event.type === "assistant_delta") {
-            workerText += event.text;
+            botText += event.text;
             return;
           }
           // Surface ambient build activity (tool rows), tagged with the creation,
@@ -664,9 +679,9 @@ export class BitCoordinatorService {
       );
 
       if (result.status === "failed") {
-        await this.botJobs.jam(project, job, result.error ?? "The worker hit a problem.");
+        await this.botJobs.jam(project, job, result.error ?? "The bot hit a problem.");
         outcome = "failed";
-        summary = result.error ?? "The worker hit a problem.";
+        summary = result.error ?? "The bot hit a problem.";
       } else if (result.status === "cancelled") {
         await this.botJobs.cancel(project, job);
         outcome = "cancelled";
@@ -682,7 +697,7 @@ export class BitCoordinatorService {
           const build = await this.pipeline.installBotBuild(project, job, workbench as never);
           await this.botJobs.complete(project, job, inspections, build);
           await this.projects.touch(profileId, project.id, this.now().toISOString());
-          const parsed = extractReadyToPlay(workerText);
+          const parsed = extractReadyToPlay(botText);
           readyToPlay = parsed.readyToPlay;
           summary = parsed.summary || "All done.";
         }
@@ -692,7 +707,7 @@ export class BitCoordinatorService {
       outcome = "failed";
       summary = error instanceof Error ? error.message : String(error);
     } finally {
-      this.worker.disposeProject?.(job.id);
+      this.bot.disposeProject?.(job.id);
       this.removeInflight(profileId, job.id);
       const closedSteps = await this.closeRunningActivity(profileId, project.id, job.id, outcome);
       for (const step of closedSteps) {
@@ -735,7 +750,7 @@ export class BitCoordinatorService {
       summary: kidSafeCompletionSummary(summary),
       readyToPlay,
     });
-    await this.runBitTurn(profileId, text, { kind: "worker_result", projectId: project.id });
+    await this.runBitTurn(profileId, text, { kind: "bot_result", projectId: project.id });
   }
 
   private async appendCompletionFallback(
@@ -806,9 +821,9 @@ export class BitCoordinatorService {
 
   // --- In-flight registry ----------------------------------------------------
 
-  private addInflight(profileId: string, worker: InflightWorker): void {
-    const map = this.inflight.get(profileId) ?? new Map<string, InflightWorker>();
-    map.set(worker.jobId, worker);
+  private addInflight(profileId: string, bot: InflightBot): void {
+    const map = this.inflight.get(profileId) ?? new Map<string, InflightBot>();
+    map.set(bot.jobId, bot);
     this.inflight.set(profileId, map);
   }
 
@@ -816,18 +831,54 @@ export class BitCoordinatorService {
     this.inflight.get(profileId)?.delete(jobId);
   }
 
-  private listInflight(profileId: string): InflightWorker[] {
+  private listInflight(profileId: string): InflightBot[] {
     return [...(this.inflight.get(profileId)?.values() ?? [])];
   }
 
   private hasInflightForProject(profileId: string, projectId: string): boolean {
-    return this.listInflight(profileId).some((worker) => worker.projectId === projectId);
+    return this.listInflight(profileId).some((bot) => bot.projectId === projectId);
+  }
+
+  /**
+   * Records that the kid opened "See all activities", so the Logbook word can
+   * unlock and be revealed by Bit on the next turn.
+   */
+  async markActivitiesOpened(profileId: string): Promise<void> {
+    await this.profiles.markActivitiesOpened(profileId);
+  }
+
+  /**
+   * Builds the per-turn "Words you may use" note that gates Bit's vocabulary to
+   * this kid's unlocked inside words. Unlocks at most one new concept per turn
+   * (the pacing guard) and asks Bit to reveal it once. Degrades to the base
+   * words on any read/write hiccup so a vocabulary problem never breaks a turn.
+   */
+  private async resolveTurnVocabulary(profileId: string): Promise<string> {
+    try {
+      let profile = await this.profiles.get(profileId);
+      const creationCount = (await this.projects.list(profileId)).length;
+      const facts: UnlockFacts = {
+        buildsDelegated: profile.unlockStats.buildsDelegated,
+        creationCount,
+        openedActivities: profile.unlockStats.openedActivities,
+      };
+      let unlocked = profile.unlockedConcepts.map((concept) => concept.id);
+      const newlyUnlocked = nextConceptToUnlock(facts, unlocked);
+      if (newlyUnlocked) {
+        profile = await this.profiles.unlockConcept(profileId, newlyUnlocked);
+        unlocked = profile.unlockedConcepts.map((concept) => concept.id);
+      }
+      return buildVocabularyNote(unlocked, newlyUnlocked);
+    } catch (error) {
+      console.error(`Failed to resolve unlock vocabulary for profile ${profileId}:`, error);
+      return buildVocabularyNote([], null);
+    }
   }
 
   private buildRequestContext(
     profile: ProfileSummary,
     portfolio: ProjectSummary[],
-    inflight: InflightWorker[],
+    inflight: InflightBot[],
   ): string {
     const interests = profile.interests.length ? profile.interests.join(", ") : "not set";
     const portfolioText = portfolio.length
@@ -844,7 +895,7 @@ export class BitCoordinatorService {
   }
 }
 
-function workerPrompt(input: {
+function botPrompt(input: {
   instructions: string;
   profile: ProfileSummary | undefined;
   project: RuntimeProject;
@@ -878,18 +929,18 @@ function kidSafeCompletionSummary(summary: string): string {
 }
 
 /**
- * The worker tags its final note with [[READY_TO_PLAY]] when the creation is
+ * The bot tags its final note with [[READY_TO_PLAY]] when the creation is
  * something the builder can open and play right now. We strip the tag out of the
  * kid-facing summary and use it to decide whether Bit should start a preview, so
- * the Play affordance only appears when the worker judged the build playable.
+ * the Play affordance only appears when the bot judged the build playable.
  */
-export function extractReadyToPlay(workerText: string): { readyToPlay: boolean; summary: string } {
-  const readyToPlay = /\[\[\s*READY_TO_PLAY\s*\]\]/i.test(workerText);
-  const summary = workerText.replace(/\[\[\s*READY_TO_PLAY\s*\]\]/gi, "").trim();
+export function extractReadyToPlay(botText: string): { readyToPlay: boolean; summary: string } {
+  const readyToPlay = /\[\[\s*READY_TO_PLAY\s*\]\]/i.test(botText);
+  const summary = botText.replace(/\[\[\s*READY_TO_PLAY\s*\]\]/gi, "").trim();
   return { readyToPlay, summary };
 }
 
-/** Builds the instruction Bit gets when a worker finishes. Only the playable,
+/** Builds the instruction Bit gets when a bot finishes. Only the playable,
  * completed case asks Bit to start a preview. */
 export function buildCompletionPrompt(input: {
   outcome: "completed" | "cancelled" | "failed";

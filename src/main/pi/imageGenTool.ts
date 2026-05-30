@@ -5,9 +5,9 @@ import { Type } from "typebox";
 import { extractCodexAccountId } from "../auth/codexOAuth";
 
 /**
- * Clean-room `generate_image` worker tool.
+ * Clean-room `generate_image` bot tool.
  *
- * Workers build kids' web apps; this lets a worker make a raster asset (sprite,
+ * Bots build kids' web apps; this lets a bot make a raster asset (sprite,
  * icon, background) and drop it straight into the creation's Workbench. It reuses
  * Hi-Bit's own Codex login: a fresh access token plus the account id we already
  * decode for OAuth. The request goes to the Codex Responses backend with the

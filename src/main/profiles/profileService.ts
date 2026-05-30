@@ -1,10 +1,12 @@
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  ProfileInput,
-  ProfileRecord,
-  ProfileSettingsInput,
-  ProfileSummary,
+import type { ConceptId } from "@shared/concepts";
+import {
+  EMPTY_UNLOCK_STATS,
+  type ProfileInput,
+  type ProfileRecord,
+  type ProfileSettingsInput,
+  type ProfileSummary,
 } from "@shared/profile";
 import { readJsonFile, writeJsonFile } from "../storage/json";
 import { type HiBitHomeRecord, type HiBitLayout, profileDir, profilesDir } from "../storage/layout";
@@ -51,6 +53,8 @@ export class ProfileService {
       interests: normalizeInterests(input.interests ?? []),
       createdAt: timestamp,
       updatedAt: timestamp,
+      unlockedConcepts: [],
+      unlockStats: { ...EMPTY_UNLOCK_STATS },
     };
     const notes = input.notes?.trim();
     if (notes) profile.notes = notes;
@@ -89,6 +93,52 @@ export class ProfileService {
     return next;
   }
 
+  /**
+   * Records that the kid has unlocked an inside word, stamping when its trigger
+   * first fired. Idempotent: re-unlocking an already-unlocked concept is a no-op
+   * that keeps the original `firstSeenAt`.
+   */
+  async unlockConcept(profileId: string, conceptId: ConceptId): Promise<ProfileSummary> {
+    const current = await this.get(profileId);
+    if (current.unlockedConcepts.some((concept) => concept.id === conceptId)) {
+      return current;
+    }
+    const next: ProfileRecord = {
+      ...current,
+      unlockedConcepts: [
+        ...current.unlockedConcepts,
+        { id: conceptId, firstSeenAt: this.now().toISOString() },
+      ],
+    };
+    await writeJsonFile(this.profileJsonPath(profileId), next);
+    return next;
+  }
+
+  /** Bumps the build counter the unlock ladder reads from (one per delegated build). */
+  async bumpBuildsDelegated(profileId: string): Promise<void> {
+    const current = await this.get(profileId);
+    const next: ProfileRecord = {
+      ...current,
+      unlockStats: {
+        ...current.unlockStats,
+        buildsDelegated: current.unlockStats.buildsDelegated + 1,
+      },
+    };
+    await writeJsonFile(this.profileJsonPath(profileId), next);
+  }
+
+  /** Marks that the kid has opened "See all activities" so the Logbook word can unlock. */
+  async markActivitiesOpened(profileId: string): Promise<ProfileSummary> {
+    const current = await this.get(profileId);
+    if (current.unlockStats.openedActivities) return current;
+    const next: ProfileRecord = {
+      ...current,
+      unlockStats: { ...current.unlockStats, openedActivities: true },
+    };
+    await writeJsonFile(this.profileJsonPath(profileId), next);
+    return next;
+  }
+
   async getActiveId(): Promise<string | null> {
     const home = await readJsonFile<HiBitHomeRecord>(this.layout.homePath);
     return home?.activeProfileId ?? null;
@@ -108,7 +158,8 @@ export class ProfileService {
   }
 
   private async read(profileId: string): Promise<ProfileRecord | null> {
-    return readJsonFile<ProfileRecord>(this.profileJsonPath(profileId));
+    const record = await readJsonFile<ProfileRecord>(this.profileJsonPath(profileId));
+    return record ? normalizeProfile(record) : null;
   }
 
   private async nextAvailableId(base: string): Promise<string> {
@@ -128,6 +179,16 @@ export class ProfileService {
 
 function projectsDirForProfile(layout: HiBitLayout, profileId: string): string {
   return join(profileDir(layout, profileId), "projects");
+}
+
+/** Backfills unlock fields for profiles created before the unlock ladder existed. */
+function normalizeProfile(record: ProfileRecord): ProfileRecord {
+  if (record.unlockedConcepts && record.unlockStats) return record;
+  return {
+    ...record,
+    unlockedConcepts: record.unlockedConcepts ?? [],
+    unlockStats: record.unlockStats ?? { ...EMPTY_UNLOCK_STATS },
+  };
 }
 
 function validateProfileFields(input: ProfileInput): void {

@@ -6,7 +6,7 @@ import { decodePng, encodeGif, encodePng } from "./spriteImageIo";
 import { type Align, chromaKeyMagenta, processSheet, type ScaleStrategy } from "./spriteProcessor";
 
 /**
- * `process_sprite_sheet` worker tool.
+ * `process_sprite_sheet` bot tool.
  *
  * The art model draws a grid sheet on a solid magenta (#FF00FF) background; this
  * tool turns that raw PNG into game-ready output: it keys out the magenta,

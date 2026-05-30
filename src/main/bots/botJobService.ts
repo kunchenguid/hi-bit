@@ -5,7 +5,7 @@ import type { RuntimeProject } from "../projects/projectService";
 import { writeJsonFile } from "../storage/json";
 import type { BotBuild, BotWorkbench, InspectionReport } from "./botPipeline";
 
-export type BuildPlanRecord = {
+export type BlueprintRecord = {
   schemaVersion: 1;
   id: string;
   factoryId: string;
@@ -21,7 +21,7 @@ export type BotJobRecord = {
   id: string;
   factoryId: string;
   projectId: string;
-  buildPlanId: string;
+  blueprintId: string;
   status: "queued" | "running" | "completed" | "cancelled" | "jammed";
   createdAt: string;
   updatedAt: string;
@@ -33,29 +33,29 @@ export type BotJobRecord = {
 
 type BotJobServiceOptions = {
   now?: () => Date;
-  nextBuildPlanId?: () => string;
+  nextBlueprintId?: () => string;
   nextJobId?: () => string;
 };
 
 export class BotJobService {
   private readonly now: () => Date;
-  private readonly nextBuildPlanId: () => string;
+  private readonly nextBlueprintId: () => string;
   private readonly nextJobId: () => string;
 
   constructor(options: BotJobServiceOptions = {}) {
     this.now = options.now ?? (() => new Date());
-    this.nextBuildPlanId = options.nextBuildPlanId ?? (() => `build_plan_${randomId()}`);
+    this.nextBlueprintId = options.nextBlueprintId ?? (() => `blueprint_${randomId()}`);
     this.nextJobId = options.nextJobId ?? (() => `bot_job_${randomId()}`);
   }
 
-  async createBuildPlan(
+  async createBlueprint(
     project: RuntimeProject,
     leadPrompt: string,
     projectCatalog: ProjectSummary[],
-  ): Promise<BuildPlanRecord> {
-    const plan: BuildPlanRecord = {
+  ): Promise<BlueprintRecord> {
+    const blueprint: BlueprintRecord = {
       schemaVersion: 1,
-      id: this.nextBuildPlanId(),
+      id: this.nextBlueprintId(),
       factoryId: project.factoryId,
       projectId: project.id,
       leadPrompt,
@@ -67,18 +67,18 @@ export class BotJobService {
       status: "dispatched",
       createdAt: this.now().toISOString(),
     };
-    await writeJsonFile(join(project.buildPlansDir, `${plan.id}.json`), plan);
-    return plan;
+    await writeJsonFile(join(project.blueprintsDir, `${blueprint.id}.json`), blueprint);
+    return blueprint;
   }
 
-  async createJob(project: RuntimeProject, plan: BuildPlanRecord): Promise<BotJobRecord> {
+  async createJob(project: RuntimeProject, blueprint: BlueprintRecord): Promise<BotJobRecord> {
     const timestamp = this.now().toISOString();
     const job: BotJobRecord = {
       schemaVersion: 1,
       id: this.nextJobId(),
       factoryId: project.factoryId,
       projectId: project.id,
-      buildPlanId: plan.id,
+      blueprintId: blueprint.id,
       status: "queued",
       createdAt: timestamp,
       updatedAt: timestamp,
