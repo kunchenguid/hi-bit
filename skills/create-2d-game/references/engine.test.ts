@@ -19,7 +19,7 @@ function loadEngine() {
     },
     cancelAnimationFrame() {},
   };
-  const source = readFileSync(resolve("skills/create-game/references/engine.js"), "utf8");
+  const source = readFileSync(resolve("skills/create-2d-game/references/engine.js"), "utf8");
   const engine = vm.runInNewContext(`${source}\nHiBitGame;`, sandbox) as typeof import("./engine");
   const canvas = {
     width: 320,
@@ -48,7 +48,7 @@ function loadEngine() {
   };
 }
 
-describe("create-game reference engine", () => {
+describe("create-2d-game reference engine", () => {
   it("keeps fixed-step edge inputs until an update consumes them", () => {
     const { canvas, dispatchCanvas, dispatchWindow, engine, nextFrame } = loadEngine();
     const observed = { jump: false, click: false };

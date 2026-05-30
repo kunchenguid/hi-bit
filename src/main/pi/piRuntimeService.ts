@@ -32,7 +32,7 @@ export type CreateRuntimeSessionInput = {
   agentDir: string;
   modelId: string;
   customTools: ToolDefinition[];
-  /** Directory of bundled skills (e.g. create-game, game-assets) exposed to the worker. */
+  /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to the worker. */
   skillsDir?: string;
 };
 
@@ -49,7 +49,7 @@ type PiRuntimeServiceOptions = {
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   onSessionFile?: (projectId: string, sessionFile: string | undefined) => Promise<void> | void;
-  /** Directory of bundled skills (e.g. create-game, game-assets) exposed to workers. */
+  /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to workers. */
   skillsDir?: string;
 };
 

@@ -32,12 +32,20 @@ describe("createWorkerResourceLoader skills", () => {
     expect(skill?.description).toMatch(/sprite|animation/i);
   });
 
-  it("loads the bundled create-game skill from a skillsDir", () => {
+  it("loads the bundled create-2d-game skill from a skillsDir", () => {
     const loader = createWorkerResourceLoader(undefined, { skillsDir: resolve("skills") });
     const { skills } = loader.getSkills();
-    const skill = skills.find((s) => s.name === "create-game");
+    const skill = skills.find((s) => s.name === "create-2d-game");
     expect(skill).toBeDefined();
     expect(skill?.description).toMatch(/game|loop|platformer/i);
+  });
+
+  it("loads the bundled create-3d-game skill from a skillsDir", () => {
+    const loader = createWorkerResourceLoader(undefined, { skillsDir: resolve("skills") });
+    const { skills } = loader.getSkills();
+    const skill = skills.find((s) => s.name === "create-3d-game");
+    expect(skill).toBeDefined();
+    expect(skill?.description).toMatch(/3d|three|world/i);
   });
 
   it("exposes no skills when no skillsDir is given", () => {
@@ -65,11 +73,13 @@ describe("buildWorkerSystemPrompt", () => {
     expect(prompt).toContain("process_sprite_sheet");
   });
 
-  it("points playable game builds at the create-game skill", () => {
+  it("points 2D and 3D playable game builds at their skills", () => {
     const prompt = buildWorkerSystemPrompt();
 
-    expect(prompt).toContain("create-game skill");
+    expect(prompt).toContain("create-2d-game skill");
+    expect(prompt).toContain("create-3d-game skill");
     expect(prompt).toMatch(/game loop|platformer|playable game/i);
+    expect(prompt).toMatch(/3d|first-person|third-person/i);
   });
 
   it("tells the worker to tag a finished playable build with READY_TO_PLAY", () => {
