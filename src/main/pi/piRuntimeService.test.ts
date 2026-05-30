@@ -99,7 +99,7 @@ describe("workerToolNames", () => {
 });
 
 describe("PiRuntimeService custom tools", () => {
-  it("registers generate_image and process_sprite_sheet and enables them in the allowlist", async () => {
+  it("registers the asset and web tools and enables them in the allowlist", async () => {
     let captured: CreateRuntimeSessionInput | undefined;
     const service = new PiRuntimeService({
       agentDir: "/tmp/hibit/pi-agent",
@@ -112,12 +112,18 @@ describe("PiRuntimeService custom tools", () => {
 
     await service.sendPrompt(project(), "Draw a sprite", () => {});
 
+    const expected = [
+      "generate_image",
+      "process_sprite_sheet",
+      "web_search",
+      "fetch_content",
+      "get_search_content",
+    ];
     const toolNames = (captured?.customTools ?? []).map((tool) => tool.name);
-    expect(toolNames).toContain("generate_image");
-    expect(toolNames).toContain("process_sprite_sheet");
+    expect(toolNames).toEqual(expect.arrayContaining(expected));
     // The names the worker session is actually allowed to use must include them.
     const allowed = workerToolNames(captured?.customTools ?? []);
-    expect(allowed).toEqual(expect.arrayContaining(["generate_image", "process_sprite_sheet"]));
+    expect(allowed).toEqual(expect.arrayContaining(expected));
   });
 });
 

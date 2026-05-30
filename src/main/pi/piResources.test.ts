@@ -85,6 +85,15 @@ describe("buildWorkerSystemPrompt", () => {
   it("tells the worker to tag a finished playable build with READY_TO_PLAY", () => {
     expect(buildWorkerSystemPrompt()).toContain("[[READY_TO_PLAY]]");
   });
+
+  it("offers the web tools for looking things up while keeping the builder's details private", () => {
+    const prompt = buildWorkerSystemPrompt();
+
+    expect(prompt).toContain("web_search");
+    expect(prompt).toContain("fetch_content");
+    expect(prompt).toMatch(/look (it|something|things) up|docs|reference/i);
+    expect(prompt).toMatch(/personal|private|name|details/i);
+  });
 });
 
 describe("buildBitSystemPrompt", () => {
