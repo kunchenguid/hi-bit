@@ -357,12 +357,15 @@ export class BitCoordinatorService {
           projectId: projectId ?? this.pendingPreviewAttribution.get(profileId),
         });
         if (vocabulary.newlyUnlocked) {
-          await this.profiles.unlockConcept(profileId, vocabulary.newlyUnlocked).catch((error) => {
-            console.error(
-              `Failed to persist unlocked concept ${vocabulary.newlyUnlocked} for profile ${profileId}:`,
-              error,
-            );
-          });
+          await this.profiles
+            .unlockConcept(profileId, vocabulary.newlyUnlocked)
+            .then(() => this.emit({ type: "profile_updated", profileId, turnId: result.turnId }))
+            .catch((error) => {
+              console.error(
+                `Failed to persist unlocked concept ${vocabulary.newlyUnlocked} for profile ${profileId}:`,
+                error,
+              );
+            });
         }
       }
       this.pendingPreviewAttribution.delete(profileId);

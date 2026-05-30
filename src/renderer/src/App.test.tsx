@@ -487,6 +487,52 @@ describe("App", () => {
     expect(host.querySelector(".hb-message-assistant .hb-play-button")).not.toBeNull();
   });
 
+  it("refreshes profile labels when the main process reports a persisted unlock", async () => {
+    let emit: (event: ChatEvent) => void = () => {};
+    const base = adaProfile();
+    const unlocked = {
+      ...base,
+      unlockedConcepts: [{ id: "logbook" as const, firstSeenAt: "2026-01-01T00:00:01.000Z" }],
+      unlockStats: { buildsDelegated: 0, openedActivities: true },
+    };
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn().mockResolvedValueOnce([base]).mockResolvedValue([unlocked]);
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
+      messages: [],
+      activity: [
+        {
+          projectId: "p1",
+          title: "Cat Jump",
+          status: "done" as const,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          steps: [{ callId: "c1", toolName: "write", status: "completed" as const, content: [] }],
+        },
+      ],
+      isRunning: false,
+      previews: [],
+      playableProjectIds: [],
+    }));
+    api.chat.onEvent = vi.fn((listener) => {
+      emit = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    expect(host.textContent).toContain("See all activities");
+
+    await act(async () => {
+      emit({ type: "profile_updated", profileId: "ada", turnId: "t9" });
+    });
+    await flushAsyncWork();
+
+    expect(host.textContent).toContain("Open Logbook");
+  });
+
   it("recovers Play on the ready bubble and bar after a restart with no live server", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,

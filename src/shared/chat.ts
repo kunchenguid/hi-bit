@@ -119,6 +119,7 @@ export type ChatEvent =
       error?: string;
       kind?: TurnKind;
     } & ChatEventMeta)
+  | ({ type: "profile_updated" } & ChatEventMeta)
   // Preview events carry no turn: Hi-Bit spawns/kills the server out of band and
   // routes the result to the renderer by `profileId` to light up (or drop) Play.
   | {

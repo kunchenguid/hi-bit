@@ -158,8 +158,7 @@ export function App() {
         setPlayableProjectIds,
         setReloadSignals,
       });
-      // A finished turn may have unlocked a new word - pick it up for the labels.
-      if (event.type === "turn_end") void refreshActiveProfile();
+      if (event.type === "profile_updated") void refreshActiveProfile();
     });
   }, [activeProfileId, refreshActiveProfile]);
 

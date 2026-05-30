@@ -1284,6 +1284,26 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(profile.unlockStats.buildsDelegated).toBe(1);
   });
 
+  it("emits profile_updated only after persisting a revealed word", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "All done!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.drain();
+
+    const turnEndIndex = s.events.findIndex(
+      (event) => event.type === "turn_end" && event.kind === "bot_result",
+    );
+    const profileUpdatedIndex = s.events.findIndex((event) => event.type === "profile_updated");
+    expect(turnEndIndex).toBeGreaterThanOrEqual(0);
+    expect(profileUpdatedIndex).toBeGreaterThan(turnEndIndex);
+  });
+
   it("does not unlock the bot word while the first build is still running", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
