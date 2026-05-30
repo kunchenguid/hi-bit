@@ -7,13 +7,14 @@ type MessageListProps = {
   thinking: boolean;
   /** Why Bit is thinking, so the bubble can explain a bot-result wait to the kid. */
   thinkingReason?: TurnKind;
+  botUnlocked?: boolean;
   /** Playable creations (running or restartable), so their "ready" message can offer Play. */
   playableProjectIds?: Set<string>;
   onPlay?: (projectId: string) => void;
 };
 
-/** Kid-facing caption for the pending Bit bubble while it digests a bot's build. */
-const BOT_RESULT_CAPTION = "Bit is checking out what the bot made...";
+const botResultCaption = (botUnlocked: boolean) =>
+  `Bit is checking out what the ${botUnlocked ? "bot" : "builder"} made...`;
 
 /** How close to the bottom (px) still counts as "looking at the latest". */
 const STICK_THRESHOLD = 24;
@@ -22,6 +23,7 @@ export function MessageList({
   messages,
   thinking,
   thinkingReason = "reply",
+  botUnlocked = false,
   playableProjectIds,
   onPlay,
 }: MessageListProps) {
@@ -87,11 +89,13 @@ export function MessageList({
         <li
           className="hb-message hb-message-assistant hb-message-thinking"
           aria-live="polite"
-          aria-label={thinkingReason === "bot_result" ? BOT_RESULT_CAPTION : "Bit is thinking"}
+          aria-label={
+            thinkingReason === "bot_result" ? botResultCaption(botUnlocked) : "Bit is thinking"
+          }
         >
           <span className="hb-message-label">Bit</span>
           {thinkingReason === "bot_result" ? (
-            <span className="hb-thinking-caption">{BOT_RESULT_CAPTION}</span>
+            <span className="hb-thinking-caption">{botResultCaption(botUnlocked)}</span>
           ) : null}
           <span className="hb-thinking-dots" aria-hidden="true">
             <span />

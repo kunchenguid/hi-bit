@@ -252,7 +252,7 @@ describe("App", () => {
     expect(host.textContent).not.toContain("What Bit is building");
 
     await clickButton(host, "See all activities");
-    expect(host.textContent).toContain("Everything the bots worked on");
+    expect(host.textContent).toContain("Everything the builders worked on");
     expect(host.textContent).toContain("Cat Jump");
   });
 
@@ -299,7 +299,7 @@ describe("App", () => {
         {
           id: "assistant-earlier",
           role: "assistant" as const,
-          text: "On it! A bot is building that.",
+          text: "On it! A builder is building that.",
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -324,9 +324,9 @@ describe("App", () => {
       });
     });
 
-    // The dots show with the kid-friendly bot caption...
+    // The dots show with the kid-friendly pre-unlock caption...
     expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
-    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
+    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("builder");
     // ...but the composer stays open: Send (not Stop), input enabled.
     const composer = host.querySelector<HTMLTextAreaElement>("#hibit-composer");
     expect(composer?.disabled).toBe(false);
@@ -362,7 +362,7 @@ describe("App", () => {
         {
           id: "assistant-earlier",
           role: "assistant" as const,
-          text: "A bot is building that.",
+          text: "A builder is building that.",
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -376,7 +376,7 @@ describe("App", () => {
     await renderApp(root);
 
     expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
-    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
+    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("builder");
     expect(host.querySelector<HTMLTextAreaElement>("#hibit-composer")?.disabled).toBe(false);
     expect(Array.from(host.querySelectorAll("button")).some((b) => b.textContent === "Stop")).toBe(
       false,

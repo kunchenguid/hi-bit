@@ -136,6 +136,7 @@ export function ChatWorkspace({
             messages={messages}
             thinking={thinking}
             thinkingReason={thinkingReason}
+            botUnlocked={botUnlocked}
             playableProjectIds={playable}
             onPlay={onPlayPreview}
           />
@@ -172,6 +173,7 @@ export function ChatWorkspace({
         <ActivityView
           activity={activity}
           logbookUnlocked={logbookUnlocked}
+          botUnlocked={botUnlocked}
           onClose={onHideActivity}
         />
       ) : null}
