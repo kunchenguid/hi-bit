@@ -88,15 +88,18 @@ export function summarizeActivity(
   running = false,
   /** Kid-facing name for the whole collection - "your Workshop" once unlocked. */
   collectionLabel = "your creations",
+  botUnlocked = false,
 ): ActivitySummary {
   const count = activity.reduce((total, creation) => total + creation.steps.length, 0);
   const workingCreations = activity.filter((creation) => creation.status === "working");
 
   if (workingCreations.length > 0) {
+    const singleWorker = botUnlocked ? "bot" : "builder";
+    const multipleWorkers = botUnlocked ? "bots" : "builders";
     const headline =
       workingCreations.length === 1
-        ? `A bot is working on ${workingCreations[0].title}`
-        : `${workingCreations.length} bots are working on ${collectionLabel}`;
+        ? `A ${singleWorker} is working on ${workingCreations[0].title}`
+        : `${workingCreations.length} ${multipleWorkers} are working on ${collectionLabel}`;
     return { working: true, headline, detail: currentStepDetail(workingCreations), count };
   }
 

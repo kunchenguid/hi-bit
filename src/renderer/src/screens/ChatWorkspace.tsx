@@ -83,6 +83,7 @@ export function ChatWorkspace({
 
   // Chrome labels follow the kid's unlocked vocabulary: the collection becomes
   // "your Workshop" and the activity surface becomes "Logbook" once earned.
+  const botUnlocked = isConceptUnlocked(profile.unlockedConcepts, "bot");
   const workshopUnlocked = isConceptUnlocked(profile.unlockedConcepts, "workshop");
   const logbookUnlocked = isConceptUnlocked(profile.unlockedConcepts, "logbook");
   const collectionLabel = workshopUnlocked ? "your Workshop" : "your creations";
@@ -143,6 +144,7 @@ export function ChatWorkspace({
             running={running}
             playProjectId={barPlayProjectId}
             collectionLabel={collectionLabel}
+            botUnlocked={botUnlocked}
             seeAllLabel={seeAllLabel}
             onPlay={onPlayPreview}
             onSeeAll={onShowActivity}

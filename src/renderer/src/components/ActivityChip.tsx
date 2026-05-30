@@ -8,6 +8,7 @@ type ActivityChipProps = {
   playProjectId?: string | null;
   /** Kid-facing name for the collection - "your Workshop" once unlocked. */
   collectionLabel?: string;
+  botUnlocked?: boolean;
   /** Label for the see-all button - "Logbook" once that word is unlocked. */
   seeAllLabel?: string;
   onPlay?: (projectId: string) => void;
@@ -26,11 +27,12 @@ export function ActivityChip({
   running = false,
   playProjectId,
   collectionLabel,
+  botUnlocked = false,
   seeAllLabel = "See all activities",
   onPlay,
   onSeeAll,
 }: ActivityChipProps) {
-  const summary = summarizeActivity(activity, running, collectionLabel);
+  const summary = summarizeActivity(activity, running, collectionLabel, botUnlocked);
   return (
     <div className="hb-activity-chip" data-state={summary.working ? "working" : "idle"}>
       <div className="hb-activity-status">

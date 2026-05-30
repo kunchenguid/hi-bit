@@ -1284,6 +1284,36 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(profile.unlockStats.buildsDelegated).toBe(1);
   });
 
+  it("does not unlock the bot word while the first build is still running", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let finishBuild!: () => void;
+    const buildPaused = new Promise<void>((resolve) => {
+      finishBuild = resolve;
+    });
+    s.pipeline.beforeInstall = async () => buildPaused;
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "All done!";
+      if (text.includes("add stars")) {
+        await callTool("delegate_build", { creationId: game.id, instructions: "add stars" });
+      }
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add stars");
+    await s.coordinator.send(s.profile.id, "can I keep chatting?");
+    finishBuild();
+    await s.drain();
+
+    const midBuildPrompt = s.bit.prompts.find((p) => p.includes("can I keep chatting?"));
+    expect(midBuildPrompt).toContain("Words you may use: Bit, build, creation, Play.");
+    expect(midBuildPrompt).not.toMatch(/newly unlocked/i);
+
+    const completionPrompt = s.bit.prompts.find((p) => p.includes("is ready"));
+    expect(completionPrompt).toMatch(/newly unlocked/i);
+    expect(completionPrompt).toContain('"bot"');
+  });
+
   it("does not persist a new word when the reveal turn fails", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });

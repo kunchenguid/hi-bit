@@ -605,9 +605,6 @@ export class BitCoordinatorService {
     let job = await this.botJobs.createJob(project, blueprint);
     const workbench = await this.pipeline.prepareBotWorkbench(project, job);
     job = await this.botJobs.markRunning(project, job, workbench);
-    // Count this delegated build toward the unlock ladder (drives "bot",
-    // "blueprint"/"machines", and the deep factory words).
-    await this.profiles.bumpBuildsDelegated(profileId).catch(() => {});
 
     this.addInflight(profileId, {
       jobId: job.id,
@@ -743,6 +740,7 @@ export class BitCoordinatorService {
       }
     }
 
+    await this.profiles.bumpBuildsDelegated(profileId).catch(() => {});
     await this.runCompletionTurn(profileId, project, outcome, summary, readyToPlay).catch(
       async () => {
         await this.appendCompletionFallback(profileId, project, outcome);

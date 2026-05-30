@@ -256,7 +256,7 @@ describe("App", () => {
     expect(host.textContent).toContain("Cat Jump");
   });
 
-  it("shows a bot working when a build starts", async () => {
+  it("shows the pre-unlock builder word when a build starts", async () => {
     let emit: (event: ChatEvent) => void = () => {};
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -280,7 +280,7 @@ describe("App", () => {
       });
     });
 
-    expect(host.textContent).toContain("A bot is working on Cat Jump");
+    expect(host.textContent).toContain("A builder is working on Cat Jump");
   });
 
   it("shows a captioned thinking bubble while Bit digests a bot result, without locking the composer", async () => {

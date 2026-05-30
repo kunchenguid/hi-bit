@@ -158,14 +158,29 @@ describe("summarizeActivity", () => {
   });
 
   it("names the single creation a bot is working on", () => {
-    const summary = summarizeActivity([working("a", "Cat Jump")]);
+    const summary = summarizeActivity([working("a", "Cat Jump")], false, "your creations", true);
     expect(summary.working).toBe(true);
     expect(summary.headline).toBe("A bot is working on Cat Jump");
   });
 
+  it("uses the pre-unlock builder word before bot is unlocked", () => {
+    const summary = summarizeActivity([working("a", "Cat Jump")]);
+    expect(summary.headline).toBe("A builder is working on Cat Jump");
+  });
+
   it("pluralizes when several bots are working", () => {
-    const summary = summarizeActivity([working("a", "Cat Jump"), working("b", "Space Site")]);
+    const summary = summarizeActivity(
+      [working("a", "Cat Jump"), working("b", "Space Site")],
+      false,
+      "your creations",
+      true,
+    );
     expect(summary.headline).toBe("2 bots are working on your creations");
+  });
+
+  it("pluralizes with the pre-unlock builder word", () => {
+    const summary = summarizeActivity([working("a", "Cat Jump"), working("b", "Space Site")]);
+    expect(summary.headline).toBe("2 builders are working on your creations");
   });
 
   it("rests with the most recent creation when nothing is working", () => {
@@ -198,7 +213,7 @@ describe("summarizeActivity", () => {
   });
 
   it("prefers a working build over the thinking state", () => {
-    const summary = summarizeActivity([working("a", "Cat Jump")], true);
+    const summary = summarizeActivity([working("a", "Cat Jump")], true, "your creations", true);
     expect(summary.headline).toBe("A bot is working on Cat Jump");
   });
 });
