@@ -1,4 +1,6 @@
 import { lookup } from "node:dns/promises";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { isIP } from "node:net";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Readability } from "@mozilla/readability";
@@ -245,19 +247,30 @@ function isPrivateIpv4(address: string): boolean {
   );
 }
 
+function parseIpv4MappedIpv6(address: string): string | null {
+  const normalized = address.toLowerCase();
+  const dotted = normalized.match(/(?:^|:)ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dotted) return dotted[1];
+  const hexadecimal = normalized.match(/(?:^|:)ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!hexadecimal) return null;
+  const high = Number.parseInt(hexadecimal[1], 16);
+  const low = Number.parseInt(hexadecimal[2], 16);
+  if (!Number.isInteger(high) || !Number.isInteger(low)) return null;
+  return `${(high >> 8) & 255}.${high & 255}.${(low >> 8) & 255}.${low & 255}`;
+}
+
 function isPrivateIpv6(address: string): boolean {
   const normalized = address.toLowerCase();
+  const mappedIpv4 = parseIpv4MappedIpv6(normalized);
+  if (mappedIpv4 !== null) return isPrivateIpv4(mappedIpv4);
+  const firstHextet = Number.parseInt(normalized.split(":", 1)[0], 16);
+  if (!Number.isInteger(firstHextet)) return true;
   return (
     normalized === "::1" ||
     normalized === "::" ||
-    normalized.startsWith("fe80:") ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    normalized.startsWith("ff") ||
-    normalized.startsWith("::ffff:127.") ||
-    normalized.startsWith("::ffff:10.") ||
-    normalized.startsWith("::ffff:192.168.") ||
-    /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(normalized)
+    (firstHextet >= 0xfe80 && firstHextet <= 0xfebf) ||
+    (firstHextet >= 0xfc00 && firstHextet <= 0xfdff) ||
+    (firstHextet >= 0xff00 && firstHextet <= 0xffff)
   );
 }
 
@@ -276,36 +289,85 @@ async function defaultLookupHost(hostname: string): Promise<string[]> {
 async function validatePublicHttpUrl(
   url: URL,
   lookupHost: (hostname: string) => Promise<string[]>,
-): Promise<boolean> {
-  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+): Promise<string[] | null> {
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
   const hostname = url.hostname.toLowerCase();
-  if (hostname === "localhost" || hostname.endsWith(".localhost")) return false;
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) return null;
   const ipFamily = isIP(hostname);
-  if (ipFamily) return !isBlockedIp(hostname);
-  if (!hostname.includes(".")) return false;
+  if (ipFamily) return isBlockedIp(hostname) ? null : [hostname];
+  if (!hostname.includes(".")) return null;
   let addresses: string[];
   try {
     addresses = await lookupHost(hostname);
   } catch {
-    return false;
+    return null;
   }
-  return addresses.length > 0 && addresses.every((address) => !isBlockedIp(address));
+  return addresses.length > 0 && addresses.every((address) => !isBlockedIp(address))
+    ? addresses
+    : null;
+}
+
+function fetchUrlForAddress(url: URL, address: string): URL {
+  const fetchUrl = new URL(url);
+  if (!isIP(url.hostname) && isIP(address)) fetchUrl.hostname = address;
+  return fetchUrl;
+}
+
+function nodeFetchWithAddress(url: URL, address: string, signal?: AbortSignal): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
+      url,
+      {
+        headers: { accept: "text/html,application/xhtml+xml", host: url.host },
+        lookup: (_hostname, _options, callback) => {
+          callback(null, address, isIP(address) as 4 | 6);
+        },
+        signal: requestSignal(signal),
+      },
+      (incoming) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            incoming.on("data", (chunk: Buffer) => controller.enqueue(chunk));
+            incoming.on("end", () => controller.close());
+            incoming.on("error", (error) => controller.error(error));
+          },
+          cancel() {
+            incoming.destroy();
+          },
+        });
+        const headers = new Headers();
+        for (const [key, value] of Object.entries(incoming.headers)) {
+          if (Array.isArray(value)) {
+            for (const item of value) headers.append(key, item);
+          } else if (value !== undefined) {
+            headers.set(key, value);
+          }
+        }
+        resolve(new Response(body, { status: incoming.statusCode ?? 0, headers }));
+      },
+    );
+    request.on("error", reject);
+    request.end();
+  });
 }
 
 async function fetchWithSafeRedirects(
   initialUrl: URL,
-  fetchFn: typeof fetch,
+  fetchFn: typeof fetch | undefined,
   lookupHost: (hostname: string) => Promise<string[]>,
   signal?: AbortSignal,
 ): Promise<Response | null> {
   let current = initialUrl;
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    if (!(await validatePublicHttpUrl(current, lookupHost))) return null;
-    const response = await fetchFn(current.toString(), {
-      headers: { accept: "text/html,application/xhtml+xml" },
-      redirect: "manual",
-      signal: requestSignal(signal),
-    });
+    const addresses = await validatePublicHttpUrl(current, lookupHost);
+    if (addresses === null) return null;
+    const response = fetchFn
+      ? await fetchFn(fetchUrlForAddress(current, addresses[0]).toString(), {
+          headers: { accept: "text/html,application/xhtml+xml", host: current.host },
+          redirect: "manual",
+          signal: requestSignal(signal),
+        })
+      : await nodeFetchWithAddress(current, addresses[0], signal);
     if (response.url) {
       let responseUrl: URL;
       try {
@@ -313,7 +375,7 @@ async function fetchWithSafeRedirects(
       } catch {
         return null;
       }
-      if (!(await validatePublicHttpUrl(responseUrl, lookupHost))) return null;
+      if ((await validatePublicHttpUrl(responseUrl, lookupHost)) === null) return null;
     }
     if (response.status < 300 || response.status >= 400) return response;
     const location = response.headers.get("location");
@@ -359,7 +421,7 @@ async function readResponseText(response: Response, maxBytes: number): Promise<s
 // ---- tool factory -----------------------------------------------------------
 
 export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] {
-  const fetchFn = deps.fetchFn ?? fetch;
+  const codexFetchFn = deps.fetchFn ?? fetch;
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const model = deps.model ?? DEFAULT_MODEL;
   const responsesUrl = deps.responsesUrl ?? CODEX_RESPONSES_URL;
@@ -409,7 +471,7 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
       let parsed: WebSearchParse | undefined;
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
         if (signal?.aborted) throw new Error("Search was stopped.");
-        const response = await fetchFn(responsesUrl, {
+        const response = await codexFetchFn(responsesUrl, {
           method: "POST",
           headers,
           body,
@@ -476,7 +538,7 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
         };
       }
 
-      const response = await fetchWithSafeRedirects(parsedUrl, fetchFn, lookupHost, signal);
+      const response = await fetchWithSafeRedirects(parsedUrl, deps.fetchFn, lookupHost, signal);
       if (response === null) {
         return {
           content: [{ type: "text", text: "I can only read public web pages." }],

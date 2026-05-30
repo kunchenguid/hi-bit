@@ -199,7 +199,7 @@ describe("fetch_content tool", () => {
       url: "https://example.com/loops",
     });
 
-    expect(capturedUrl).toBe("https://example.com/loops");
+    expect(capturedUrl).toBe("https://93.184.216.34/loops");
     expect(tokenCalls).toBe(0); // fetch_content never touches Codex
     const text = result.content[0].text as string;
     expect(text).toContain("How Loops Work");
@@ -252,7 +252,7 @@ describe("fetch_content tool", () => {
       url: "https://example.com/start",
     });
 
-    expect(fetched).toEqual(["https://example.com/start"]);
+    expect(fetched).toEqual(["https://93.184.216.34/start"]);
     expect(result.content[0].text as string).toMatch(/public web/i);
   });
 
@@ -324,6 +324,64 @@ describe("fetch_content tool", () => {
 
     expect(calls).toBe(0);
     expect(result.content[0].text as string).toMatch(/public web/i);
+  });
+
+  it("refuses hostnames that resolve to IPv6 link-local addresses", async () => {
+    let calls = 0;
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["fe90::1"],
+      fetchFn: async () => {
+        calls += 1;
+        return htmlResponse("<html></html>");
+      },
+    });
+
+    const result = await run(findTool(tools, "fetch_content"), {
+      url: "https://docs.example.test/page",
+    });
+
+    expect(calls).toBe(0);
+    expect(result.content[0].text as string).toMatch(/public web/i);
+  });
+
+  it("refuses hostnames that resolve to hexadecimal IPv4-mapped loopback addresses", async () => {
+    let calls = 0;
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["::ffff:7f00:1"],
+      fetchFn: async () => {
+        calls += 1;
+        return htmlResponse("<html></html>");
+      },
+    });
+
+    const result = await run(findTool(tools, "fetch_content"), {
+      url: "https://docs.example.test/page",
+    });
+
+    expect(calls).toBe(0);
+    expect(result.content[0].text as string).toMatch(/public web/i);
+  });
+
+  it("binds hostname fetches to the validated DNS answer", async () => {
+    const fetched: string[] = [];
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        fetched.push(String(url));
+        return htmlResponse(
+          "<html><body><article><h1>Safe</h1><p>Public page content.</p></article></body></html>",
+        );
+      },
+    });
+
+    await run(findTool(tools, "fetch_content"), {
+      url: "https://docs.example.test/page",
+    });
+
+    expect(fetched).toEqual(["https://93.184.216.34/page"]);
   });
 });
 
