@@ -389,7 +389,10 @@ async function readResponseText(response: Response, maxBytes: number): Promise<s
   const contentLength = response.headers.get("content-length");
   if (contentLength !== null) {
     const parsed = Number(contentLength);
-    if (!Number.isFinite(parsed) || parsed > maxBytes) return null;
+    if (!Number.isFinite(parsed) || parsed > maxBytes) {
+      await response.body?.cancel();
+      return null;
+    }
   }
   if (!response.body) return await response.text();
   const reader = response.body.getReader();

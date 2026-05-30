@@ -257,13 +257,19 @@ describe("fetch_content tool", () => {
   });
 
   it("rejects oversized content-length before reading the body", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
     const tools = createWebSearchTools({
       getFreshAccessToken: async () => fakeCodexToken(),
       lookupHost: async () => ["93.184.216.34"],
       storeThreshold: 10,
       maxFetchBytes: 10,
       fetchFn: async () =>
-        new Response("too much", {
+        new Response(body, {
           headers: { "content-length": "1000000", "content-type": "text/html" },
         }),
     });
@@ -271,6 +277,7 @@ describe("fetch_content tool", () => {
     const result = await run(findTool(tools, "fetch_content"), { url: "https://example.com/huge" });
 
     expect(result.content[0].text as string).toMatch(/too large/i);
+    expect(cancelled).toBe(true);
   });
 
   it("stops streaming once the response exceeds the read limit", async () => {
