@@ -91,6 +91,7 @@ export class BitCoordinatorService {
   private readonly toolCache = new Map<string, ToolDefinition[]>();
   private readonly inflight = new Map<string, Map<string, InflightWorker>>();
   private readonly bitLocks = new Map<string, Promise<unknown>>();
+  private readonly activeTurns = new Map<string, { id: string; kind: TurnKind }>();
   /** Serializes logbook appends per creation so persisted steps keep their order. */
   private readonly activityWrites = new Map<string, Promise<unknown>>();
   /** Creation a turn just started a preview for, so its reply can offer Play. */
@@ -159,6 +160,7 @@ export class BitCoordinatorService {
       messages,
       activity,
       isRunning: this.bit.isRunning(profileId),
+      activeTurn: this.activeTurns.get(profileId) ?? null,
       previews: this.preview.list(profileId),
       playableProjectIds,
     };
@@ -288,6 +290,11 @@ export class BitCoordinatorService {
       // bubble (built from deltas) can show Play without waiting for a reload.
       const decorate = (event: ChatEvent): ChatEvent => {
         if (event.type === "turn_start" || event.type === "turn_end") {
+          if (event.type === "turn_start") {
+            this.activeTurns.set(profileId, { id: event.turnId, kind });
+          } else if (this.activeTurns.get(profileId)?.id === event.turnId) {
+            this.activeTurns.delete(profileId);
+          }
           return { ...event, kind };
         }
         if (event.type !== "assistant_delta") return event;

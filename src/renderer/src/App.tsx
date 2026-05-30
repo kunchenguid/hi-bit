@@ -112,7 +112,8 @@ export function App() {
         if (cancelled) return;
         setMessages(snapshot.messages);
         setActivity(snapshot.activity);
-        setRunning(snapshot.isRunning);
+        setActiveTurn(snapshot.activeTurn ?? null);
+        setRunning(snapshot.activeTurn?.kind === "worker_result" ? false : snapshot.isRunning);
         setPreviews(snapshot.previews);
         setPlayableProjectIds(snapshot.playableProjectIds);
       })
@@ -228,7 +229,9 @@ export function App() {
     if (!text) return;
     setDraft("");
     setError(null);
-    setRunning(true);
+    if (activeTurn?.kind !== "worker_result") {
+      setRunning(true);
+    }
     setMessages((current) => [
       ...current,
       {
@@ -243,7 +246,7 @@ export function App() {
       setRunning(false);
       setError(result.error);
     }
-  }, [activeProfile, draft]);
+  }, [activeProfile, activeTurn, draft]);
 
   const abort = useCallback(async () => {
     if (!activeProfile) return;

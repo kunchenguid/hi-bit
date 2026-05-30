@@ -53,6 +53,7 @@ export type ChatSnapshot = {
   messages: ChatMessage[];
   activity: CreationActivity[];
   isRunning: boolean;
+  activeTurn?: { id: string; kind: TurnKind } | null;
   /** Creations with a live preview server right now, so Play is correct after a reload. */
   previews: PreviewInfo[];
   /**

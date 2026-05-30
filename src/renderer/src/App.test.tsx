@@ -349,6 +349,72 @@ describe("App", () => {
     expect(host.textContent).toContain("Cat Jump is ready!");
   });
 
+  it("restores a worker-result thinking bubble from the loaded snapshot without locking the composer", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
+      messages: [
+        {
+          id: "assistant-earlier",
+          role: "assistant" as const,
+          text: "A bot is building that.",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      activity: [],
+      isRunning: true,
+      activeTurn: { id: "w1", kind: "worker_result" as const },
+      previews: [],
+      playableProjectIds: [],
+    }));
+
+    await renderApp(root);
+
+    expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
+    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
+    expect(host.querySelector<HTMLTextAreaElement>("#hibit-composer")?.disabled).toBe(false);
+    expect(Array.from(host.querySelectorAll("button")).some((b) => b.textContent === "Stop")).toBe(
+      false,
+    );
+  });
+
+  it("queues a kid reply behind a worker-result turn without showing Stop for the queued reply", async () => {
+    let emit: (event: ChatEvent) => void = () => {};
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.onEvent = vi.fn((listener) => {
+      emit = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    await act(async () => {
+      emit({
+        type: "turn_start",
+        kind: "worker_result",
+        profileId: "ada",
+        turnId: "w1",
+      });
+    });
+    await fillInput(host, "hibit-composer", "also add stars");
+    await clickButton(host, "Send");
+
+    expect(api.chat.send).toHaveBeenCalledWith("ada", "also add stars");
+    expect(host.querySelector<HTMLTextAreaElement>("#hibit-composer")?.disabled).toBe(false);
+    expect(Array.from(host.querySelectorAll("button")).some((b) => b.textContent === "Stop")).toBe(
+      false,
+    );
+  });
+
   it("opens the preview pane when the kid presses Play after a preview is ready", async () => {
     let emit: (event: ChatEvent) => void = () => {};
     api.auth.status = vi.fn(async () => ({
