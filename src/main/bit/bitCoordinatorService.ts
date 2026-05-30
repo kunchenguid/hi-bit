@@ -70,9 +70,10 @@ type PreviewToolDetails = { projectId: string; url: string | null };
 
 /**
  * Bit, the coordinator. The kid talks only to Bit through one profile-level conversation.
- * Each turn, Bit decides scope, confirms before creating, and delegates building to
- * worker bots via custom tools. Workers run in the background and Bit posts a
- * completion update when each finishes.
+ * Each turn, Bit decides scope, confirms before creating, delegates substantive
+ * building to background workers, or makes tiny direct edits through jailed
+ * profile tools. Worker completions and direct edits are recorded in the
+ * creation logbook.
  */
 export class BitCoordinatorService {
   private readonly profiles: ProfileReader;

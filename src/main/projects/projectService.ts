@@ -25,6 +25,7 @@ type BuildActivityRow = {
   createdAt?: string;
 };
 
+/** The project logbook also carries direct_edit rows written by Bit's tiny edits. */
 type ActivityLogRow = ToolStepRow | BuildActivityRow | { type?: string; createdAt?: string };
 
 export type ProjectPaths = {
@@ -242,7 +243,9 @@ export class ProjectService {
 
   /**
    * Reads persisted worker tool steps from a creation's logbook, reduced to one
-   * row per callId (later rows merge onto earlier ones), kept in first-seen order.
+   * row per callId (later rows merge onto earlier ones), kept in first-seen
+   * order. Direct Bit edit rows remain durable logbook history but are not
+   * shown as worker tool activity.
    */
   async readActivity(profileId: string, projectId: string): Promise<ToolActivity[]> {
     const paths = this.pathsFor(profileId, projectId);

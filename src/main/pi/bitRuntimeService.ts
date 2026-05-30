@@ -25,7 +25,7 @@ export type BitSession = {
 
 export type BitPromptInput = {
   profileId: string;
-  /** The kid's profile directory - read-only jail root for Bit's explorer tools. */
+  /** The kid's profile directory - jail root for Bit's explorer and tiny-edit tools. */
   profileRoot: string;
   conversationDir: string;
   bitSessionsDir: string;
@@ -76,9 +76,10 @@ type RunningTurn = {
 
 /**
  * Runs the per-profile Bit Pi session. One persistent session per profile,
- * created with the custom delegation tools and no built-in coding tools. Maps the
- * session's assistant text into profile-routed ChatEvents; Bit's own tool
- * calls (delegation) are intentionally not surfaced as chat activity.
+ * created with custom delegation tools, jailed profile tools, and no built-in
+ * coding tools. Maps the session's assistant text into profile-routed
+ * ChatEvents; Bit's own tool calls are intentionally not surfaced as chat
+ * activity.
  */
 export class BitRuntimeService implements BitRuntime {
   private readonly sessions = new Map<string, BitSession>();
