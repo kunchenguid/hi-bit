@@ -57,7 +57,7 @@ Then act as an expert designer in the Hi-Bit vocabulary and output HTML artifact
 
 - **One subject hue per screen.** The rainbow is the system; a single project or workspace moment picks one color. Don't use all five at once.
 - **Pixel is a spice, not the stew.** ~5% pixel type max. Body is rounded sans (Fredoka).
-- **No emoji in UI chrome.** Only in Bit's chat messages, end-of-message, on genuine wins.
+- **No emoji in UI chrome.** Only in Bit's chat messages, end-of-message, on genuine wins, except the first empty-chat idea sparks may use one emoji cue per temporary starter button.
 - **Never pure white on pure black.** Always paper-cream on ink, or night-indigo on phosphor.
 - **Hand-rolled SVG is the last resort for icons.** Use the pixel sprite sheet first; fall back to Lucide CDN for dense info surfaces.
 - **Buttons get a 2px pixel drop-shadow, not a blur.**
