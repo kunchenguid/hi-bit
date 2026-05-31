@@ -67,15 +67,45 @@ describe("PreviewPane", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("remounts the iframe when Reload is pressed so fresh files load", () => {
+  it("clears the HTTP cache, then remounts the iframe, when Reload is pressed", async () => {
+    const clearCache = vi.fn(() => Promise.resolve());
     act(() =>
-      root.render(<PreviewPane preview={snake} onOpenExternal={vi.fn()} onClose={vi.fn()} />),
+      root.render(
+        <PreviewPane
+          preview={snake}
+          clearCache={clearCache}
+          onOpenExternal={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      ),
     );
     const before = host.querySelector("iframe");
     clickByText(host, "Reload");
+    // The cache must be emptied before the iframe refetches, or the rebuilt files
+    // are served stale from Chromium's cache (the bug this guards against).
+    expect(clearCache).toHaveBeenCalledOnce();
+    await flushPromises();
     const after = host.querySelector("iframe");
     expect(after).not.toBe(before);
     expect(after?.getAttribute("src")).toBe("http://127.0.0.1:4310/");
+  });
+
+  it("still remounts the iframe if clearing the cache fails", async () => {
+    const clearCache = vi.fn(() => Promise.reject(new Error("nope")));
+    act(() =>
+      root.render(
+        <PreviewPane
+          preview={snake}
+          clearCache={clearCache}
+          onOpenExternal={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      ),
+    );
+    const before = host.querySelector("iframe");
+    clickByText(host, "Reload");
+    await flushPromises();
+    expect(host.querySelector("iframe")).not.toBe(before);
   });
 
   it("focuses the iframe once it loads so game controls work without a click", () => {
@@ -91,21 +121,42 @@ describe("PreviewPane", () => {
     expect(document.activeElement).toBe(frame);
   });
 
-  it("remounts the iframe when the reload signal changes (e.g. after a rebuild)", () => {
+  it("clears the cache and remounts when the reload signal changes (e.g. after a rebuild)", async () => {
+    const clearCache = vi.fn(() => Promise.resolve());
     act(() =>
       root.render(
-        <PreviewPane preview={snake} reloadSignal={0} onOpenExternal={vi.fn()} onClose={vi.fn()} />,
+        <PreviewPane
+          preview={snake}
+          reloadSignal={0}
+          clearCache={clearCache}
+          onOpenExternal={vi.fn()}
+          onClose={vi.fn()}
+        />,
       ),
     );
     const before = host.querySelector("iframe");
     act(() =>
       root.render(
-        <PreviewPane preview={snake} reloadSignal={1} onOpenExternal={vi.fn()} onClose={vi.fn()} />,
+        <PreviewPane
+          preview={snake}
+          reloadSignal={1}
+          clearCache={clearCache}
+          onOpenExternal={vi.fn()}
+          onClose={vi.fn()}
+        />,
       ),
     );
+    expect(clearCache).toHaveBeenCalledOnce();
+    await flushPromises();
     expect(host.querySelector("iframe")).not.toBe(before);
   });
 });
+
+function flushPromises(): Promise<void> {
+  return act(async () => {
+    await Promise.resolve();
+  });
+}
 
 function clickByText(host: HTMLElement, label: string): void {
   const button = Array.from(host.querySelectorAll("button")).find((candidate) =>

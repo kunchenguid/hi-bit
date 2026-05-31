@@ -56,6 +56,8 @@ export type HiBitApi = {
   preview: {
     play: (profileId: string, projectId: string) => Promise<PreviewInfo>;
     openExternal: (url: string) => Promise<void>;
+    /** Empties the HTTP cache so a preview reload refetches rebuilt files fresh. */
+    clearCache: () => Promise<void>;
   };
 };
 

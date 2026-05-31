@@ -35,6 +35,7 @@ type ChatWorkspaceProps = {
   onPlayPreview: (projectId: string) => void;
   onClosePreview: () => void;
   onOpenPreviewExternal: (url: string) => void;
+  onClearPreviewCache: () => Promise<void>;
 };
 
 export function ChatWorkspace({
@@ -63,6 +64,7 @@ export function ChatWorkspace({
   onPlayPreview,
   onClosePreview,
   onOpenPreviewExternal,
+  onClearPreviewCache,
 }: ChatWorkspaceProps) {
   const providerStatus = authStatus?.accountId
     ? `Codex provider connected (${authStatus.accountId})`
@@ -163,6 +165,7 @@ export function ChatWorkspace({
           <PreviewPane
             preview={activePreview}
             reloadSignal={reloadSignal}
+            clearCache={onClearPreviewCache}
             onOpenExternal={onOpenPreviewExternal}
             onClose={onClosePreview}
           />

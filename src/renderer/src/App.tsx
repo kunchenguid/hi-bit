@@ -312,6 +312,10 @@ export function App() {
     });
   }, []);
 
+  // Empty the HTTP cache before a preview reload so a rebuild's new files (and
+  // subresources) are refetched instead of replayed from Chromium's cache.
+  const clearPreviewCache = useCallback(() => window.hibit.preview.clearCache(), []);
+
   if (loadState === "loading") {
     return (
       <main className="hb-shell hb-loading-shell">
@@ -363,6 +367,7 @@ export function App() {
       onPlayPreview={playPreview}
       onClosePreview={closePreview}
       onOpenPreviewExternal={openPreviewExternal}
+      onClearPreviewCache={clearPreviewCache}
     />
   );
 }

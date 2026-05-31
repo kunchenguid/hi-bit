@@ -5,16 +5,24 @@ type PreviewPaneProps = {
   preview: PreviewInfo;
   /** Bumped by the parent to force a reload (e.g. after a rebuild finishes). */
   reloadSignal?: number;
+  /**
+   * Empties the HTTP cache before the iframe remounts. A bot rebuild changes a
+   * creation's files but its preview server keeps the same URL, so without this
+   * the remounted iframe replays Chromium's cached (stale) bytes. Optional so
+   * the pane still renders in isolation (e.g. tests) without the IPC bridge.
+   */
+  clearCache?: () => Promise<void>;
   onOpenExternal: (url: string) => void;
   onClose: () => void;
 };
 
 /**
  * The split-pane that plays a creation's live preview. Points a sandboxed iframe
- * at the creation's own loopback server. Reload remounts the frame so freshly
- * built files load; each load focuses the frame so game controls work without
- * an extra click; Open-in-browser hands the URL to the system browser; Close just
- * hides the pane (the server keeps running until Bit stops it).
+ * at the creation's own loopback server. Reload empties the HTTP cache and
+ * remounts the frame so freshly built files load (not Chromium's cached copies);
+ * each load focuses the frame so game controls work without an extra click;
+ * Open-in-browser hands the URL to the system browser; Close just hides the pane
+ * (the server keeps running until Bit stops it).
  *
  * The sandbox includes `allow-same-origin` so creations behave like real web
  * pages - they can use localStorage, IndexedDB, and cookies (high scores, saves,
@@ -27,13 +35,29 @@ type PreviewPaneProps = {
 export function PreviewPane({
   preview,
   reloadSignal = 0,
+  clearCache,
   onOpenExternal,
   onClose,
 }: PreviewPaneProps) {
-  // Remounting the iframe (new key) is the most reliable cross-server reload.
+  // Reloading is empty-the-cache-then-remount-the-iframe (new key). Remounting
+  // alone refetches the document, but the static preview servers send no
+  // Cache-Control, so Chromium would replay a rebuild's old bytes (and stale
+  // subresources) - clearing the HTTP cache first is what makes the kid see the
+  // newly built creation. A ref keeps the latest clearCache out of the reload
+  // effect's deps so a new prop identity can't trigger a spurious reload.
   const [reloadCount, setReloadCount] = useState(0);
+  const reloadRef = useRef<() => void>(() => {});
+  reloadRef.current = () => {
+    const remount = () => setReloadCount((count) => count + 1);
+    if (!clearCache) {
+      remount();
+      return;
+    }
+    // Remount even if clearing fails - a stale reload still beats no reload.
+    void clearCache().then(remount, remount);
+  };
   useEffect(() => {
-    if (reloadSignal > 0) setReloadCount((count) => count + 1);
+    if (reloadSignal > 0) reloadRef.current();
   }, [reloadSignal]);
 
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -48,11 +72,7 @@ export function PreviewPane({
         <span className="hb-preview-title" title={title}>
           {title}
         </span>
-        <button
-          type="button"
-          className="hb-preview-action"
-          onClick={() => setReloadCount((count) => count + 1)}
-        >
+        <button type="button" className="hb-preview-action" onClick={() => reloadRef.current()}>
           ↻ Reload
         </button>
         <button
