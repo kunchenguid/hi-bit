@@ -59,12 +59,12 @@ export type ChatSnapshot = {
    * this kind to show the bot-review thinking bubble without locking input.
    */
   activeTurn?: { id: string; kind: TurnKind } | null;
-  /** Creations with a live preview server right now, so Play is correct after a reload. */
+  /** Creations with a live preview server right now, so Play or the picker is correct after a reload. */
   previews: PreviewInfo[];
   /**
    * Creations that can be played - those Bit has previewed before, so their
-   * server can be restarted on demand. Superset of `previews`; lets Play recover
-   * after an app restart killed the live servers.
+   * server can be restarted on demand. Superset of `previews`; lets Play or the
+   * picker recover after an app restart killed the live servers.
    */
   playableProjectIds: string[];
 };
@@ -121,7 +121,7 @@ export type ChatEvent =
     } & ChatEventMeta)
   | ({ type: "profile_updated" } & ChatEventMeta)
   // Preview events carry no turn: Hi-Bit spawns/kills the server out of band and
-  // routes the result to the renderer by `profileId` to light up (or drop) Play.
+  // routes the result to the renderer by `profileId` to light up (or drop) Play or the picker.
   | {
       type: "preview_ready";
       profileId: string;
