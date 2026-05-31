@@ -165,7 +165,7 @@ export class ProfileService {
     });
   }
 
-  /** Marks that the kid has opened "See all activities" so the Logbook word can unlock. */
+  /** Marks that the kid has opened the Logbook so the word can unlock. */
   async markActivitiesOpened(profileId: string): Promise<ProfileSummary> {
     return this.withProfileWrite(profileId, async () => {
       const current = await this.get(profileId);

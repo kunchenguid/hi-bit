@@ -83,8 +83,8 @@ export function App() {
     clearChatState();
   }, [clearChatState]);
 
-  // Re-reads the kid's profile after a turn so a just-unlocked word can switch
-  // chrome labels (Workshop, Logbook) without clearing the live chat.
+  // Re-reads the kid's profile after a turn so just-unlocked words are
+  // available to Bit on the next turn without clearing the live chat.
   const refreshActiveProfile = useCallback(async () => {
     if (!activeProfileIdRef.current) return;
     try {

@@ -49,7 +49,7 @@ export type HiBitApi = {
     load: (profileId: string) => Promise<ChatSnapshot>;
     send: (profileId: string, text: string) => Promise<SendMessageResult>;
     abort: (profileId: string) => Promise<void>;
-    /** Records that the kid opened "See all activities", so the Logbook word can unlock. */
+    /** Records that the kid opened the Logbook, so the word can unlock. */
     markActivitiesOpened: (profileId: string) => Promise<void>;
     onEvent: (listener: (event: ChatEvent) => void) => Unsubscribe;
   };

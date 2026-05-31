@@ -324,7 +324,7 @@ describe("App", () => {
       });
     });
 
-    // The dots show with the kid-friendly pre-unlock caption...
+    // The dots show with the canonical bot caption...
     expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
     expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
     // ...but the composer stays open: Send (not Stop), input enabled.

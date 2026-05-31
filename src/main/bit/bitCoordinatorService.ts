@@ -865,8 +865,8 @@ export class BitCoordinatorService {
   }
 
   /**
-   * Records that the kid opened "See all activities", so the Logbook word can
-   * unlock and be revealed by Bit on the next turn.
+   * Records that the kid opened the Logbook, so the word can unlock and be
+   * revealed by Bit on the next turn.
    */
   async markActivitiesOpened(profileId: string): Promise<void> {
     await this.profiles.markActivitiesOpened(profileId);

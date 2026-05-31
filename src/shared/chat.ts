@@ -26,7 +26,7 @@ export type ToolActivity = {
 /**
  * One creation's build activity: visible bot tool steps plus whether a bot is
  * working on it right now. Direct Bit edits are durable logbook history, not
- * bot activity rows. Drives the "See all activities" view.
+ * bot activity rows. Drives the Logbook view.
  */
 export type CreationActivity = {
   projectId: string;

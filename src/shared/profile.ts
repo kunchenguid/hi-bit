@@ -22,7 +22,7 @@ import type { UnlockedConcept } from "./concepts";
 export type UnlockStats = {
   /** How many builds the kid has ever set off (creating or changing a creation). */
   buildsDelegated: number;
-  /** Whether the kid has opened "See all activities" at least once. */
+  /** Whether the kid has opened the Logbook at least once. */
   openedActivities: boolean;
 };
 

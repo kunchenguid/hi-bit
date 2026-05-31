@@ -119,7 +119,7 @@ export type UnlockFacts = {
   buildsDelegated: number;
   /** How many creations the kid currently has. */
   creationCount: number;
-  /** Whether the kid has opened "See all activities" at least once. */
+  /** Whether the kid has opened the Logbook at least once. */
   openedActivities: boolean;
 };
 
