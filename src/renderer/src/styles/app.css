@@ -534,9 +534,81 @@ pre {
 
 .hb-empty-chat {
   display: grid;
-  place-items: center;
+  place-content: center;
+  justify-items: center;
+  gap: var(--s-1);
   padding: var(--s-4);
+  text-align: center;
   color: var(--ink-64);
+}
+
+.hb-empty-greeting {
+  margin: 0;
+  font-size: var(--t-h3-size);
+  font-weight: var(--t-h3-weight);
+  line-height: var(--t-h3-lh);
+  color: var(--ink);
+}
+
+.hb-empty-chat .t-small {
+  margin: 0;
+  max-width: 38ch;
+}
+
+.hb-idea-sparks {
+  margin-top: var(--s-2);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-1\.5);
+  width: 100%;
+  max-width: 460px;
+}
+
+.hb-idea-spark {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 56px;
+  padding: var(--s-1\.5);
+  border: 2px solid var(--ink);
+  border-radius: var(--r-lg);
+  background: var(--paper-3);
+  box-shadow: var(--shadow-pixel);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--t-body-size);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--dur-quick) var(--ease-out),
+    box-shadow var(--dur-quick) var(--ease-out),
+    background var(--dur-quick) var(--ease-out);
+}
+
+.hb-idea-spark:hover {
+  background: var(--brand-wash);
+}
+
+.hb-idea-spark:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.hb-idea-spark:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow-brand);
+}
+
+.hb-idea-spark-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+@media (max-width: 520px) {
+  .hb-idea-sparks {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .hb-composer {

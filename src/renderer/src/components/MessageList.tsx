@@ -11,10 +11,30 @@ type MessageListProps = {
   /** Playable creations (running or restartable), so their "ready" message can offer Play. */
   playableProjectIds?: Set<string>;
   onPlay?: (projectId: string) => void;
+  /** The builder's name, so the day-one empty state can greet them warmly. */
+  builderName?: string;
+  /** Drop a starter idea into the composer (the kid still presses Send). */
+  onPickIdea?: (text: string) => void;
 };
 
 const botResultCaption = (botUnlocked: boolean) =>
   `Bit is checking out what the ${botUnlocked ? "bot" : "builder"} made...`;
+
+// Idea sparks for the very first screen, before any message exists. Tapping one
+// fills the composer with an editable starter sentence - it never sends. These
+// live ONLY on the empty state and disappear the instant the thread has a
+// message, which is what keeps them clear of the "no fixed CTA wall under Bit's
+// replies" rule. Wording stays in day-one kid vocabulary (build, game, page).
+const IDEA_SPARKS: ReadonlyArray<{ emoji: string; label: string; fill: string }> = [
+  { emoji: "🎮", label: "A tiny game", fill: "a tiny game where I dodge falling rocks" },
+  { emoji: "⭐", label: "A page about me", fill: "a page about me and my favorite things" },
+  {
+    emoji: "🔊",
+    label: "A silly sound button",
+    fill: "a button that makes a silly sound when I click it",
+  },
+  { emoji: "🎲", label: "Surprise me", fill: "surprise me with something fun to build" },
+];
 
 /** How close to the bottom (px) still counts as "looking at the latest". */
 const STICK_THRESHOLD = 24;
@@ -26,6 +46,8 @@ export function MessageList({
   botUnlocked = false,
   playableProjectIds,
   onPlay,
+  builderName,
+  onPickIdea,
 }: MessageListProps) {
   const listRef = useRef<HTMLOListElement>(null);
   // Whether the kid is parked at the bottom. Stays true until they scroll up to
@@ -50,9 +72,25 @@ export function MessageList({
   if (messages.length === 0 && !thinking) {
     return (
       <div className="hb-empty-chat">
-        <p className="t-small">
-          Ask Bit to build a button, a tiny game, a fan page, or anything web-shaped.
+        <p className="hb-empty-greeting">
+          {builderName ? `Hi ${builderName}! ` : ""}Ready to build?
         </p>
+        <p className="t-small">Tap an idea to start, or just type your own.</p>
+        <div className="hb-idea-sparks">
+          {IDEA_SPARKS.map((spark) => (
+            <button
+              key={spark.label}
+              type="button"
+              className="hb-idea-spark"
+              onClick={() => onPickIdea?.(spark.fill)}
+            >
+              <span className="hb-idea-spark-emoji" aria-hidden="true">
+                {spark.emoji}
+              </span>
+              {spark.label}
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
