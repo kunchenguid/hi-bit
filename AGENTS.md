@@ -110,6 +110,25 @@ curl -s http://127.0.0.1:9222/json/version   # sanity-check: should report Elect
 
 `http://127.0.0.1:9222/json` lists page targets. The renderer you want is the one with `"url": "http://localhost:5173/"` and `"title": "Hi-Bit"`.
 
+### Fresh state without losing Codex auth (`HIBIT_USER_DATA_DIR`)
+
+`pnpm dev` runs against the real `userData` dir, so a plain run inherits your Codex auth but also mutates real profiles and projects.
+Wiping `<userData>/.hi-bit/` for a clean slate also wipes `auth/codex.json`, which drops you on the Codex sign-in gate - and an agent can't complete that OAuth flow on its own.
+
+To get a fresh profiles/projects state that still starts signed in, point the dev build at an isolated userData dir with `HIBIT_USER_DATA_DIR` (dev-only; ignored in packaged builds):
+
+```
+HIBIT_USER_DATA_DIR=/tmp/hibit-e2e pnpm dev -- --remote-debugging-port=9222
+```
+
+On first launch with an isolated dir that has no auth yet, the app copies `codex.json` from your real userData (`~/Library/Application Support/hi-bit/.hi-bit/auth/codex.json` on macOS) into the isolated dir, so you land straight in the profile gate instead of the sign-in gate.
+The copy only fills a missing file: if you sign a different account into the isolated dir, that wins and is never overwritten.
+Codex tokens are encrypted with Electron's keychain-bound `safeStorage`, not anything tied to the dir path, so the copied file stays valid on the same machine and OS user.
+The main process logs `[hi-bit] isolated userData at <dir> (codex auth: seeded|already-present|no-source)` so you can confirm what happened.
+
+Use a fresh dir name (or `rm -rf` the old one) per run when you want a clean slate; reuse the same dir across runs when you want state to persist between them.
+This never touches the real userData, so it is the safe default for destructive or first-run flows.
+
 ### Attach chrome-devtools-axi to Electron
 
 The axi bridge caches its target. If it was previously connected to a different Chrome, you MUST stop it first or it will keep reporting that other session's pages:
@@ -155,7 +174,7 @@ Do not leave background dev apps, CDP endpoints, or AXI bridge processes running
 - Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-level chat, Bit-delegated creation work, live preview Play controls, abort, and opening the creations folder.
 - Can: IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
 - Cannot directly: main-process internals such as token refresh, project file writes, or Pi runtime turns except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
-- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).
+- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. For a clean slate that still starts signed in, prefer an isolated dir via `HIBIT_USER_DATA_DIR` (see "Fresh state without losing Codex auth" above) rather than deleting `<userData>/.hi-bit/` - a delete also wipes `auth/codex.json` and strands you on the Codex sign-in gate.
 
 ## Project conventions
 

@@ -96,6 +96,61 @@ describe("ActivityChip", () => {
     expect(host.textContent).toContain("working on your Workshop");
   });
 
+  it("offers a direct Play when only one creation exists", () => {
+    const onPlay = vi.fn();
+    const onSeeCreations = vi.fn();
+
+    act(() =>
+      root.render(
+        <ActivityChip
+          activity={[]}
+          playProjectId="cat-jump"
+          onPlay={onPlay}
+          creationCount={1}
+          onSeeCreations={onSeeCreations}
+          onSeeAll={vi.fn()}
+        />,
+      ),
+    );
+
+    const play = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+      button.textContent?.includes("Play"),
+    );
+    expect(play?.textContent).toContain("Play");
+    expect(host.textContent).not.toContain("Your creations");
+
+    act(() => play?.click());
+    expect(onPlay).toHaveBeenCalledWith("cat-jump");
+    expect(onSeeCreations).not.toHaveBeenCalled();
+  });
+
+  it("swaps Play for a creation picker once there is more than one creation", () => {
+    const onPlay = vi.fn();
+    const onSeeCreations = vi.fn();
+
+    act(() =>
+      root.render(
+        <ActivityChip
+          activity={[]}
+          playProjectId="cat-jump"
+          onPlay={onPlay}
+          creationCount={2}
+          onSeeCreations={onSeeCreations}
+          onSeeAll={vi.fn()}
+        />,
+      ),
+    );
+
+    const picker = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+      button.textContent?.includes("Your creations"),
+    );
+    expect(picker).toBeDefined();
+
+    act(() => picker?.click());
+    expect(onSeeCreations).toHaveBeenCalledOnce();
+    expect(onPlay).not.toHaveBeenCalled();
+  });
+
   it("always reserves the detail line so the bar height never shifts", () => {
     // Idle with nothing built yet: there is no detail string to show.
     act(() => root.render(<ActivityChip activity={[]} onSeeAll={vi.fn()} />));

@@ -14,9 +14,26 @@ import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
 import { readJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
+import { seedCodexAuthIfMissing } from "./storage/seedAuth";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
+
+// The real, default userData dir - captured before any override so it can also
+// be the seed source for Codex auth in isolated dev runs.
+const defaultUserDataDir = app.getPath("userData");
+
+/**
+ * In dev, an isolated userData dir can be requested via `HIBIT_USER_DATA_DIR`
+ * so agent-driven E2E runs get a fresh profiles/projects state without touching
+ * real data. Ignored in packaged builds. When set, Codex auth is seeded from
+ * the real userData (see startup) so the app starts past the sign-in gate that
+ * an agent can't clear on its own.
+ */
+const isolatedUserDataDir =
+  !app.isPackaged && process.env.HIBIT_USER_DATA_DIR?.trim()
+    ? process.env.HIBIT_USER_DATA_DIR.trim()
+    : null;
 
 type Services = {
   layout: HiBitLayout;
@@ -31,7 +48,7 @@ type Services = {
 };
 
 function hiBitRootFor(): string {
-  return join(app.getPath("userData"), ".hi-bit");
+  return join(isolatedUserDataDir ?? defaultUserDataDir, ".hi-bit");
 }
 
 /**
@@ -214,6 +231,15 @@ function broadcastChatEvent(event: ChatEvent): void {
 
 void app.whenReady().then(async () => {
   const layout = await bootstrapLayout(hiBitRootFor());
+  if (isolatedUserDataDir) {
+    // Inherit the real Codex auth into the fresh dir so the app starts signed
+    // in. Only fills a missing file; a separately signed-in isolated dir wins.
+    const result = await seedCodexAuthIfMissing({
+      sourcePath: join(defaultUserDataDir, ".hi-bit", "auth", "codex.json"),
+      targetPath: layout.codexAuthPath,
+    });
+    console.log(`[hi-bit] isolated userData at ${isolatedUserDataDir} (codex auth: ${result})`);
+  }
   const services = await createServices(layout);
   services.bit.subscribe(broadcastChatEvent);
   registerIpc(services);

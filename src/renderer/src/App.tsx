@@ -1,6 +1,7 @@
 import type { AuthStatus } from "@shared/auth";
 import type { ChatEvent, ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
+import type { ProjectSummary } from "@shared/project";
 import {
   type Dispatch,
   type SetStateAction,
@@ -38,6 +39,9 @@ export function App() {
   // Creations that can be (re)played - running or restartable from a remembered
   // command. Survives preview_stopped and an app restart, unlike `previews`.
   const [playableProjectIds, setPlayableProjectIds] = useState<string[]>([]);
+  // The kid's full set of creations (their Workshop), used to decide whether the
+  // status-bar Play becomes a picker and to populate it.
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
   // Per-creation reload counters: bumped on build_end so an open pane refreshes.
   const [reloadSignals, setReloadSignals] = useState<Record<string, number>>({});
@@ -60,6 +64,7 @@ export function App() {
     setActiveTurn(null);
     setPreviews([]);
     setPlayableProjectIds([]);
+    setProjects([]);
     setActivePreviewId(null);
     setReloadSignals({});
   }, []);
@@ -94,6 +99,20 @@ export function App() {
     }
   }, []);
 
+  // Re-reads the kid's creation list so the status-bar picker (Play vs "Your
+  // creations") and its contents stay current as builds finish and previews
+  // start. A listing failure is silent: it must never interrupt the chat.
+  const refreshProjects = useCallback(async () => {
+    const id = activeProfileIdRef.current;
+    if (!id) return;
+    try {
+      const list = await window.hibit.projects.list(id);
+      if (activeProfileIdRef.current === id) setProjects(list);
+    } catch {
+      // A creation-list refresh failing is not worth interrupting the kid over.
+    }
+  }, []);
+
   const showActivityView = useCallback(() => {
     setShowActivity(true);
     const id = activeProfileIdRef.current;
@@ -123,6 +142,7 @@ export function App() {
   useEffect(() => {
     if (!activeProfileId || !authStatus?.authenticated) return;
     let cancelled = false;
+    void refreshProjects();
     window.hibit.chat
       .load(activeProfileId)
       .then((snapshot) => {
@@ -143,7 +163,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeProfileId, authStatus?.authenticated]);
+  }, [activeProfileId, authStatus?.authenticated, refreshProjects]);
 
   useEffect(() => {
     return window.hibit.chat.onEvent((event) => {
@@ -159,8 +179,17 @@ export function App() {
         setReloadSignals,
       });
       if (event.type === "profile_updated") void refreshActiveProfile();
+      // A new creation can appear (a build creating one) or change playability
+      // (a preview starting); keep the picker's list and Play/picker swap fresh.
+      if (
+        event.type === "build_end" ||
+        event.type === "turn_end" ||
+        event.type === "preview_ready"
+      ) {
+        void refreshProjects();
+      }
     });
-  }, [activeProfileId, refreshActiveProfile]);
+  }, [activeProfileId, refreshActiveProfile, refreshProjects]);
 
   const login = useCallback(async () => {
     setBusy(true);
@@ -354,6 +383,7 @@ export function App() {
       error={error}
       previews={previews}
       playableProjectIds={playableProjectIds}
+      creations={projects}
       activePreview={activePreview}
       reloadSignal={activeReloadSignal}
       onDraftChange={setDraft}
