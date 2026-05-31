@@ -12,7 +12,7 @@ import type { ChatEvent } from "@shared/chat";
 import type { RuntimeProject } from "../projects/projectService";
 import { createGenerateImageTool } from "./imageGenTool";
 import { chatEventsFromPiEvent } from "./piMessages";
-import { createWorkerResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
+import { createBotResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
 import { createProcessSpriteTool } from "./processSpriteTool";
 import { createWebSearchTools } from "./webSearchTools";
 
@@ -33,7 +33,7 @@ export type CreateRuntimeSessionInput = {
   agentDir: string;
   modelId: string;
   customTools: ToolDefinition[];
-  /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to the worker. */
+  /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to the bot. */
   skillsDir?: string;
 };
 
@@ -50,7 +50,7 @@ type PiRuntimeServiceOptions = {
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   onSessionFile?: (projectId: string, sessionFile: string | undefined) => Promise<void> | void;
-  /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to workers. */
+  /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to bots. */
   skillsDir?: string;
 };
 
@@ -70,13 +70,13 @@ export class PiRuntimeService {
   constructor(private readonly options: PiRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
     this.createSession = options.createSession ?? createRealPiSession;
-    // Workers can draw real assets straight into their Workbench. generate_image pulls
+    // Bots can draw real assets straight into their Workbench. generate_image pulls
     // a fresh Codex token per call so long builds don't fail on an expired session key;
     // process_sprite_sheet is a free local pass that turns a raw magenta sheet into a
     // game-ready transparent sprite sheet (see the game-assets skill). The web tools let
-    // a worker look up current docs/examples: web_search runs on the same Codex backend
+    // a bot look up current docs/examples: web_search runs on the same Codex backend
     // and token as generate_image, fetch_content reads a page locally - their names flow
-    // into the allowlist through workerToolNames().
+    // into the allowlist through botToolNames().
     this.customTools = [
       createGenerateImageTool({
         getFreshAccessToken: options.getFreshAccessToken,
@@ -254,7 +254,7 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     enableInstallTelemetry: false,
   });
 
-  const resourceLoader = createWorkerResourceLoader(undefined, { skillsDir: input.skillsDir });
+  const resourceLoader = createBotResourceLoader(undefined, { skillsDir: input.skillsDir });
   await resourceLoader.reload();
 
   const { session } = await createAgentSession({
@@ -269,8 +269,8 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     settingsManager,
     // The `tools` allowlist gates custom tools too: any custom tool whose name
     // isn't listed is silently disabled. So every registered custom tool MUST be
-    // named here, or the worker never sees art, sprite-processing, or web tools.
-    tools: workerToolNames(input.customTools),
+    // named here, or the bot never sees art, sprite-processing, or web tools.
+    tools: botToolNames(input.customTools),
     customTools: input.customTools,
   });
 
@@ -282,10 +282,10 @@ function runtimeKeyFor(project: RuntimeProject): string {
 }
 
 /**
- * The worker's tool allowlist: the built-in file tools plus every registered
+ * The bot's tool allowlist: the built-in file tools plus every registered
  * custom tool by name. Pi's `tools` allowlist filters custom tools too, so the
  * custom tool names must be included or they stay invisible to the agent.
  */
-export function workerToolNames(customTools: ToolDefinition[]): string[] {
+export function botToolNames(customTools: ToolDefinition[]): string[] {
   return [...HI_BIT_ACTIVE_TOOLS, ...customTools.map((tool) => tool.name)];
 }

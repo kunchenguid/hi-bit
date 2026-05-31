@@ -200,11 +200,11 @@ export function createProfileReadTools(profileRoot: string): ToolDefinition[] {
  * The full toolset for Bit, the coordinating session: the read explorers plus
  * `write` and `edit`, confined to creation main-workbench directories. This
  * lets Bit make tiny, trivial fixes itself (a word, a color, one line) instead
- * of waking a worker for everything, while the prompt steers anything bigger to
+ * of waking a bot for everything, while the prompt steers anything bigger to
  * `delegate_build`.
  *
  * Bash is intentionally NOT included: it cannot be routed through the path
- * guard, so granting it would let Bit escape the profile jail. The worker keeps
+ * guard, so granting it would let Bit escape the profile jail. The bot keeps
  * bash because it runs isolated in a git worktree.
  */
 export function createProfileTools(

@@ -51,7 +51,7 @@ describe("ProjectService", () => {
     await expect(stat(paths.workbenchesDir)).resolves.toBeTruthy();
     await expect(stat(paths.bitSessionsDir)).resolves.toBeTruthy();
     await expect(stat(paths.botSessionsDir)).resolves.toBeTruthy();
-    await expect(stat(paths.buildPlansDir)).resolves.toBeTruthy();
+    await expect(stat(paths.blueprintsDir)).resolves.toBeTruthy();
     await expect(stat(paths.botJobsDir)).resolves.toBeTruthy();
     await expect(stat(paths.machinesDir)).resolves.toBeTruthy();
     await expect(stat(paths.assemblyLineDir)).resolves.toBeTruthy();

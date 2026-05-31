@@ -10,9 +10,9 @@ import { Type } from "typebox";
 import { extractCodexAccountId } from "../auth/codexOAuth";
 
 /**
- * Web-access tools for worker bots.
+ * Web-access tools for bot bots.
  *
- * Workers build kids' web apps and sometimes need to look something up - current
+ * Bots build kids' web apps and sometimes need to look something up - current
  * library/API docs, an example, a reference page. Two tools cover that with no
  * third-party dependency:
  *
@@ -23,7 +23,7 @@ import { extractCodexAccountId } from "../auth/codexOAuth";
  *   to Codex's cached index (no live page fetching), which keeps the
  *   prompt-injection surface small for a young audience; pass `live: true` to
  *   fetch fresh pages.
- * - `fetch_content` pulls a page the worker already has the URL for and turns
+ * - `fetch_content` pulls a page the bot already has the URL for and turns
  *   the readable article into markdown locally (Readability + turndown), so only
  *   the URL leaves the machine. Long pages are parked in an in-memory store and
  *   handed back as an id (`get_search_content`) so a creation's logbook never

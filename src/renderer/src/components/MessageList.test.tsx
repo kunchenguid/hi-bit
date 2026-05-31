@@ -50,13 +50,14 @@ describe("MessageList", () => {
     expect(host.querySelector(".hb-message-thinking")).toBeNull();
   });
 
-  it("captions the thinking bubble when Bit is digesting a worker result", () => {
+  it("captions the thinking bubble when Bit is digesting a bot result", () => {
     act(() =>
       root.render(
         <MessageList
           messages={[assistantMessage]}
           thinking={true}
-          thinkingReason="worker_result"
+          thinkingReason="bot_result"
+          botUnlocked={true}
         />,
       ),
     );
@@ -64,6 +65,19 @@ describe("MessageList", () => {
     expect(bubble).not.toBeNull();
     expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
     expect(bubble?.getAttribute("aria-label")).toContain("bot");
+  });
+
+  it("uses the pre-unlock builder word while Bit digests a bot result", () => {
+    act(() =>
+      root.render(
+        <MessageList messages={[assistantMessage]} thinking={true} thinkingReason="bot_result" />,
+      ),
+    );
+    const bubble = host.querySelector(".hb-message-thinking");
+    expect(bubble).not.toBeNull();
+    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("builder");
+    expect(bubble?.getAttribute("aria-label")).toContain("builder");
+    expect(host.textContent).not.toContain("bot");
   });
 
   it("shows no caption for a plain reply thinking bubble", () => {

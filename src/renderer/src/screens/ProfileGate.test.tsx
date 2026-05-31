@@ -67,5 +67,8 @@ function adaProfile() {
     interests: ["space"],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    unlockedConcepts: [],
+    pendingConceptReveals: [],
+    unlockStats: { buildsDelegated: 0, openedActivities: false },
   };
 }

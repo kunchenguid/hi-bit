@@ -30,7 +30,7 @@ export function App() {
   const [running, setRunning] = useState(false);
   // The Bit turn currently producing output, set on turn_start and cleared on
   // turn_end. `running` drives the composer (a reply locks input); `activeTurn`
-  // drives the "thinking" bubble - including for background worker-result turns,
+  // drives the "thinking" bubble - including for background bot-result turns,
   // which must NOT lock the kid's composer.
   const [activeTurn, setActiveTurn] = useState<{ id: string; kind: TurnKind } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +83,23 @@ export function App() {
     clearChatState();
   }, [clearChatState]);
 
+  // Re-reads the kid's profile after a turn so a just-unlocked word can switch
+  // chrome labels (Workshop, Logbook) without clearing the live chat.
+  const refreshActiveProfile = useCallback(async () => {
+    if (!activeProfileIdRef.current) return;
+    try {
+      setProfiles(await window.hibit.profiles.list());
+    } catch {
+      // A label refresh failing is not worth interrupting the kid over.
+    }
+  }, []);
+
+  const showActivityView = useCallback(() => {
+    setShowActivity(true);
+    const id = activeProfileIdRef.current;
+    if (id) void window.hibit.chat.markActivitiesOpened(id).catch(() => {});
+  }, []);
+
   const refreshAuth = useCallback(async () => {
     setLoadState("loading");
     setError(null);
@@ -113,7 +130,7 @@ export function App() {
         setMessages(snapshot.messages);
         setActivity(snapshot.activity);
         setActiveTurn(snapshot.activeTurn ?? null);
-        setRunning(snapshot.activeTurn?.kind === "worker_result" ? false : snapshot.isRunning);
+        setRunning(snapshot.activeTurn?.kind === "bot_result" ? false : snapshot.isRunning);
         setPreviews(snapshot.previews);
         setPlayableProjectIds(snapshot.playableProjectIds);
       })
@@ -141,8 +158,9 @@ export function App() {
         setPlayableProjectIds,
         setReloadSignals,
       });
+      if (event.type === "profile_updated") void refreshActiveProfile();
     });
-  }, [activeProfileId]);
+  }, [activeProfileId, refreshActiveProfile]);
 
   const login = useCallback(async () => {
     setBusy(true);
@@ -229,7 +247,7 @@ export function App() {
     if (!text) return;
     setDraft("");
     setError(null);
-    if (activeTurn?.kind !== "worker_result") {
+    if (activeTurn?.kind !== "bot_result") {
       setRunning(true);
     }
     setMessages((current) => [
@@ -340,7 +358,7 @@ export function App() {
       onOpenFolder={openFolder}
       onSwitchProfile={switchProfile}
       onUpdateProfile={updateProfile}
-      onShowActivity={() => setShowActivity(true)}
+      onShowActivity={showActivityView}
       onHideActivity={() => setShowActivity(false)}
       onPlayPreview={playPreview}
       onClosePreview={closePreview}
@@ -375,7 +393,7 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
     case "turn_start": {
       const kind = event.kind ?? "reply";
       setActiveTurn({ id: event.turnId, kind });
-      // A worker-result turn is Bit catching up on a background build: show it is
+      // A bot-result turn is Bit catching up on a background build: show it is
       // thinking, but don't lock the composer or flip Send to Stop - the kid is
       // free to keep chatting (their turn queues behind it on the server).
       if (kind === "reply") {
@@ -426,7 +444,7 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
     case "turn_end": {
       // Turns are serialized per profile, so the ending turn is the active one.
       setActiveTurn((current) => (current?.id === event.turnId ? null : current));
-      // A worker-result turn never owned `running`, so leave the composer alone;
+      // A bot-result turn never owned `running`, so leave the composer alone;
       // its failures are handled by Bit's own gentle completion message.
       if ((event.kind ?? "reply") === "reply") {
         setRunning(false);

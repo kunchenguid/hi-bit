@@ -6,7 +6,7 @@ import type { CreateProjectInput, ProjectRecord, ProjectSummary } from "@shared/
 import { appendJsonl, readJsonFile, readJsonl, writeJsonFile } from "../storage/json";
 import { type HiBitLayout, projectDir, projectsDir } from "../storage/layout";
 
-/** One appended logbook line recording a worker tool step (start or end). */
+/** One appended logbook line recording a bot tool step (start or end). */
 type ToolStepRow = {
   type: "tool_step";
   callId: string;
@@ -35,7 +35,7 @@ export type ProjectPaths = {
   workbenchesDir: string;
   bitSessionsDir: string;
   botSessionsDir: string;
-  buildPlansDir: string;
+  blueprintsDir: string;
   botJobsDir: string;
   machinesDir: string;
   assemblyLineDir: string;
@@ -91,7 +91,7 @@ export class ProjectService {
       mkdir(paths.workbenchesDir, { recursive: true }),
       mkdir(paths.bitSessionsDir, { recursive: true }),
       mkdir(paths.botSessionsDir, { recursive: true }),
-      mkdir(paths.buildPlansDir, { recursive: true }),
+      mkdir(paths.blueprintsDir, { recursive: true }),
       mkdir(paths.botJobsDir, { recursive: true }),
       mkdir(paths.machinesDir, { recursive: true }),
       mkdir(paths.assemblyLineDir, { recursive: true }),
@@ -242,10 +242,10 @@ export class ProjectService {
   }
 
   /**
-   * Reads persisted worker tool steps from a creation's logbook, reduced to one
+   * Reads persisted bot tool steps from a creation's logbook, reduced to one
    * row per callId (later rows merge onto earlier ones), kept in first-seen
    * order. Direct Bit edit rows remain durable logbook history but are not
-   * shown as worker tool activity.
+   * shown as bot tool activity.
    */
   async readActivity(profileId: string, projectId: string): Promise<ToolActivity[]> {
     const paths = this.pathsFor(profileId, projectId);
@@ -316,7 +316,7 @@ export class ProjectService {
       workbenchesDir: join(dir, "workbenches"),
       bitSessionsDir: join(dir, "sessions", "bit"),
       botSessionsDir: join(dir, "sessions", "bots"),
-      buildPlansDir: join(dir, "build-plans"),
+      blueprintsDir: join(dir, "blueprints"),
       botJobsDir: join(dir, "jobs"),
       machinesDir: join(dir, "machines"),
       assemblyLineDir: join(dir, "assembly-line"),

@@ -37,7 +37,7 @@ function hiBitRootFor(): string {
 /**
  * Bundled Hi-Bit skills (e.g. create-2d-game, create-3d-game, game-assets). In dev they live in the repo's
  * `skills/`; packaged, electron-builder copies them to `resourcesPath/skills`
- * (see `extraResources` in electron-builder.yml). The worker reads each
+ * (see `extraResources` in electron-builder.yml). The bot reads each
  * SKILL.md on demand, so the directory just needs to be readable on disk.
  */
 function skillsDirFor(): string {
@@ -110,7 +110,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     projects,
     conversation,
     bit: bitRuntime,
-    worker: runtime,
+    bot: runtime,
     preview,
   });
   return { layout, auth, profiles, projects, conversation, bit, runtime, bitRuntime, preview };
@@ -167,6 +167,9 @@ export function registerIpc(services: Services): void {
     services.bit.send(profileId, text),
   );
   ipcMain.handle("hibit:chat:abort", (_event, profileId: string) => services.bit.abort(profileId));
+  ipcMain.handle("hibit:chat:mark-activities-opened", (_event, profileId: string) =>
+    services.bit.markActivitiesOpened(profileId),
+  );
 
   ipcMain.handle("hibit:preview:play", (_event, profileId: string, projectId: string) =>
     services.bit.playPreview(profileId, projectId),

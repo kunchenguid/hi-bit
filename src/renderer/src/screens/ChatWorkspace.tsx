@@ -1,5 +1,6 @@
 import type { AuthStatus } from "@shared/auth";
 import type { ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
+import { isConceptUnlocked } from "@shared/concepts";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import { ActivityChip } from "../components/ActivityChip";
 import { ActivityView } from "../components/ActivityView";
@@ -71,14 +72,22 @@ export function ChatWorkspace({
   // token (and any tool-only stretches). Once the active turn's own bubble is
   // streaming, its text is the liveness cue and the dots step aside. Keying off
   // the active turn's id (not "is the last message an assistant one") is what
-  // lets a worker-result turn surface dots even when an older Bit reply is the
+  // lets a bot-result turn surface dots even when an older Bit reply is the
   // last message on screen.
   const activeBubbleId = activeTurn ? `assistant-${activeTurn.id}` : null;
   const streaming = activeBubbleId !== null && messages.some((m) => m.id === activeBubbleId);
   const thinking = (running || activeTurn !== null) && !streaming;
-  // Word the bubble for the kid: a worker-result turn is Bit reading what a
+  // Word the bubble for the kid: a bot-result turn is Bit reading what a
   // bot just built, anything else is Bit replying to the builder.
-  const thinkingReason: TurnKind = activeTurn?.kind === "worker_result" ? "worker_result" : "reply";
+  const thinkingReason: TurnKind = activeTurn?.kind === "bot_result" ? "bot_result" : "reply";
+
+  // Chrome labels follow the kid's unlocked vocabulary: the collection becomes
+  // "your Workshop" and the activity surface becomes "Logbook" once earned.
+  const botUnlocked = isConceptUnlocked(profile.unlockedConcepts, "bot");
+  const workshopUnlocked = isConceptUnlocked(profile.unlockedConcepts, "workshop");
+  const logbookUnlocked = isConceptUnlocked(profile.unlockedConcepts, "logbook");
+  const collectionLabel = workshopUnlocked ? "your Workshop" : "your creations";
+  const seeAllLabel = logbookUnlocked ? "Open Logbook" : "See all activities";
 
   // A creation is playable if it has a remembered preview (running or
   // restartable). Running previews are always playable too.
@@ -127,6 +136,7 @@ export function ChatWorkspace({
             messages={messages}
             thinking={thinking}
             thinkingReason={thinkingReason}
+            botUnlocked={botUnlocked}
             playableProjectIds={playable}
             onPlay={onPlayPreview}
           />
@@ -134,6 +144,9 @@ export function ChatWorkspace({
             activity={activity}
             running={running}
             playProjectId={barPlayProjectId}
+            collectionLabel={collectionLabel}
+            botUnlocked={botUnlocked}
+            seeAllLabel={seeAllLabel}
             onPlay={onPlayPreview}
             onSeeAll={onShowActivity}
           />
@@ -156,7 +169,14 @@ export function ChatWorkspace({
         ) : null}
       </section>
 
-      {showActivity ? <ActivityView activity={activity} onClose={onHideActivity} /> : null}
+      {showActivity ? (
+        <ActivityView
+          activity={activity}
+          logbookUnlocked={logbookUnlocked}
+          botUnlocked={botUnlocked}
+          onClose={onHideActivity}
+        />
+      ) : null}
     </main>
   );
 }

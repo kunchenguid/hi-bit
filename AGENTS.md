@@ -14,25 +14,73 @@ This file is the canonical architecture and workflow guide for the current app. 
 ## Stack and layout
 
 - Electron 41, electron-vite, React 19, Vitest, Biome. TypeScript throughout.
-- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory/profile layout; `auth/` owns Codex OAuth and token refresh; `profiles/` owns kid profile records and the active profile id; `conversation/` owns the profile-level transcript and active Bit session state; `projects/` owns profile-scoped creation records, starter files, workbench paths, and project logbooks; `preview/` owns per-creation local preview processes; `pi/` adapts the Pi coding runtime, Bit's jailed `read`/`ls`/`grep`/`find` explorer tools and `write`/`edit` tools for tiny main-workbench fixes with built-in filesystem tools disabled, bundled worker skills loaded from `skills/` (including `create-2d-game`, `create-3d-game`, and `game-assets`), worker asset tools for Codex-backed image generation plus local sprite-sheet processing, and worker web tools (`web_search` via the Codex Responses backend's native hosted `web_search` tool on the same token as image generation - cached by default, `live: true` for fresh pages; `fetch_content` for local page-to-markdown extraction; and `get_search_content` for parked large payloads); `bots/` owns build plans, bot jobs, isolated git worktree workbenches, machine inspections, and assembly-line installs; `bit/` coordinates the profile-level Bit chat, delegates substantive work to background workers, and records direct Bit edits in creation logbooks.
-  Each profile has one continuous Bit conversation under `conversation/`, with Bit sessions under `conversation/sessions/bit`. Project folders live under `<userData>/.hi-bit/factories/default/profiles/<profileId>/projects/<projectId>/` and include `build-plans`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
+- `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory/profile layout; `auth/` owns Codex OAuth and token refresh; `profiles/` owns kid profile records and the active profile id; `conversation/` owns the profile-level transcript and active Bit session state; `projects/` owns profile-scoped creation records, starter files, workbench paths, and project logbooks; `preview/` owns per-creation local preview processes; `pi/` adapts the Pi coding runtime, Bit's jailed `read`/`ls`/`grep`/`find` explorer tools and `write`/`edit` tools for tiny main-workbench fixes with built-in filesystem tools disabled, bundled bot skills loaded from `skills/` (including `create-2d-game`, `create-3d-game`, and `game-assets`), bot asset tools for Codex-backed image generation plus local sprite-sheet processing, and bot web tools (`web_search` via the Codex Responses backend's native hosted `web_search` tool on the same token as image generation - cached by default, `live: true` for fresh pages; `fetch_content` for local page-to-markdown extraction; and `get_search_content` for parked large payloads); `bots/` owns blueprints, bot jobs, isolated git worktree workbenches, machine inspections, and assembly-line installs; `bit/` coordinates the profile-level Bit chat, delegates substantive work to background bots, and records direct Bit edits in creation logbooks.
+  Each profile has one continuous Bit conversation under `conversation/`, with Bit sessions under `conversation/sessions/bit`. Project folders live under `<userData>/.hi-bit/factories/default/profiles/<profileId>/projects/<projectId>/` and include `blueprints`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer, including preview-safe IPC helpers. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer, message list, preview pane, profile settings menu, activity chip with persistent Play, and full activity log.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
 - `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
-- `prompts/bit.md` and `prompts/worker.md` - Bit and worker bot system prompts. Product content, not code; edit them like you'd edit docs.
+- `prompts/bit.md` and `prompts/bot.md` - Bit and bot system prompts. Product content, not code; edit them like you'd edit docs.
 - `design/` - design tokens and the shared stylesheet the renderer consumes.
+
+## Fantasy terminology canon (do not drift)
+
+Hi-Bit leans into a "futuristic factory" fantasy, but every word is deliberate.
+This section is the canonical vocabulary; do not rename, swap synonyms, or introduce new metaphor words without updating it here first.
+This canon binds **both layers**: kid-facing text (UI copy, Bit's and the bot's prompts, error and activity strings) must use the kid-facing word, and the **codebase** (types, services, variables, IPC channels, on-disk paths, comments) must use the code counterpart in the same row.
+When you touch either layer, keep it consistent with the other and with this table - no off-canon synonyms in either one.
+The one deliberate split is **creation** (everything kid-facing) vs **project** (the code counterpart for the same record); every other row uses one family of words across both layers.
+The locking decisions (recorded in the terminology review): the background builder agent is a **bot** - never "worker" or "helper"; the kid is the **builder**.
+
+| Term | Who says it | What it means | Code counterpart |
+| --- | --- | --- | --- |
+| **Bit** | everyone | the kid's AI building partner and the only thing the kid talks to | `BitCoordinatorService`, `prompts/bit.md` |
+| **builder** | Bit (for the kid) | the kid using Hi-Bit | the active profile |
+| **creation** | kid-facing, Bit, bot prompts | one thing the kid is building | `project` / `projectId`, `ProjectService`, `projects/<projectId>/` |
+| **build** | kid-facing | making or changing a creation | a bot job run |
+| **Play** | kid-facing | open and play a creation's live preview | `start_preview` / `list_previews` / `stop_preview` (the "Preview tools"), `PreviewService` |
+| **bot** | unlocked word | a background builder that makes things for the kid | `BotRuntime`, `prompts/bot.md`, `bots/`, `bot_job_*` |
+| **Workshop** | unlocked word | the place all the kid's creations live | the portfolio (`ProjectService.list`) |
+| **Logbook** | unlocked word | every step taken on a creation | per-creation logbook (`logbook/project.jsonl`) |
+| **blueprint** | unlocked word | the plan a bot follows to build | `BlueprintRecord`, `blueprints/`, `blueprint_*` |
+| **machines** | unlocked word | checks that make sure a build works | machine inspections (`machines/`) |
+| **assembly line** | unlocked word | how a build moves step to step until ready | the install pipeline (`assembly-line/`) |
+| **save points** | unlocked word | saved spots to go back to | `save-points/` |
+| **workbench** | unlocked word | the private bench where a bot builds | isolated git-worktree workbench (`workbenches/`) |
+| **factory** | unlocked word | the whole place creations get built | the factory layout under `userData` |
+
+"creation" vs "project" is an intentional split, not drift: treat `projectId` and "creation id" as the same key, and keep "creation" in everything kid-facing while the types/services stay "project".
+
+### The vocabulary unlock ladder
+
+The factory world is real in code but revealed to kids gradually, defined in `src/shared/concepts.ts`.
+A kid never meets an inside word before they have done the thing it names; the word unlocks the moment it becomes real, and Bit reveals it once, warmly, in plain chat (no UI badge).
+
+| Tier | Unlocks | Trigger (what the kid did) | Pre-unlock label |
+| --- | --- | --- | --- |
+| 0 | Bit, build, creation, Play | always visible | - |
+| 1 | bot | first delegated build finishes | "a builder" |
+| 2 | Workshop | the kid has a 2nd creation | "your creations" |
+| 3 | Logbook | the kid opens "See all activities" | "See all activities" |
+| 4 | blueprint, machines | a few builds in (`buildsDelegated >= 3`) | hidden |
+| 5 | assembly line, save points, workbench, factory | many builds (`buildsDelegated >= 6`) | hidden |
+
+Rules that must hold:
+- At most one new word is revealed per Bit turn (the pacing guard).
+- Bit may only use inside words the kid has unlocked. `BitCoordinatorService` appends a per-turn "Words you may use" note (gated by `prompts/bit.md`); Bit must describe anything locked in plain kid words instead of naming it.
+- Per-profile state lives on the profile record: `unlockedConcepts` (each with `firstSeenAt`) plus an `unlockStats` counter (`buildsDelegated`, `openedActivities`).
+- Chrome labels follow the same unlocked set: "your creations" -> "your Workshop", and "See all activities" -> "Open Logbook" / the activity surface titles "Your Logbook".
 
 ## E2E testing the Electron app via chrome-devtools-axi
 
 Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
 
 Manual E2E testing should exercise the Codex connection gate, kid profile gate, profile-level Pi-backed chat workspace, live creation preview flow, and creations-folder action unless the task explicitly narrows scope.
-For real-art requests, verify that a worker calls `generate_image`, saves the generated image under the creation, wires it into the app, and shows it in the preview; for moving or transparent game art, also verify that the worker reads the `game-assets` skill and runs `process_sprite_sheet`.
-For web-lookup requests, verify that a worker uses `web_search` for search with cached access by default, `fetch_content` for a known public URL, and `get_search_content` when a long fetched page is parked; do not send kid personal details in the test prompt.
-For flat 2D playable-game requests, verify that the worker reads the `create-2d-game` skill, uses its loop/input/collision boilerplate, and combines it with `game-assets` when the game needs generated sprites.
-For 3D playable-game requests (first-person/third-person worlds, blocky build-and-explore, 3D platformers/collectors/blasters), verify that the worker reads the `create-3d-game` skill, copies its `three.min.js` and `engine3d.js` into the creation, builds the world from textured primitives (textures from `generate_image`, not sprite sheets), and the live preview renders it in WebGL.
+For real-art requests, verify that a bot calls `generate_image`, saves the generated image under the creation, wires it into the app, and shows it in the preview; for moving or transparent game art, also verify that the bot reads the `game-assets` skill and runs `process_sprite_sheet`.
+For web-lookup requests, verify that a bot uses `web_search` for search with cached access by default, `fetch_content` for a known public URL, and `get_search_content` when a long fetched page is parked; do not send kid personal details in the test prompt.
+For flat 2D playable-game requests, verify that the bot reads the `create-2d-game` skill, uses its loop/input/collision boilerplate, and combines it with `game-assets` when the game needs generated sprites.
+For 3D playable-game requests (first-person/third-person worlds, blocky build-and-explore, 3D platformers/collectors/blasters), verify that the bot reads the `create-3d-game` skill, copies its `three.min.js` and `engine3d.js` into the creation, builds the world from textured primitives (textures from `generate_image`, not sprite sheets), and the live preview renders it in WebGL.
 For live previews, verify that Play is available from a ready message and the activity bar, opens a sandboxed split-pane iframe only after the kid presses it, focuses the preview page for keyboard controls when it loads and after Reload/rebuild remounts, is idempotent and can restart a persisted preview after an app restart, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.
 Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`; use the app's Codex connection flow or a clean `userData` state appropriate for the test.
 

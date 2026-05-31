@@ -18,15 +18,15 @@ export type ToolActivity = {
   status: "running" | "completed" | "failed";
   args?: unknown;
   content: ToolContent[];
-  /** Which creation a worker is building, for kid-facing labels. */
+  /** Which creation a bot is building, for kid-facing labels. */
   projectId?: string;
   projectTitle?: string;
 };
 
 /**
- * One creation's build activity: visible worker tool steps plus whether a bot is
+ * One creation's build activity: visible bot tool steps plus whether a bot is
  * working on it right now. Direct Bit edits are durable logbook history, not
- * worker activity rows. Drives the "See all activities" view.
+ * bot activity rows. Drives the "See all activities" view.
  */
 export type CreationActivity = {
   projectId: string;
@@ -55,7 +55,7 @@ export type ChatSnapshot = {
   isRunning: boolean;
   /**
    * Bit turn currently producing output.
-   * `isRunning` may still be true for worker-result turns, but the renderer uses
+   * `isRunning` may still be true for bot-result turns, but the renderer uses
    * this kind to show the bot-review thinking bubble without locking input.
    */
   activeTurn?: { id: string; kind: TurnKind } | null;
@@ -72,7 +72,7 @@ export type ChatSnapshot = {
 /**
  * Every chat event is routed to the renderer by `profileId` (one continuous
  * profile-level transcript). `projectId`/`projectTitle` are optional attribution
- * marking which creation a worker turn or tool touched.
+ * marking which creation a bot turn or tool touched.
  */
 type ChatEventMeta = {
   profileId: string;
@@ -83,10 +83,10 @@ type ChatEventMeta = {
 
 /**
  * Why a Bit turn is running, so the renderer can word the "thinking" bubble for
- * the kid. `reply` is Bit answering the builder; `worker_result` is Bit reading
+ * the kid. `reply` is Bit answering the builder; `bot_result` is Bit reading
  * what a background bot just finished. Absent means `reply`.
  */
-export type TurnKind = "reply" | "worker_result";
+export type TurnKind = "reply" | "bot_result";
 
 export type ChatEvent =
   | ({ type: "turn_start"; kind?: TurnKind } & ChatEventMeta)
@@ -119,6 +119,7 @@ export type ChatEvent =
       error?: string;
       kind?: TurnKind;
     } & ChatEventMeta)
+  | ({ type: "profile_updated" } & ChatEventMeta)
   // Preview events carry no turn: Hi-Bit spawns/kills the server out of band and
   // routes the result to the renderer by `profileId` to light up (or drop) Play.
   | {

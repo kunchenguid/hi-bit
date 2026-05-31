@@ -54,4 +54,53 @@ describe("ActivityChip", () => {
     expect(host.textContent).toContain("Bit is thinking");
     expect(host.querySelector('[data-state="working"]')).not.toBeNull();
   });
+
+  it("switches the see-all label to Logbook once that word is unlocked", () => {
+    const activity: CreationActivity[] = [
+      {
+        projectId: "cat-jump",
+        title: "Cat Jump",
+        status: "done",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        steps: [],
+      },
+    ];
+
+    act(() =>
+      root.render(
+        <ActivityChip activity={activity} seeAllLabel="Open Logbook" onSeeAll={vi.fn()} />,
+      ),
+    );
+
+    const button = host.querySelector<HTMLButtonElement>("button");
+    expect(button?.textContent).toContain("Open Logbook");
+    expect(button?.textContent).not.toContain("See all activities");
+  });
+
+  it("uses the unlocked collection label in the working headline", () => {
+    const activity: CreationActivity[] = [
+      {
+        projectId: "a",
+        title: "A",
+        status: "working",
+        updatedAt: "",
+        steps: [],
+      },
+      {
+        projectId: "b",
+        title: "B",
+        status: "working",
+        updatedAt: "",
+        steps: [],
+      },
+    ];
+
+    act(() =>
+      root.render(
+        <ActivityChip activity={activity} collectionLabel="your Workshop" onSeeAll={vi.fn()} />,
+      ),
+    );
+
+    expect(host.textContent).toContain("working on your Workshop");
+  });
 });
