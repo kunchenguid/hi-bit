@@ -376,7 +376,7 @@ describe("BitCoordinatorService (Bit)", () => {
       const text = (result as { content: Array<{ text: string }> }).content
         .map((item) => item.text)
         .join("\n");
-      expect(text).not.toMatch(/worker|bot|bot_job_|\bcreation id\b/i);
+      expect(text).not.toMatch(/worker|\bbuilder started working\b|bot_job_|\bcreation id\b/i);
       expect(text).not.toContain(game.id);
     }
   });

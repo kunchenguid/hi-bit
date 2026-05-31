@@ -83,19 +83,12 @@ describe("ActivityView", () => {
     expect(host.textContent).not.toContain("Getting started");
   });
 
-  it("uses the pre-unlock builder word before bot is unlocked", () => {
+  it("always titles the surface Logbook and names the bots", () => {
     act(() => root.render(<ActivityView activity={[]} onClose={() => {}} />));
 
-    expect(host.textContent).toContain("Everything the builders worked on");
-    expect(host.textContent).toContain("every step the builders took");
-    expect(host.textContent).not.toContain("bot");
-  });
-
-  it("uses bot wording after bot is unlocked", () => {
-    act(() => root.render(<ActivityView activity={[]} botUnlocked={true} onClose={() => {}} />));
-
-    expect(host.textContent).toContain("Everything the bots worked on");
+    expect(host.textContent).toContain("Your Logbook");
     expect(host.textContent).toContain("every step the bots took");
+    expect(host.textContent).not.toContain("builder");
   });
 
   it("acts like a modal dialog and returns focus on close", () => {

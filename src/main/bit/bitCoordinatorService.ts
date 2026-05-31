@@ -422,11 +422,11 @@ export class BitCoordinatorService {
       name: "create_creation",
       label: "Create creation",
       description:
-        "Start a brand new creation. Only call after the builder agreed to make it; pass confirmed: true. Returns immediately while a background builder builds it.",
+        "Start a brand new creation. Only call after the builder agreed to make it; pass confirmed: true. Returns immediately while a bot builds it.",
       parameters: Type.Object({
         title: Type.String({ description: "short name you pick for the new creation" }),
         instructions: Type.String({
-          description: "what the background builder should build first",
+          description: "what the bot should build first",
         }),
         confirmed: Type.Boolean({
           description: "true only after the builder said yes to making this",
@@ -453,7 +453,7 @@ export class BitCoordinatorService {
         const project = await self.projects.create(profileId, { title });
         const job = await self.slingBot(profileId, project.id, instructions);
         return {
-          content: [{ type: "text", text: `Started "${title}". A builder is building it now.` }],
+          content: [{ type: "text", text: `Started "${title}". A bot is building it now.` }],
           details: { created: true, projectId: project.id, jobId: job.id } as CreateDetails,
         };
       },
@@ -463,11 +463,11 @@ export class BitCoordinatorService {
       name: "delegate_build",
       label: "Delegate build",
       description:
-        "Send a background builder to build or change ONE existing creation. Returns immediately; the build runs in the background.",
+        "Send a bot to build or change ONE existing creation. Returns immediately; the build runs in the background.",
       parameters: Type.Object({
         creationId: Type.String({ description: "id of the creation to work on" }),
         instructions: Type.String({
-          description: "what the background builder should build or change",
+          description: "what the bot should build or change",
         }),
       }),
       executionMode: "parallel",
@@ -479,7 +479,7 @@ export class BitCoordinatorService {
         try {
           const job = await self.slingBot(profileId, creationId, instructions);
           return {
-            content: [{ type: "text", text: "A builder started working on that creation." }],
+            content: [{ type: "text", text: "A bot started working on that creation." }],
             details: { jobId: job.id, projectId: creationId } as BuildDetails,
           };
         } catch (error) {
@@ -865,8 +865,8 @@ export class BitCoordinatorService {
   }
 
   /**
-   * Records that the kid opened "See all activities", so the Logbook word can
-   * unlock and be revealed by Bit on the next turn.
+   * Records that the kid opened the Logbook, so the word can unlock and be
+   * revealed by Bit on the next turn.
    */
   async markActivitiesOpened(profileId: string): Promise<void> {
     await this.profiles.markActivitiesOpened(profileId);

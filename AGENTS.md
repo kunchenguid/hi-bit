@@ -31,46 +31,49 @@ This section is the canonical vocabulary; do not rename, swap synonyms, or intro
 This canon binds **both layers**: kid-facing text (UI copy, Bit's and the bot's prompts, error and activity strings) must use the kid-facing word, and the **codebase** (types, services, variables, IPC channels, on-disk paths, comments) must use the code counterpart in the same row.
 When you touch either layer, keep it consistent with the other and with this table - no off-canon synonyms in either one.
 The one deliberate split is **creation** (everything kid-facing) vs **project** (the code counterpart for the same record); every other row uses one family of words across both layers.
-The locking decisions (recorded in the terminology review): the background builder agent is a **bot** - never "worker" or "helper"; the kid is the **builder**.
+The locking decisions (recorded in the terminology review): the background worker agent is a **bot** - never "builder", "worker" or "helper"; the kid is the **builder**.
 
-| Term | Who says it | What it means | Code counterpart |
-| --- | --- | --- | --- |
-| **Bit** | everyone | the kid's AI building partner and the only thing the kid talks to | `BitCoordinatorService`, `prompts/bit.md` |
-| **builder** | Bit (for the kid) | the kid using Hi-Bit | the active profile |
-| **creation** | kid-facing, Bit, bot prompts | one thing the kid is building | `project` / `projectId`, `ProjectService`, `projects/<projectId>/` |
-| **build** | kid-facing | making or changing a creation | a bot job run |
-| **Play** | kid-facing | open and play a creation's live preview | `start_preview` / `list_previews` / `stop_preview` (the "Preview tools"), `PreviewService` |
-| **bot** | unlocked word | a background builder that makes things for the kid | `BotRuntime`, `prompts/bot.md`, `bots/`, `bot_job_*` |
-| **Workshop** | unlocked word | the place all the kid's creations live | the portfolio (`ProjectService.list`) |
-| **Logbook** | unlocked word | every step taken on a creation | per-creation logbook (`logbook/project.jsonl`) |
-| **blueprint** | unlocked word | the plan a bot follows to build | `BlueprintRecord`, `blueprints/`, `blueprint_*` |
-| **machines** | unlocked word | checks that make sure a build works | machine inspections (`machines/`) |
-| **assembly line** | unlocked word | how a build moves step to step until ready | the install pipeline (`assembly-line/`) |
-| **save points** | unlocked word | saved spots to go back to | `save-points/` |
-| **workbench** | unlocked word | the private bench where a bot builds | isolated git-worktree workbench (`workbenches/`) |
-| **factory** | unlocked word | the whole place creations get built | the factory layout under `userData` |
+| Term              | Who says it                  | What it means                                                     | Code counterpart                                                                           |
+| ----------------- | ---------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **Bit**           | everyone                     | the kid's AI building partner and the only thing the kid talks to | `BitCoordinatorService`, `prompts/bit.md`                                                  |
+| **builder**       | Bit (for the kid)            | the kid using Hi-Bit                                              | the active profile                                                                         |
+| **creation**      | kid-facing, Bit, bot prompts | one thing the kid is building                                     | `project` / `projectId`, `ProjectService`, `projects/<projectId>/`                         |
+| **build**         | kid-facing                   | making or changing a creation                                     | a bot job run                                                                              |
+| **Play**          | kid-facing                   | open and play a creation's live preview                           | `start_preview` / `list_previews` / `stop_preview` (the "Preview tools"), `PreviewService` |
+| **bot**           | unlocked word                | a background worker that makes things for the kid                 | `BotRuntime`, `prompts/bot.md`, `bots/`, `bot_job_*`                                       |
+| **Workshop**      | unlocked word                | the place all the kid's creations live                            | the portfolio (`ProjectService.list`)                                                      |
+| **Logbook**       | unlocked word                | every step taken on a creation                                    | per-creation logbook (`logbook/project.jsonl`)                                             |
+| **blueprint**     | unlocked word                | the plan a bot follows to build                                   | `BlueprintRecord`, `blueprints/`, `blueprint_*`                                            |
+| **machines**      | unlocked word                | checks that make sure a build works                               | machine inspections (`machines/`)                                                          |
+| **assembly line** | unlocked word                | how a build moves step to step until ready                        | the install pipeline (`assembly-line/`)                                                    |
+| **save points**   | unlocked word                | saved spots to go back to                                         | `save-points/`                                                                             |
+| **workbench**     | unlocked word                | the private bench where a bot builds                              | isolated git-worktree workbench (`workbenches/`)                                           |
+| **factory**       | unlocked word                | the whole place creations get built                               | the factory layout under `userData`                                                        |
 
 "creation" vs "project" is an intentional split, not drift: treat `projectId` and "creation id" as the same key, and keep "creation" in everything kid-facing while the types/services stay "project".
 
 ### The vocabulary unlock ladder
 
-The factory world is real in code but revealed to kids gradually, defined in `src/shared/concepts.ts`.
-A kid never meets an inside word before they have done the thing it names; the word unlocks the moment it becomes real, and Bit reveals it once, warmly, in plain chat (no UI badge).
+The factory world is real in code, and the static chrome always names it with the real in-world word - "bot", "your Workshop", "Open Logbook" - from day one.
+The ladder governs exactly one thing: Bit's own chat.
+Bit never proactively brings up an inside word before the kid has done the thing it names; the word becomes sayable for Bit the moment it becomes real, and Bit says it once, warmly, in plain chat (no UI badge).
+Defined in `src/shared/concepts.ts`.
 
-| Tier | Unlocks | Trigger (what the kid did) | Pre-unlock label |
-| --- | --- | --- | --- |
-| 0 | Bit, build, creation, Play | always visible | - |
-| 1 | bot | first delegated build finishes | "a builder" |
-| 2 | Workshop | the kid has a 2nd creation | "your creations" |
-| 3 | Logbook | the kid opens "See all activities" | "See all activities" |
-| 4 | blueprint, machines | a few builds in (`buildsDelegated >= 3`) | hidden |
-| 5 | assembly line, save points, workbench, factory | many builds (`buildsDelegated >= 6`) | hidden |
+| Tier | Becomes sayable for Bit                        | Trigger (what the kid did)               |
+| ---- | ---------------------------------------------- | ---------------------------------------- |
+| 0    | Bit, build, creation, Play                     | always sayable                           |
+| 1    | bot                                            | first delegated build finishes           |
+| 2    | Workshop                                       | the kid has a 2nd creation               |
+| 3    | Logbook                                        | the kid opens the Logbook                |
+| 4    | blueprint, machines                            | a few builds in (`buildsDelegated >= 3`) |
+| 5    | assembly line, save points, workbench, factory | many builds (`buildsDelegated >= 6`)     |
 
 Rules that must hold:
+
+- Static chrome (UI copy, labels, button text, activity and error strings) always uses the in-world word - never a pre-unlock vs unlocked variant. The ladder does not touch chrome, only Bit's chat.
 - At most one new word is revealed per Bit turn (the pacing guard).
 - Bit may only use inside words the kid has unlocked. `BitCoordinatorService` appends a per-turn "Words you may use" note (gated by `prompts/bit.md`); Bit must describe anything locked in plain kid words instead of naming it.
 - Per-profile state lives on the profile record: `unlockedConcepts` (each with `firstSeenAt`) plus an `unlockStats` counter (`buildsDelegated`, `openedActivities`).
-- Chrome labels follow the same unlocked set: "your creations" -> "your Workshop", and "See all activities" -> "Open Logbook" / the activity surface titles "Your Logbook".
 
 ## E2E testing the Electron app via chrome-devtools-axi
 

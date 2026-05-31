@@ -251,12 +251,12 @@ describe("App", () => {
     expect(host.textContent).toContain("last worked on Cat Jump");
     expect(host.textContent).not.toContain("What Bit is building");
 
-    await clickButton(host, "See all activities");
-    expect(host.textContent).toContain("Everything the builders worked on");
+    await clickButton(host, "Open Logbook");
+    expect(host.textContent).toContain("Your Logbook");
     expect(host.textContent).toContain("Cat Jump");
   });
 
-  it("shows the pre-unlock builder word when a build starts", async () => {
+  it("names the bot in the activity bar when a build starts", async () => {
     let emit: (event: ChatEvent) => void = () => {};
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -280,7 +280,7 @@ describe("App", () => {
       });
     });
 
-    expect(host.textContent).toContain("A builder is working on Cat Jump");
+    expect(host.textContent).toContain("A bot is working on Cat Jump");
   });
 
   it("shows a captioned thinking bubble while Bit digests a bot result, without locking the composer", async () => {
@@ -299,7 +299,7 @@ describe("App", () => {
         {
           id: "assistant-earlier",
           role: "assistant" as const,
-          text: "On it! A builder is building that.",
+          text: "On it! A bot is building that.",
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -324,9 +324,9 @@ describe("App", () => {
       });
     });
 
-    // The dots show with the kid-friendly pre-unlock caption...
+    // The dots show with the canonical bot caption...
     expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
-    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("builder");
+    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
     // ...but the composer stays open: Send (not Stop), input enabled.
     const composer = host.querySelector<HTMLTextAreaElement>("#hibit-composer");
     expect(composer?.disabled).toBe(false);
@@ -362,7 +362,7 @@ describe("App", () => {
         {
           id: "assistant-earlier",
           role: "assistant" as const,
-          text: "A builder is building that.",
+          text: "A bot is building that.",
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       ],
@@ -376,7 +376,7 @@ describe("App", () => {
     await renderApp(root);
 
     expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
-    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("builder");
+    expect(host.querySelector(".hb-thinking-caption")?.textContent).toContain("bot");
     expect(host.querySelector<HTMLTextAreaElement>("#hibit-composer")?.disabled).toBe(false);
     expect(Array.from(host.querySelectorAll("button")).some((b) => b.textContent === "Stop")).toBe(
       false,
@@ -485,52 +485,6 @@ describe("App", () => {
     const playButtons = host.querySelectorAll(".hb-play-button");
     expect(playButtons.length).toBe(2);
     expect(host.querySelector(".hb-message-assistant .hb-play-button")).not.toBeNull();
-  });
-
-  it("refreshes profile labels when the main process reports a persisted unlock", async () => {
-    let emit: (event: ChatEvent) => void = () => {};
-    const base = adaProfile();
-    const unlocked = {
-      ...base,
-      unlockedConcepts: [{ id: "logbook" as const, firstSeenAt: "2026-01-01T00:00:01.000Z" }],
-      unlockStats: { buildsDelegated: 0, openedActivities: true },
-    };
-    api.auth.status = vi.fn(async () => ({
-      authenticated: true,
-      storage: { path: "/tmp/codex.json", encrypted: true },
-    }));
-    api.profiles.getActiveId = vi.fn(async () => "ada");
-    api.profiles.list = vi.fn().mockResolvedValueOnce([base]).mockResolvedValue([unlocked]);
-    api.chat.load = vi.fn(async (profileId) => ({
-      profileId,
-      messages: [],
-      activity: [
-        {
-          projectId: "p1",
-          title: "Cat Jump",
-          status: "done" as const,
-          updatedAt: "2026-01-01T00:00:00.000Z",
-          steps: [{ callId: "c1", toolName: "write", status: "completed" as const, content: [] }],
-        },
-      ],
-      isRunning: false,
-      previews: [],
-      playableProjectIds: [],
-    }));
-    api.chat.onEvent = vi.fn((listener) => {
-      emit = listener;
-      return () => {};
-    });
-
-    await renderApp(root);
-    expect(host.textContent).toContain("See all activities");
-
-    await act(async () => {
-      emit({ type: "profile_updated", profileId: "ada", turnId: "t9" });
-    });
-    await flushAsyncWork();
-
-    expect(host.textContent).toContain("Open Logbook");
   });
 
   it("recovers Play on the ready bubble and bar after a restart with no live server", async () => {

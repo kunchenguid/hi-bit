@@ -5,22 +5,14 @@ import { friendlyStep } from "../activity";
 
 type ActivityViewProps = {
   activity: CreationActivity[];
-  /** Whether the kid has unlocked the "Logbook" word, which retitles this surface. */
-  logbookUnlocked?: boolean;
-  botUnlocked?: boolean;
   onClose: () => void;
 };
 
 /**
- * The full "See all activities" surface, openable by kid or grown-up. Groups
- * every step the bots took by creation, newest first, read from the durable log.
+ * The full Logbook surface, openable by kid or grown-up. Groups every step the
+ * bots took by creation, newest first, read from the durable log.
  */
-export function ActivityView({
-  activity,
-  logbookUnlocked = false,
-  botUnlocked = false,
-  onClose,
-}: ActivityViewProps) {
+export function ActivityView({ activity, onClose }: ActivityViewProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const returnFocusRef = useRef<Element | null>(null);
 
@@ -34,8 +26,6 @@ export function ActivityView({
     if (returnFocus instanceof HTMLElement) returnFocus.focus();
     onClose();
   };
-
-  const workerLabel = botUnlocked ? "bots" : "builders";
 
   const keepFocusInside = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === "Escape") {
@@ -69,7 +59,7 @@ export function ActivityView({
     <div className="hb-activity-view-backdrop">
       <section
         className="hb-card hb-activity-view"
-        aria-label="All activities"
+        aria-label="Your Logbook"
         aria-modal="true"
         onKeyDown={keepFocusInside}
         ref={dialogRef}
@@ -87,8 +77,8 @@ export function ActivityView({
             />
           </span>
           <div className="hb-activity-view-title">
-            <h2>{logbookUnlocked ? "Your Logbook" : `Everything the ${workerLabel} worked on`}</h2>
-            <p className="t-small">Tap a creation to see every step the {workerLabel} took.</p>
+            <h2>Your Logbook</h2>
+            <p className="t-small">Tap a creation to see every step the bots took.</p>
           </div>
           <button type="button" className="hb-button hb-button-secondary" onClick={close}>
             Close
