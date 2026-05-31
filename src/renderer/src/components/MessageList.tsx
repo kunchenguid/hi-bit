@@ -7,7 +7,6 @@ type MessageListProps = {
   thinking: boolean;
   /** Why Bit is thinking, so the bubble can explain a bot-result wait to the kid. */
   thinkingReason?: TurnKind;
-  botUnlocked?: boolean;
   /** Playable creations (running or restartable), so their "ready" message can offer Play. */
   playableProjectIds?: Set<string>;
   onPlay?: (projectId: string) => void;
@@ -17,8 +16,7 @@ type MessageListProps = {
   onPickIdea?: (text: string) => void;
 };
 
-const botResultCaption = (botUnlocked: boolean) =>
-  `Bit is checking out what the ${botUnlocked ? "bot" : "builder"} made...`;
+const BOT_RESULT_CAPTION = "Bit is checking out what the bot made...";
 
 // Idea sparks for the very first screen, before any message exists. Tapping one
 // fills the composer with an editable starter sentence - it never sends. These
@@ -43,7 +41,6 @@ export function MessageList({
   messages,
   thinking,
   thinkingReason = "reply",
-  botUnlocked = false,
   playableProjectIds,
   onPlay,
   builderName,
@@ -127,13 +124,11 @@ export function MessageList({
         <li
           className="hb-message hb-message-assistant hb-message-thinking"
           aria-live="polite"
-          aria-label={
-            thinkingReason === "bot_result" ? botResultCaption(botUnlocked) : "Bit is thinking"
-          }
+          aria-label={thinkingReason === "bot_result" ? BOT_RESULT_CAPTION : "Bit is thinking"}
         >
           <span className="hb-message-label">Bit</span>
           {thinkingReason === "bot_result" ? (
-            <span className="hb-thinking-caption">{botResultCaption(botUnlocked)}</span>
+            <span className="hb-thinking-caption">{BOT_RESULT_CAPTION}</span>
           ) : null}
           <span className="hb-thinking-dots" aria-hidden="true">
             <span />

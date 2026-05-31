@@ -1,15 +1,16 @@
 /**
  * Progressive vocabulary unlock ladder.
  *
- * The factory world is real in the code, but a 7-year-old never meets a word
- * before they have done the thing it names. The word arrives the moment it
- * becomes real, Bit says it once warmly, then it is theirs forever. Tier 0 words
- * (Bit, build, creation, Play) are always visible and are not tracked here -
- * everything above unlocks from what the kid has actually done.
+ * The factory world is real in the code, and the chrome always names it with the
+ * real in-world words. The ladder governs one thing only: Bit's own chat. A
+ * 7-year-old never hears Bit proactively bring up an inside word before they
+ * have done the thing it names; the word becomes sayable for Bit the moment it
+ * becomes real, and Bit says it once warmly. Tier 0 words (Bit, build, creation,
+ * Play) are always sayable and are not tracked here - everything above unlocks
+ * from what the kid has actually done.
  *
- * This module is pure data + pure functions so both the main process (which
- * unlocks and gates Bit's vocabulary) and the renderer (which switches chrome
- * labels) share one source of truth.
+ * This module is pure data + pure functions, consumed by the main process to
+ * unlock concepts and gate Bit's vocabulary. It does not drive chrome labels.
  */
 
 export type ConceptId =
@@ -48,7 +49,7 @@ export const CONCEPT_LADDER: readonly ConceptDef[] = [
     id: "bot",
     tier: 1,
     word: "bot",
-    gloss: "a little builder that makes things for you in the background",
+    gloss: "a little maker that builds things for you in the background",
     trigger: { fact: "buildsDelegated", atLeast: 1 },
   },
   {
@@ -121,11 +122,6 @@ export type UnlockFacts = {
   /** Whether the kid has opened "See all activities" at least once. */
   openedActivities: boolean;
 };
-
-/** Whether the kid has unlocked a given concept (drives chrome labels). */
-export function isConceptUnlocked(unlocked: UnlockedConcept[], id: ConceptId): boolean {
-  return unlocked.some((concept) => concept.id === id);
-}
 
 export function conceptById(id: ConceptId): ConceptDef {
   const def = CONCEPT_LADDER.find((concept) => concept.id === id);

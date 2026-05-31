@@ -386,21 +386,27 @@ pre {
   overflow: hidden;
 }
 
+/* The header sits flush on the paper - just the greeting and the menu. No card
+   border or fill, so it doesn't box the greeting or compete with the chat card
+   right below it. */
 .hb-workspace-header {
-  border: var(--border-hairline);
-  border-radius: var(--r-2xl);
-  padding: var(--s-2);
-  background: var(--paper-2);
-  box-shadow: var(--shadow-soft);
+  padding: var(--s-0\.5) var(--s-1);
 }
 
-.hb-project-title {
-  flex: 1;
+.hb-workspace-greeting {
+  min-width: 0;
 }
 
 .hb-header-actions {
   display: flex;
   gap: var(--s-1);
+}
+
+/* Codex provider plumbing (incl. the account id) is a grown-up concern, so it
+   lives in the menu instead of the kid-facing greeting row. */
+.hb-provider-status {
+  margin: 0;
+  padding: 0 var(--s-0\.5);
 }
 
 .hb-chat-layout {
@@ -663,16 +669,23 @@ pre {
 
 .hb-activity-text {
   min-width: 0;
+  /* Hold a constant two-line height so the bar never shifts the chat when a
+     detail line appears or clears. When only the headline is present, it
+     centers in that space instead of leaving a blank line hanging below. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(2 * var(--t-small-size) * var(--t-small-lh));
 }
 
 .hb-activity-text strong {
-  display: block;
   font-size: var(--t-small-size);
+  line-height: var(--t-small-lh);
 }
 
 .hb-activity-text span {
-  display: block;
   font-size: var(--t-small-size);
+  line-height: var(--t-small-lh);
   color: var(--ink-64);
   white-space: nowrap;
   overflow: hidden;

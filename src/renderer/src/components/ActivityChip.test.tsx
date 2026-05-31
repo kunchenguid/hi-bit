@@ -41,7 +41,7 @@ describe("ActivityChip", () => {
     act(() => root.render(<ActivityChip activity={activity} onSeeAll={onSeeAll} />));
 
     const button = host.querySelector<HTMLButtonElement>("button");
-    expect(button?.textContent).toContain("See all activities");
+    expect(button?.textContent).toContain("Open Logbook");
 
     act(() => button?.click());
 
@@ -55,7 +55,7 @@ describe("ActivityChip", () => {
     expect(host.querySelector('[data-state="working"]')).not.toBeNull();
   });
 
-  it("switches the see-all label to Logbook once that word is unlocked", () => {
+  it("labels the see-all button Open Logbook", () => {
     const activity: CreationActivity[] = [
       {
         projectId: "cat-jump",
@@ -66,18 +66,14 @@ describe("ActivityChip", () => {
       },
     ];
 
-    act(() =>
-      root.render(
-        <ActivityChip activity={activity} seeAllLabel="Open Logbook" onSeeAll={vi.fn()} />,
-      ),
-    );
+    act(() => root.render(<ActivityChip activity={activity} onSeeAll={vi.fn()} />));
 
     const button = host.querySelector<HTMLButtonElement>("button");
     expect(button?.textContent).toContain("Open Logbook");
     expect(button?.textContent).not.toContain("See all activities");
   });
 
-  it("uses the unlocked collection label in the working headline", () => {
+  it("names the collection your Workshop in the working headline", () => {
     const activity: CreationActivity[] = [
       {
         projectId: "a",
@@ -95,12 +91,34 @@ describe("ActivityChip", () => {
       },
     ];
 
-    act(() =>
-      root.render(
-        <ActivityChip activity={activity} collectionLabel="your Workshop" onSeeAll={vi.fn()} />,
-      ),
-    );
+    act(() => root.render(<ActivityChip activity={activity} onSeeAll={vi.fn()} />));
 
     expect(host.textContent).toContain("working on your Workshop");
+  });
+
+  it("always reserves the detail line so the bar height never shifts", () => {
+    // Idle with nothing built yet: there is no detail string to show.
+    act(() => root.render(<ActivityChip activity={[]} onSeeAll={vi.fn()} />));
+
+    const detail = host.querySelector(".hb-activity-detail");
+    expect(detail).not.toBeNull();
+    expect(detail?.textContent).toBe("");
+  });
+
+  it("fills the reserved detail line when there is a detail to show", () => {
+    const activity: CreationActivity[] = [
+      {
+        projectId: "cat-jump",
+        title: "Cat Jump",
+        status: "done",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        steps: [],
+      },
+    ];
+
+    act(() => root.render(<ActivityChip activity={activity} onSeeAll={vi.fn()} />));
+
+    const detail = host.querySelector(".hb-activity-detail");
+    expect(detail?.textContent).toContain("last worked on Cat Jump");
   });
 });

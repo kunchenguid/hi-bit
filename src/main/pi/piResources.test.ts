@@ -149,11 +149,16 @@ describe("buildBitSystemPrompt", () => {
     expect(prompt).toMatch(/tool calls?/i);
   });
 
-  it("keeps the locked bot word out of the always-on Bit prompts", () => {
+  it("gates inside words through the per-turn Words-you-may-use note, not by scrubbing the prompt", () => {
     const runtimePrompt = buildBitSystemPrompt();
     const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
 
-    expect(runtimePrompt).not.toMatch(/\bbots?\b/i);
-    expect(mirroredPrompt).not.toMatch(/\bbots?\b/i);
+    // The prompt names the bot plainly (it is the canonical word); the only gate
+    // is the per-turn note telling Bit which inside words the kid has unlocked.
+    expect(runtimePrompt).toMatch(/\bbot\b/i);
+    expect(runtimePrompt).toMatch(/Words you may use/);
+    expect(runtimePrompt).toMatch(/only ever say an inside word/i);
+    expect(mirroredPrompt).toMatch(/\bbot\b/i);
+    expect(mirroredPrompt).toMatch(/Words you may use/);
   });
 });

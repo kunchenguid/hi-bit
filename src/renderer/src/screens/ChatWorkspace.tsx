@@ -1,6 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
 import type { ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
-import { isConceptUnlocked } from "@shared/concepts";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import { ActivityChip } from "../components/ActivityChip";
 import { ActivityView } from "../components/ActivityView";
@@ -83,14 +82,6 @@ export function ChatWorkspace({
   // bot just built, anything else is Bit replying to the builder.
   const thinkingReason: TurnKind = activeTurn?.kind === "bot_result" ? "bot_result" : "reply";
 
-  // Chrome labels follow the kid's unlocked vocabulary: the collection becomes
-  // "your Workshop" and the activity surface becomes "Logbook" once earned.
-  const botUnlocked = isConceptUnlocked(profile.unlockedConcepts, "bot");
-  const workshopUnlocked = isConceptUnlocked(profile.unlockedConcepts, "workshop");
-  const logbookUnlocked = isConceptUnlocked(profile.unlockedConcepts, "logbook");
-  const collectionLabel = workshopUnlocked ? "your Workshop" : "your creations";
-  const seeAllLabel = logbookUnlocked ? "Open Logbook" : "See all activities";
-
   // A creation is playable if it has a remembered preview (running or
   // restartable). Running previews are always playable too.
   const playable = new Set([...playableProjectIds, ...previews.map((p) => p.projectId)]);
@@ -109,14 +100,11 @@ export function ChatWorkspace({
   return (
     <main className="hb-workspace">
       <header className="hb-workspace-header">
-        <div className="hb-project-title">
-          <p className="t-pixel">Hi-Bit</p>
-          <h1>Hi {profile.name} - what should we build?</h1>
-          <p className="t-small">Tell Bit your idea. {providerStatus}</p>
-        </div>
+        <h1 className="hb-workspace-greeting">Hi {profile.name} - what should we build?</h1>
         <details className="hb-parent-menu hb-header-actions">
           <summary className="hb-button hb-button-secondary">Grown-up menu</summary>
           <div className="hb-card hb-parent-menu-popover">
+            <p className="t-small hb-provider-status">{providerStatus}</p>
             <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
             <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
               Open creations folder
@@ -138,7 +126,6 @@ export function ChatWorkspace({
             messages={messages}
             thinking={thinking}
             thinkingReason={thinkingReason}
-            botUnlocked={botUnlocked}
             playableProjectIds={playable}
             onPlay={onPlayPreview}
             builderName={profile.name}
@@ -153,9 +140,6 @@ export function ChatWorkspace({
             activity={activity}
             running={running}
             playProjectId={barPlayProjectId}
-            collectionLabel={collectionLabel}
-            botUnlocked={botUnlocked}
-            seeAllLabel={seeAllLabel}
             onPlay={onPlayPreview}
             onSeeAll={onShowActivity}
           />
@@ -179,14 +163,7 @@ export function ChatWorkspace({
         ) : null}
       </section>
 
-      {showActivity ? (
-        <ActivityView
-          activity={activity}
-          logbookUnlocked={logbookUnlocked}
-          botUnlocked={botUnlocked}
-          onClose={onHideActivity}
-        />
-      ) : null}
+      {showActivity ? <ActivityView activity={activity} onClose={onHideActivity} /> : null}
     </main>
   );
 }
