@@ -1,5 +1,5 @@
 import type { PreviewInfo } from "@shared/chat";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type PreviewPaneProps = {
   preview: PreviewInfo;
@@ -12,8 +12,9 @@ type PreviewPaneProps = {
 /**
  * The split-pane that plays a creation's live preview. Points a sandboxed iframe
  * at the creation's own loopback server. Reload remounts the frame so freshly
- * built files load; Open-in-browser hands the URL to the system browser; Close
- * just hides the pane (the server keeps running until Bit stops it).
+ * built files load; each load focuses the frame so game controls work without
+ * an extra click; Open-in-browser hands the URL to the system browser; Close just
+ * hides the pane (the server keeps running until Bit stops it).
  *
  * The sandbox includes `allow-same-origin` so creations behave like real web
  * pages - they can use localStorage, IndexedDB, and cookies (high scores, saves,
@@ -34,6 +35,8 @@ export function PreviewPane({
   useEffect(() => {
     if (reloadSignal > 0) setReloadCount((count) => count + 1);
   }, [reloadSignal]);
+
+  const frameRef = useRef<HTMLIFrameElement>(null);
 
   const title = preview.title ?? "Your creation";
   return (
@@ -70,10 +73,15 @@ export function PreviewPane({
       </div>
       <iframe
         key={reloadCount}
+        ref={frameRef}
         className="hb-preview-frame"
         title={title}
         src={preview.url}
         sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups allow-modals"
+        // Move keyboard focus into the creation as soon as it loads so game
+        // controls (arrows, space, WASD) work without the kid first clicking the
+        // page. Refires on every remount, so Reload/rebuild refocus too.
+        onLoad={() => frameRef.current?.focus()}
       />
     </div>
   );
