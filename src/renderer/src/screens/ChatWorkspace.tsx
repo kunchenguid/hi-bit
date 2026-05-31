@@ -141,6 +141,13 @@ export function ChatWorkspace({
             botUnlocked={botUnlocked}
             playableProjectIds={playable}
             onPlay={onPlayPreview}
+            builderName={profile.name}
+            onPickIdea={(text) => {
+              // Fill the box but never send - pressing Send stays the kid's move.
+              // Focus so they can tweak the starter sentence right away.
+              onDraftChange(text);
+              document.getElementById("hibit-composer")?.focus();
+            }}
           />
           <ActivityChip
             activity={activity}

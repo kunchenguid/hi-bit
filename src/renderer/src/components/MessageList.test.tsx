@@ -40,6 +40,11 @@ describe("MessageList", () => {
     host.remove();
   });
 
+  const sparkByLabel = (label: string) =>
+    [...host.querySelectorAll<HTMLButtonElement>(".hb-idea-spark")].find((b) =>
+      b.textContent?.includes(label),
+    );
+
   it("shows a thinking bubble while Bit is responding", () => {
     act(() => root.render(<MessageList messages={[userMessage]} thinking={true} />));
     expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
@@ -95,6 +100,53 @@ describe("MessageList", () => {
   it("shows the empty prompt only when idle with no messages", () => {
     act(() => root.render(<MessageList messages={[]} thinking={false} />));
     expect(host.querySelector(".hb-empty-chat")).not.toBeNull();
+  });
+
+  it("greets the builder by name and offers idea sparks on the empty thread", () => {
+    act(() => root.render(<MessageList messages={[]} thinking={false} builderName="Eddie" />));
+    expect(host.querySelector(".hb-empty-greeting")?.textContent).toMatch(/hi eddie/i);
+    expect(sparkByLabel("A tiny game")).toBeDefined();
+    expect(sparkByLabel("A page about me")).toBeDefined();
+    expect(sparkByLabel("Surprise me")).toBeDefined();
+  });
+
+  it("greets generically when no builder name is given", () => {
+    act(() => root.render(<MessageList messages={[]} thinking={false} />));
+    const greeting = host.querySelector(".hb-empty-greeting")?.textContent ?? "";
+    expect(greeting).toMatch(/ready to build/i);
+    expect(greeting).not.toMatch(/hi\s+!/i);
+  });
+
+  it("fills the composer with a concrete starter idea (it cannot send on its own)", () => {
+    const onPickIdea = vi.fn();
+    act(() => root.render(<MessageList messages={[]} thinking={false} onPickIdea={onPickIdea} />));
+    act(() => sparkByLabel("A tiny game")?.click());
+    expect(onPickIdea).toHaveBeenCalledTimes(1);
+    // A spark hands back an editable starter sentence, never an empty string.
+    // MessageList has no send capability at all, so filling is all it can do -
+    // the kid still presses Send. That is what keeps it clear of the CTA rule.
+    expect(onPickIdea.mock.calls[0][0]).toMatch(/\w/);
+  });
+
+  it("hides idea sparks once any message exists", () => {
+    act(() =>
+      root.render(
+        <MessageList
+          messages={[userMessage]}
+          thinking={false}
+          builderName="Eddie"
+          onPickIdea={vi.fn()}
+        />,
+      ),
+    );
+    expect(host.querySelector(".hb-idea-sparks")).toBeNull();
+    expect(host.querySelector(".hb-empty-chat")).toBeNull();
+  });
+
+  it("hides idea sparks while Bit is thinking on an empty thread", () => {
+    act(() => root.render(<MessageList messages={[]} thinking={true} onPickIdea={vi.fn()} />));
+    expect(host.querySelector(".hb-idea-sparks")).toBeNull();
+    expect(host.querySelector(".hb-message-thinking")).not.toBeNull();
   });
 
   it("renders streamed assistant text instead of the thinking bubble", () => {

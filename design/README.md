@@ -51,7 +51,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 |---|---|
 | Tutor chat (Bit) | Warm, curious, celebratory on wins, gentle on stuck moments |
 | Buttons & menus | Plain and direct. Verbs. No marketing copy. |
-| Empty states | Inviting, tiny bit playful |
+| Empty states | Inviting, tiny bit playful, with optional starter ideas before the first message |
 | Errors | Calm, specific, never "oops!" |
 | Parent-facing views | Respectful, transparent, no kid-speak |
 
@@ -71,7 +71,8 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 
 ### Emoji & punctuation
 
-- **No emoji in UI chrome.** Nav, buttons, toasts - all emoji-free.
+- **No emoji in UI chrome.** Nav, persistent buttons, toasts - all emoji-free.
+  The only current exception is the first empty-chat idea sparks, where each temporary starter button may use one emoji cue and disappears after the first message or while Bit is thinking.
 - **Emoji allowed in tutor chat**, sparingly - maximum one per message, always at the end, only on genuine wins. A celebratory note after a creation works, not on every reply.
 - **No exclamation mark stacking.** One `!` max, used deliberately. Most sentences end in `.`
 - **Plain punctuation is best** - keep the mentor cadence without leaning on punctuation tricks.
@@ -89,6 +90,10 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 > **Profile gate:** Who's using Hi-Bit?
 >
 > **Chat workspace:** What should Maya build next?
+>
+> **Empty chat greeting:** Hi Maya! Ready to build?
+>
+> **Empty chat starter:** Tap an idea to start, or just type your own.
 >
 > **Bit:** Hey - ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
 >
@@ -236,8 +241,11 @@ The canonical Hi-Bit creation card:
 **Why pixel and not a standard icon lib?** The arcade identity requires it - Lucide/Heroicons would flatten the brand. However:
 
 - **Where pixel-art doesn't fit** (dense info-density screens like project review tools, or system chrome like close/minimize), we fall back to **Lucide React** via CDN, rendered at 18px stroke-1.75. This compromise is documented per-screen in each UI kit's README.
-- **Emoji:** never in chrome. Allowed as mascot reactions in tutor chat (one per message, end-of-message only).
-- **Unicode-as-icon:** avoided. If it's not a real icon, we don't fake one with `✓` or `→`.
+- **Emoji:** never in persistent chrome.
+  Allowed as mascot reactions in tutor chat (one per message, end-of-message only), and as one cue per temporary empty-chat idea spark.
+- **Unicode-as-icon:** avoided.
+  If it's not a real icon, we don't fake one with `✓` or `→`.
+  Temporary empty-chat idea sparks are the only current exception.
 
 **Logos:**
 - `assets/logo-wordmark.svg` - "HI BIT" in Press Start 2P, filled `--ink` (light) / `--phosphor` (dark).
