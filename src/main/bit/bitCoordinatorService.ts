@@ -479,7 +479,7 @@ export class BitCoordinatorService {
         try {
           const job = await self.slingBot(profileId, creationId, instructions);
           return {
-            content: [{ type: "text", text: "A builder started working on that creation." }],
+            content: [{ type: "text", text: "A bot started working on that creation." }],
             details: { jobId: job.id, projectId: creationId } as BuildDetails,
           };
         } catch (error) {

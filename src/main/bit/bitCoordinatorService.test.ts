@@ -376,10 +376,7 @@ describe("BitCoordinatorService (Bit)", () => {
       const text = (result as { content: Array<{ text: string }> }).content
         .map((item) => item.text)
         .join("\n");
-      // Internal build ids and off-canon "worker" stay out of model-visible
-      // content; the canonical word "bot" is allowed (gated only by Bit's
-      // per-turn vocabulary note, not by scrubbing tool results).
-      expect(text).not.toMatch(/worker|bot_job_|\bcreation id\b/i);
+      expect(text).not.toMatch(/worker|\bbuilder started working\b|bot_job_|\bcreation id\b/i);
       expect(text).not.toContain(game.id);
     }
   });
