@@ -14,7 +14,7 @@ import { extractCodexAccountId } from "../auth/codexOAuth";
  *
  * Bots build kids' web apps and Bit coordinates them, and both sometimes need to
  * look something up - current library/API docs, an example, a reference page.
- * Two tools cover that with no third-party dependency:
+ * Three tools cover that with no third-party dependency:
  *
  * - `web_search` reuses Hi-Bit's own Codex login. It calls the Codex Responses
  *   backend with the native `web_search` hosted tool (the same backend + token
@@ -23,7 +23,7 @@ import { extractCodexAccountId } from "../auth/codexOAuth";
  *   to Codex's cached index (no live page fetching), which keeps the
  *   prompt-injection surface small for a young audience; pass `live: true` to
  *   fetch fresh pages.
- * - `fetch_content` pulls a page the bot already has the URL for and turns
+ * - `fetch_content` pulls a page Bit or a bot already has the URL for and turns
  *   the readable article into markdown locally (Readability + turndown), so only
  *   the URL leaves the machine. Long pages are parked in an in-memory store and
  *   handed back as an id (`get_search_content`) so a creation's logbook never
