@@ -62,13 +62,13 @@ A kid never meets an inside word before they have done the thing it names; the w
 | 0 | Bit, build, creation, Play | always visible | - |
 | 1 | bot | first delegated build finishes | "a builder" |
 | 2 | Workshop | the kid has a 2nd creation | "your creations" |
-| 3 | Logbook | the kid opens "See all activities" | "Activities" |
+| 3 | Logbook | the kid opens "See all activities" | "See all activities" |
 | 4 | blueprint, machines | a few builds in (`buildsDelegated >= 3`) | hidden |
 | 5 | assembly line, save points, workbench, factory | many builds (`buildsDelegated >= 6`) | hidden |
 
 Rules that must hold:
 - At most one new word is revealed per Bit turn (the pacing guard).
-- Bit may only use inside words the kid has unlocked. `BitCoordinatorService` appends a per-turn "Words you may use" note (gated by `prompts/bit.md`); Bit must describe anything unlocked in plain kid words instead of naming it.
+- Bit may only use inside words the kid has unlocked. `BitCoordinatorService` appends a per-turn "Words you may use" note (gated by `prompts/bit.md`); Bit must describe anything locked in plain kid words instead of naming it.
 - Per-profile state lives on the profile record: `unlockedConcepts` (each with `firstSeenAt`) plus an `unlockStats` counter (`buildsDelegated`, `openedActivities`).
 - Chrome labels follow the same unlocked set: "your creations" -> "your Workshop", and "See all activities" -> "Open Logbook" / the activity surface titles "Your Logbook".
 

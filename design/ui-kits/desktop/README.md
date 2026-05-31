@@ -24,6 +24,6 @@ The production app now centers on a Codex provider connection, kid profile selec
 
 - Icons come from our custom pixel sprite sheet (`assets/icons.svg`) via `<use href>`.
 - Bit is the single signature character across the app. Appears in Home hero, sidebar logo, chat avatar.
-- Code editor syntax highlighting is deliberately simple; the current product edits files through the Pi-backed project workspace rather than an embedded editor.
+- Code editor syntax highlighting is deliberately simple; the current product edits creation files through the Pi-backed project workspace rather than an embedded editor.
 - Only 3 of 5 nav destinations are fully mocked (Home, Tutor, Code). Lessons mirrors Home; Trophies is a stub.
 - Codex provider connection, profile selection, profile switching, profile-level creation management, and live preview Play affordances are not part of this click-thru prototype.

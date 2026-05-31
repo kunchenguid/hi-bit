@@ -59,12 +59,12 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 
 - **"You"** - always address the learner directly. Second person.
 - **"We"** - Bit + learner together, used sparingly for the collaborative moments. *"We'll start with a button."*
-- **"I"** - reserved for Bit in chat. *"I updated the project files."*
+- **"I"** - reserved for Bit in chat. *"I updated the creation."*
 - Never **"the user,"** **"your child,"** or **"kids."** Those words don't appear in UI copy.
 
 ### Casing
 
-- **Sentence case** everywhere: buttons, nav, headings, titles. *"Open project"* not *"Open Project"*.
+- **Sentence case** everywhere: buttons, nav, headings, titles. *"Open creation"* not *"Open Creation"*.
 - Two exceptions:
   - The wordmark: **HI BIT** (all-caps in its pixel display face - it's a logo, not a word in running text).
   - Badge titles: **All caps**, pixel font, for arcade flavor. *"BUILD READY"*, *"BUG HUNTER"*.
@@ -72,7 +72,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 ### Emoji & punctuation
 
 - **No emoji in UI chrome.** Nav, buttons, toasts - all emoji-free.
-- **Emoji allowed in tutor chat**, sparingly - maximum one per message, always at the end, only on genuine wins. A celebratory note after a project works, not on every reply.
+- **Emoji allowed in tutor chat**, sparingly - maximum one per message, always at the end, only on genuine wins. A celebratory note after a creation works, not on every reply.
 - **No exclamation mark stacking.** One `!` max, used deliberately. Most sentences end in `.`
 - **Plain punctuation is best** - keep the mentor cadence without leaning on punctuation tricks.
 - **No ALL CAPS for emphasis** in body copy. (Badges and the logo are the exceptions.)
@@ -119,7 +119,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 This means:
 
 - **Surfaces are calm.** Cream/paper in light mode, deep indigo-black (`#0E0D1C`) in dark mode. Never pure white, never pure black.
-- **Accents are loud.** Subject colors are fully saturated 8-bit primaries (cyan, magenta, yellow-amber, lime) - used *per project moment*, not everywhere at once.
+- **Accents are loud.** Subject colors are fully saturated 8-bit primaries (cyan, magenta, yellow-amber, lime) - used *per creation moment*, not everywhere at once.
 - **Details are chunky.** 8px pixel grid governs everything: icon sprites are 16×16 or 32×32, radii are 4/8/12/16px, never fractional.
 
 ### Color system - see `tokens/colors_and_type.css` for values
@@ -147,7 +147,7 @@ Three faces, each with a job. All available free from Google Fonts.
 
 | Face | Role | Example |
 |---|---|---|
-| **Fredoka** (700, 600, 500, 400) | Rounded sans - UI chrome, body, headings | "Open project" |
+| **Fredoka** (700, 600, 500, 400) | Rounded sans - UI chrome, body, headings | "Open creation" |
 | **Fira Code** (500, 400) | Code, numbers-in-UI | `const price = 42` |
 | **Press Start 2P** (400) | Pixel display - wordmark, badges, hero stats | **HI BIT**, **BUILD READY** |
 
@@ -166,7 +166,7 @@ Type ramp is defined in `tokens/colors_and_type.css` as `--t-display`, `--t-h1` 
 - **Default:** flat `--paper` or `--night`. Never gradient-washed full screens.
 - **Hero/celebration moments:** a **subtle paper-grain texture** (`assets/paper-texture.svg`, multiply-blended at 8% opacity) plus an **optional CRT scanline overlay** at 4%.
 - **No full-bleed photography.** This app is illustrative, not photographic.
-- **Subject wash:** each project card or workspace moment uses a `color-mix(in oklch, var(--subject-x) 12%, var(--paper))` tint. Quiet, not neon.
+- **Subject wash:** each creation card or workspace moment uses a `color-mix(in oklch, var(--subject-x) 12%, var(--paper))` tint. Quiet, not neon.
 
 ### Corners & borders
 
@@ -180,7 +180,7 @@ Three systems:
 
 1. **Pixel drop** (buttons, pill chips): `0 2px 0 0 var(--ink)` - hard, no blur.
 2. **Soft lift** (cards, panels): `0 4px 16px -4px rgba(26, 22, 38, 0.12)` - for floating surfaces.
-3. **Glow** (active project moment): `0 0 0 3px color-mix(in oklch, var(--subject-x) 40%, transparent)` - a ring of the active subject hue.
+3. **Glow** (active creation moment): `0 0 0 3px color-mix(in oklch, var(--subject-x) 40%, transparent)` - a ring of the active subject hue.
 
 ### Motion
 
@@ -208,14 +208,14 @@ Three systems:
 
 ### Cards
 
-The canonical Hi-Bit project card:
+The canonical Hi-Bit creation card:
 
 ```
 ┌─────────────────────────────┐  ← --r-lg (12px)
 │                             │  ← 1px --ink-12 outline
 │   [sprite 32×32]            │  ← background: --paper-2
 │                             │     or subject-tinted wash
-│   Project title             │
+│   Creation title            │
 │   Updated just now          │
 │                             │
 └─────────────────────────────┘
@@ -225,7 +225,7 @@ The canonical Hi-Bit project card:
 - Padding: `--s-4` (24px) internal
 - Title: `--t-h4`, weight 600
 - Meta: `--t-small`, `--ink-64` (64% ink)
-- Active project cards get the **glow** shadow; ready cards can get a small corner checkmark sprite, no shadow change.
+- Active creation cards get the **glow** shadow; ready cards can get a small corner checkmark sprite, no shadow change.
 
 ---
 
@@ -260,4 +260,4 @@ The canonical Hi-Bit project card:
 3. Preview tokens in the **Design System** tab (cards in `preview/`).
 4. For the current product surfaces, review the renderer screens: Codex connection, profile gate, chat workspace, and live preview pane.
 5. Treat `ui-kits/desktop/index.html` as a legacy brand prototype for visual patterns, not the current product shell.
-6. If you're building a new screen: start from the current renderer flow, keep the subject-rainbow rule (one hue per project moment, not all of them at once), and remember - **pixel is a spice, not the stew.**
+6. If you're building a new screen: start from the current renderer flow, keep the subject-rainbow rule (one hue per creation moment, not all of them at once), and remember - **pixel is a spice, not the stew.**
