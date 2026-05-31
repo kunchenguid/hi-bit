@@ -12,9 +12,8 @@ type CreationPickerProps = {
 
 /**
  * The picker that stands in for Play once the kid has more than one creation.
- * Lists every creation newest first; tapping one plays it. A creation with no
- * preview yet still appears (this is the kid's whole shelf) - tapping it lets
- * Bit gently say it has nothing to play yet rather than hiding it here.
+ * Lists every creation newest first. Creations with no preview yet still appear
+ * because this is the kid's whole shelf, but only playable creations can start.
  */
 export function CreationPicker({
   creations,
@@ -104,8 +103,10 @@ export function CreationPicker({
               <button
                 type="button"
                 className="hb-creation-pick"
+                disabled={!playable}
                 key={creation.id}
                 onClick={() => {
+                  if (!playable) return;
                   onPlay(creation.id);
                   close();
                 }}

@@ -71,7 +71,7 @@ describe("CreationPicker", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("marks a creation with no preview yet but still lets the kid tap it", () => {
+  it("marks a creation with no preview yet and does not play it", () => {
     const onPlay = vi.fn();
 
     act(() =>
@@ -87,10 +87,10 @@ describe("CreationPicker", () => {
 
     const row = rowButtons()[0];
     expect(row?.textContent).toContain("No preview yet");
+    expect(row?.disabled).toBe(true);
 
     act(() => row?.click());
-    // It is still tappable: Bit gets the chance to say it can't play it yet.
-    expect(onPlay).toHaveBeenCalledWith("p1");
+    expect(onPlay).not.toHaveBeenCalled();
   });
 
   it("closes on Escape", () => {

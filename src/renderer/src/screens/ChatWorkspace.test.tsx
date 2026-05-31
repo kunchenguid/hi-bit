@@ -49,6 +49,7 @@ function renderWorkspace(
   overrides: {
     authStatus?: AuthStatus | null;
     creations?: ProjectSummary[];
+    playableProjectIds?: string[];
     onPlayPreview?: (projectId: string) => void;
   } = {},
 ): void {
@@ -67,7 +68,7 @@ function renderWorkspace(
         busy={false}
         error={null}
         previews={[]}
-        playableProjectIds={[]}
+        playableProjectIds={overrides.playableProjectIds ?? []}
         creations={overrides.creations ?? []}
         activePreview={null}
         reloadSignal={0}
@@ -187,6 +188,7 @@ describe("ChatWorkspace creation picker", () => {
     const onPlayPreview = vi.fn();
     renderWorkspace(host, {
       creations: [makeCreation("p1", "Cat Jump"), makeCreation("p2", "Star Maze")],
+      playableProjectIds: ["p2"],
       onPlayPreview,
     });
 
@@ -196,5 +198,23 @@ describe("ChatWorkspace creation picker", () => {
     expect(onPlayPreview).toHaveBeenCalledWith("p2");
     // Choosing closes the picker.
     expect(host.querySelector(".hb-creation-picker")).toBeNull();
+  });
+
+  it("keeps creations without previews from playing in the picker", () => {
+    const onPlayPreview = vi.fn();
+    renderWorkspace(host, {
+      creations: [makeCreation("p1", "Cat Jump"), makeCreation("p2", "Star Maze")],
+      playableProjectIds: ["p2"],
+      onPlayPreview,
+    });
+
+    act(() => findButton("Your creations")?.click());
+    const catJump = findButton("Cat Jump");
+
+    expect(catJump?.disabled).toBe(true);
+    act(() => catJump?.click());
+
+    expect(onPlayPreview).not.toHaveBeenCalled();
+    expect(host.querySelector(".hb-creation-picker")).not.toBeNull();
   });
 });
