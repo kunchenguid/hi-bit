@@ -51,6 +51,7 @@ const api: HiBitApi = {
       ipcRenderer.invoke("hibit:preview:play", profileId, projectId),
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke("hibit:preview:open-external", url),
+    clearCache: (): Promise<void> => ipcRenderer.invoke("hibit:preview:clear-cache"),
   },
 };
 

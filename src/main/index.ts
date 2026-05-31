@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { ChatEvent } from "@shared/chat";
 import { DEFAULT_CODEX_MODEL, type HiBitConfig, normalizeHiBitConfig } from "@shared/config";
 import type { AppInfo, Platform } from "@shared/ipc";
-import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
+import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
 import { ConversationService } from "./conversation/conversationService";
@@ -66,6 +66,7 @@ function createMainWindow(): BrowserWindow {
   });
 
   const devServerUrl = process.env.ELECTRON_RENDERER_URL;
+
   if (isDev && devServerUrl) {
     void win.loadURL(devServerUrl);
   } else {
@@ -180,6 +181,16 @@ export function registerIpc(services: Services): void {
     if (!isLoopbackHttpUrl(url)) throw new Error("Refusing to open a non-preview URL.");
     await shell.openExternal(url);
   });
+
+  // A bot rebuild changes a creation's files on disk, but its preview server keeps
+  // the same URL and port. Chromium caches that origin's responses (the static
+  // servers send no Cache-Control), so remounting the preview iframe would just
+  // replay the stale bytes - the kid sees the old creation while "Open in browser"
+  // (a fresh process) shows the new one. Emptying the renderer session's HTTP
+  // cache before a reload forces the iframe to refetch the rebuilt files and all
+  // their subresources. The renderer itself loads from file:// (prod) or the Vite
+  // dev server, so clearing the HTTP cache costs nothing there.
+  ipcMain.handle("hibit:preview:clear-cache", () => session.defaultSession.clearCache());
 }
 
 function isLoopbackHttpUrl(value: string): boolean {

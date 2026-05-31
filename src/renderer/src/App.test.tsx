@@ -804,6 +804,7 @@ function createApiMock(): HiBitApi {
         startedAt: "2026-01-01T00:00:00.000Z",
       })),
       openExternal: vi.fn(async () => {}),
+      clearCache: vi.fn(async () => {}),
     },
   };
 }
