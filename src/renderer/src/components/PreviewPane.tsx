@@ -12,8 +12,9 @@ type PreviewPaneProps = {
 /**
  * The split-pane that plays a creation's live preview. Points a sandboxed iframe
  * at the creation's own loopback server. Reload remounts the frame so freshly
- * built files load; Open-in-browser hands the URL to the system browser; Close
- * just hides the pane (the server keeps running until Bit stops it).
+ * built files load; each load focuses the frame so game controls work without
+ * an extra click; Open-in-browser hands the URL to the system browser; Close just
+ * hides the pane (the server keeps running until Bit stops it).
  *
  * The sandbox includes `allow-same-origin` so creations behave like real web
  * pages - they can use localStorage, IndexedDB, and cookies (high scores, saves,
