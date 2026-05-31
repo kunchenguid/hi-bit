@@ -10,11 +10,11 @@ import { Type } from "typebox";
 import { extractCodexAccountId } from "../auth/codexOAuth";
 
 /**
- * Web-access tools for bot bots.
+ * Web-access tools shared by bots and Bit.
  *
- * Bots build kids' web apps and sometimes need to look something up - current
- * library/API docs, an example, a reference page. Two tools cover that with no
- * third-party dependency:
+ * Bots build kids' web apps and Bit coordinates them, and both sometimes need to
+ * look something up - current library/API docs, an example, a reference page.
+ * Two tools cover that with no third-party dependency:
  *
  * - `web_search` reuses Hi-Bit's own Codex login. It calls the Codex Responses
  *   backend with the native `web_search` hosted tool (the same backend + token

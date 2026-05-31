@@ -90,6 +90,25 @@ describe("BitRuntimeService", () => {
     }
   });
 
+  it("gives Bit the web lookup tools alongside its delegation tools", async () => {
+    let captured: CreateBitSessionInput | undefined;
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async (input: CreateBitSessionInput) => {
+        captured = input;
+        return new FakeBitSession();
+      },
+    });
+
+    await service.prompt(baseInput(), "what's the latest on three.js?", () => {});
+
+    const toolNames = (captured?.customTools ?? []).map((tool) => tool.name);
+    expect(toolNames).toContain("web_search");
+    expect(toolNames).toContain("fetch_content");
+    expect(toolNames).toContain("get_search_content");
+  });
+
   it("reuses one session per profile across turns", async () => {
     const sessions: FakeBitSession[] = [];
     const service = new BitRuntimeService({

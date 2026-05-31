@@ -11,6 +11,7 @@ import {
 import type { ChatEvent } from "@shared/chat";
 import { createBitResourceLoader } from "./piResources";
 import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
+import { createWebSearchTools } from "./webSearchTools";
 
 export type BitSession = {
   sessionId: string;
@@ -86,10 +87,20 @@ export class BitRuntimeService implements BitRuntime {
   private readonly running = new Map<string, RunningTurn>();
   private readonly createSession: (input: CreateBitSessionInput) => Promise<BitSession>;
   private readonly modelId: string;
+  /**
+   * Web lookup tools (web_search/fetch_content/get_search_content), the same set
+   * bots get. Built once on Hi-Bit's Codex login so Bit can look things up while
+   * coordinating, instead of having to delegate every lookup to a bot.
+   */
+  private readonly webTools: ToolDefinition[];
 
   constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
     this.createSession = options.createSession ?? createRealBitSession;
+    this.webTools = createWebSearchTools({
+      getFreshAccessToken: options.getFreshAccessToken,
+      model: this.modelId,
+    });
   }
 
   async prompt(
@@ -174,6 +185,7 @@ export class BitRuntimeService implements BitRuntime {
     if (existing) return existing;
     const session = await this.createSession({
       ...input,
+      customTools: [...input.customTools, ...this.webTools],
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
