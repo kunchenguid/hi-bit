@@ -894,6 +894,82 @@ pre {
   margin-left: auto;
 }
 
+/* The creation picker: same modal shell as the Logbook, with a tappable list. */
+.hb-creation-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--s-3);
+  background: var(--ink-40);
+}
+
+.hb-creation-picker {
+  width: min(560px, 100%);
+  max-height: calc(100vh - var(--s-6));
+  overflow: auto;
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+}
+
+.hb-creation-picker-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.hb-creation-picker-head .hb-bit-badge {
+  width: 48px;
+  height: 48px;
+}
+
+.hb-creation-picker-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.hb-creation-picker-head .hb-button {
+  margin-left: auto;
+}
+
+.hb-creation-picker-list {
+  display: grid;
+  gap: var(--s-1\.5);
+}
+
+.hb-creation-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1\.5);
+  width: 100%;
+  padding: var(--s-1\.5) var(--s-2);
+  border: var(--border-hairline);
+  border-radius: var(--r-xl);
+  background: var(--paper-3);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hb-creation-pick:hover {
+  border-color: var(--ink);
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+.hb-creation-pick-play {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--ink);
+  background: var(--subject-js);
+  font-weight: 700;
+}
+
 .hb-creation-group {
   border: var(--border-hairline);
   border-radius: var(--r-xl);

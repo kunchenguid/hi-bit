@@ -7,6 +7,10 @@ type ActivityChipProps = {
   /** The playable creation to offer Play for, so it never scrolls away. */
   playProjectId?: string | null;
   onPlay?: (projectId: string) => void;
+  /** How many creations the kid has, deciding Play vs the picker. */
+  creationCount?: number;
+  /** Opens the picker so the kid can choose which creation to play. */
+  onSeeCreations?: () => void;
   onSeeAll: () => void;
 };
 
@@ -15,13 +19,17 @@ type ActivityChipProps = {
  * Calm when idle, spinning when a bot is working or Bit is thinking. Never
  * grows; the full history lives behind the Logbook. When a creation has a live
  * preview, it also carries a persistent Play so the kid can jump back in even
- * after the "ready" message scrolls off.
+ * after the "ready" message scrolls off. Once the kid has more than one
+ * creation, that single Play becomes a "Your creations" button that opens a
+ * picker - one Play can't stand in for a whole shelf of creations.
  */
 export function ActivityChip({
   activity,
   running = false,
   playProjectId,
   onPlay,
+  creationCount = 0,
+  onSeeCreations,
   onSeeAll,
 }: ActivityChipProps) {
   const summary = summarizeActivity(activity, running);
@@ -38,7 +46,15 @@ export function ActivityChip({
         </span>
       </div>
       <div className="hb-activity-actions">
-        {playProjectId && onPlay ? (
+        {creationCount >= 2 && onSeeCreations ? (
+          <button
+            type="button"
+            className="hb-play-button hb-play-button-chip"
+            onClick={onSeeCreations}
+          >
+            <span aria-hidden="true">▶</span> Your creations
+          </button>
+        ) : playProjectId && onPlay ? (
           <button
             type="button"
             className="hb-play-button hb-play-button-chip"

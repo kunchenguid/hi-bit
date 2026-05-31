@@ -1,9 +1,12 @@
 import type { AuthStatus } from "@shared/auth";
 import type { ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
+import type { ProjectSummary } from "@shared/project";
+import { useState } from "react";
 import { ActivityChip } from "../components/ActivityChip";
 import { ActivityView } from "../components/ActivityView";
 import { Composer } from "../components/Composer";
+import { CreationPicker } from "../components/CreationPicker";
 import { MessageList } from "../components/MessageList";
 import { PreviewPane } from "../components/PreviewPane";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
@@ -21,6 +24,7 @@ type ChatWorkspaceProps = {
   error: string | null;
   previews: PreviewInfo[];
   playableProjectIds: string[];
+  creations: ProjectSummary[];
   activePreview: PreviewInfo | null;
   reloadSignal: number;
   onDraftChange: (value: string) => void;
@@ -50,6 +54,7 @@ export function ChatWorkspace({
   error,
   previews,
   playableProjectIds,
+  creations,
   activePreview,
   reloadSignal,
   onDraftChange,
@@ -65,6 +70,7 @@ export function ChatWorkspace({
   onOpenPreviewExternal,
   onClearPreviewCache,
 }: ChatWorkspaceProps) {
+  const [showCreations, setShowCreations] = useState(false);
   const providerStatus = authStatus?.accountId
     ? `Codex provider connected (${authStatus.accountId})`
     : "Codex provider connected";
@@ -141,6 +147,8 @@ export function ChatWorkspace({
             running={running}
             playProjectId={barPlayProjectId}
             onPlay={onPlayPreview}
+            creationCount={creations.length}
+            onSeeCreations={() => setShowCreations(true)}
             onSeeAll={onShowActivity}
           />
           {error ? <p className="hb-error">{error}</p> : null}
@@ -164,6 +172,14 @@ export function ChatWorkspace({
       </section>
 
       {showActivity ? <ActivityView activity={activity} onClose={onHideActivity} /> : null}
+      {showCreations ? (
+        <CreationPicker
+          creations={creations}
+          playableProjectIds={playable}
+          onPlay={onPlayPreview}
+          onClose={() => setShowCreations(false)}
+        />
+      ) : null}
     </main>
   );
 }

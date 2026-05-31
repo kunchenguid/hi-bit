@@ -18,7 +18,7 @@ This file is the canonical architecture and workflow guide for the current app. 
   Each profile has one continuous Bit conversation under `conversation/`, with Bit sessions under `conversation/sessions/bit`. Project folders live under `<userData>/.hi-bit/factories/default/profiles/<profileId>/projects/<projectId>/` and include `blueprints`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer, including preview-safe IPC helpers. Every renderer IPC call goes through here.
-- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer, message list, preview pane, profile settings menu, activity chip with persistent Play, and full activity log.
+- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer, message list, preview pane, profile settings menu, activity chip with persistent Play or the multi-creation picker, and full activity log.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
 - `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
 - `prompts/bit.md` and `prompts/bot.md` - Bit and bot system prompts. Product content, not code; edit them like you'd edit docs.
@@ -84,7 +84,8 @@ For real-art requests, verify that a bot calls `generate_image`, saves the gener
 For web-lookup requests, verify that Bit or a bot uses `web_search` for search with cached access by default, `fetch_content` for a known public URL, and `get_search_content` when a long fetched page is parked; do not send kid personal details in the test prompt.
 For flat 2D playable-game requests, verify that the bot reads the `create-2d-game` skill, uses its loop/input/collision boilerplate, and combines it with `game-assets` when the game needs generated sprites.
 For 3D playable-game requests (first-person/third-person worlds, blocky build-and-explore, 3D platformers/collectors/blasters), verify that the bot reads the `create-3d-game` skill, copies its `three.min.js` and `engine3d.js` into the creation, builds the world from textured primitives (textures from `generate_image`, not sprite sheets), and the live preview renders it in WebGL.
-For live previews, verify that Play is available from a ready message and the activity bar, opens a sandboxed split-pane iframe only after the kid presses it, focuses the preview page for keyboard controls when it loads and after Reload/rebuild remounts, refetches rebuilt files and subresources instead of replaying Chromium's cached bytes after Reload or rebuild, is idempotent and can restart a persisted preview after an app restart, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.
+For live previews, verify that Play is available from a ready message and from the activity bar when there is one creation; when there are multiple creations, verify the activity bar opens the "Your creations" picker, playable creations can start from it, and creations without previews are listed but disabled.
+Also verify that preview Play opens a sandboxed split-pane iframe only after the kid presses it, focuses the preview page for keyboard controls when it loads and after Reload/rebuild remounts, refetches rebuilt files and subresources instead of replaying Chromium's cached bytes after Reload or rebuild, is idempotent and can restart a persisted preview after an app restart, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.
 Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`; use the app's Codex connection flow or a clean `userData` state appropriate for the test.
 
 ### One-time understanding
@@ -109,6 +110,25 @@ curl -s http://127.0.0.1:9222/json/version   # sanity-check: should report Elect
 ```
 
 `http://127.0.0.1:9222/json` lists page targets. The renderer you want is the one with `"url": "http://localhost:5173/"` and `"title": "Hi-Bit"`.
+
+### Fresh state without losing Codex auth (`HIBIT_USER_DATA_DIR`)
+
+`pnpm dev` runs against the real `userData` dir, so a plain run inherits your Codex auth but also mutates real profiles and projects.
+Wiping `<userData>/.hi-bit/` for a clean slate also wipes `auth/codex.json`, which drops you on the Codex sign-in gate - and an agent can't complete that OAuth flow on its own.
+
+To get a fresh profiles/projects state that still starts signed in, point the dev build at an isolated userData dir with `HIBIT_USER_DATA_DIR` (dev-only; ignored in packaged builds):
+
+```
+HIBIT_USER_DATA_DIR=/tmp/hibit-e2e pnpm dev -- --remote-debugging-port=9222
+```
+
+On first launch with an isolated dir that has no auth yet, the app copies `codex.json` from your real userData (`~/Library/Application Support/hi-bit/.hi-bit/auth/codex.json` on macOS) into the isolated dir, so you land straight in the profile gate instead of the sign-in gate.
+The copy only fills a missing file: if you sign a different account into the isolated dir, that wins and is never overwritten.
+Codex tokens are encrypted with Electron's keychain-bound `safeStorage`, not anything tied to the dir path, so the copied file stays valid on the same machine and OS user.
+The main process logs `[hi-bit] isolated userData at <dir> (codex auth: seeded|already-present|no-source)` so you can confirm what happened.
+
+Use a fresh dir name (or `rm -rf` the old one) per run when you want a clean slate; reuse the same dir across runs when you want state to persist between them.
+This never touches the real userData, so it is the safe default for destructive or first-run flows.
 
 ### Attach chrome-devtools-axi to Electron
 
@@ -152,10 +172,10 @@ Do not leave background dev apps, CDP endpoints, or AXI bridge processes running
 
 ### What E2E can and can't cover
 
-- Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-level chat, Bit-delegated creation work, live preview Play controls, abort, and opening the creations folder.
+- Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-level chat, Bit-delegated creation work, live preview Play controls, the multi-creation picker, abort, and opening the creations folder.
 - Can: IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
 - Cannot directly: main-process internals such as token refresh, project file writes, or Pi runtime turns except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
-- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. If you want a clean slate, delete `<userData>/.hi-bit/` between runs (on macOS: `~/Library/Application Support/hi-bit/.hi-bit/`).
+- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. For a clean slate that still starts signed in, prefer an isolated dir via `HIBIT_USER_DATA_DIR` (see "Fresh state without losing Codex auth" above) rather than deleting `<userData>/.hi-bit/` - a delete also wipes `auth/codex.json` and strands you on the Codex sign-in gate.
 
 ## Project conventions
 
