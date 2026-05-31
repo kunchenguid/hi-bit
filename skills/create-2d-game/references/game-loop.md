@@ -12,12 +12,12 @@ Every genre starts from this. Copy `engine.js` next to your game, then build fro
   <head>
     <meta charset="utf-8" />
     <style>
-      body { margin: 0; background: #10131a; }
-      canvas { display: block; margin: 0 auto; background: #1b2030; }
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #10131a; }
+      canvas { display: block; width: 100vw; height: 100vh; background: #1b2030; }
     </style>
   </head>
   <body>
-    <canvas id="game" width="640" height="360"></canvas>
+    <canvas id="game"></canvas>
     <script src="engine.js"></script>
     <script src="game.js"></script>
   </body>
@@ -28,12 +28,20 @@ Every genre starts from this. Copy `engine.js` next to your game, then build fro
 
 ```js
 const canvas = document.getElementById("game");
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
 const { ctx, input } = HiBitGame.run(canvas, { update, draw });
 
 // Tunable numbers live here so they are easy to find and change.
 const SPEED = 200; // pixels per second
 
 const player = { x: 300, y: 160, w: 32, h: 32 };
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
 
 function update(dt) {
   if (input.isDown("left")) player.x -= SPEED * dt;

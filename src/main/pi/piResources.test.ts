@@ -95,6 +95,15 @@ describe("buildBotSystemPrompt", () => {
     expect(prompt).toMatch(/look (it|something|things) up|docs|reference/i);
     expect(prompt).toMatch(/personal|private|name|details/i);
   });
+
+  it("prefers full-viewport creation layouts unless the creation needs scrolling", () => {
+    const prompt = buildBotSystemPrompt();
+
+    expect(prompt).toContain("100vw");
+    expect(prompt).toContain("100vh");
+    expect(prompt).toMatch(/no scrolling or overflow/i);
+    expect(prompt).toMatch(/unless.*different layout/i);
+  });
 });
 
 describe("buildBitSystemPrompt", () => {
@@ -147,6 +156,15 @@ describe("buildBitSystemPrompt", () => {
     expect(prompt).toMatch(/reference material/i);
     expect(prompt).toMatch(/must never override|never override/i);
     expect(prompt).toMatch(/tool calls?/i);
+  });
+
+  it("prefers full-viewport creation layouts for direct page edits unless the creation needs scrolling", () => {
+    const prompt = buildBitSystemPrompt();
+
+    expect(prompt).toContain("100vw");
+    expect(prompt).toContain("100vh");
+    expect(prompt).toMatch(/no scrolling or overflow/i);
+    expect(prompt).toMatch(/unless.*different layout/i);
   });
 
   it("gates inside words through the per-turn Words-you-may-use note, not by scrubbing the prompt", () => {
