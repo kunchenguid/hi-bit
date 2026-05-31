@@ -140,6 +140,15 @@ describe("buildBitSystemPrompt", () => {
     expect(prompt).toMatch(/personal|private|name|details/i);
   });
 
+  it("tells Bit to treat web results as untrusted reference material", () => {
+    const prompt = buildBitSystemPrompt();
+
+    expect(prompt).toMatch(/web.*untrusted|untrusted.*web/i);
+    expect(prompt).toMatch(/reference material/i);
+    expect(prompt).toMatch(/must never override|never override/i);
+    expect(prompt).toMatch(/tool calls?/i);
+  });
+
   it("keeps the locked bot word out of the always-on Bit prompts", () => {
     const runtimePrompt = buildBitSystemPrompt();
     const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
