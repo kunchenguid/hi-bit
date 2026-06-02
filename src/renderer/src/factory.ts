@@ -97,22 +97,22 @@ export function buildFactoryFloor(
 ): CreationFloor[] {
   const activityById = new Map(activity.map((entry) => [entry.projectId, entry]));
   const seen = new Set<string>();
-  const rows: Array<{ projectId: string; title: string; updatedAt: string }> = [];
+  const rows: Array<{ projectId: string; title: string; updatedAt: string; working: boolean }> = [];
 
   for (const creation of creations) {
     seen.add(creation.id);
     const entry = activityById.get(creation.id);
     const updatedAt = entry?.updatedAt && entry.updatedAt.localeCompare(creation.updatedAt) > 0 ? entry.updatedAt : creation.updatedAt;
-    rows.push({ projectId: creation.id, title: creation.title, updatedAt });
+    rows.push({ projectId: creation.id, title: creation.title, updatedAt, working: entry?.status === "working" });
   }
   for (const entry of activity) {
     if (seen.has(entry.projectId)) continue;
     seen.add(entry.projectId);
-    rows.push({ projectId: entry.projectId, title: entry.title, updatedAt: entry.updatedAt });
+    rows.push({ projectId: entry.projectId, title: entry.title, updatedAt: entry.updatedAt, working: entry.status === "working" });
   }
 
   return rows
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .sort((a, b) => Number(b.working) - Number(a.working) || b.updatedAt.localeCompare(a.updatedAt))
     .map((row) => {
       const entry = activityById.get(row.projectId);
       const bots = lanesFor(entry);

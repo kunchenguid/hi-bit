@@ -94,6 +94,19 @@ describe("buildFactoryFloor", () => {
     expect(floor[0].updatedAt).toBe("2026-03-01T00:00:00.000Z");
   });
 
+  it("keeps working creations ahead of newer idle creations", () => {
+    const floor = buildFactoryFloor(
+      [
+        project("idle", "Idle Site", "2026-03-01T00:00:00.000Z"),
+        project("active", "Active Game", "2026-01-01T00:00:00.000Z"),
+      ],
+      [creation("active", "Active Game", "working", [step("j", "write", "running")])],
+      new Set(),
+    );
+
+    expect(floor.map((machine) => machine.projectId)).toEqual(["active", "idle"]);
+  });
+
   it("shows idle creations with no activity as quiet machines", () => {
     const floor = buildFactoryFloor(
       [project("new", "New Thing", "2026-03-03T00:00:00.000Z")],
