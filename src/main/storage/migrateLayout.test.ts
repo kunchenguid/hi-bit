@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -61,6 +61,10 @@ async function seedLegacyLayout(root: string): Promise<void> {
     `${JSON.stringify({ timestamp: "t", type: "chat_message", message: { id: "m1" } })}\n`,
     "utf8",
   );
+  await writeJson(join(ada, "conversation", "conversation.json"), {
+    schemaVersion: 1,
+    activeBitSessionFile: join(ada, "conversation", "sessions", "bit", "active.jsonl"),
+  });
   const proj = join(ada, "projects", "proj1");
   await writeJson(join(proj, "project.json"), {
     schemaVersion: 1,
@@ -137,6 +141,12 @@ describe("migrateLayout", () => {
     // Conversation content survives the move.
     const transcript = await readFile(join(ada, "conversation", "transcript.jsonl"), "utf8");
     expect(transcript).toContain("m1");
+    const conversation = JSON.parse(
+      await readFile(join(ada, "conversation", "conversation.json"), "utf8"),
+    );
+    expect(conversation.activeBitSessionFile).toBe(
+      join(ada, "conversation", "sessions", "bit", "active.jsonl"),
+    );
 
     // A per-kid factory.json + lead.json (the kid as lead builder) are written.
     const factory = JSON.parse(await readFile(join(ada, "factory.json"), "utf8"));
@@ -197,6 +207,37 @@ describe("migrateLayout", () => {
       await readFile(join(root, "factories", "ada", "projects", "proj1", "project.json"), "utf8"),
     ).toBe(firstProject);
     expect(await exists(join(root, "factories", "default"))).toBe(false);
+  });
+
+  it("finishes record rewrites after profiles were already moved", async () => {
+    const root = await tempRoot();
+    await seedLegacyLayout(root);
+    const factories = join(root, "factories");
+    const ada = join(factories, "ada");
+    const leo = join(factories, "leo");
+    await mkdir(factories, { recursive: true });
+    await Promise.all([
+      rename(join(factories, "default", "profiles", "ada"), ada),
+      rename(join(factories, "default", "profiles", "leo"), leo),
+    ]);
+    await rm(join(factories, "default"), { recursive: true, force: true });
+
+    await migrateLayout(root, now);
+
+    expect(await exists(join(ada, "factory.json"))).toBe(true);
+    expect(await exists(join(ada, "lead.json"))).toBe(true);
+    const project = JSON.parse(
+      await readFile(join(ada, "projects", "proj1", "project.json"), "utf8"),
+    );
+    expect(project).not.toHaveProperty("factoryId");
+    const conversation = JSON.parse(
+      await readFile(join(ada, "conversation", "conversation.json"), "utf8"),
+    );
+    expect(conversation.activeBitSessionFile).toBe(
+      join(ada, "conversation", "sessions", "bit", "active.jsonl"),
+    );
+    const home = JSON.parse(await readFile(join(root, "home.json"), "utf8"));
+    expect(home.layoutVersion).toBe(2);
   });
 
   it("does nothing on a fresh install with no legacy data", async () => {

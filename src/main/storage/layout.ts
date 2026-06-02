@@ -1,5 +1,5 @@
 import { mkdir, readdir, rename } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { type HiBitConfig, normalizeHiBitConfig } from "@shared/config";
 import { readJsonFile, removeIfExists, writeJsonFile } from "./json";
 
@@ -185,19 +185,21 @@ export async function migrateLayout(root: string, now = () => new Date()): Promi
         await rename(join(legacyProfilesDir, id), target);
       }
     }
-    await removeIfExists(staging);
   }
 
   // 3. Give every migrated factory its factory.json + lead.json and strip the
   //    now-dead factoryId from its records. Runs only during this one upgrade.
-  if (hadLegacy) {
+  if (home || hadLegacy) {
     for (const id of await dirNames(layout.factoriesDir)) {
       const profile = await readJsonFile<{ name?: string }>(profileJsonPath(layout, id));
       if (!profile) continue;
       await ensureFactoryRecords(layout, id, profile.name ?? id, now);
       await stripFactoryIdFromProjects(layout, id);
+      await rewriteMigratedConversationState(layout, id, legacyContainer, staging);
     }
   }
+
+  await removeIfExists(staging);
 
   // 4. Stamp the marker last. Skip entirely on a truly fresh install (no home,
   //    no legacy) so bootstrap creates home.json instead.
@@ -253,6 +255,32 @@ async function stripFactoryIdAt(path: string): Promise<void> {
   if (!record || !("factoryId" in record)) return;
   delete record.factoryId;
   await writeJsonFile(path, record);
+}
+
+async function rewriteMigratedConversationState(
+  layout: HiBitLayout,
+  profileId: string,
+  legacyContainer: string,
+  staging: string,
+): Promise<void> {
+  const conversationPaths = profileConversationPaths(layout, profileId);
+  const record = await readJsonFile<Record<string, unknown>>(
+    conversationPaths.conversationStatePath,
+  );
+  if (!record || typeof record.activeBitSessionFile !== "string") return;
+
+  for (const oldProfileRoot of [
+    join(legacyContainer, "profiles", profileId),
+    join(staging, "profiles", profileId),
+  ]) {
+    const oldBitSessionsDir = join(oldProfileRoot, "conversation", "sessions", "bit");
+    const suffix = relative(oldBitSessionsDir, record.activeBitSessionFile);
+    if (!suffix.startsWith("..") && suffix !== "") {
+      record.activeBitSessionFile = join(conversationPaths.bitSessionsDir, suffix);
+      await writeJsonFile(conversationPaths.conversationStatePath, record);
+      return;
+    }
+  }
 }
 
 async function dirNames(path: string): Promise<string[]> {
