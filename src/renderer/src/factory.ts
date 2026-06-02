@@ -71,8 +71,13 @@ function lanesFor(activity: CreationActivity | undefined): BotLane[] {
     } satisfies BotLane;
   });
 
-  // A build that has started but emitted no step yet still has a bot on it.
   if (activity.status === "working" && !lanes.some((lane) => lane.working)) {
+    const lastLane = lanes.at(-1);
+    if (lastLane) {
+      lastLane.working = true;
+      return lanes;
+    }
+
     lanes.push({
       botId: `${activity.projectId}:pending`,
       hue: botHue(activity.projectId),
@@ -116,7 +121,7 @@ export function buildFactoryFloor(
     .map((row) => {
       const entry = activityById.get(row.projectId);
       const bots = lanesFor(entry);
-      const lastStep = entry?.steps.at(-1);
+      const headlineStep = entry?.steps.findLast((step) => step.status === "running") ?? entry?.steps.at(-1);
       return {
         projectId: row.projectId,
         title: row.title,
@@ -124,7 +129,7 @@ export function buildFactoryFloor(
         playable: playableProjectIds.has(row.projectId),
         workingBots: bots.filter((bot) => bot.working).length,
         bots,
-        latestAction: lastStep ? friendlyStep(lastStep.toolName) : null,
+        latestAction: headlineStep ? friendlyStep(headlineStep.toolName) : null,
         updatedAt: row.updatedAt,
       } satisfies CreationFloor;
     });

@@ -144,6 +144,35 @@ describe("buildFactoryFloor", () => {
     expect(floor[0].bots[0].working).toBe(true);
     expect(floor[0].bots[0].steps).toHaveLength(0);
   });
+
+  it("keeps a working build on its existing bot lane between steps", () => {
+    const floor = buildFactoryFloor(
+      [project("p", "P", "2026-01-01T00:00:00.000Z")],
+      [creation("p", "P", "working", [step("j", "write", "completed")])],
+      new Set(),
+    );
+
+    expect(floor[0].workingBots).toBe(1);
+    expect(floor[0].bots).toHaveLength(1);
+    expect(floor[0].bots[0].botId).toBe("j");
+    expect(floor[0].bots[0].working).toBe(true);
+    expect(floor[0].bots[0].steps).toHaveLength(1);
+  });
+
+  it("uses a running bot action before a later completed step", () => {
+    const floor = buildFactoryFloor(
+      [project("p", "P", "2026-01-01T00:00:00.000Z")],
+      [
+        creation("p", "P", "working", [
+          step("j1", "write", "running"),
+          step("j2", "read", "completed"),
+        ]),
+      ],
+      new Set(),
+    );
+
+    expect(floor[0].latestAction).toBe("writing files");
+  });
 });
 
 describe("countWorkingBots", () => {
