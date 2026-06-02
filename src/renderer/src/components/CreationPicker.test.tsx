@@ -14,7 +14,6 @@ function makeCreation(id: string, title: string, updatedAt: string): ProjectSumm
   return {
     schemaVersion: 1,
     id,
-    factoryId: "default",
     profileId: "profile-1",
     title,
     createdAt: "2026-01-01T00:00:00.000Z",

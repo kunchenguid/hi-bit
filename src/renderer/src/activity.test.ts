@@ -165,7 +165,7 @@ describe("summarizeActivity", () => {
 
   it("pluralizes when several bots are working", () => {
     const summary = summarizeActivity([working("a", "Cat Jump"), working("b", "Space Site")]);
-    expect(summary.headline).toBe("2 bots are working on your Workshop");
+    expect(summary.headline).toBe("2 bots are working in your factory");
   });
 
   it("rests with the most recent creation when nothing is working", () => {

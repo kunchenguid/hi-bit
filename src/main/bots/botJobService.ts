@@ -8,7 +8,6 @@ import type { BotBuild, BotWorkbench, InspectionReport } from "./botPipeline";
 export type BlueprintRecord = {
   schemaVersion: 1;
   id: string;
-  factoryId: string;
   projectId: string;
   leadPrompt: string;
   projectCatalog: Array<{ id: string; title: string; updatedAt: string }>;
@@ -19,7 +18,6 @@ export type BlueprintRecord = {
 export type BotJobRecord = {
   schemaVersion: 1;
   id: string;
-  factoryId: string;
   projectId: string;
   blueprintId: string;
   status: "queued" | "running" | "completed" | "cancelled" | "jammed";
@@ -56,7 +54,6 @@ export class BotJobService {
     const blueprint: BlueprintRecord = {
       schemaVersion: 1,
       id: this.nextBlueprintId(),
-      factoryId: project.factoryId,
       projectId: project.id,
       leadPrompt,
       projectCatalog: projectCatalog.map((item) => ({
@@ -76,7 +73,6 @@ export class BotJobService {
     const job: BotJobRecord = {
       schemaVersion: 1,
       id: this.nextJobId(),
-      factoryId: project.factoryId,
       projectId: project.id,
       blueprintId: blueprint.id,
       status: "queued",

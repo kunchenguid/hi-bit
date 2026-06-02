@@ -1383,7 +1383,7 @@ describe("BitCoordinatorService (Bit)", () => {
 
   it("reveals at most one new word per turn", async () => {
     const s = await createCoordinator();
-    // Two creations plus several builds make bot, workshop, blueprint, machines
+    // Two creations plus several builds make bot, factory, blueprint, machines
     // all eligible at once, but each turn may surface only one.
     const a = await s.projects.create(s.profile.id, { title: "Cat Jump" });
     const b = await s.projects.create(s.profile.id, { title: "Space Site" });

@@ -23,9 +23,11 @@ describe("bootstrapLayout", () => {
 
     await expect(stat(layout.authDir)).resolves.toBeTruthy();
     await expect(stat(layout.piAgentDir)).resolves.toBeTruthy();
-    await expect(stat(layout.defaultFactoryDir)).resolves.toBeTruthy();
-    await expect(stat(layout.defaultFactoryLogbookDir)).resolves.toBeTruthy();
-    await expect(stat(layout.defaultFactoryProfilesDir)).resolves.toBeTruthy();
+    await expect(stat(layout.factoriesDir)).resolves.toBeTruthy();
+    // No shared default factory anymore - factories are created per kid.
+    await expect(stat(join(layout.factoriesDir, "default"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
     await expect(stat(projectDir(layout, "ada", "sample"))).rejects.toMatchObject({
       code: "ENOENT",
     });
@@ -33,30 +35,11 @@ describe("bootstrapLayout", () => {
     const home = JSON.parse(await readFile(layout.homePath, "utf8"));
     expect(home).toEqual({
       schemaVersion: 1,
-      defaultFactoryId: "default",
+      layoutVersion: 2,
     });
 
     const config = JSON.parse(await readFile(layout.configPath, "utf8"));
     expect(config).toEqual(defaultHiBitConfig());
-
-    const factory = JSON.parse(
-      await readFile(join(layout.defaultFactoryDir, "factory.json"), "utf8"),
-    );
-    expect(factory).toEqual({
-      schemaVersion: 1,
-      id: "default",
-      name: "Builder's Factory",
-      createdAt: "2026-01-02T03:04:05.000Z",
-    });
-
-    const lead = JSON.parse(await readFile(join(layout.defaultFactoryDir, "lead.json"), "utf8"));
-    expect(lead).toEqual({
-      schemaVersion: 1,
-      id: "lead",
-      name: "Builder",
-      role: "lead_builder",
-      createdAt: "2026-01-02T03:04:05.000Z",
-    });
   });
 });
 
@@ -85,7 +68,7 @@ describe("profileConversationPaths", () => {
 });
 
 function profileDirFor(layout: ReturnType<typeof buildLayout>, profileId: string): string {
-  return join(layout.defaultFactoryProfilesDir, profileId);
+  return join(layout.factoriesDir, profileId);
 }
 
 describe("assertSafeId", () => {

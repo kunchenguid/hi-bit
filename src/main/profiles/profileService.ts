@@ -1,6 +1,5 @@
 import { mkdir, readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
-import type { ConceptId } from "@shared/concepts";
+import { type ConceptId, isKnownConceptId } from "@shared/concepts";
 import {
   EMPTY_UNLOCK_STATS,
   type ProfileInput,
@@ -9,7 +8,20 @@ import {
   type ProfileSummary,
 } from "@shared/profile";
 import { readJsonFile, writeJsonFile } from "../storage/json";
-import { type HiBitHomeRecord, type HiBitLayout, profileDir, profilesDir } from "../storage/layout";
+import {
+  DEFAULT_LEAD_ID,
+  type FactoryRecord,
+  factoryJsonPath,
+  type HiBitHomeRecord,
+  type HiBitLayout,
+  LAYOUT_VERSION,
+  LEGACY_DEFAULT_FACTORY_ID,
+  type LeadRecord,
+  leadJsonPath,
+  profileDir,
+  profileJsonPath,
+  projectsDir,
+} from "../storage/layout";
 
 const SLUG_FALLBACK = "kid";
 
@@ -32,8 +44,8 @@ export class ProfileService {
   ) {}
 
   async list(): Promise<ProfileSummary[]> {
-    await mkdir(profilesDir(this.layout), { recursive: true });
-    const entries = await readdir(profilesDir(this.layout), { withFileTypes: true });
+    await mkdir(this.layout.factoriesDir, { recursive: true });
+    const entries = await readdir(this.layout.factoriesDir, { withFileTypes: true });
     const profiles: ProfileSummary[] = [];
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
@@ -61,8 +73,23 @@ export class ProfileService {
     };
     const notes = input.notes?.trim();
     if (notes) profile.notes = notes;
-    await writeJsonFile(this.profileJsonPath(id), profile);
-    await mkdir(projectsDirForProfile(this.layout, id), { recursive: true });
+    // A profile is its own factory: write the factory + lead records (the kid is
+    // the lead builder of their factory) alongside the profile record.
+    await writeJsonFile(factoryJsonPath(this.layout, id), {
+      schemaVersion: 1,
+      id,
+      name: `${profile.name}'s Factory`,
+      createdAt: timestamp,
+    } satisfies FactoryRecord);
+    await writeJsonFile(leadJsonPath(this.layout, id), {
+      schemaVersion: 1,
+      id: DEFAULT_LEAD_ID,
+      name: profile.name,
+      role: "lead_builder",
+      createdAt: timestamp,
+    } satisfies LeadRecord);
+    await writeJsonFile(profileJsonPath(this.layout, id), profile);
+    await mkdir(projectsDir(this.layout, id), { recursive: true });
     return profile;
   }
 
@@ -93,7 +120,7 @@ export class ProfileService {
         if (notes) next.notes = notes;
         else delete next.notes;
       }
-      await writeJsonFile(this.profileJsonPath(profileId), next);
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
       return next;
     });
   }
@@ -123,7 +150,7 @@ export class ProfileService {
           { id: conceptId, firstSeenAt: this.now().toISOString() },
         ],
       };
-      await writeJsonFile(this.profileJsonPath(profileId), next);
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
       return next;
     });
   }
@@ -145,7 +172,7 @@ export class ProfileService {
           pending ?? { id: conceptId, firstSeenAt: this.now().toISOString() },
         ],
       };
-      await writeJsonFile(this.profileJsonPath(profileId), next);
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
       return next;
     });
   }
@@ -161,7 +188,7 @@ export class ProfileService {
           buildsDelegated: current.unlockStats.buildsDelegated + 1,
         },
       };
-      await writeJsonFile(this.profileJsonPath(profileId), next);
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
     });
   }
 
@@ -174,7 +201,7 @@ export class ProfileService {
         ...current,
         unlockStats: { ...current.unlockStats, openedActivities: true },
       };
-      await writeJsonFile(this.profileJsonPath(profileId), next);
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
       return next;
     });
   }
@@ -185,35 +212,33 @@ export class ProfileService {
   }
 
   async setActiveId(profileId: string | null): Promise<void> {
-    const home = (await readJsonFile<HiBitHomeRecord>(this.layout.homePath)) ?? {
-      schemaVersion: 1,
-      defaultFactoryId: this.layout.defaultFactoryId,
-    };
+    const home = await readJsonFile<HiBitHomeRecord>(this.layout.homePath);
     const next: HiBitHomeRecord = {
       schemaVersion: 1,
-      defaultFactoryId: home.defaultFactoryId,
+      layoutVersion: home?.layoutVersion ?? LAYOUT_VERSION,
     };
     if (profileId) next.activeProfileId = profileId;
     await writeJsonFile(this.layout.homePath, next);
   }
 
   private async read(profileId: string): Promise<ProfileRecord | null> {
-    const record = await readJsonFile<ProfileRecord>(this.profileJsonPath(profileId));
+    const record = await readJsonFile<ProfileRecord>(profileJsonPath(this.layout, profileId));
     return record ? normalizeProfile(record) : null;
   }
 
   private async nextAvailableId(base: string): Promise<string> {
     let candidate = base;
     let suffix = 2;
-    while (await pathExists(profileDir(this.layout, candidate))) {
+    // "default" is reserved: it named the legacy shared factory and a kid factory
+    // keyed by it would collide with leftover migration state.
+    while (
+      candidate === LEGACY_DEFAULT_FACTORY_ID ||
+      (await pathExists(profileDir(this.layout, candidate)))
+    ) {
       candidate = `${base}-${suffix}`;
       suffix += 1;
     }
     return candidate;
-  }
-
-  private profileJsonPath(profileId: string): string {
-    return join(profileDir(this.layout, profileId), "profile.json");
   }
 
   private async withProfileWrite<T>(profileId: string, fn: () => Promise<T>): Promise<T> {
@@ -230,17 +255,19 @@ export class ProfileService {
   }
 }
 
-function projectsDirForProfile(layout: HiBitLayout, profileId: string): string {
-  return join(profileDir(layout, profileId), "projects");
-}
-
 /** Backfills unlock fields for profiles created before the unlock ladder existed. */
 function normalizeProfile(record: ProfileRecord): ProfileRecord {
-  if (record.unlockedConcepts && record.pendingConceptReveals && record.unlockStats) return record;
+  // Backfills unlock fields for old profiles and drops retired concept ids (e.g.
+  // the former "workshop", now folded into "factory") so the vocabulary gate
+  // never trips on a word the ladder no longer knows.
   return {
     ...record,
-    unlockedConcepts: record.unlockedConcepts ?? [],
-    pendingConceptReveals: record.pendingConceptReveals ?? [],
+    unlockedConcepts: (record.unlockedConcepts ?? []).filter((concept) =>
+      isKnownConceptId(concept.id),
+    ),
+    pendingConceptReveals: (record.pendingConceptReveals ?? []).filter((concept) =>
+      isKnownConceptId(concept.id),
+    ),
     unlockStats: record.unlockStats ?? { ...EMPTY_UNLOCK_STATS },
   };
 }

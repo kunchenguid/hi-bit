@@ -79,7 +79,6 @@ export class ProjectService {
     const project: ProjectRecord = {
       schemaVersion: 1,
       id: `project_${randomUUID().replace(/-/g, "")}`,
-      factoryId: this.layout.defaultFactoryId,
       profileId,
       title,
       createdAt: timestamp,
@@ -138,7 +137,6 @@ export class ProjectService {
     const next: ProjectRecord = {
       schemaVersion: 1,
       id: project.id,
-      factoryId: project.factoryId,
       profileId: project.profileId,
       title: project.title,
       createdAt: project.createdAt,
@@ -158,7 +156,6 @@ export class ProjectService {
     const next: ProjectRecord = {
       schemaVersion: 1,
       id: project.id,
-      factoryId: project.factoryId,
       profileId: project.profileId,
       title: project.title,
       createdAt: project.createdAt,
@@ -200,7 +197,6 @@ export class ProjectService {
     const next: ProjectRecord = {
       schemaVersion: 1,
       id: project.id,
-      factoryId: project.factoryId,
       profileId: project.profileId,
       title: project.title,
       createdAt: project.createdAt,

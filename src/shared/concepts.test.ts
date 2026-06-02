@@ -19,10 +19,10 @@ describe("eligibleConceptIds", () => {
     expect(eligibleConceptIds({ ...FRESH, buildsDelegated: 1 })).toEqual(["bot"]);
   });
 
-  it("unlocks workshop once the kid has a second creation", () => {
+  it("unlocks factory once the kid has a second creation", () => {
     expect(eligibleConceptIds({ ...FRESH, buildsDelegated: 1, creationCount: 2 })).toEqual([
       "bot",
-      "workshop",
+      "factory",
     ]);
   });
 
@@ -34,20 +34,21 @@ describe("eligibleConceptIds", () => {
     const ids = eligibleConceptIds({ ...FRESH, buildsDelegated: 3, creationCount: 1 });
     expect(ids).toContain("blueprint");
     expect(ids).toContain("machines");
+    // factory rides on a second creation, not build count.
     expect(ids).not.toContain("factory");
   });
 
-  it("unlocks the deep factory words only after many builds", () => {
+  it("unlocks the deep mechanism words only after many builds", () => {
     const ids = eligibleConceptIds({ ...FRESH, buildsDelegated: 6, creationCount: 3 });
     expect(ids).toEqual(
       expect.arrayContaining([
         "bot",
+        "factory",
         "blueprint",
         "machines",
         "assembly-line",
         "save-points",
         "workbench",
-        "factory",
       ]),
     );
   });
@@ -60,15 +61,13 @@ describe("nextConceptToUnlock", () => {
 
   it("reveals at most one new word per turn, lowest tier first", () => {
     const facts: UnlockFacts = { buildsDelegated: 3, creationCount: 2, openedActivities: true };
-    // bot, workshop, logbook, blueprint, machines are all eligible at once, but
+    // bot, factory, logbook, blueprint, machines are all eligible at once, but
     // only one may surface this turn.
     expect(nextConceptToUnlock(facts, [])).toBe("bot");
-    expect(nextConceptToUnlock(facts, ["bot"])).toBe("workshop");
-    expect(nextConceptToUnlock(facts, ["bot", "workshop"])).toBe("logbook");
-    expect(nextConceptToUnlock(facts, ["bot", "workshop", "logbook"])).toBe("blueprint");
-    expect(nextConceptToUnlock(facts, ["bot", "workshop", "logbook", "blueprint"])).toBe(
-      "machines",
-    );
+    expect(nextConceptToUnlock(facts, ["bot"])).toBe("factory");
+    expect(nextConceptToUnlock(facts, ["bot", "factory"])).toBe("logbook");
+    expect(nextConceptToUnlock(facts, ["bot", "factory", "logbook"])).toBe("blueprint");
+    expect(nextConceptToUnlock(facts, ["bot", "factory", "logbook", "blueprint"])).toBe("machines");
   });
 
   it("returns null once every eligible concept is unlocked", () => {
@@ -83,8 +82,8 @@ describe("allowedWords", () => {
   });
 
   it("adds unlocked concept words in ladder order", () => {
-    const unlocked: ConceptId[] = ["workshop", "bot"];
-    expect(allowedWords(unlocked)).toEqual(["Bit", "build", "creation", "Play", "bot", "Workshop"]);
+    const unlocked: ConceptId[] = ["factory", "bot"];
+    expect(allowedWords(unlocked)).toEqual(["Bit", "build", "creation", "Play", "bot", "factory"]);
   });
 });
 
