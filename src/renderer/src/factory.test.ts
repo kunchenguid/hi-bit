@@ -86,7 +86,15 @@ describe("buildFactoryFloor", () => {
         project("maze", "My Maze", "2026-02-01T00:00:00.000Z"),
         project("dino", "Dino Dash", "2026-01-01T00:00:00.000Z"),
       ],
-      [creation("dino", "Dino Dash", "done", [step("j", "write", "completed")], "2026-03-01T00:00:00.000Z")],
+      [
+        creation(
+          "dino",
+          "Dino Dash",
+          "done",
+          [step("j", "write", "completed")],
+          "2026-03-01T00:00:00.000Z",
+        ),
+      ],
       new Set(),
     );
 

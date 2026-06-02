@@ -107,13 +107,26 @@ export function buildFactoryFloor(
   for (const creation of creations) {
     seen.add(creation.id);
     const entry = activityById.get(creation.id);
-    const updatedAt = entry?.updatedAt && entry.updatedAt.localeCompare(creation.updatedAt) > 0 ? entry.updatedAt : creation.updatedAt;
-    rows.push({ projectId: creation.id, title: creation.title, updatedAt, working: entry?.status === "working" });
+    const updatedAt =
+      entry?.updatedAt && entry.updatedAt.localeCompare(creation.updatedAt) > 0
+        ? entry.updatedAt
+        : creation.updatedAt;
+    rows.push({
+      projectId: creation.id,
+      title: creation.title,
+      updatedAt,
+      working: entry?.status === "working",
+    });
   }
   for (const entry of activity) {
     if (seen.has(entry.projectId)) continue;
     seen.add(entry.projectId);
-    rows.push({ projectId: entry.projectId, title: entry.title, updatedAt: entry.updatedAt, working: entry.status === "working" });
+    rows.push({
+      projectId: entry.projectId,
+      title: entry.title,
+      updatedAt: entry.updatedAt,
+      working: entry.status === "working",
+    });
   }
 
   return rows
@@ -121,7 +134,8 @@ export function buildFactoryFloor(
     .map((row) => {
       const entry = activityById.get(row.projectId);
       const bots = lanesFor(entry);
-      const headlineStep = entry?.steps.findLast((step) => step.status === "running") ?? entry?.steps.at(-1);
+      const headlineStep =
+        entry?.steps.findLast((step) => step.status === "running") ?? entry?.steps.at(-1);
       return {
         projectId: row.projectId,
         title: row.title,
