@@ -2,11 +2,9 @@ import type { AuthStatus } from "@shared/auth";
 import type { ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
-import { useState } from "react";
 import { ActivityChip } from "../components/ActivityChip";
-import { ActivityView } from "../components/ActivityView";
 import { Composer } from "../components/Composer";
-import { CreationPicker } from "../components/CreationPicker";
+import { FactoryView } from "../components/FactoryView";
 import { MessageList } from "../components/MessageList";
 import { PreviewPane } from "../components/PreviewPane";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
@@ -70,7 +68,6 @@ export function ChatWorkspace({
   onOpenPreviewExternal,
   onClearPreviewCache,
 }: ChatWorkspaceProps) {
-  const [showCreations, setShowCreations] = useState(false);
   const providerStatus = authStatus?.accountId
     ? `Codex provider connected (${authStatus.accountId})`
     : "Codex provider connected";
@@ -148,8 +145,7 @@ export function ChatWorkspace({
             playProjectId={barPlayProjectId}
             onPlay={onPlayPreview}
             creationCount={creations.length}
-            onSeeCreations={() => setShowCreations(true)}
-            onSeeAll={onShowActivity}
+            onOpenFactory={onShowActivity}
           />
           {error ? <p className="hb-error">{error}</p> : null}
           <Composer
@@ -171,13 +167,13 @@ export function ChatWorkspace({
         ) : null}
       </section>
 
-      {showActivity ? <ActivityView activity={activity} onClose={onHideActivity} /> : null}
-      {showCreations ? (
-        <CreationPicker
+      {showActivity ? (
+        <FactoryView
           creations={creations}
+          activity={activity}
           playableProjectIds={playable}
           onPlay={onPlayPreview}
-          onClose={() => setShowCreations(false)}
+          onClose={onHideActivity}
         />
       ) : null}
     </main>

@@ -1,5 +1,7 @@
+import factoryMark from "@design/assets/logo-mark.svg";
 import type { CreationActivity } from "@shared/chat";
 import { summarizeActivity } from "../activity";
+import { countWorkingBots } from "../factory";
 
 type ActivityChipProps = {
   activity: CreationActivity[];
@@ -7,21 +9,19 @@ type ActivityChipProps = {
   /** The playable creation to offer Play for, so it never scrolls away. */
   playProjectId?: string | null;
   onPlay?: (projectId: string) => void;
-  /** How many creations the kid has, deciding Play vs the picker. */
+  /** How many creations the kid has, deciding whether a direct Play shows. */
   creationCount?: number;
-  /** Opens the picker so the kid can choose which creation to play. */
-  onSeeCreations?: () => void;
-  onSeeAll: () => void;
+  /** Opens the factory floor - the merged creations + Logbook surface. */
+  onOpenFactory: () => void;
 };
 
 /**
- * The persistent, one-line build heartbeat that sits above the composer.
- * Calm when idle, spinning when a bot is working or Bit is thinking. Never
- * grows; the full history lives behind the Logbook. When a creation has a live
- * preview, it also carries a persistent Play so the kid can jump back in even
- * after the "ready" message scrolls off. Once the kid has more than one
- * creation, that single Play becomes a "Your creations" button that opens a
- * picker - one Play can't stand in for a whole shelf of creations.
+ * The persistent, one-line build heartbeat that sits above the composer. Calm
+ * when idle, spinning when a bot is working or Bit is thinking. Never grows; the
+ * whole factory floor (every creation, its bots, and their steps) lives behind
+ * the one "The Factory" button, whose badge counts the bots building right now.
+ * A single creation also keeps a direct Play so the kid can jump back in even
+ * after the "ready" message scrolls off.
  */
 export function ActivityChip({
   activity,
@@ -29,10 +29,15 @@ export function ActivityChip({
   playProjectId,
   onPlay,
   creationCount = 0,
-  onSeeCreations,
-  onSeeAll,
+  onOpenFactory,
 }: ActivityChipProps) {
   const summary = summarizeActivity(activity, running);
+  const workingBots = countWorkingBots(activity);
+  const hasFactory = creationCount > 0 || activity.length > 0;
+  // A direct Play is the fast path while there is only one creation; past that,
+  // the factory floor is where the kid picks which creation to play.
+  const showQuickPlay = creationCount < 2 && playProjectId && onPlay;
+
   return (
     <div className="hb-activity-chip" data-state={summary.working ? "working" : "idle"}>
       <div className="hb-activity-status">
@@ -46,27 +51,25 @@ export function ActivityChip({
         </span>
       </div>
       <div className="hb-activity-actions">
-        {creationCount >= 2 && onSeeCreations ? (
+        {showQuickPlay ? (
           <button
             type="button"
             className="hb-play-button hb-play-button-chip"
-            onClick={onSeeCreations}
-          >
-            <span aria-hidden="true">▶</span> Your creations
-          </button>
-        ) : playProjectId && onPlay ? (
-          <button
-            type="button"
-            className="hb-play-button hb-play-button-chip"
-            onClick={() => onPlay(playProjectId)}
+            onClick={() => onPlay?.(playProjectId)}
           >
             <span aria-hidden="true">▶</span> Play
           </button>
         ) : null}
-        {activity.length > 0 ? (
-          <button type="button" className="hb-activity-seeall" onClick={onSeeAll}>
-            Open Logbook
-            {summary.count > 0 ? <span className="hb-activity-count">{summary.count}</span> : null}
+        {hasFactory ? (
+          <button
+            type="button"
+            className="hb-factory-button"
+            data-working={workingBots > 0 ? "true" : "false"}
+            onClick={onOpenFactory}
+          >
+            <img className="pixel-art" src={factoryMark} alt="" width={18} height={18} />
+            The Factory
+            {workingBots > 0 ? <span className="hb-factory-badge">{workingBots}</span> : null}
           </button>
         ) : null}
       </div>

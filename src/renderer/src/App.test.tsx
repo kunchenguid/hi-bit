@@ -220,7 +220,7 @@ describe("App", () => {
     expect(api.chat.send).toHaveBeenCalledWith("ada", "make a cat game");
   });
 
-  it("rests the activity chip and opens the full activities view", async () => {
+  it("rests the activity chip and opens the factory floor", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
@@ -251,8 +251,8 @@ describe("App", () => {
     expect(host.textContent).toContain("last worked on Cat Jump");
     expect(host.textContent).not.toContain("What Bit is building");
 
-    await clickButton(host, "Open Logbook");
-    expect(host.textContent).toContain("Your Logbook");
+    await clickButton(host, "The Factory");
+    expect(host.textContent).toContain("Your factory");
     expect(host.textContent).toContain("Cat Jump");
   });
 
