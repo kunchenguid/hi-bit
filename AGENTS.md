@@ -21,7 +21,7 @@ This file is the canonical architecture and workflow guide for the current app. 
   Project, blueprint, and bot job records are profile-scoped and no longer carry `factoryId`.
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer, including preview-safe IPC helpers. Every renderer IPC call goes through here.
-- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer, message list, preview pane, profile settings menu, activity chip with persistent Play or the multi-creation picker, and full activity log.
+- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer, message list, preview pane, profile settings menu, activity chip with persistent Play and the Factory view that merges creation picking with bot Logbook steps.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
 - `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
 - `prompts/bit.md` and `prompts/bot.md` - Bit and bot system prompts. Product content, not code; edit them like you'd edit docs.
@@ -58,7 +58,7 @@ The locking decisions (recorded in the terminology review): the background worke
 
 ### The vocabulary unlock ladder
 
-The factory world is real in code, and the static chrome always names it with the real in-world word - "bot", "your factory", "Open Logbook" - from day one.
+The factory world is real in code, and the static chrome always names it with the real in-world word - "bot", "your factory", "The Factory" - from day one.
 The ladder governs exactly one thing: Bit's own chat.
 Bit never proactively brings up an inside word before the kid has done the thing it names; the word becomes sayable for Bit the moment it becomes real, and Bit says it once, warmly, in plain chat (no UI badge).
 Defined in `src/shared/concepts.ts`.
@@ -88,7 +88,7 @@ For real-art requests, verify that a bot calls `generate_image`, saves the gener
 For web-lookup requests, verify that Bit or a bot uses `web_search` for search with cached access by default, `fetch_content` for a known public URL, and `get_search_content` when a long fetched page is parked; do not send kid personal details in the test prompt.
 For flat 2D playable-game requests, verify that the bot reads the `create-2d-game` skill, uses its loop/input/collision boilerplate, and combines it with `game-assets` when the game needs generated sprites.
 For 3D playable-game requests (first-person/third-person worlds, blocky build-and-explore, 3D platformers/collectors/blasters), verify that the bot reads the `create-3d-game` skill, copies its `three.min.js` and `engine3d.js` into the creation, builds the world from textured primitives (textures from `generate_image`, not sprite sheets), and the live preview renders it in WebGL.
-For live previews, verify that Play is available from a ready message and from the activity bar when there is one creation; when there are multiple creations, verify the activity bar opens the "Your creations" picker, playable creations can start from it, and creations without previews are listed but disabled.
+For live previews, verify that Play is available from a ready message and from the activity bar when there is one creation; when there are multiple creations, verify the activity bar opens The Factory, playable creations can start from it, and creations without previews are listed without Play.
 Also verify that preview Play opens a sandboxed split-pane iframe only after the kid presses it, focuses the preview page for keyboard controls when it loads and after Reload/rebuild remounts, refetches rebuilt files and subresources instead of replaying Chromium's cached bytes after Reload or rebuild, is idempotent and can restart a persisted preview after an app restart, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.
 Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`; use the app's Codex connection flow or a clean `userData` state appropriate for the test.
 
@@ -176,7 +176,7 @@ Do not leave background dev apps, CDP endpoints, or AXI bridge processes running
 
 ### What E2E can and can't cover
 
-- Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-level chat, Bit-delegated creation work, live preview Play controls, the multi-creation picker, abort, and opening the creations folder.
+- Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-level chat, Bit-delegated creation work, live preview Play controls, The Factory surface, abort, and opening the creations folder.
 - Can: IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
 - Cannot directly: main-process internals such as token refresh, project file writes, or Pi runtime turns except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
 - Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. For a clean slate that still starts signed in, prefer an isolated dir via `HIBIT_USER_DATA_DIR` (see "Fresh state without losing Codex auth" above) rather than deleting `<userData>/.hi-bit/` - a delete also wipes `auth/codex.json` and strands you on the Codex sign-in gate.

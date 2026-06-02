@@ -103,7 +103,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Activity chip with preview:** Play.
 >
-> **Activity chip with multiple creations:** Your creations.
+> **Activity chip with factory:** The Factory.
 >
 > **Open folder:** Open creations folder.
 
