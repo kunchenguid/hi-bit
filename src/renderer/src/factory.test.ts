@@ -80,6 +80,20 @@ describe("buildFactoryFloor", () => {
     expect(floor[1].workingBots).toBe(0);
   });
 
+  it("uses newer activity timestamps when ordering existing creations", () => {
+    const floor = buildFactoryFloor(
+      [
+        project("maze", "My Maze", "2026-02-01T00:00:00.000Z"),
+        project("dino", "Dino Dash", "2026-01-01T00:00:00.000Z"),
+      ],
+      [creation("dino", "Dino Dash", "done", [step("j", "write", "completed")], "2026-03-01T00:00:00.000Z")],
+      new Set(),
+    );
+
+    expect(floor.map((machine) => machine.projectId)).toEqual(["dino", "maze"]);
+    expect(floor[0].updatedAt).toBe("2026-03-01T00:00:00.000Z");
+  });
+
   it("shows idle creations with no activity as quiet machines", () => {
     const floor = buildFactoryFloor(
       [project("new", "New Thing", "2026-03-03T00:00:00.000Z")],

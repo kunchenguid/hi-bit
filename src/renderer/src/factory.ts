@@ -101,7 +101,9 @@ export function buildFactoryFloor(
 
   for (const creation of creations) {
     seen.add(creation.id);
-    rows.push({ projectId: creation.id, title: creation.title, updatedAt: creation.updatedAt });
+    const entry = activityById.get(creation.id);
+    const updatedAt = entry?.updatedAt && entry.updatedAt.localeCompare(creation.updatedAt) > 0 ? entry.updatedAt : creation.updatedAt;
+    rows.push({ projectId: creation.id, title: creation.title, updatedAt });
   }
   for (const entry of activity) {
     if (seen.has(entry.projectId)) continue;
