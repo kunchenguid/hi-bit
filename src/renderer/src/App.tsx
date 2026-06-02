@@ -39,7 +39,7 @@ export function App() {
   // Creations that can be (re)played - running or restartable from a remembered
   // command. Survives preview_stopped and an app restart, unlike `previews`.
   const [playableProjectIds, setPlayableProjectIds] = useState<string[]>([]);
-  // The kid's full set of creations (their Workshop), used to decide whether the
+  // The kid's full set of creations (their factory), used to decide whether the
   // status-bar Play becomes a picker and to populate it.
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);

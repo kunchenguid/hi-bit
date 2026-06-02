@@ -91,7 +91,7 @@ export function summarizeActivity(activity: CreationActivity[], running = false)
     const headline =
       workingCreations.length === 1
         ? `A bot is working on ${workingCreations[0].title}`
-        : `${workingCreations.length} bots are working on your Workshop`;
+        : `${workingCreations.length} bots are working in your factory`;
     return { working: true, headline, detail: currentStepDetail(workingCreations), count };
   }
 

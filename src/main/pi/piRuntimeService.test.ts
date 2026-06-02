@@ -12,7 +12,6 @@ function project(): RuntimeProject {
   return {
     schemaVersion: 1,
     id: "project-1",
-    factoryId: "default",
     profileId: "ada",
     title: "Project",
     createdAt: "2026-01-01T00:00:00.000Z",

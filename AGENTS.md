@@ -15,7 +15,7 @@ This file is the canonical architecture and workflow guide for the current app. 
 
 - Electron 41, electron-vite, React 19, Vitest, Biome. TypeScript throughout.
 - `src/main/` - Electron main process. `index.ts` wires IPC; `storage/` owns the on-disk home/config/auth/factory/profile layout; `auth/` owns Codex OAuth and token refresh; `profiles/` owns kid profile records and the active profile id; `conversation/` owns the profile-level transcript and active Bit session state; `projects/` owns profile-scoped creation records, starter files, workbench paths, and project logbooks; `preview/` owns per-creation local preview processes; `pi/` adapts the Pi coding runtime, Bit's jailed `read`/`ls`/`grep`/`find` explorer tools and `write`/`edit` tools for tiny main-workbench fixes with built-in filesystem tools disabled, Bit and bot web tools (`web_search` via the Codex Responses backend's native hosted `web_search` tool on the same token as image generation - cached by default, `live: true` for fresh pages; `fetch_content` for local page-to-markdown extraction; and `get_search_content` for parked large payloads), bundled bot skills loaded from `skills/` (including `create-2d-game`, `create-3d-game`, and `game-assets`), and bot asset tools for Codex-backed image generation plus local sprite-sheet processing; `bots/` owns blueprints, bot jobs, isolated git worktree workbenches, machine inspections, and assembly-line installs; `bit/` coordinates the profile-level Bit chat, delegates substantive work to background bots, and records direct Bit edits in creation logbooks.
-  Each profile has one continuous Bit conversation under `conversation/`, with Bit sessions under `conversation/sessions/bit`. Project folders live under `<userData>/.hi-bit/factories/default/profiles/<profileId>/projects/<projectId>/` and include `blueprints`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
+  Each profile has one continuous Bit conversation under `conversation/`, with Bit sessions under `conversation/sessions/bit`. Each kid profile owns its own factory at `<userData>/.hi-bit/factories/<profileId>/` (factory and profile are 1:1), so project folders live under `<userData>/.hi-bit/factories/<profileId>/projects/<projectId>/` and include `blueprints`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer, including preview-safe IPC helpers. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer, message list, preview pane, profile settings menu, activity chip with persistent Play or the multi-creation picker, and full activity log.
@@ -41,20 +41,21 @@ The locking decisions (recorded in the terminology review): the background worke
 | **build**         | kid-facing                   | making or changing a creation                                     | a bot job run                                                                              |
 | **Play**          | kid-facing                   | open and play a creation's live preview                           | `start_preview` / `list_previews` / `stop_preview` (the "Preview tools"), `PreviewService` |
 | **bot**           | unlocked word                | a background worker that makes things for the kid                 | `BotRuntime`, `prompts/bot.md`, `bots/`, `bot_job_*`                                       |
-| **Workshop**      | unlocked word                | the place all the kid's creations live                            | the portfolio (`ProjectService.list`)                                                      |
+| **factory**       | unlocked word                | the place all the kid's creations live and get built             | the per-kid factory (`factories/<profileId>/`, `ProjectService.list`)                       |
 | **Logbook**       | unlocked word                | every step taken on a creation                                    | per-creation logbook (`logbook/project.jsonl`)                                             |
 | **blueprint**     | unlocked word                | the plan a bot follows to build                                   | `BlueprintRecord`, `blueprints/`, `blueprint_*`                                            |
 | **machines**      | unlocked word                | checks that make sure a build works                               | machine inspections (`machines/`)                                                          |
 | **assembly line** | unlocked word                | how a build moves step to step until ready                        | the install pipeline (`assembly-line/`)                                                    |
 | **save points**   | unlocked word                | saved spots to go back to                                         | `save-points/`                                                                             |
 | **workbench**     | unlocked word                | the private bench where a bot builds                              | isolated git-worktree workbench (`workbenches/`)                                           |
-| **factory**       | unlocked word                | the whole place creations get built                               | the factory layout under `userData`                                                        |
 
 "creation" vs "project" is an intentional split, not drift: treat `projectId` and "creation id" as the same key, and keep "creation" in everything kid-facing while the types/services stay "project".
 
+"factory" is now one word for one place: each kid owns their own factory at `factories/<profileId>/` where their creations both live and get built, so factory is also the portfolio (`ProjectService.list`). The former "Workshop" term is retired - folded into factory - so do not reintroduce it.
+
 ### The vocabulary unlock ladder
 
-The factory world is real in code, and the static chrome always names it with the real in-world word - "bot", "your Workshop", "Open Logbook" - from day one.
+The factory world is real in code, and the static chrome always names it with the real in-world word - "bot", "your factory", "Open Logbook" - from day one.
 The ladder governs exactly one thing: Bit's own chat.
 Bit never proactively brings up an inside word before the kid has done the thing it names; the word becomes sayable for Bit the moment it becomes real, and Bit says it once, warmly, in plain chat (no UI badge).
 Defined in `src/shared/concepts.ts`.
@@ -63,10 +64,10 @@ Defined in `src/shared/concepts.ts`.
 | ---- | ---------------------------------------------- | ---------------------------------------- |
 | 0    | Bit, build, creation, Play                     | always sayable                           |
 | 1    | bot                                            | first delegated build finishes           |
-| 2    | Workshop                                       | the kid has a 2nd creation               |
+| 2    | factory                                        | the kid has a 2nd creation               |
 | 3    | Logbook                                        | the kid opens the Logbook                |
 | 4    | blueprint, machines                            | a few builds in (`buildsDelegated >= 3`) |
-| 5    | assembly line, save points, workbench, factory | many builds (`buildsDelegated >= 6`)     |
+| 5    | assembly line, save points, workbench          | many builds (`buildsDelegated >= 6`)     |
 
 Rules that must hold:
 

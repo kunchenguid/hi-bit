@@ -73,7 +73,7 @@ describe("ActivityChip", () => {
     expect(button?.textContent).not.toContain("See all activities");
   });
 
-  it("names the collection your Workshop in the working headline", () => {
+  it("names the collection your factory in the working headline", () => {
     const activity: CreationActivity[] = [
       {
         projectId: "a",
@@ -93,7 +93,7 @@ describe("ActivityChip", () => {
 
     act(() => root.render(<ActivityChip activity={activity} onSeeAll={vi.fn()} />));
 
-    expect(host.textContent).toContain("working on your Workshop");
+    expect(host.textContent).toContain("working in your factory");
   });
 
   it("offers a direct Play when only one creation exists", () => {

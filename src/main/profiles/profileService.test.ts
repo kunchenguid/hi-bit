@@ -33,7 +33,7 @@ describe("ProfileService", () => {
     service = setup.service;
   });
 
-  it("creates and lists kid profiles under the default factory", async () => {
+  it("creates and lists kid profiles, each as its own factory", async () => {
     const profile = await service.create({
       name: "Ada Lovelace",
       age: 9,

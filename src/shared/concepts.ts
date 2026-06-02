@@ -15,14 +15,13 @@
 
 export type ConceptId =
   | "bot"
-  | "workshop"
+  | "factory"
   | "logbook"
   | "blueprint"
   | "machines"
   | "assembly-line"
   | "save-points"
-  | "workbench"
-  | "factory";
+  | "workbench";
 
 /** What the kid did that makes a concept real. Declarative so it stays testable. */
 export type ConceptTrigger =
@@ -53,10 +52,10 @@ export const CONCEPT_LADDER: readonly ConceptDef[] = [
     trigger: { fact: "buildsDelegated", atLeast: 1 },
   },
   {
-    id: "workshop",
+    id: "factory",
     tier: 2,
-    word: "Workshop",
-    gloss: "the place all your creations live together",
+    word: "factory",
+    gloss: "the place all your creations live together and get built",
     trigger: { fact: "creationCount", atLeast: 2 },
   },
   {
@@ -101,14 +100,12 @@ export const CONCEPT_LADDER: readonly ConceptDef[] = [
     gloss: "the private bench where a bot builds without touching your creation until it is ready",
     trigger: { fact: "buildsDelegated", atLeast: 6 },
   },
-  {
-    id: "factory",
-    tier: 5,
-    word: "factory",
-    gloss: "the whole place where your creations get built",
-    trigger: { fact: "buildsDelegated", atLeast: 6 },
-  },
 ];
+
+/** Whether a stored id still maps to a ladder concept (drops retired ids like the old "workshop"). */
+export function isKnownConceptId(id: string): id is ConceptId {
+  return CONCEPT_LADDER.some((concept) => concept.id === id);
+}
 
 /** One unlocked concept, stamped when its trigger first fired. */
 export type UnlockedConcept = { id: ConceptId; firstSeenAt: string };

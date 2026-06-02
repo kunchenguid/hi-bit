@@ -42,10 +42,10 @@ describe("ProjectService", () => {
 
     expect(project).toMatchObject({
       schemaVersion: 1,
-      factoryId: "default",
       profileId: adaId,
       title: "My maze",
     });
+    expect(project).not.toHaveProperty("factoryId");
     expect(project.title).toBe("My maze");
     await expect(stat(paths.mainWorkbenchDir)).resolves.toBeTruthy();
     await expect(stat(paths.workbenchesDir)).resolves.toBeTruthy();
