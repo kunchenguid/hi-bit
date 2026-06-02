@@ -2,6 +2,7 @@
 /// <reference types="node" />
 
 import type { AuthStatus } from "@shared/auth";
+import type { CreationActivity } from "@shared/chat";
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { act } from "react";
@@ -48,8 +49,11 @@ function renderWorkspace(
   overrides: {
     authStatus?: AuthStatus | null;
     creations?: ProjectSummary[];
+    activity?: CreationActivity[];
+    showActivity?: boolean;
     playableProjectIds?: string[];
     onPlayPreview?: (projectId: string) => void;
+    onShowActivity?: () => void;
   } = {},
 ): void {
   const root = createRoot(host);
@@ -59,8 +63,8 @@ function renderWorkspace(
         authStatus={overrides.authStatus === undefined ? authStatus : overrides.authStatus}
         profile={profile}
         messages={[]}
-        activity={[]}
-        showActivity={false}
+        activity={overrides.activity ?? []}
+        showActivity={overrides.showActivity ?? false}
         draft=""
         running={false}
         activeTurn={null}
@@ -77,7 +81,7 @@ function renderWorkspace(
         onOpenFolder={vi.fn()}
         onSwitchProfile={vi.fn()}
         onUpdateProfile={vi.fn(async () => {})}
-        onShowActivity={vi.fn()}
+        onShowActivity={overrides.onShowActivity ?? vi.fn()}
         onHideActivity={vi.fn()}
         onPlayPreview={overrides.onPlayPreview ?? vi.fn()}
         onClosePreview={vi.fn()}
@@ -143,7 +147,7 @@ describe("ChatWorkspace header", () => {
   });
 });
 
-describe("ChatWorkspace creation picker", () => {
+describe("ChatWorkspace factory floor", () => {
   let host: HTMLDivElement;
 
   beforeEach(() => {
@@ -165,55 +169,60 @@ describe("ChatWorkspace creation picker", () => {
     );
   }
 
-  it("opens the picker from the status bar once there is more than one creation", () => {
+  it("asks the app to open the factory from the status bar", () => {
+    const onShowActivity = vi.fn();
     renderWorkspace(host, {
+      creations: [makeCreation("p1", "Cat Jump"), makeCreation("p2", "Star Maze")],
+      onShowActivity,
+    });
+
+    expect(host.querySelector(".hb-factory")).toBeNull();
+    const open = findButton("The Factory");
+    expect(open).toBeDefined();
+
+    act(() => open?.click());
+    expect(onShowActivity).toHaveBeenCalledOnce();
+  });
+
+  it("renders every creation on the floor when open", () => {
+    renderWorkspace(host, {
+      showActivity: true,
       creations: [makeCreation("p1", "Cat Jump"), makeCreation("p2", "Star Maze")],
     });
 
-    expect(host.querySelector(".hb-creation-picker")).toBeNull();
-
-    const seeCreations = findButton("Your creations");
-    expect(seeCreations).toBeDefined();
-
-    act(() => seeCreations?.click());
-
-    const picker = host.querySelector(".hb-creation-picker");
-    expect(picker).not.toBeNull();
-    expect(picker?.textContent).toContain("Cat Jump");
-    expect(picker?.textContent).toContain("Star Maze");
+    const floor = host.querySelector(".hb-factory");
+    expect(floor).not.toBeNull();
+    expect(floor?.textContent).toContain("Cat Jump");
+    expect(floor?.textContent).toContain("Star Maze");
   });
 
-  it("plays the chosen creation from the picker", () => {
+  it("plays a playable creation from the floor", () => {
     const onPlayPreview = vi.fn();
     renderWorkspace(host, {
+      showActivity: true,
       creations: [makeCreation("p1", "Cat Jump"), makeCreation("p2", "Star Maze")],
       playableProjectIds: ["p2"],
       onPlayPreview,
     });
 
-    act(() => findButton("Your creations")?.click());
-    act(() => findButton("Star Maze")?.click());
-
+    // Only the playable creation (p2) gets a Play button.
+    const play = findButton("Play");
+    expect(play).toBeDefined();
+    act(() => play?.click());
     expect(onPlayPreview).toHaveBeenCalledWith("p2");
-    // Choosing closes the picker.
-    expect(host.querySelector(".hb-creation-picker")).toBeNull();
   });
 
-  it("keeps creations without previews from playing in the picker", () => {
-    const onPlayPreview = vi.fn();
+  it("offers no Play for a creation without a preview", () => {
     renderWorkspace(host, {
+      showActivity: true,
       creations: [makeCreation("p1", "Cat Jump"), makeCreation("p2", "Star Maze")],
       playableProjectIds: ["p2"],
-      onPlayPreview,
     });
 
-    act(() => findButton("Your creations")?.click());
-    const catJump = findButton("Cat Jump");
-
-    expect(catJump?.disabled).toBe(true);
-    act(() => catJump?.click());
-
-    expect(onPlayPreview).not.toHaveBeenCalled();
-    expect(host.querySelector(".hb-creation-picker")).not.toBeNull();
+    const machines = Array.from(host.querySelectorAll(".hb-factory-machine"));
+    const catJump = machines.find((machine) => machine.textContent?.includes("Cat Jump"));
+    expect(catJump?.textContent).not.toContain("Play");
+    // Exactly one machine (the playable Star Maze) carries a Play button.
+    expect(host.querySelectorAll(".hb-play-button")).toHaveLength(1);
   });
 });
