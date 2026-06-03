@@ -1,0 +1,35 @@
+$ node scripts/ensure-pnpm.mjs
+$ bash -c 'trap "stty sane 2>/dev/null" EXIT; electron-vite dev "$@"' -- -- --remote-debugging-port=9222
+vite v7.3.3 building ssr environment for development...
+transforming...
+✓ 27 modules transformed.
+rendering chunks...
+out/main/index.js  184.16 kB
+✓ built in 147ms
+
+electron main process built successfully
+
+-----
+
+vite v7.3.3 building ssr environment for development...
+transforming...
+✓ 1 modules transformed.
+rendering chunks...
+out/preload/index.cjs  2.14 kB
+✓ built in 5ms
+
+electron preload scripts built successfully
+
+-----
+
+dev server running for the electron renderer process at:
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+
+starting electron app...
+
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/0d1cc776-4a99-4254-9e63-45f4105d35fe
+[hi-bit] isolated userData at /Users/kunchen/.no-mistakes/worktrees/9fcac924d900/01KT7SZ817Y29XK1XV6BDDRDGN/.tmp/hibit-image-input-user-data (codex auth: seeded)
+[ELIFECYCLE] Command failed.

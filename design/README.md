@@ -18,7 +18,7 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 ### Sources used to build this system
 
 - **Brand:** greenfield - no prior marks. This design system *is* the brand spec. Iterate it here, then implement.
-- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection, kid profiles, a profile-level Pi-backed Bit chat workspace, live creation previews, and creations managed through chat.
+- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection, kid profiles, a profile-level Pi-backed Bit chat workspace with one-picture messages, live creation previews, and creations managed through chat.
 - **User brief:** desktop Electron AI tutor, kids 7-12, aesthetic that parents trust and kids find friendly.
 
 ---
@@ -94,6 +94,10 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 > **Empty chat greeting:** Hi Maya! Ready to build?
 >
 > **Empty chat starter:** Tap an idea to start, or just type your own.
+>
+> **Picture menu:** Paste a picture. Choose from files. Use the camera.
+>
+> **Attached picture chip:** Remove picture.
 >
 > **Bit:** Hey - ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
 >
@@ -172,7 +176,7 @@ Type ramp is defined in `tokens/colors_and_type.css` as `--t-display`, `--t-h1` 
 
 - **Default:** flat `--paper` or `--night`. Never gradient-washed full screens.
 - **Hero/celebration moments:** a **subtle paper-grain texture** (`assets/paper-texture.svg`, multiply-blended at 8% opacity) plus an **optional CRT scanline overlay** at 4%.
-- **No full-bleed photography.** This app is illustrative, not photographic.
+- **No full-bleed photography.** This app is illustrative, not photographic. Builder-attached pictures in chat are user content, not brand imagery; keep their thumbnails contained inside the composer or message bubble.
 - **Subject wash:** each creation card or workspace moment uses a `color-mix(in oklch, var(--subject-x) 12%, var(--paper))` tint. Quiet, not neon.
 
 ### Corners & borders
@@ -210,7 +214,7 @@ Three systems:
 ### Imagery vibe
 
 - **Pixel sprites**, warm palette, **outlined in ink** (1px). No anti-aliasing on sprite edges.
-- **No photography.** The one exception is generic code-preview screenshots in onboarding, rendered through a CRT-monitor frame sprite.
+- **No photography.** The exceptions are generic code-preview screenshots in onboarding, rendered through a CRT-monitor frame sprite, and builder-attached pictures shown as contained chat thumbnails.
 - **Illustrations feel hand-placed**, slightly off-grid (±1px) to avoid sterile perfection.
 
 ### Cards
