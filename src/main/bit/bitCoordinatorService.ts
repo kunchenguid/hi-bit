@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type {
   ChatEvent,
@@ -248,9 +249,18 @@ export class BitCoordinatorService {
       // Image-only messages still need words for Bit, so it knows a picture came in.
       const builderSays = prompt || "(the builder shared a picture without words)";
       const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}`;
+      const paths = this.conversation.paths(profileId);
       const result = await this.runBitTurn(profileId, requestText, {
         kind: "reply",
-        images: image ? [{ type: "image", data: image.data, mimeType: image.mimeType }] : undefined,
+        images: storedImage?.path
+          ? [
+              {
+                type: "image",
+                path: join(paths.conversationDir, storedImage.path),
+                mimeType: storedImage.mimeType,
+              },
+            ]
+          : undefined,
       });
 
       if (result.status === "failed") {

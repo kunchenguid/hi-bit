@@ -110,8 +110,19 @@ describe("isAllowedAppRendererPermission", () => {
     expect(
       isAllowedAppRendererPermission("clipboard-read", "http://localhost:5173@evil.example/"),
     ).toBe(false);
-    expect(isAllowedAppRendererPermission("clipboard-read", "http://127.0.0.1:12345/")).toBe(
-      false,
-    );
+    expect(isAllowedAppRendererPermission("clipboard-read", "http://127.0.0.1:12345/")).toBe(false);
+  });
+});
+
+describe("permissionRequestingSource", () => {
+  it("prefers the full requesting URL over the origin", async () => {
+    const { permissionRequestingSource } = await import("./index");
+
+    expect(
+      permissionRequestingSource("file://", {
+        requestingUrl:
+          "file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      }),
+    ).toBe("file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html");
   });
 });

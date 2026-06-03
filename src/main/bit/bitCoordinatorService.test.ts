@@ -6,7 +6,12 @@ import { describe, expect, it } from "vitest";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import type { BotBuild, BotPipeline, BotWorkbench } from "../bots/botPipeline";
 import { ConversationService } from "../conversation/conversationService";
-import type { BitPromptInput, BitRuntime, BitTurnResult } from "../pi/bitRuntimeService";
+import type {
+  BitPromptInput,
+  BitPromptOptions,
+  BitRuntime,
+  BitTurnResult,
+} from "../pi/bitRuntimeService";
 import { PreviewService } from "../preview/previewService";
 import { ProfileService } from "../profiles/profileService";
 import { ProjectService, type RuntimeProject } from "../projects/projectService";
@@ -110,7 +115,7 @@ type BitHandler = (ctx: {
 class FakeBitRuntime implements BitRuntime {
   prompts: string[] = [];
   inputs: BitPromptInput[] = [];
-  promptImages: Array<Array<{ type: "image"; data: string; mimeType: string }> | undefined> = [];
+  promptImages: Array<BitPromptOptions["images"]> = [];
   handler: BitHandler = async () => "";
   failCompletions = false;
   afterStart?: (ctx: { text: string; profileId: string; turnId: string }) => Promise<void> | void;
@@ -121,7 +126,7 @@ class FakeBitRuntime implements BitRuntime {
     input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
-    options?: { images?: Array<{ type: "image"; data: string; mimeType: string }> },
+    options?: BitPromptOptions,
   ): Promise<BitTurnResult> {
     this.prompts.push(text);
     this.inputs.push(input);
@@ -273,8 +278,9 @@ describe("BitCoordinatorService (Bit)", () => {
     const user = transcript.find((m) => m.role === "user");
     expect(user?.image?.mimeType).toBe("image/png");
     expect(user?.image?.data).toBe(data);
-    // The bytes reach the model on the same turn.
-    expect(s.bit.promptImages.at(0)).toEqual([{ type: "image", data, mimeType: "image/png" }]);
+    expect(JSON.stringify(s.bit.promptImages.at(0))).not.toContain(data);
+    expect(s.bit.promptImages.at(0)?.[0]).toMatchObject({ type: "image", mimeType: "image/png" });
+    expect(s.bit.promptImages.at(0)?.[0].path).toContain("/conversation/attachments/");
   });
 
   it("allows a picture with no text", async () => {

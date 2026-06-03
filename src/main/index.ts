@@ -221,9 +221,21 @@ function configureMediaPermission(): void {
       callback(isAllowedAppRendererPermission(permission, details.requestingUrl));
     },
   );
-  session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
-    return isAllowedAppRendererPermission(permission, requestingOrigin);
-  });
+  session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission, requestingOrigin, details) => {
+      return isAllowedAppRendererPermission(
+        permission,
+        permissionRequestingSource(requestingOrigin, details),
+      );
+    },
+  );
+}
+
+export function permissionRequestingSource(
+  requestingOrigin: string | undefined,
+  details?: { requestingUrl?: string },
+): string | undefined {
+  return details?.requestingUrl ?? requestingOrigin;
 }
 
 export function isAllowedAppRendererPermission(

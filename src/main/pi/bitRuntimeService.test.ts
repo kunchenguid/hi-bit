@@ -1,6 +1,7 @@
 import type { ChatEvent } from "@shared/chat";
 import { describe, expect, it } from "vitest";
 import {
+  type BitPromptOptions,
   BitRuntimeService,
   type BitSession,
   type CreateBitSessionInput,
@@ -11,7 +12,8 @@ class FakeBitSession implements BitSession {
   sessionFile = "/tmp/conversation/sessions/bit/s1.jsonl";
   messages: unknown[] = [];
   accessTokens: string[] = [];
-  promptOptions: Array<{ images?: Array<{ type: "image"; data: string; mimeType: string }> }> = [];
+  promptTexts: string[] = [];
+  promptOptions: BitPromptOptions[] = [];
   private listeners: Array<(event: unknown) => void> = [];
 
   subscribe(listener: (event: unknown) => void): () => void {
@@ -25,10 +27,8 @@ class FakeBitSession implements BitSession {
     this.accessTokens.push(accessToken);
   }
 
-  async prompt(
-    _text: string,
-    options?: { images?: Array<{ type: "image"; data: string; mimeType: string }> },
-  ): Promise<void> {
+  async prompt(_text: string, options?: BitPromptOptions): Promise<void> {
+    this.promptTexts.push(_text);
     this.promptOptions.push(options ?? {});
     this.emit({
       type: "message_update",
@@ -104,12 +104,44 @@ describe("BitRuntimeService", () => {
     });
 
     await service.prompt(baseInput(), "what is this?", () => {}, {
-      images: [{ type: "image", data: "AAABBB", mimeType: "image/png" }],
+      images: [
+        {
+          type: "image",
+          path: "/tmp/profiles/ada/conversation/attachments/cat.png",
+          mimeType: "image/png",
+        },
+      ],
     });
 
     expect(session.promptOptions.at(-1)?.images).toEqual([
-      { type: "image", data: "AAABBB", mimeType: "image/png" },
+      {
+        type: "image",
+        path: "/tmp/profiles/ada/conversation/attachments/cat.png",
+        mimeType: "image/png",
+      },
     ]);
+  });
+
+  it("does not pass inline image bytes into the session prompt", async () => {
+    const session = new FakeBitSession();
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (_input: CreateBitSessionInput) => session,
+    });
+
+    await service.prompt(baseInput(), "what is this?", () => {}, {
+      images: [
+        {
+          type: "image",
+          path: "/tmp/profiles/ada/conversation/attachments/cat.png",
+          data: "AAABBB",
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    expect(JSON.stringify(session.promptOptions.at(-1))).not.toContain("AAABBB");
   });
 
   it("gives Bit the web lookup tools alongside its delegation tools", async () => {

@@ -14,7 +14,7 @@ import { createProfileTools, type ProfileDirectMutation } from "./profileJailedT
 import { createWebSearchTools } from "./webSearchTools";
 
 /** A picture handed to the model with a prompt, in the Pi runtime's content shape. */
-export type BitPromptImage = { type: "image"; data: string; mimeType: string };
+export type BitPromptImage = { type: "image"; path: string; mimeType: string; data?: string };
 
 export type BitPromptOptions = { images?: BitPromptImage[] };
 
@@ -141,7 +141,8 @@ export class BitRuntimeService implements BitRuntime {
     let status: BitTurnResult["status"] = "completed";
     let error: string | undefined;
     try {
-      await session.prompt(text, options?.images?.length ? { images: options.images } : undefined);
+      const safeOptions = promptOptionsWithoutInlineImageData(options);
+      await session.prompt(promptTextWithImagePaths(text, safeOptions?.images), safeOptions);
       if (running.cancelled) status = "cancelled";
     } catch (caught) {
       if (running.cancelled) {
@@ -239,7 +240,7 @@ class RealBitSessionAdapter implements BitSession {
   }
 
   prompt(text: string, options?: BitPromptOptions): Promise<void> {
-    return this.session.prompt(text, { source: "rpc", images: options?.images });
+    return this.session.prompt(promptTextWithImagePaths(text, options?.images), { source: "rpc" });
   }
 
   abort(): Promise<void> {
@@ -253,6 +254,25 @@ class RealBitSessionAdapter implements BitSession {
   setAccessToken(accessToken: string): void {
     this.authStorage.setRuntimeApiKey("openai-codex", accessToken);
   }
+}
+
+function promptOptionsWithoutInlineImageData(
+  options?: BitPromptOptions,
+): BitPromptOptions | undefined {
+  if (!options?.images?.length) return undefined;
+  return {
+    images: options.images.map((image) => ({
+      type: image.type,
+      path: image.path,
+      mimeType: image.mimeType,
+    })),
+  };
+}
+
+function promptTextWithImagePaths(text: string, images?: BitPromptImage[]): string {
+  if (!images?.length) return text;
+  const paths = images.map((image) => image.path).join("\n");
+  return `${text}\n\nAttached image file:\n${paths}`;
 }
 
 async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSession> {
