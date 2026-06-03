@@ -1,5 +1,6 @@
 import type { ChatMessage, TurnKind } from "@shared/chat";
 import { useLayoutEffect, useRef } from "react";
+import { imageDataUrl } from "./imageInput";
 import { MarkdownText } from "./MarkdownText";
 
 type MessageListProps = {
@@ -103,11 +104,18 @@ export function MessageList({
         return (
           <li className={`hb-message hb-message-${message.role}`} key={message.id}>
             <span className="hb-message-label">{message.role === "user" ? "You" : "Bit"}</span>
+            {message.image?.data ? (
+              <img
+                className="hb-message-image"
+                src={imageDataUrl({ mimeType: message.image.mimeType, data: message.image.data })}
+                alt="What the builder shared"
+              />
+            ) : null}
             {message.role === "assistant" ? (
               <MarkdownText text={message.text} />
-            ) : (
+            ) : message.text ? (
               <p>{message.text}</p>
-            )}
+            ) : null}
             {canPlay ? (
               <button
                 type="button"

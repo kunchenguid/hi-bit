@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { ChatEvent } from "@shared/chat";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import type { ChatEvent, OutgoingImage } from "@shared/chat";
 import { DEFAULT_CODEX_MODEL, type HiBitConfig, normalizeHiBitConfig } from "@shared/config";
 import type { AppInfo, Platform } from "@shared/ipc";
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
@@ -181,8 +181,10 @@ export function registerIpc(services: Services): void {
   });
 
   ipcMain.handle("hibit:chat:load", (_event, profileId: string) => services.bit.load(profileId));
-  ipcMain.handle("hibit:chat:send", (_event, profileId: string, text: string) =>
-    services.bit.send(profileId, text),
+  ipcMain.handle(
+    "hibit:chat:send",
+    (_event, profileId: string, text: string, image?: OutgoingImage) =>
+      services.bit.send(profileId, text, image),
   );
   ipcMain.handle("hibit:chat:abort", (_event, profileId: string) => services.bit.abort(profileId));
   ipcMain.handle("hibit:chat:mark-activities-opened", (_event, profileId: string) =>
@@ -208,6 +210,57 @@ export function registerIpc(services: Services): void {
   // their subresources. The renderer itself loads from file:// (prod) or the Vite
   // dev server, so clearing the HTTP cache costs nothing there.
   ipcMain.handle("hibit:preview:clear-cache", () => session.defaultSession.clearCache());
+}
+
+/**
+ * Grants renderer-only browser permissions for camera and clipboard picture input.
+ */
+function configureMediaPermission(): void {
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, permission, callback, details) => {
+      callback(isAllowedAppRendererPermission(permission, details.requestingUrl));
+    },
+  );
+  session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission, requestingOrigin, details) => {
+      return isAllowedAppRendererPermission(
+        permission,
+        permissionRequestingSource(requestingOrigin, details),
+      );
+    },
+  );
+}
+
+export function permissionRequestingSource(
+  requestingOrigin: string | undefined,
+  details?: { requestingUrl?: string },
+): string | undefined {
+  return details?.requestingUrl ?? requestingOrigin;
+}
+
+export function isAllowedAppRendererPermission(
+  permission: string,
+  requestingSource: string | undefined,
+): boolean {
+  return (
+    (permission === "media" || permission === "clipboard-read") &&
+    isAppRendererSource(requestingSource)
+  );
+}
+
+export function isAppRendererSource(
+  value: string | undefined,
+  bundledRendererFile = join(__dirname, "../renderer/index.html"),
+): boolean {
+  if (!value) return false;
+  const devServerUrl = process.env.ELECTRON_RENDERER_URL;
+  try {
+    const url = new URL(value);
+    if (devServerUrl && url.origin === new URL(devServerUrl).origin) return true;
+    return url.protocol === "file:" && url.href === pathToFileURL(bundledRendererFile).href;
+  } catch {
+    return false;
+  }
 }
 
 function isLoopbackHttpUrl(value: string): boolean {
@@ -243,6 +296,7 @@ void app.whenReady().then(async () => {
   const services = await createServices(layout);
   services.bit.subscribe(broadcastChatEvent);
   registerIpc(services);
+  configureMediaPermission();
   createMainWindow();
 
   app.on("activate", () => {

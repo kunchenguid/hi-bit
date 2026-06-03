@@ -1,5 +1,11 @@
 import type { AuthStatus } from "./auth";
-import type { ChatEvent, ChatSnapshot, PreviewInfo, SendMessageResult } from "./chat";
+import type {
+  ChatEvent,
+  ChatSnapshot,
+  OutgoingImage,
+  PreviewInfo,
+  SendMessageResult,
+} from "./chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "./profile";
 import type { CreateProjectInput, ProjectSummary } from "./project";
 
@@ -47,7 +53,7 @@ export type HiBitApi = {
   };
   chat: {
     load: (profileId: string) => Promise<ChatSnapshot>;
-    send: (profileId: string, text: string) => Promise<SendMessageResult>;
+    send: (profileId: string, text: string, image?: OutgoingImage) => Promise<SendMessageResult>;
     abort: (profileId: string) => Promise<void>;
     /** Records that the kid opened the Logbook, so the word can unlock. */
     markActivitiesOpened: (profileId: string) => Promise<void>;

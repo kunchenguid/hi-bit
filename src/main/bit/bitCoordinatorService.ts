@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type {
   ChatEvent,
   ChatMessage,
   ChatSnapshot,
   CreationActivity,
+  OutgoingImage,
   PreviewInfo,
   SendMessageResult,
   ToolActivity,
@@ -23,7 +25,7 @@ import { Type } from "typebox";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
 import type { ConversationService } from "../conversation/conversationService";
-import type { BitRuntime } from "../pi/bitRuntimeService";
+import type { BitPromptImage, BitRuntime } from "../pi/bitRuntimeService";
 import { stripImageData } from "../pi/piMessages";
 import { PreviewService } from "../preview/previewService";
 import type { ProjectService, RuntimeProject } from "../projects/projectService";
@@ -222,24 +224,48 @@ export class BitCoordinatorService {
     return activity.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  async send(profileId: string, text: string): Promise<SendMessageResult> {
+  async send(profileId: string, text: string, image?: OutgoingImage): Promise<SendMessageResult> {
     const prompt = text.trim();
-    if (!prompt) {
+    if (!prompt && !image) {
       return { ok: false, error: "Type a message for Bit first." };
     }
 
     try {
       const profile = await this.profiles.get(profileId);
+      // Persist the picture as a lean on-disk reference (mime + path, no base64);
+      // the transcript reader rehydrates the bytes for the renderer.
+      const storedImage = image
+        ? await this.conversation.saveAttachment(profileId, image)
+        : undefined;
       await this.conversation.appendMessage(profileId, {
         id: `user-${randomUUID()}`,
         role: "user",
         text: prompt,
         createdAt: this.now().toISOString(),
+        image: storedImage,
       });
 
       const portfolio = await this.projects.list(profileId);
-      const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${prompt}`;
-      const result = await this.runBitTurn(profileId, requestText, { kind: "reply" });
+      // Image-only messages still need words for Bit, so it knows a picture came in.
+      const builderSays = prompt || "(the builder shared a picture without words)";
+      const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}`;
+      const paths = this.conversation.paths(profileId);
+      const imageData = storedImage
+        ? await this.conversation.readAttachmentData(profileId, storedImage)
+        : undefined;
+      const result = await this.runBitTurn(profileId, requestText, {
+        kind: "reply",
+        images: storedImage?.path
+          ? [
+              {
+                type: "image",
+                path: join(paths.conversationDir, storedImage.path),
+                mimeType: storedImage.mimeType,
+                data: imageData,
+              },
+            ]
+          : undefined,
+      });
 
       if (result.status === "failed") {
         return { ok: false, turnId: result.turnId, error: result.error ?? "Bit hit a problem." };
@@ -299,7 +325,7 @@ export class BitCoordinatorService {
   private async runBitTurn(
     profileId: string,
     text: string,
-    { kind, projectId }: { kind: TurnKind; projectId?: string },
+    { kind, projectId, images }: { kind: TurnKind; projectId?: string; images?: BitPromptImage[] },
   ) {
     return this.withBitLock(profileId, async () => {
       // Fresh attribution per turn: start_preview sets it mid-turn (below).
@@ -349,6 +375,7 @@ export class BitCoordinatorService {
         },
         promptText,
         onEvent,
+        images ? { images } : undefined,
       );
 
       if (result.sessionFile) {

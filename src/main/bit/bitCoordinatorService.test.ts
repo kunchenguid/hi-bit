@@ -6,7 +6,12 @@ import { describe, expect, it } from "vitest";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import type { BotBuild, BotPipeline, BotWorkbench } from "../bots/botPipeline";
 import { ConversationService } from "../conversation/conversationService";
-import type { BitPromptInput, BitRuntime, BitTurnResult } from "../pi/bitRuntimeService";
+import type {
+  BitPromptInput,
+  BitPromptOptions,
+  BitRuntime,
+  BitTurnResult,
+} from "../pi/bitRuntimeService";
 import { PreviewService } from "../preview/previewService";
 import { ProfileService } from "../profiles/profileService";
 import { ProjectService, type RuntimeProject } from "../projects/projectService";
@@ -110,6 +115,7 @@ type BitHandler = (ctx: {
 class FakeBitRuntime implements BitRuntime {
   prompts: string[] = [];
   inputs: BitPromptInput[] = [];
+  promptImages: Array<BitPromptOptions["images"]> = [];
   handler: BitHandler = async () => "";
   failCompletions = false;
   afterStart?: (ctx: { text: string; profileId: string; turnId: string }) => Promise<void> | void;
@@ -120,9 +126,11 @@ class FakeBitRuntime implements BitRuntime {
     input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
+    options?: BitPromptOptions,
   ): Promise<BitTurnResult> {
     this.prompts.push(text);
     this.inputs.push(input);
+    this.promptImages.push(options?.images);
     if (this.failCompletions && isCompletion(text)) {
       throw new Error("Bit completion failed");
     }
@@ -252,6 +260,49 @@ describe("BitCoordinatorService (Bit)", () => {
       { role: "user", text: "hello" },
       { role: "assistant", text: "Hi Ada! What should we build?" },
     ]);
+  });
+
+  it("attaches a builder's picture to the user message and hands it to Bit's turn", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "What a cool drawing!";
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+
+    const result = await s.coordinator.send(s.profile.id, "what is this?", {
+      mimeType: "image/png",
+      data,
+    });
+    await s.drain();
+
+    expect(result.ok).toBe(true);
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    const user = transcript.find((m) => m.role === "user");
+    expect(user?.image?.mimeType).toBe("image/png");
+    expect(user?.image?.data).toBe(data);
+    expect(s.bit.promptImages.at(0)?.[0]).toMatchObject({
+      type: "image",
+      mimeType: "image/png",
+      data,
+    });
+    expect(s.bit.promptImages.at(0)?.[0].path).toContain("/conversation/attachments/");
+  });
+
+  it("allows a picture with no text", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "Nice!";
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+
+    const result = await s.coordinator.send(s.profile.id, "", { mimeType: "image/png", data });
+    await s.drain();
+
+    expect(result.ok).toBe(true);
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    expect(transcript.find((m) => m.role === "user")?.image?.data).toBe(data);
+  });
+
+  it("still rejects an empty message with no picture", async () => {
+    const s = await createCoordinator();
+    const result = await s.coordinator.send(s.profile.id, "   ");
+    expect(result).toEqual({ ok: false, error: "Type a message for Bit first." });
   });
 
   it("persists unique user message ids for rapid sends", async () => {

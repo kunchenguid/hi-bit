@@ -4,6 +4,7 @@ import {
   AuthStorage,
   createAgentSession,
   ModelRegistry,
+  type PromptOptions,
   SessionManager,
   SettingsManager,
   type ToolDefinition,
@@ -13,12 +14,18 @@ import { createBitResourceLoader } from "./piResources";
 import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
 import { createWebSearchTools } from "./webSearchTools";
 
+/** A picture handed to the model with a prompt, in the Pi runtime's content shape. */
+export type BitPromptImage = { type: "image"; path: string; mimeType: string; data?: string };
+
+export type BitPromptOptions = { images?: BitPromptImage[] };
+
 export type BitSession = {
   sessionId: string;
   sessionFile?: string;
   messages: unknown[];
+  supportsInlineImages?: boolean;
   subscribe: (listener: (event: unknown) => void) => () => void;
-  prompt: (text: string) => Promise<void>;
+  prompt: (text: string, options?: BitPromptOptions) => Promise<void>;
   abort: () => Promise<void>;
   dispose: () => void;
   setAccessToken?: (accessToken: string) => void;
@@ -54,6 +61,7 @@ export type BitRuntime = {
     input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
+    options?: BitPromptOptions,
   ): Promise<BitTurnResult>;
   abort(profileId: string): Promise<void>;
   isRunning(profileId: string): boolean;
@@ -107,6 +115,7 @@ export class BitRuntimeService implements BitRuntime {
     input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
+    options?: BitPromptOptions,
   ): Promise<BitTurnResult> {
     const { profileId } = input;
     if (this.running.has(profileId)) {
@@ -134,7 +143,10 @@ export class BitRuntimeService implements BitRuntime {
     let status: BitTurnResult["status"] = "completed";
     let error: string | undefined;
     try {
-      await session.prompt(text);
+      const promptOptions = session.supportsInlineImages
+        ? options
+        : promptOptionsWithoutInlineImageData(options);
+      await session.prompt(promptTextWithImagePaths(text, promptOptions?.images), promptOptions);
       if (running.cancelled) status = "cancelled";
     } catch (caught) {
       if (running.cancelled) {
@@ -210,10 +222,14 @@ function assistantDeltaFromPiEvent(event: unknown): string | null {
 }
 
 class RealBitSessionAdapter implements BitSession {
+  readonly supportsInlineImages = true;
+
   constructor(
     private readonly session: AgentSession,
     private readonly authStorage: AuthStorage,
-  ) {}
+  ) {
+    scrubInlineImagesFromSessionPersistence(session);
+  }
 
   get sessionId(): string {
     return this.session.sessionId;
@@ -231,8 +247,8 @@ class RealBitSessionAdapter implements BitSession {
     return this.session.subscribe(listener);
   }
 
-  prompt(text: string): Promise<void> {
-    return this.session.prompt(text, { source: "rpc" });
+  prompt(text: string, options?: BitPromptOptions): Promise<void> {
+    return this.session.prompt(text, promptOptionsForPiSession(options));
   }
 
   abort(): Promise<void> {
@@ -246,6 +262,52 @@ class RealBitSessionAdapter implements BitSession {
   setAccessToken(accessToken: string): void {
     this.authStorage.setRuntimeApiKey("openai-codex", accessToken);
   }
+}
+
+function promptOptionsWithoutInlineImageData(
+  options?: BitPromptOptions,
+): BitPromptOptions | undefined {
+  if (!options?.images?.length) return undefined;
+  return {
+    images: options.images.map((image) => ({
+      type: image.type,
+      path: image.path,
+      mimeType: image.mimeType,
+    })),
+  };
+}
+
+function promptOptionsForPiSession(options?: BitPromptOptions): PromptOptions {
+  const images = options?.images
+    ?.filter((image) => typeof image.data === "string" && image.data.length > 0)
+    .map((image) => ({ type: image.type, data: image.data as string, mimeType: image.mimeType }));
+  return images?.length ? { source: "rpc", images } : { source: "rpc" };
+}
+
+function scrubInlineImagesFromSessionPersistence(session: AgentSession): void {
+  const appendMessage = session.sessionManager.appendMessage.bind(session.sessionManager);
+  session.sessionManager.appendMessage = (message) => {
+    const scrubbed = scrubInlineImageData(message) as Parameters<typeof appendMessage>[0];
+    return appendMessage(scrubbed);
+  };
+}
+
+function scrubInlineImageData(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => scrubInlineImageData(item));
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if (record.type === "image" && typeof record.data === "string") {
+    return { type: "text", text: "Attached image omitted from saved session." };
+  }
+  return Object.fromEntries(
+    Object.entries(record).map(([key, entry]) => [key, scrubInlineImageData(entry)]),
+  );
+}
+
+function promptTextWithImagePaths(text: string, images?: BitPromptImage[]): string {
+  if (!images?.length) return text;
+  const paths = images.map((image) => image.path).join("\n");
+  return `${text}\n\nAttached image file:\n${paths}`;
 }
 
 async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSession> {

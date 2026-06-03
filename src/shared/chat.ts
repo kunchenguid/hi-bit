@@ -2,6 +2,24 @@ export type ToolContent =
   | { type: "text"; text: string }
   | { type: "image"; data: string; mimeType: string };
 
+/**
+ * A picture the builder attached to a message. `data` is base64 bytes (no
+ * `data:` prefix) - what the model and the renderer need. To keep the on-disk
+ * transcript lean, the persisted line stores only `mimeType` + `path` (relative
+ * to the conversation's attachments dir, where the bytes actually live); `data`
+ * is rehydrated from that file when the transcript is read back.
+ */
+export type ChatImage = {
+  mimeType: string;
+  /** Base64 bytes for rendering / the model. Absent on the persisted transcript line. */
+  data?: string;
+  /** Where the bytes live on disk, relative to the conversation dir. */
+  path?: string;
+};
+
+/** A picture the builder is attaching to the next message (always carries bytes). */
+export type OutgoingImage = { mimeType: string; data: string };
+
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -9,6 +27,8 @@ export type ChatMessage = {
   createdAt: string;
   /** Which creation this message acted on, when Bit changed or delegated work. */
   projectId?: string;
+  /** A picture the builder attached to this message, when present. */
+  image?: ChatImage;
 };
 
 export type ToolActivity = {

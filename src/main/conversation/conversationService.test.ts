@@ -1,7 +1,7 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, profileConversationPaths } from "../storage/layout";
 import { ConversationService } from "./conversationService";
 
@@ -79,5 +79,124 @@ describe("ConversationService", () => {
   it("exposes the conversation paths for a profile", async () => {
     const { service, layout } = await createService();
     expect(service.paths("ada")).toEqual(profileConversationPaths(layout, "ada"));
+  });
+
+  it("stores an attached picture on disk and keeps its base64 out of the transcript", async () => {
+    const { service, layout } = await createService();
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+    const saved = await service.saveAttachment("ada", { mimeType: "image/png", data });
+
+    expect(saved.mimeType).toBe("image/png");
+    expect(saved.path).toMatch(/^attachments\/.+\.png$/);
+    expect(saved.data).toBeUndefined();
+
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "what is this?",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: saved,
+    });
+
+    const raw = await readFile(profileConversationPaths(layout, "ada").transcriptPath, "utf8");
+    expect(raw).not.toContain(data);
+    expect(raw).toContain(saved.path);
+  });
+
+  it("rejects unsupported attachment mime types", async () => {
+    const { service } = await createService();
+    const data = Buffer.from("pretend-svg-bytes").toString("base64");
+
+    await expect(
+      service.saveAttachment("ada", { mimeType: "image/svg+xml", data }),
+    ).rejects.toThrow("Unsupported image type.");
+  });
+
+  it("rejects malformed base64 attachment data", async () => {
+    const { service } = await createService();
+
+    await expect(
+      service.saveAttachment("ada", { mimeType: "image/png", data: "%%%" }),
+    ).rejects.toThrow("Invalid image data.");
+  });
+
+  it("rejects missing attachment data", async () => {
+    const { service } = await createService();
+
+    await expect(service.saveAttachment("ada", { mimeType: "image/png" } as never)).rejects.toThrow(
+      "Invalid image data.",
+    );
+  });
+
+  it("rejects attachments that are too large after decoding", async () => {
+    const { service } = await createService();
+    const data = Buffer.alloc(5 * 1024 * 1024 + 1).toString("base64");
+
+    await expect(service.saveAttachment("ada", { mimeType: "image/jpeg", data })).rejects.toThrow(
+      "Image is too large.",
+    );
+  });
+
+  it("rejects attachments with impossible encoded size before decoding", async () => {
+    const { service } = await createService();
+    const data = "A".repeat(Math.ceil((5 * 1024 * 1024 + 1) / 3) * 4);
+    const from = vi.spyOn(Buffer, "from").mockImplementation(() => {
+      throw new Error("decoded before size check");
+    });
+
+    try {
+      await expect(service.saveAttachment("ada", { mimeType: "image/jpeg", data })).rejects.toThrow(
+        "Image is too large.",
+      );
+      expect(from).not.toHaveBeenCalled();
+    } finally {
+      from.mockRestore();
+    }
+  });
+
+  it("rejects oversized encoded attachments before scanning base64 shape", async () => {
+    const { service } = await createService();
+    const data = "A".repeat(Math.ceil((5 * 1024 * 1024 + 1) / 3) * 4);
+    const test = vi.spyOn(RegExp.prototype, "test");
+
+    try {
+      await expect(service.saveAttachment("ada", { mimeType: "image/jpeg", data })).rejects.toThrow(
+        "Image is too large.",
+      );
+      expect(test).not.toHaveBeenCalled();
+    } finally {
+      test.mockRestore();
+    }
+  });
+
+  it("rehydrates an attached picture's bytes when reading the transcript back", async () => {
+    const { service } = await createService();
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+    const saved = await service.saveAttachment("ada", { mimeType: "image/png", data });
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "what is this?",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: saved,
+    });
+
+    const [message] = await service.readTranscript("ada");
+    expect(message.image).toEqual({ mimeType: "image/png", data, path: saved.path });
+  });
+
+  it("survives a missing attachment file without dropping the message", async () => {
+    const { service } = await createService();
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "look",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: { mimeType: "image/png", path: "attachments/gone.png" },
+    });
+
+    const [message] = await service.readTranscript("ada");
+    expect(message.text).toBe("look");
+    expect(message.image?.data).toBeUndefined();
   });
 });

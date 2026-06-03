@@ -24,6 +24,10 @@ extraResources:
 
 mac:
   category: public.app-category.education
+  # Lets a kid snap a photo of a drawing or build to show Bit. macOS requires this
+  # string before the webcam can open, even for unsigned builds.
+  extendInfo:
+    NSCameraUsageDescription: Hi-Bit uses the camera so you can take a picture to show Bit.
   target:
     - target: dmg
       arch:

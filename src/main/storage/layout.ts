@@ -133,6 +133,8 @@ export type ProfileConversationPaths = {
   transcriptPath: string;
   bitSessionsDir: string;
   conversationStatePath: string;
+  /** Where builder-attached pictures are written, kept out of the transcript jsonl. */
+  attachmentsDir: string;
 };
 
 export function profileConversationDir(layout: HiBitLayout, profileId: string): string {
@@ -150,6 +152,7 @@ export function profileConversationPaths(
     transcriptPath: join(dir, "transcript.jsonl"),
     bitSessionsDir: join(dir, "sessions", "bit"),
     conversationStatePath: join(dir, "conversation.json"),
+    attachmentsDir: join(dir, "attachments"),
   };
 }
 

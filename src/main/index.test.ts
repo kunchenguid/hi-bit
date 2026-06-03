@@ -55,3 +55,74 @@ describe("registerIpc", () => {
     expect(services.bitRuntime.disposeAll).toHaveBeenCalled();
   });
 });
+
+describe("isAppRendererSource", () => {
+  beforeEach(() => {
+    delete process.env.ELECTRON_RENDERER_URL;
+  });
+
+  it("allows only the bundled renderer file in packaged file-url mode", async () => {
+    const { isAppRendererSource } = await import("./index");
+
+    expect(
+      isAppRendererSource(
+        "file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+        "/Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      ),
+    ).toBe(true);
+    expect(
+      isAppRendererSource(
+        "file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/other.html",
+        "/Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      ),
+    ).toBe(false);
+    expect(
+      isAppRendererSource(
+        "file:///Users/kid/Downloads/camera.html",
+        "/Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      ),
+    ).toBe(false);
+  });
+
+  it("allows only the parsed dev server origin in dev mode", async () => {
+    process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+    const { isAppRendererSource } = await import("./index");
+
+    expect(isAppRendererSource("http://localhost:5173/")).toBe(true);
+    expect(isAppRendererSource("http://localhost:5173/chat")).toBe(true);
+    expect(isAppRendererSource("http://localhost:5173@evil.example/camera.html")).toBe(false);
+  });
+});
+
+describe("isAllowedAppRendererPermission", () => {
+  beforeEach(() => {
+    delete process.env.ELECTRON_RENDERER_URL;
+  });
+
+  it("allows clipboard reads only for the app renderer", async () => {
+    process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+    const { isAllowedAppRendererPermission } = await import("./index");
+
+    expect(isAllowedAppRendererPermission("clipboard-read", "http://localhost:5173/")).toBe(true);
+    expect(isAllowedAppRendererPermission("clipboard-read", "http://localhost:5173/chat")).toBe(
+      true,
+    );
+    expect(
+      isAllowedAppRendererPermission("clipboard-read", "http://localhost:5173@evil.example/"),
+    ).toBe(false);
+    expect(isAllowedAppRendererPermission("clipboard-read", "http://127.0.0.1:12345/")).toBe(false);
+  });
+});
+
+describe("permissionRequestingSource", () => {
+  it("prefers the full requesting URL over the origin", async () => {
+    const { permissionRequestingSource } = await import("./index");
+
+    expect(
+      permissionRequestingSource("file://", {
+        requestingUrl:
+          "file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      }),
+    ).toBe("file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html");
+  });
+});
