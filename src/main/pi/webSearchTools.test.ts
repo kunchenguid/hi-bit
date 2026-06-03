@@ -1,6 +1,11 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
-import { createWebSearchTools } from "./webSearchTools";
+import {
+  createWebSearchTools,
+  outboundHeaders,
+  pinnedLookup,
+  targetDimensions,
+} from "./webSearchTools";
 
 /** A token whose JWT payload carries a ChatGPT account id, like a real Codex token. */
 function fakeCodexToken(accountId = "acct_123"): string {
@@ -205,6 +210,24 @@ describe("fetch_content tool", () => {
     expect(text).toContain("How Loops Work");
     expect(text).toContain("game loop runs every frame");
     expect(text).not.toContain("menu menu menu");
+  });
+
+  it("sends a browser User-Agent so hosts don't reject the fetch", async () => {
+    let capturedHeaders: Record<string, string> | undefined;
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (_url, init) => {
+        capturedHeaders = init?.headers as Record<string, string>;
+        return htmlResponse(
+          "<html><body><article><h1>Hi</h1><p>Body text here.</p></article></body></html>",
+        );
+      },
+    });
+
+    await run(findTool(tools, "fetch_content"), { url: "https://example.com/page" });
+
+    expect(capturedHeaders?.["user-agent"]).toMatch(/mozilla/i);
   });
 
   it("refuses non-web URLs like file:// for safety", async () => {
@@ -580,5 +603,70 @@ describe("search_image tool", () => {
     const images = (result.content as Part[]).filter((p) => p.type === "image");
     expect(images).toHaveLength(1);
     expect(result.details?.sources).toEqual(["https://pics.test/real.png"]);
+  });
+});
+
+describe("pinnedLookup (DNS-pinned lookup for the raw-node fetch path)", () => {
+  // Production downloads (no injected fetchFn) pin to one validated IP via a custom
+  // node lookup. Node 24's default autoSelectFamily calls lookup in "all" mode and
+  // expects an array of {address, family}; the legacy (address, family) shape makes
+  // it throw "Invalid IP address: undefined". The lookup must answer in both shapes.
+  function invoke(address: string, options: unknown) {
+    const calls: Array<{ err: unknown; addr: unknown; family: unknown }> = [];
+    // biome-ignore lint/suspicious/noExplicitAny: invoking the node LookupFunction shape directly
+    (pinnedLookup(address) as any)(
+      "example.com",
+      options,
+      (err: unknown, addr: unknown, family: unknown) => {
+        calls.push({ err, addr, family });
+      },
+    );
+    return calls[0];
+  }
+
+  it("answers all-mode (autoSelectFamily) with an array of {address, family}", () => {
+    const r = invoke("93.184.216.34", { all: true });
+    expect(r.err).toBeNull();
+    expect(r.addr).toEqual([{ address: "93.184.216.34", family: 4 }]);
+  });
+
+  it("tags an IPv6 address with family 6 in all-mode", () => {
+    const r = invoke("2606:2800:220:1:248:1893:25c8:1946", { all: true });
+    expect(r.addr).toEqual([{ address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 }]);
+  });
+
+  it("answers legacy single-address mode with (address, family)", () => {
+    const r = invoke("93.184.216.34", { all: false });
+    expect(r.err).toBeNull();
+    expect(r.addr).toBe("93.184.216.34");
+    expect(r.family).toBe(4);
+  });
+});
+
+describe("outboundHeaders (shared by both fetch branches)", () => {
+  it("includes a browser User-Agent so image/CDN hosts don't reject the request", () => {
+    const h = outboundHeaders("image/*", "cdn.example.com");
+    expect(h["user-agent"]).toMatch(/mozilla/i);
+    expect(h.accept).toBe("image/*");
+    expect(h.host).toBe("cdn.example.com");
+  });
+});
+
+describe("targetDimensions (downscale math)", () => {
+  it("leaves an image already within the cap unchanged", () => {
+    expect(targetDimensions(800, 600, 1024)).toEqual({ width: 800, height: 600 });
+    expect(targetDimensions(1024, 1024, 1024)).toEqual({ width: 1024, height: 1024 });
+  });
+
+  it("scales a landscape image so its longest edge hits the cap, preserving aspect", () => {
+    expect(targetDimensions(4000, 3000, 1024)).toEqual({ width: 1024, height: 768 });
+  });
+
+  it("scales a portrait image by its height", () => {
+    expect(targetDimensions(2000, 4000, 1024)).toEqual({ width: 512, height: 1024 });
+  });
+
+  it("never rounds a dimension below 1px", () => {
+    expect(targetDimensions(10000, 5, 1024)).toEqual({ width: 1024, height: 1 });
   });
 });
