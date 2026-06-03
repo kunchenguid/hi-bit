@@ -16,6 +16,8 @@ const EXT_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const BASE64_CHARS = /^[A-Za-z0-9+/]+={0,2}$/;
 
 type ConversationStateRecord = {
   schemaVersion: 1;
@@ -61,11 +63,17 @@ export class ConversationService {
    * the "strip image data from logs" doctrine.
    */
   async saveAttachment(profileId: string, image: OutgoingImage): Promise<ChatImage> {
+    const ext = EXT_BY_MIME[image.mimeType];
+    if (!ext) throw new Error("Unsupported image type.");
+    if (!image.data || image.data.length % 4 !== 0 || !BASE64_CHARS.test(image.data)) {
+      throw new Error("Invalid image data.");
+    }
+    const bytes = Buffer.from(image.data, "base64");
+    if (bytes.length > MAX_ATTACHMENT_BYTES) throw new Error("Image is too large.");
     const { attachmentsDir } = this.paths(profileId);
     await mkdir(attachmentsDir, { recursive: true });
-    const ext = EXT_BY_MIME[image.mimeType] ?? "bin";
     const fileName = `${randomUUID()}.${ext}`;
-    await writeFile(join(attachmentsDir, fileName), Buffer.from(image.data, "base64"));
+    await writeFile(join(attachmentsDir, fileName), bytes);
     return { mimeType: image.mimeType, path: join("attachments", fileName) };
   }
 

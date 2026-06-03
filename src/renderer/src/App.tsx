@@ -68,6 +68,7 @@ export function App() {
     setMessages([]);
     setActivity([]);
     setShowActivity(false);
+    setAttachedImage(null);
     setRunning(false);
     setActiveTurn(null);
     setPreviews([]);

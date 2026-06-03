@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ChatEvent, OutgoingImage } from "@shared/chat";
 import { DEFAULT_CODEX_MODEL, type HiBitConfig, normalizeHiBitConfig } from "@shared/config";
 import type { AppInfo, Platform } from "@shared/ipc";
@@ -229,11 +229,19 @@ function configureMediaPermission(): void {
   });
 }
 
-function isAppRendererSource(value: string | undefined): boolean {
+export function isAppRendererSource(
+  value: string | undefined,
+  bundledRendererFile = join(__dirname, "../renderer/index.html"),
+): boolean {
   if (!value) return false;
   const devServerUrl = process.env.ELECTRON_RENDERER_URL;
   if (devServerUrl && value.startsWith(new URL(devServerUrl).origin)) return true;
-  return value.startsWith("file://");
+  try {
+    const url = new URL(value);
+    return url.protocol === "file:" && url.href === pathToFileURL(bundledRendererFile).href;
+  } catch {
+    return false;
+  }
 }
 
 function isLoopbackHttpUrl(value: string): boolean {

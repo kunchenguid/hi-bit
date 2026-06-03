@@ -55,3 +55,32 @@ describe("registerIpc", () => {
     expect(services.bitRuntime.disposeAll).toHaveBeenCalled();
   });
 });
+
+describe("isAppRendererSource", () => {
+  beforeEach(() => {
+    delete process.env.ELECTRON_RENDERER_URL;
+  });
+
+  it("allows only the bundled renderer file in packaged file-url mode", async () => {
+    const { isAppRendererSource } = await import("./index");
+
+    expect(
+      isAppRendererSource(
+        "file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+        "/Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      ),
+    ).toBe(true);
+    expect(
+      isAppRendererSource(
+        "file:///Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/other.html",
+        "/Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      ),
+    ).toBe(false);
+    expect(
+      isAppRendererSource(
+        "file:///Users/kid/Downloads/camera.html",
+        "/Applications/Hi-Bit.app/Contents/Resources/app.asar/out/renderer/index.html",
+      ),
+    ).toBe(false);
+  });
+});

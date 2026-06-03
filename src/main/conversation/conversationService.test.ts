@@ -103,6 +103,32 @@ describe("ConversationService", () => {
     expect(raw).toContain(saved.path);
   });
 
+  it("rejects unsupported attachment mime types", async () => {
+    const { service } = await createService();
+    const data = Buffer.from("pretend-svg-bytes").toString("base64");
+
+    await expect(
+      service.saveAttachment("ada", { mimeType: "image/svg+xml", data }),
+    ).rejects.toThrow("Unsupported image type.");
+  });
+
+  it("rejects malformed base64 attachment data", async () => {
+    const { service } = await createService();
+
+    await expect(
+      service.saveAttachment("ada", { mimeType: "image/png", data: "%%%" }),
+    ).rejects.toThrow("Invalid image data.");
+  });
+
+  it("rejects attachments that are too large after decoding", async () => {
+    const { service } = await createService();
+    const data = Buffer.alloc(5 * 1024 * 1024 + 1).toString("base64");
+
+    await expect(service.saveAttachment("ada", { mimeType: "image/jpeg", data })).rejects.toThrow(
+      "Image is too large.",
+    );
+  });
+
   it("rehydrates an attached picture's bytes when reading the transcript back", async () => {
     const { service } = await createService();
     const data = Buffer.from("pretend-png-bytes").toString("base64");

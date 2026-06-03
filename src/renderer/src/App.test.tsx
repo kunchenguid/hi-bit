@@ -570,6 +570,40 @@ describe("App", () => {
     expect(host.querySelector("iframe")).toBeNull();
   });
 
+  it("clears an attached picture when switching profiles", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ width: 8, height: 8, close: vi.fn() })),
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      fillStyle: "#ffffff",
+      fillRect: vi.fn(),
+      drawImage: vi.fn(),
+    } as never);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue(
+      "data:image/jpeg;base64,ATTACHED_BYTES",
+    );
+
+    await renderApp(root);
+    await pasteImage(host);
+    expect(host.querySelector(".hb-composer-chip img")?.getAttribute("src")).toContain(
+      "ATTACHED_BYTES",
+    );
+
+    await clickButton(host, "Switch profile");
+    await clickButton(host, "Sam");
+    await fillInput(host, "hibit-composer", "what should we build?");
+    await clickButton(host, "Send");
+
+    expect(api.chat.send).toHaveBeenLastCalledWith("sam", "what should we build?", undefined);
+  });
+
   it("switches from chat back to the kid profile gate", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -620,6 +654,21 @@ async function fillInput(host: HTMLElement, name: string, value: string): Promis
     const valueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
     valueSetter?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await flushAsyncWork();
+}
+
+async function pasteImage(host: HTMLElement): Promise<void> {
+  const input = host.querySelector<HTMLTextAreaElement>("#hibit-composer");
+  if (!input) throw new Error("Composer not found");
+  const file = new File(["image-bytes"], "picture.png", { type: "image/png" });
+  const clipboardData = {
+    items: [{ kind: "file", type: "image/png", getAsFile: () => file }],
+  };
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", { value: clipboardData });
+  await act(async () => {
+    input.dispatchEvent(event);
   });
   await flushAsyncWork();
 }
