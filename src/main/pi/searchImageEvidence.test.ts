@@ -67,7 +67,10 @@ function imageResponse(bytes: Uint8Array, contentType: string): Response {
   return new Response(body, { status: 200, headers: { "content-type": contentType } });
 }
 function htmlResponse(html: string): Response {
-  return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+  return new Response(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
 }
 
 /** A real, recognizable PNG so the round-trip artifact is something a human can look at. */
@@ -97,7 +100,7 @@ function makeCatPng(): Buffer {
   }
   // Ears (triangles).
   for (let y = 40; y < 70; y += 1) {
-    const span = (70 - y);
+    const span = 70 - y;
     for (let x = cx - 60 - span; x <= cx - 60 + span; x += 1) set(x, y, 0x9a, 0x9a, 0xa0);
     for (let x = cx + 60 - span; x <= cx + 60 + span; x += 1) set(x, y, 0x9a, 0x9a, 0xa0);
   }
@@ -165,9 +168,9 @@ describe("search_image end-to-end evidence", () => {
     expect(codexBody?.tools[0].type).toBe("web_search");
     expect(codexBody?.tools[0].external_web_access).toBe(true);
 
-    const image = (result.content as Array<{ type: string; data?: string; mimeType?: string }>).find(
-      (p) => p.type === "image",
-    ) as { type: "image"; data: string; mimeType: string };
+    const image = (
+      result.content as Array<{ type: string; data?: string; mimeType?: string }>
+    ).find((p) => p.type === "image") as { type: "image"; data: string; mimeType: string };
     expect(image).toBeTruthy();
     expect(image.mimeType).toBe("image/png");
 
