@@ -278,8 +278,11 @@ describe("BitCoordinatorService (Bit)", () => {
     const user = transcript.find((m) => m.role === "user");
     expect(user?.image?.mimeType).toBe("image/png");
     expect(user?.image?.data).toBe(data);
-    expect(JSON.stringify(s.bit.promptImages.at(0))).not.toContain(data);
-    expect(s.bit.promptImages.at(0)?.[0]).toMatchObject({ type: "image", mimeType: "image/png" });
+    expect(s.bit.promptImages.at(0)?.[0]).toMatchObject({
+      type: "image",
+      mimeType: "image/png",
+      data,
+    });
     expect(s.bit.promptImages.at(0)?.[0].path).toContain("/conversation/attachments/");
   });
 

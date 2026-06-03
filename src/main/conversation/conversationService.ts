@@ -83,17 +83,20 @@ export class ConversationService {
     return { mimeType: image.mimeType, path: join("attachments", fileName) };
   }
 
+  async readAttachmentData(profileId: string, image: ChatImage): Promise<string | undefined> {
+    if (!image.path) return image.data;
+    try {
+      const file = join(this.paths(profileId).attachmentsDir, basename(image.path));
+      return (await readFile(file)).toString("base64");
+    } catch {
+      return image.data;
+    }
+  }
+
   private async rehydrateImage(profileId: string, message: ChatMessage): Promise<ChatMessage> {
     if (!message.image?.path || message.image.data) return message;
-    try {
-      // Resolve under the attachments dir by basename only, never the stored path
-      // verbatim, so a doctored transcript can't read outside the attachments dir.
-      const file = join(this.paths(profileId).attachmentsDir, basename(message.image.path));
-      const data = (await readFile(file)).toString("base64");
-      return { ...message, image: { ...message.image, data } };
-    } catch {
-      return message;
-    }
+    const data = await this.readAttachmentData(profileId, message.image);
+    return data ? { ...message, image: { ...message.image, data } } : message;
   }
 
   async appendMessage(profileId: string, message: ChatMessage): Promise<void> {

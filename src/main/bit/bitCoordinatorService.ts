@@ -250,6 +250,9 @@ export class BitCoordinatorService {
       const builderSays = prompt || "(the builder shared a picture without words)";
       const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}`;
       const paths = this.conversation.paths(profileId);
+      const imageData = storedImage
+        ? await this.conversation.readAttachmentData(profileId, storedImage)
+        : undefined;
       const result = await this.runBitTurn(profileId, requestText, {
         kind: "reply",
         images: storedImage?.path
@@ -258,6 +261,7 @@ export class BitCoordinatorService {
                 type: "image",
                 path: join(paths.conversationDir, storedImage.path),
                 mimeType: storedImage.mimeType,
+                data: imageData,
               },
             ]
           : undefined,
