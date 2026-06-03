@@ -11,6 +11,7 @@ class FakeBitSession implements BitSession {
   sessionFile = "/tmp/conversation/sessions/bit/s1.jsonl";
   messages: unknown[] = [];
   accessTokens: string[] = [];
+  promptOptions: Array<{ images?: Array<{ type: "image"; data: string; mimeType: string }> }> = [];
   private listeners: Array<(event: unknown) => void> = [];
 
   subscribe(listener: (event: unknown) => void): () => void {
@@ -24,7 +25,11 @@ class FakeBitSession implements BitSession {
     this.accessTokens.push(accessToken);
   }
 
-  async prompt(): Promise<void> {
+  async prompt(
+    _text: string,
+    options?: { images?: Array<{ type: "image"; data: string; mimeType: string }> },
+  ): Promise<void> {
+    this.promptOptions.push(options ?? {});
     this.emit({
       type: "message_update",
       assistantMessageEvent: { type: "text_delta", delta: "On it! " },
@@ -88,6 +93,23 @@ describe("BitRuntimeService", () => {
       expect(event.profileId).toBe("ada");
       expect((event as { projectId?: string }).projectId).toBeUndefined();
     }
+  });
+
+  it("forwards an attached picture to the session prompt", async () => {
+    const session = new FakeBitSession();
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (_input: CreateBitSessionInput) => session,
+    });
+
+    await service.prompt(baseInput(), "what is this?", () => {}, {
+      images: [{ type: "image", data: "AAABBB", mimeType: "image/png" }],
+    });
+
+    expect(session.promptOptions.at(-1)?.images).toEqual([
+      { type: "image", data: "AAABBB", mimeType: "image/png" },
+    ]);
   });
 
   it("gives Bit the web lookup tools alongside its delegation tools", async () => {

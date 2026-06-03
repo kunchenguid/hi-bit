@@ -217,7 +217,7 @@ describe("App", () => {
     await fillInput(host, "hibit-composer", "make a cat game");
     await clickButton(host, "Send");
 
-    expect(api.chat.send).toHaveBeenCalledWith("ada", "make a cat game");
+    expect(api.chat.send).toHaveBeenCalledWith("ada", "make a cat game", undefined);
   });
 
   it("rests the activity chip and opens the factory floor", async () => {
@@ -408,7 +408,7 @@ describe("App", () => {
     await fillInput(host, "hibit-composer", "also add stars");
     await clickButton(host, "Send");
 
-    expect(api.chat.send).toHaveBeenCalledWith("ada", "also add stars");
+    expect(api.chat.send).toHaveBeenCalledWith("ada", "also add stars", undefined);
     expect(host.querySelector<HTMLTextAreaElement>("#hibit-composer")?.disabled).toBe(false);
     expect(Array.from(host.querySelectorAll("button")).some((b) => b.textContent === "Stop")).toBe(
       false,

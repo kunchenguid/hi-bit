@@ -110,6 +110,7 @@ type BitHandler = (ctx: {
 class FakeBitRuntime implements BitRuntime {
   prompts: string[] = [];
   inputs: BitPromptInput[] = [];
+  promptImages: Array<Array<{ type: "image"; data: string; mimeType: string }> | undefined> = [];
   handler: BitHandler = async () => "";
   failCompletions = false;
   afterStart?: (ctx: { text: string; profileId: string; turnId: string }) => Promise<void> | void;
@@ -120,9 +121,11 @@ class FakeBitRuntime implements BitRuntime {
     input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
+    options?: { images?: Array<{ type: "image"; data: string; mimeType: string }> },
   ): Promise<BitTurnResult> {
     this.prompts.push(text);
     this.inputs.push(input);
+    this.promptImages.push(options?.images);
     if (this.failCompletions && isCompletion(text)) {
       throw new Error("Bit completion failed");
     }
@@ -252,6 +255,45 @@ describe("BitCoordinatorService (Bit)", () => {
       { role: "user", text: "hello" },
       { role: "assistant", text: "Hi Ada! What should we build?" },
     ]);
+  });
+
+  it("attaches a builder's picture to the user message and hands it to Bit's turn", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "What a cool drawing!";
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+
+    const result = await s.coordinator.send(s.profile.id, "what is this?", {
+      mimeType: "image/png",
+      data,
+    });
+    await s.drain();
+
+    expect(result.ok).toBe(true);
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    const user = transcript.find((m) => m.role === "user");
+    expect(user?.image?.mimeType).toBe("image/png");
+    expect(user?.image?.data).toBe(data);
+    // The bytes reach the model on the same turn.
+    expect(s.bit.promptImages.at(0)).toEqual([{ type: "image", data, mimeType: "image/png" }]);
+  });
+
+  it("allows a picture with no text", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "Nice!";
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+
+    const result = await s.coordinator.send(s.profile.id, "", { mimeType: "image/png", data });
+    await s.drain();
+
+    expect(result.ok).toBe(true);
+    const transcript = await s.conversation.readTranscript(s.profile.id);
+    expect(transcript.find((m) => m.role === "user")?.image?.data).toBe(data);
+  });
+
+  it("still rejects an empty message with no picture", async () => {
+    const s = await createCoordinator();
+    const result = await s.coordinator.send(s.profile.id, "   ");
+    expect(result).toEqual({ ok: false, error: "Type a message for Bit first." });
   });
 
   it("persists unique user message ids for rapid sends", async () => {

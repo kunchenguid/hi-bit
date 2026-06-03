@@ -13,12 +13,17 @@ import { createBitResourceLoader } from "./piResources";
 import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
 import { createWebSearchTools } from "./webSearchTools";
 
+/** A picture handed to the model with a prompt, in the Pi runtime's content shape. */
+export type BitPromptImage = { type: "image"; data: string; mimeType: string };
+
+export type BitPromptOptions = { images?: BitPromptImage[] };
+
 export type BitSession = {
   sessionId: string;
   sessionFile?: string;
   messages: unknown[];
   subscribe: (listener: (event: unknown) => void) => () => void;
-  prompt: (text: string) => Promise<void>;
+  prompt: (text: string, options?: BitPromptOptions) => Promise<void>;
   abort: () => Promise<void>;
   dispose: () => void;
   setAccessToken?: (accessToken: string) => void;
@@ -54,6 +59,7 @@ export type BitRuntime = {
     input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
+    options?: BitPromptOptions,
   ): Promise<BitTurnResult>;
   abort(profileId: string): Promise<void>;
   isRunning(profileId: string): boolean;
@@ -107,6 +113,7 @@ export class BitRuntimeService implements BitRuntime {
     input: BitPromptInput,
     text: string,
     onEvent: (event: ChatEvent) => void,
+    options?: BitPromptOptions,
   ): Promise<BitTurnResult> {
     const { profileId } = input;
     if (this.running.has(profileId)) {
@@ -134,7 +141,7 @@ export class BitRuntimeService implements BitRuntime {
     let status: BitTurnResult["status"] = "completed";
     let error: string | undefined;
     try {
-      await session.prompt(text);
+      await session.prompt(text, options?.images?.length ? { images: options.images } : undefined);
       if (running.cancelled) status = "cancelled";
     } catch (caught) {
       if (running.cancelled) {
@@ -231,8 +238,8 @@ class RealBitSessionAdapter implements BitSession {
     return this.session.subscribe(listener);
   }
 
-  prompt(text: string): Promise<void> {
-    return this.session.prompt(text, { source: "rpc" });
+  prompt(text: string, options?: BitPromptOptions): Promise<void> {
+    return this.session.prompt(text, { source: "rpc", images: options?.images });
   }
 
   abort(): Promise<void> {

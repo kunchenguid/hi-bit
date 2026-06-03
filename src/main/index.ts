@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ChatEvent } from "@shared/chat";
+import type { ChatEvent, OutgoingImage } from "@shared/chat";
 import { DEFAULT_CODEX_MODEL, type HiBitConfig, normalizeHiBitConfig } from "@shared/config";
 import type { AppInfo, Platform } from "@shared/ipc";
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
@@ -181,8 +181,10 @@ export function registerIpc(services: Services): void {
   });
 
   ipcMain.handle("hibit:chat:load", (_event, profileId: string) => services.bit.load(profileId));
-  ipcMain.handle("hibit:chat:send", (_event, profileId: string, text: string) =>
-    services.bit.send(profileId, text),
+  ipcMain.handle(
+    "hibit:chat:send",
+    (_event, profileId: string, text: string, image?: OutgoingImage) =>
+      services.bit.send(profileId, text, image),
   );
   ipcMain.handle("hibit:chat:abort", (_event, profileId: string) => services.bit.abort(profileId));
   ipcMain.handle("hibit:chat:mark-activities-opened", (_event, profileId: string) =>
@@ -208,6 +210,30 @@ export function registerIpc(services: Services): void {
   // their subresources. The renderer itself loads from file:// (prod) or the Vite
   // dev server, so clearing the HTTP cache costs nothing there.
   ipcMain.handle("hibit:preview:clear-cache", () => session.defaultSession.clearCache());
+}
+
+/**
+ * Lets the webcam capture UI open the camera. Electron denies `media` by default
+ * unless a handler grants it; we allow only `media`, and only when the request
+ * comes from Hi-Bit's own renderer (the dev server or the bundled file) - never
+ * from a preview iframe or any other origin.
+ */
+function configureMediaPermission(): void {
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, permission, callback, details) => {
+      callback(permission === "media" && isAppRendererSource(details.requestingUrl));
+    },
+  );
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
+    return permission === "media" && isAppRendererSource(requestingOrigin);
+  });
+}
+
+function isAppRendererSource(value: string | undefined): boolean {
+  if (!value) return false;
+  const devServerUrl = process.env.ELECTRON_RENDERER_URL;
+  if (devServerUrl && value.startsWith(new URL(devServerUrl).origin)) return true;
+  return value.startsWith("file://");
 }
 
 function isLoopbackHttpUrl(value: string): boolean {
@@ -243,6 +269,7 @@ void app.whenReady().then(async () => {
   const services = await createServices(layout);
   services.bit.subscribe(broadcastChatEvent);
   registerIpc(services);
+  configureMediaPermission();
   createMainWindow();
 
   app.on("activate", () => {

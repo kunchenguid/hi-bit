@@ -1,5 +1,12 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatEvent, ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
+import type {
+  ChatEvent,
+  ChatMessage,
+  CreationActivity,
+  OutgoingImage,
+  PreviewInfo,
+  TurnKind,
+} from "@shared/chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import {
@@ -27,6 +34,7 @@ export function App() {
   const [activity, setActivity] = useState<CreationActivity[]>([]);
   const [showActivity, setShowActivity] = useState(false);
   const [draft, setDraft] = useState("");
+  const [attachedImage, setAttachedImage] = useState<OutgoingImage | null>(null);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   // The Bit turn currently producing output, set on turn_start and cleared on
@@ -273,8 +281,10 @@ export function App() {
   const send = useCallback(async () => {
     if (!activeProfile) return;
     const text = draft.trim();
-    if (!text) return;
+    const image = attachedImage;
+    if (!text && !image) return;
     setDraft("");
+    setAttachedImage(null);
     setError(null);
     if (activeTurn?.kind !== "bot_result") {
       setRunning(true);
@@ -286,14 +296,15 @@ export function App() {
         role: "user",
         text,
         createdAt: new Date().toISOString(),
+        image: image ?? undefined,
       },
     ]);
-    const result = await window.hibit.chat.send(activeProfile.id, text);
+    const result = await window.hibit.chat.send(activeProfile.id, text, image ?? undefined);
     if (!result.ok) {
       setRunning(false);
       setError(result.error);
     }
-  }, [activeProfile, activeTurn, draft]);
+  }, [activeProfile, activeTurn, attachedImage, draft]);
 
   const abort = useCallback(async () => {
     if (!activeProfile) return;
@@ -377,6 +388,7 @@ export function App() {
       activity={activity}
       showActivity={showActivity}
       draft={draft}
+      draftImage={attachedImage}
       running={running}
       activeTurn={activeTurn}
       busy={busy}
@@ -387,6 +399,8 @@ export function App() {
       activePreview={activePreview}
       reloadSignal={activeReloadSignal}
       onDraftChange={setDraft}
+      onAttachImage={setAttachedImage}
+      onClearImage={() => setAttachedImage(null)}
       onSend={send}
       onAbort={abort}
       onOpenFolder={openFolder}

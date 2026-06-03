@@ -66,6 +66,7 @@ function renderWorkspace(
         activity={overrides.activity ?? []}
         showActivity={overrides.showActivity ?? false}
         draft=""
+        draftImage={null}
         running={false}
         activeTurn={null}
         busy={false}
@@ -76,6 +77,8 @@ function renderWorkspace(
         activePreview={null}
         reloadSignal={0}
         onDraftChange={vi.fn()}
+        onAttachImage={vi.fn()}
+        onClearImage={vi.fn()}
         onSend={vi.fn()}
         onAbort={vi.fn()}
         onOpenFolder={vi.fn()}

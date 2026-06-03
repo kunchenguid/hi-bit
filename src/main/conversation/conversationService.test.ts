@@ -80,4 +80,57 @@ describe("ConversationService", () => {
     const { service, layout } = await createService();
     expect(service.paths("ada")).toEqual(profileConversationPaths(layout, "ada"));
   });
+
+  it("stores an attached picture on disk and keeps its base64 out of the transcript", async () => {
+    const { service, layout } = await createService();
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+    const saved = await service.saveAttachment("ada", { mimeType: "image/png", data });
+
+    expect(saved.mimeType).toBe("image/png");
+    expect(saved.path).toMatch(/^attachments\/.+\.png$/);
+    expect(saved.data).toBeUndefined();
+
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "what is this?",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: saved,
+    });
+
+    const raw = await readFile(profileConversationPaths(layout, "ada").transcriptPath, "utf8");
+    expect(raw).not.toContain(data);
+    expect(raw).toContain(saved.path);
+  });
+
+  it("rehydrates an attached picture's bytes when reading the transcript back", async () => {
+    const { service } = await createService();
+    const data = Buffer.from("pretend-png-bytes").toString("base64");
+    const saved = await service.saveAttachment("ada", { mimeType: "image/png", data });
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "what is this?",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: saved,
+    });
+
+    const [message] = await service.readTranscript("ada");
+    expect(message.image).toEqual({ mimeType: "image/png", data, path: saved.path });
+  });
+
+  it("survives a missing attachment file without dropping the message", async () => {
+    const { service } = await createService();
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "look",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: { mimeType: "image/png", path: "attachments/gone.png" },
+    });
+
+    const [message] = await service.readTranscript("ada");
+    expect(message.text).toBe("look");
+    expect(message.image?.data).toBeUndefined();
+  });
 });

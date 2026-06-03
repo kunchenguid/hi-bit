@@ -1,5 +1,11 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatMessage, CreationActivity, PreviewInfo, TurnKind } from "@shared/chat";
+import type {
+  ChatMessage,
+  CreationActivity,
+  OutgoingImage,
+  PreviewInfo,
+  TurnKind,
+} from "@shared/chat";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { ActivityChip } from "../components/ActivityChip";
@@ -16,6 +22,7 @@ type ChatWorkspaceProps = {
   activity: CreationActivity[];
   showActivity: boolean;
   draft: string;
+  draftImage: OutgoingImage | null;
   running: boolean;
   activeTurn: { id: string; kind: TurnKind } | null;
   busy: boolean;
@@ -26,6 +33,8 @@ type ChatWorkspaceProps = {
   activePreview: PreviewInfo | null;
   reloadSignal: number;
   onDraftChange: (value: string) => void;
+  onAttachImage: (image: OutgoingImage) => void;
+  onClearImage: () => void;
   onSend: () => void;
   onAbort: () => void;
   onOpenFolder: () => void;
@@ -46,6 +55,7 @@ export function ChatWorkspace({
   activity,
   showActivity,
   draft,
+  draftImage,
   running,
   activeTurn,
   busy,
@@ -56,6 +66,8 @@ export function ChatWorkspace({
   activePreview,
   reloadSignal,
   onDraftChange,
+  onAttachImage,
+  onClearImage,
   onSend,
   onAbort,
   onOpenFolder,
@@ -150,8 +162,11 @@ export function ChatWorkspace({
           {error ? <p className="hb-error">{error}</p> : null}
           <Composer
             value={draft}
+            image={draftImage}
             running={running}
             onChange={onDraftChange}
+            onAttachImage={onAttachImage}
+            onClearImage={onClearImage}
             onSend={onSend}
             onAbort={onAbort}
           />

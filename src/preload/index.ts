@@ -1,5 +1,11 @@
 import type { AuthStatus } from "@shared/auth";
-import type { ChatEvent, ChatSnapshot, PreviewInfo, SendMessageResult } from "@shared/chat";
+import type {
+  ChatEvent,
+  ChatSnapshot,
+  OutgoingImage,
+  PreviewInfo,
+  SendMessageResult,
+} from "@shared/chat";
 import type { AppInfo, HiBitApi } from "@shared/ipc";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { CreateProjectInput, ProjectSummary } from "@shared/project";
@@ -35,8 +41,8 @@ const api: HiBitApi = {
   chat: {
     load: (profileId: string): Promise<ChatSnapshot> =>
       ipcRenderer.invoke("hibit:chat:load", profileId),
-    send: (profileId: string, text: string): Promise<SendMessageResult> =>
-      ipcRenderer.invoke("hibit:chat:send", profileId, text),
+    send: (profileId: string, text: string, image?: OutgoingImage): Promise<SendMessageResult> =>
+      ipcRenderer.invoke("hibit:chat:send", profileId, text, image),
     abort: (profileId: string): Promise<void> => ipcRenderer.invoke("hibit:chat:abort", profileId),
     markActivitiesOpened: (profileId: string): Promise<void> =>
       ipcRenderer.invoke("hibit:chat:mark-activities-opened", profileId),
