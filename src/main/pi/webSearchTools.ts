@@ -1,7 +1,8 @@
 import { lookup } from "node:dns/promises";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { isIP } from "node:net";
+import { createRequire } from "node:module";
+import { isIP, type LookupFunction } from "node:net";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
@@ -44,8 +45,24 @@ const MAX_REDIRECTS = 5;
 const HTML_ACCEPT = "text/html,application/xhtml+xml";
 /** search_image accepts images first but still lets pages through for og:image fallback. */
 const IMAGE_ACCEPT = "image/*,text/html;q=0.9,*/*;q=0.8";
+/**
+ * A real browser User-Agent. Many image CDNs and hotlink-protected hosts reject
+ * requests that send no UA (or an obvious bot UA) with a 403 or an HTML error
+ * page, which would make search_image silently skip otherwise-good pictures.
+ */
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 /** Cap a single downloaded picture; gpt-5.5 vision tops out around 2.5MP at high detail. */
 const MAX_IMAGE_BYTES = 6_000_000;
+/**
+ * Downscale a picture so its longest edge is at most this many pixels before the
+ * model sees it. gpt-5.5 vision already downsamples to ~2.5MP / 2048px and tiles
+ * at a 768px short side, so anything larger is bytes in the transcript for no
+ * perceptual gain. 1024px keeps a look (and any in-image text) clear.
+ */
+const MAX_IMAGE_EDGE = 1024;
+/** JPEG quality (0-100) for the re-encoded downscale; ~80 is plenty for "what does it look like". */
+const DOWNSCALE_JPEG_QUALITY = 80;
 /** Mimes gpt-5.5 vision can actually read. SVG and others are skipped. */
 const VISION_MIME = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const IMAGE_EXT_MIME: Record<string, string> = {
@@ -354,6 +371,49 @@ function extractImageFromHtml(html: string, base: URL): string | null {
 type ResolvedImage = { data: string; mimeType: string; source: string };
 
 /**
+ * The size to resize an image to so its longest edge is at most `maxEdge`,
+ * preserving aspect ratio. Returns the original size when it already fits.
+ */
+export function targetDimensions(
+  width: number,
+  height: number,
+  maxEdge: number,
+): { width: number; height: number } {
+  const longest = Math.max(width, height);
+  if (longest <= maxEdge) return { width, height };
+  const scale = maxEdge / longest;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+const nodeRequire = createRequire(import.meta.url);
+
+/**
+ * Shrinks an oversized picture before the model sees it: decode, resize so the
+ * longest edge is `MAX_IMAGE_EDGE`, re-encode as JPEG. Returns null (keep the
+ * original) when the image already fits, or when Electron can't decode the
+ * format (webp/gif/svg) - those tend to be small already.
+ *
+ * Uses Electron's `nativeImage` (PNG/JPEG decode + resize, no extra dependency),
+ * required lazily so the vitest node runtime never needs Electron.
+ */
+function downscaleImage(bytes: Uint8Array): { data: string; mimeType: string } | null {
+  const { nativeImage } = nodeRequire("electron") as typeof import("electron");
+  const image = nativeImage.createFromBuffer(Buffer.from(bytes));
+  if (image.isEmpty()) return null;
+  const { width, height } = image.getSize();
+  const target = targetDimensions(width, height, MAX_IMAGE_EDGE);
+  if (target.width === width && target.height === height) return null;
+  const jpeg = image
+    .resize({ width: target.width, height: target.height, quality: "good" })
+    .toJPEG(DOWNSCALE_JPEG_QUALITY);
+  if (jpeg.length === 0) return null;
+  return { data: jpeg.toString("base64"), mimeType: "image/jpeg" };
+}
+
+/**
  * Downloads a candidate URL through the SSRF-safe fetch path and returns base64 pixels.
  * If the URL is a web page (not an image), it hops once to that page's og:image/first <img>.
  */
@@ -394,6 +454,13 @@ async function fetchImageCandidate(
     if (bytes === null) return null;
     const mimeType = normalizeImageMime(contentType, url);
     if (mimeType === null) return null;
+    let downscaled: { data: string; mimeType: string } | null = null;
+    try {
+      downscaled = downscaleImage(bytes);
+    } catch {
+      // A decode/encode hiccup must never lose the picture; fall back to the original.
+    }
+    if (downscaled) return { ...downscaled, source: rawUrl };
     return { data: Buffer.from(bytes).toString("base64"), mimeType, source: rawUrl };
   }
 
@@ -512,6 +579,42 @@ function fetchUrlForAddress(url: URL, address: string): URL {
   return fetchUrl;
 }
 
+/**
+ * Request headers shared by both fetch branches (raw-node and injected fetch).
+ * `host` keeps the real hostname when we connect to a pinned IP; the browser
+ * User-Agent stops image/CDN hosts from rejecting the request.
+ */
+export function outboundHeaders(accept: string, host: string): Record<string, string> {
+  return { accept, host, "user-agent": BROWSER_USER_AGENT };
+}
+
+/**
+ * A DNS lookup that always resolves to one pre-validated address (our SSRF pin),
+ * so the socket connects to the exact IP we already checked.
+ *
+ * It must answer in whichever shape Node asked for: Node 24's default
+ * `autoSelectFamily` calls a custom lookup in "all" mode and expects an array of
+ * `{ address, family }`, while legacy single-address mode expects
+ * `(err, address, family)`. Returning the legacy shape in "all" mode makes Node
+ * read an undefined address and throw `ERR_INVALID_IP_ADDRESS`.
+ */
+export function pinnedLookup(address: string): LookupFunction {
+  const family = (isIP(address) || 4) as 0 | 4 | 6;
+  const lookup = (
+    _hostname: string,
+    options: { all?: boolean } | number,
+    // biome-ignore lint/suspicious/noExplicitAny: node's lookup callback is overloaded (single vs all mode)
+    callback: (...args: any[]) => void,
+  ): void => {
+    if (typeof options === "object" && options.all) {
+      callback(null, [{ address, family }]);
+    } else {
+      callback(null, address, family);
+    }
+  };
+  return lookup as unknown as LookupFunction;
+}
+
 function nodeFetchWithAddress(
   url: URL,
   address: string,
@@ -522,10 +625,8 @@ function nodeFetchWithAddress(
     const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
       url,
       {
-        headers: { accept, host: url.host },
-        lookup: (_hostname, _options, callback) => {
-          callback(null, address, isIP(address) as 4 | 6);
-        },
+        headers: outboundHeaders(accept, url.host),
+        lookup: pinnedLookup(address),
         signal: requestSignal(signal),
       },
       (incoming) => {
@@ -568,7 +669,7 @@ async function fetchWithSafeRedirects(
     if (addresses === null) return null;
     const response = fetchFn
       ? await fetchFn(fetchUrlForAddress(current, addresses[0]).toString(), {
-          headers: { accept, host: current.host },
+          headers: outboundHeaders(accept, current.host),
           redirect: "manual",
           signal: requestSignal(signal),
         })
