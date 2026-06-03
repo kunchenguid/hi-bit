@@ -1,7 +1,7 @@
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ChatEvent } from "@shared/chat";
+import type { ChatEvent, ToolContent } from "@shared/chat";
 import { describe, expect, it } from "vitest";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import type { BotBuild, BotPipeline, BotWorkbench } from "../bots/botPipeline";
@@ -28,6 +28,7 @@ class FakeBotRuntime implements BotRuntime {
   statusByRuntimeKey = new Map<string, "completed" | "cancelled" | "failed">();
   emitsTools = true;
   emitsToolEnd = true;
+  toolEndContent: ToolContent[] = [];
   completionNote = "Added the thing.";
   beforeReturn?: (project: RuntimeProject) => Promise<void> | void;
 
@@ -42,7 +43,13 @@ class FakeBotRuntime implements BotRuntime {
     if (this.emitsTools) {
       onEvent({ type: "tool_start", ...meta, callId: "w1", toolName: "write", args: {} });
       if (this.emitsToolEnd) {
-        onEvent({ type: "tool_end", ...meta, callId: "w1", isError: false, content: [] });
+        onEvent({
+          type: "tool_end",
+          ...meta,
+          callId: "w1",
+          isError: false,
+          content: this.toolEndContent,
+        });
       }
     }
     onEvent({ ...meta, type: "assistant_delta", text: this.completionNote });
@@ -736,6 +743,29 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(s.events).toContainEqual(
       expect.objectContaining({ type: "build_end", projectId: game.id, turnId: "bot_job_1" }),
     );
+  });
+
+  it("strips search_image base64 from emitted tool activity", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bot.toolEndContent = [
+      { type: "text", text: "found a pusheen" },
+      { type: "image", data: "AAAABBBBCCCC", mimeType: "image/png" },
+    ];
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Ready!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "find a cat" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "add a cat");
+    await s.drain();
+
+    const toolEnd = s.events.find((event) => event.type === "tool_end");
+    expect(toolEnd?.content).toEqual([
+      { type: "text", text: "found a pusheen" },
+      { type: "text", text: "[looked at a picture]" },
+    ]);
   });
 
   it("emits a live tool end when an earlier concurrent build closes stale activity", async () => {

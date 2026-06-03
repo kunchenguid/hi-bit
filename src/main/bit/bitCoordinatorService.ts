@@ -143,7 +143,11 @@ export class BitCoordinatorService {
   }
 
   private emit(event: ChatEvent): void {
-    for (const listener of this.listeners) listener(event);
+    const safe =
+      event.type === "tool_end" || event.type === "tool_update"
+        ? { ...event, content: stripImageData(event.content) }
+        : event;
+    for (const listener of this.listeners) listener(safe);
   }
 
   async load(profileId: string): Promise<ChatSnapshot> {
