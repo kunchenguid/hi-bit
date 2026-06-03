@@ -65,11 +65,14 @@ export class ConversationService {
   async saveAttachment(profileId: string, image: OutgoingImage): Promise<ChatImage> {
     const ext = EXT_BY_MIME[image.mimeType];
     if (!ext) throw new Error("Unsupported image type.");
-    if (!image.data || image.data.length % 4 !== 0 || !BASE64_CHARS.test(image.data)) {
+    if (typeof image.data !== "string" || image.data.length === 0) {
       throw new Error("Invalid image data.");
     }
     if (encodedBase64ByteLength(image.data) > MAX_ATTACHMENT_BYTES) {
       throw new Error("Image is too large.");
+    }
+    if (image.data.length % 4 !== 0 || !BASE64_CHARS.test(image.data)) {
+      throw new Error("Invalid image data.");
     }
     const bytes = Buffer.from(image.data, "base64");
     if (bytes.length > MAX_ATTACHMENT_BYTES) throw new Error("Image is too large.");

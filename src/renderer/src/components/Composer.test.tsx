@@ -1,13 +1,22 @@
 // @vitest-environment jsdom
 
+import type { OutgoingImage } from "@shared/chat";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Composer } from "./Composer";
+import { toAttachment } from "./imageInput";
+
+vi.mock("./imageInput", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./imageInput")>();
+  return { ...original, toAttachment: vi.fn() };
+});
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
 }
+
+const mockedToAttachment = vi.mocked(toAttachment);
 
 function textarea(host: HTMLElement): HTMLTextAreaElement {
   const element = host.querySelector<HTMLTextAreaElement>("textarea");
@@ -45,6 +54,7 @@ describe("Composer", () => {
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
+    mockedToAttachment.mockReset();
   });
 
   afterEach(() => {
@@ -128,5 +138,42 @@ describe("Composer", () => {
     pressEnter(textarea(host), { isComposing: true });
 
     expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("shows an attachment error when pasted image conversion fails", async () => {
+    const onAttachImage = vi.fn<(image: OutgoingImage) => void>();
+    mockedToAttachment.mockRejectedValue(new Error("decode failed"));
+    act(() => {
+      root.render(
+        <Composer
+          value=""
+          running={false}
+          onChange={vi.fn()}
+          onSend={vi.fn()}
+          onAbort={vi.fn()}
+          onAttachImage={onAttachImage}
+        />,
+      );
+    });
+
+    const paste = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", {
+      value: {
+        items: [
+          {
+            kind: "file",
+            type: "image/png",
+            getAsFile: () => new File(["bad"], "bad.png", { type: "image/png" }),
+          },
+        ],
+      },
+    });
+
+    await act(async () => {
+      textarea(host).dispatchEvent(paste);
+    });
+
+    expect(onAttachImage).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Could not attach that picture.");
   });
 });

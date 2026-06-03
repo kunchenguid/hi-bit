@@ -32,10 +32,20 @@ export function Composer({
 }: ComposerProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const attach = (img: OutgoingImage) => {
+    setAttachmentError(null);
     onAttachImage?.(img);
+  };
+
+  const attachSource = async (source: Blob) => {
+    try {
+      attach(await toAttachment(source));
+    } catch {
+      setAttachmentError("Could not attach that picture.");
+    }
   };
 
   const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -43,19 +53,19 @@ export function Composer({
     const blob = imageFromClipboardEvent(event.clipboardData);
     if (!blob) return;
     event.preventDefault();
-    attach(await toAttachment(blob));
+    await attachSource(blob);
   };
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
-    if (file) attach(await toAttachment(file));
+    if (file) await attachSource(file);
   };
 
   const choosePaste = async () => {
     setMenuOpen(false);
     const blob = await readClipboardImage();
-    if (blob) attach(await toAttachment(blob));
+    if (blob) await attachSource(blob);
   };
 
   const chooseFile = () => {
@@ -109,6 +119,7 @@ export function Composer({
           }}
         />
       </div>
+      {attachmentError ? <p className="hb-composer-error">{attachmentError}</p> : null}
       <div className="hb-composer-actions">
         {!running && onAttachImage ? (
           <div className="hb-attach">
