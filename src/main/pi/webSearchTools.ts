@@ -41,6 +41,25 @@ const MAX_STORED = 50;
 const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_FETCH_BYTES = 1_000_000;
 const MAX_REDIRECTS = 5;
+const HTML_ACCEPT = "text/html,application/xhtml+xml";
+/** search_image accepts images first but still lets pages through for og:image fallback. */
+const IMAGE_ACCEPT = "image/*,text/html;q=0.9,*/*;q=0.8";
+/** Cap a single downloaded picture; gpt-5.5 vision tops out around 2.5MP at high detail. */
+const MAX_IMAGE_BYTES = 6_000_000;
+/** Mimes gpt-5.5 vision can actually read. SVG and others are skipped. */
+const VISION_MIME = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const IMAGE_EXT_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+const MAX_IMAGE_CANDIDATES = 8;
+const DEFAULT_IMAGE_COUNT = 1;
+const MAX_IMAGE_COUNT = 3;
+/** Wall-clock budget for downloading candidate pictures, so a kid never waits minutes. */
+const IMAGE_DOWNLOAD_BUDGET_MS = 30_000;
 
 export type WebSearchToolDeps = {
   /** Returns a current Codex access token; Hi-Bit refreshes it when expiring. */
@@ -59,8 +78,12 @@ export type WebSearchToolDeps = {
   maxFetchBytes?: number;
 };
 
+type ToolResultPart =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
 type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
+  content: ToolResultPart[];
   details: Record<string, unknown> | undefined;
 };
 
@@ -210,6 +233,182 @@ async function parseWebSearchSse(
   return parsed;
 }
 
+/** Codex auth headers shared by every Responses backend call (web_search + search_image). */
+function codexHeaders(token: string, accountId: string): Record<string, string> {
+  return {
+    authorization: `Bearer ${token}`,
+    "chatgpt-account-id": accountId,
+    originator: ORIGINATOR,
+    "OpenAI-Beta": "responses=experimental",
+    accept: "text/event-stream",
+    "content-type": "application/json",
+  };
+}
+
+/** POST a Responses request to the Codex backend, retry transient failures, and parse the SSE. */
+async function postCodexSearch(
+  body: object,
+  opts: {
+    token: string;
+    accountId: string;
+    fetchFn: typeof fetch;
+    sleep: (ms: number) => Promise<void>;
+    responsesUrl: string;
+    signal?: AbortSignal;
+  },
+): Promise<WebSearchParse> {
+  const headers = codexHeaders(opts.token, opts.accountId);
+  const serialized = JSON.stringify(body);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    if (opts.signal?.aborted) throw new Error("Search was stopped.");
+    const response = await opts.fetchFn(opts.responsesUrl, {
+      method: "POST",
+      headers,
+      body: serialized,
+      signal: requestSignal(opts.signal),
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      if (attempt < MAX_RETRIES && RETRYABLE_STATUS.has(response.status)) {
+        await opts.sleep(1000 * 2 ** attempt);
+        continue;
+      }
+      throw new Error(`Codex search failed (${response.status}): ${errorText}`.trim());
+    }
+    return await parseWebSearchSse(response, opts.signal);
+  }
+  throw new Error("Codex search failed.");
+}
+
+// ---- search_image: find image URLs, then download the pixels -----------------
+
+/** Asks the model to browse and hand back direct, kid-appropriate image URLs. */
+function buildImageSearchBody(query: string, model: string) {
+  return {
+    model,
+    stream: true,
+    store: false,
+    instructions:
+      "Use the web_search tool to find clear, kid-appropriate pictures of what the user describes. " +
+      "Reply with a short list of direct image file URLs (links that end in .png, .jpg, .jpeg, .webp, or .gif), one per line. " +
+      "If you only find web pages, list those page URLs instead. Never include anything not suitable for young children.",
+    input: [{ role: "user", content: [{ type: "input_text", text: query }] }],
+    tools: [webSearchToolSpec(true)],
+    tool_choice: "auto",
+    parallel_tool_calls: false,
+  };
+}
+
+const URL_PATTERN = /https?:\/\/[^\s"'<>)]+/g;
+
+function extractUrls(text: string): string[] {
+  return (text.match(URL_PATTERN) ?? []).map((url) => url.replace(/[.,;:!?]+$/, ""));
+}
+
+function isLikelyImageUrl(url: string): boolean {
+  try {
+    return /\.(png|jpe?g|webp|gif|bmp)$/.test(new URL(url).pathname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+/** Picks a single concrete mime gpt-5.5 can read, by header then by file extension. */
+function normalizeImageMime(contentType: string, url: URL): string | null {
+  let mime = contentType.split(";")[0].trim().toLowerCase();
+  if (mime === "image/jpg") mime = "image/jpeg";
+  if (VISION_MIME.has(mime)) return mime;
+  const ext = url.pathname.split(".").pop()?.toLowerCase() ?? "";
+  return IMAGE_EXT_MIME[ext] ?? null;
+}
+
+function absolutize(value: string, base: URL): string | null {
+  try {
+    return new URL(value, base).toString();
+  } catch {
+    return null;
+  }
+}
+
+/** Pulls the best representative image off a page: og:image/twitter:image, else the first <img>. */
+function extractImageFromHtml(html: string, base: URL): string | null {
+  const { document } = parseHTML(html);
+  const metaSelectors = [
+    'meta[property="og:image"]',
+    'meta[name="og:image"]',
+    'meta[property="og:image:url"]',
+    'meta[name="twitter:image"]',
+    'meta[property="twitter:image"]',
+  ];
+  for (const selector of metaSelectors) {
+    const content = document.querySelector(selector)?.getAttribute("content")?.trim();
+    if (content) {
+      const abs = absolutize(content, base);
+      if (abs) return abs;
+    }
+  }
+  const src = document.querySelector("img[src]")?.getAttribute("src")?.trim();
+  return src ? absolutize(src, base) : null;
+}
+
+type ResolvedImage = { data: string; mimeType: string; source: string };
+
+/**
+ * Downloads a candidate URL through the SSRF-safe fetch path and returns base64 pixels.
+ * If the URL is a web page (not an image), it hops once to that page's og:image/first <img>.
+ */
+async function fetchImageCandidate(
+  rawUrl: string,
+  deps: {
+    fetchFn?: typeof fetch;
+    lookupHost: (hostname: string) => Promise<string[]>;
+    maxBytes: number;
+    signal?: AbortSignal;
+  },
+  allowHtmlHop: boolean,
+): Promise<ResolvedImage | null> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+
+  const response = await fetchWithSafeRedirects(
+    url,
+    deps.fetchFn,
+    deps.lookupHost,
+    deps.signal,
+    IMAGE_ACCEPT,
+  );
+  if (response === null) return null;
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => {});
+    return null;
+  }
+
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+  if (contentType.startsWith("image/")) {
+    const bytes = await readResponseBytes(response, deps.maxBytes);
+    if (bytes === null) return null;
+    const mimeType = normalizeImageMime(contentType, url);
+    if (mimeType === null) return null;
+    return { data: Buffer.from(bytes).toString("base64"), mimeType, source: rawUrl };
+  }
+
+  if (allowHtmlHop && contentType.includes("html")) {
+    const html = await readResponseText(response, deps.maxBytes);
+    if (html === null) return null;
+    const imageUrl = extractImageFromHtml(html, url);
+    if (imageUrl === null) return null;
+    return fetchImageCandidate(imageUrl, deps, false);
+  }
+
+  await response.body?.cancel().catch(() => {});
+  return null;
+}
+
 // ---- HTML -> markdown (fetch_content) ---------------------------------------
 
 const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
@@ -313,12 +512,17 @@ function fetchUrlForAddress(url: URL, address: string): URL {
   return fetchUrl;
 }
 
-function nodeFetchWithAddress(url: URL, address: string, signal?: AbortSignal): Promise<Response> {
+function nodeFetchWithAddress(
+  url: URL,
+  address: string,
+  signal?: AbortSignal,
+  accept: string = HTML_ACCEPT,
+): Promise<Response> {
   return new Promise((resolve, reject) => {
     const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(
       url,
       {
-        headers: { accept: "text/html,application/xhtml+xml", host: url.host },
+        headers: { accept, host: url.host },
         lookup: (_hostname, _options, callback) => {
           callback(null, address, isIP(address) as 4 | 6);
         },
@@ -356,6 +560,7 @@ async function fetchWithSafeRedirects(
   fetchFn: typeof fetch | undefined,
   lookupHost: (hostname: string) => Promise<string[]>,
   signal?: AbortSignal,
+  accept: string = HTML_ACCEPT,
 ): Promise<Response | null> {
   let current = initialUrl;
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
@@ -363,11 +568,11 @@ async function fetchWithSafeRedirects(
     if (addresses === null) return null;
     const response = fetchFn
       ? await fetchFn(fetchUrlForAddress(current, addresses[0]).toString(), {
-          headers: { accept: "text/html,application/xhtml+xml", host: current.host },
+          headers: { accept, host: current.host },
           redirect: "manual",
           signal: requestSignal(signal),
         })
-      : await nodeFetchWithAddress(current, addresses[0], signal);
+      : await nodeFetchWithAddress(current, addresses[0], signal, accept);
     if (response.url) {
       let responseUrl: URL;
       try {
@@ -385,7 +590,7 @@ async function fetchWithSafeRedirects(
   throw new Error("Too many redirects while reading the page.");
 }
 
-async function readResponseText(response: Response, maxBytes: number): Promise<string | null> {
+async function readResponseBytes(response: Response, maxBytes: number): Promise<Uint8Array | null> {
   const contentLength = response.headers.get("content-length");
   if (contentLength !== null) {
     const parsed = Number(contentLength);
@@ -394,7 +599,10 @@ async function readResponseText(response: Response, maxBytes: number): Promise<s
       return null;
     }
   }
-  if (!response.body) return await response.text();
+  if (!response.body) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return bytes.byteLength > maxBytes ? null : bytes;
+  }
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -418,7 +626,12 @@ async function readResponseText(response: Response, maxBytes: number): Promise<s
     combined.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(combined);
+  return combined;
+}
+
+async function readResponseText(response: Response, maxBytes: number): Promise<string | null> {
+  const bytes = await readResponseBytes(response, maxBytes);
+  return bytes === null ? null : new TextDecoder().decode(bytes);
 }
 
 // ---- tool factory -----------------------------------------------------------
@@ -459,41 +672,13 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
         throw new Error("Could not read the Codex account. Reconnect Codex and try again.");
       }
 
-      const body = JSON.stringify(
+      const parsed = await postCodexSearch(
         buildWebSearchBody(params.query, model, params.live ?? false, params.domains),
+        { token, accountId, fetchFn: codexFetchFn, sleep, responsesUrl, signal },
       );
-      const headers: Record<string, string> = {
-        authorization: `Bearer ${token}`,
-        "chatgpt-account-id": accountId,
-        originator: ORIGINATOR,
-        "OpenAI-Beta": "responses=experimental",
-        accept: "text/event-stream",
-        "content-type": "application/json",
-      };
 
-      let parsed: WebSearchParse | undefined;
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-        if (signal?.aborted) throw new Error("Search was stopped.");
-        const response = await codexFetchFn(responsesUrl, {
-          method: "POST",
-          headers,
-          body,
-          signal: requestSignal(signal),
-        });
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => "");
-          if (attempt < MAX_RETRIES && RETRYABLE_STATUS.has(response.status)) {
-            await sleep(1000 * 2 ** attempt);
-            continue;
-          }
-          throw new Error(`Codex web search failed (${response.status}): ${errorText}`.trim());
-        }
-        parsed = await parseWebSearchSse(response, signal);
-        break;
-      }
-
-      const answer = parsed?.answer.trim() || "The search did not return a usable answer.";
-      const citations = parsed?.citations ?? [];
+      const answer = parsed.answer.trim() || "The search did not return a usable answer.";
+      const citations = parsed.citations;
       const text =
         citations.length > 0
           ? `${answer}\n\nSources:\n${citations.map((u) => `- ${u}`).join("\n")}`
@@ -503,10 +688,115 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
         content: [{ type: "text", text }],
         details: {
           provider: "codex",
-          searched: (parsed?.queries.length ?? 0) > 0,
-          queries: parsed?.queries ?? [],
+          searched: parsed.queries.length > 0,
+          queries: parsed.queries,
           citations,
         },
+      };
+    },
+  });
+
+  const searchImage = defineTool({
+    name: "search_image",
+    label: "Search for a picture",
+    description:
+      "Find a picture of something on the web and actually see it, so you understand what it looks like. " +
+      "Use it when the builder names something visual you do not already know (a character, creature, object, or style) - " +
+      "for example 'pusheen cat' or 'a dachshund'. It returns the real image(s) for you to look at, not just words. " +
+      "Uses the connected Codex account, like web_search and generate_image, so keep the builder's personal details out of the query. " +
+      "This is for understanding a look, not for making art - use generate_image to draw assets into the creation.",
+    parameters: Type.Object({
+      query: Type.String({
+        description: "What to find a picture of, e.g. 'pusheen the cartoon cat'.",
+      }),
+      count: Type.Optional(
+        Type.Number({
+          description: `How many pictures to look at (1-${MAX_IMAGE_COUNT}). Default ${DEFAULT_IMAGE_COUNT}.`,
+        }),
+      ),
+    }),
+    executionMode: "parallel",
+    async execute(_callId, rawParams, signal): Promise<ToolResult> {
+      const params = rawParams as { query: string; count?: number };
+      const query = params.query.trim();
+      const count = Math.max(
+        1,
+        Math.min(MAX_IMAGE_COUNT, Math.floor(params.count ?? DEFAULT_IMAGE_COUNT)),
+      );
+
+      const token = await deps.getFreshAccessToken();
+      const accountId = extractCodexAccountId(token);
+      if (!accountId) {
+        throw new Error("Could not read the Codex account. Reconnect Codex and try again.");
+      }
+
+      const parsed = await postCodexSearch(buildImageSearchBody(query, model), {
+        token,
+        accountId,
+        fetchFn: codexFetchFn,
+        sleep,
+        responsesUrl,
+        signal,
+      });
+
+      // Direct image links first, then pages we can hop through to an og:image.
+      const answerUrls = extractUrls(parsed.answer);
+      const candidates = [
+        ...answerUrls.filter(isLikelyImageUrl),
+        ...answerUrls.filter((url) => !isLikelyImageUrl(url)),
+        ...parsed.citations,
+      ];
+      const ordered = [...new Set(candidates)].slice(0, MAX_IMAGE_CANDIDATES);
+
+      const images: ToolResultPart[] = [];
+      const sources: string[] = [];
+      const deadline = AbortSignal.timeout(IMAGE_DOWNLOAD_BUDGET_MS);
+      const downloadSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
+      for (const candidate of ordered) {
+        if (signal?.aborted) throw new Error("Image lookup was stopped.");
+        if (deadline.aborted || images.length >= count) break;
+        let resolved: ResolvedImage | null = null;
+        try {
+          resolved = await fetchImageCandidate(
+            candidate,
+            {
+              fetchFn: deps.fetchFn,
+              lookupHost,
+              maxBytes: MAX_IMAGE_BYTES,
+              signal: downloadSignal,
+            },
+            true,
+          );
+        } catch {
+          if (signal?.aborted) throw new Error("Image lookup was stopped.");
+        }
+        if (resolved) {
+          images.push({ type: "image", data: resolved.data, mimeType: resolved.mimeType });
+          sources.push(resolved.source);
+        }
+      }
+
+      if (images.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `I couldn't find a picture of "${query}" to look at. Try describing it a bit differently.`,
+            },
+          ],
+          details: { query, sources: [] },
+        };
+      }
+
+      const intro =
+        images.length > 1
+          ? `Here are ${images.length} pictures of "${query}" - take a look.`
+          : `Here is a picture of "${query}" - take a look.`;
+      const text = `${intro}\n\nFrom:\n${sources.map((u) => `- ${u}`).join("\n")}`;
+
+      return {
+        content: [{ type: "text", text }, ...images],
+        details: { query, sources, shown: images.length },
       };
     },
   });
@@ -620,5 +910,5 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
     },
   });
 
-  return [webSearch, fetchContent, getSearchContent];
+  return [webSearch, searchImage, fetchContent, getSearchContent];
 }

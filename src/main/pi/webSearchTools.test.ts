@@ -401,3 +401,184 @@ describe("get_search_content tool", () => {
     expect(result.content[0].text as string).toMatch(/no saved|not found|expired/i);
   });
 });
+
+describe("search_image tool", () => {
+  type Part = { type: string; text?: string; data?: string; mimeType?: string };
+  const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+
+  function imageResponse(bytes: Uint8Array, contentType = "image/png", status = 200): Response {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+    return new Response(body, { status, headers: { "content-type": contentType } });
+  }
+
+  it("searches the live web and returns the actual image pixels for the model to see", async () => {
+    const imageUrl = "https://pics.test/pusheen.png";
+    let codexBody: { tools: Array<{ type: string; external_web_access: boolean }> } | undefined;
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken("acct_xyz"),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url, init) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          codexBody = JSON.parse(String(init?.body));
+          return sseResponse([
+            searchCallDone("pusheen cat"),
+            messageDone(`Here is a picture: ${imageUrl}`),
+            COMPLETED,
+          ]);
+        }
+        // The download is bound to the validated DNS answer, like fetch_content.
+        expect(u).toBe("https://93.184.216.34/pusheen.png");
+        return imageResponse(PNG_BYTES, "image/png");
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "pusheen cat" });
+
+    // It actually browsed the live web on the connected Codex account.
+    expect(codexBody?.tools[0].type).toBe("web_search");
+    expect(codexBody?.tools[0].external_web_access).toBe(true);
+
+    const image = (result.content as Part[]).find((p) => p.type === "image");
+    expect(image).toBeTruthy();
+    expect(image?.mimeType).toBe("image/png");
+    expect(image?.data).toBe(Buffer.from(PNG_BYTES).toString("base64"));
+    expect(result.details?.sources).toContain(imageUrl);
+  });
+
+  it("resolves a page link by reading its og:image when the search returns no direct image", async () => {
+    const pageUrl = "https://wiki.test/pusheen";
+    const ogImage = "https://cdn.test/pusheen-hero.jpg";
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([messageDone("See the page.", [pageUrl]), COMPLETED]);
+        }
+        if (u === "https://93.184.216.34/pusheen") {
+          return htmlResponse(
+            `<html><head><meta property="og:image" content="${ogImage}"></head><body></body></html>`,
+          );
+        }
+        expect(u).toBe("https://93.184.216.34/pusheen-hero.jpg");
+        return imageResponse(PNG_BYTES, "image/jpeg");
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "pusheen cat" });
+
+    const image = (result.content as Part[]).find((p) => p.type === "image");
+    expect(image?.mimeType).toBe("image/jpeg");
+    expect(result.details?.sources).toContain(ogImage);
+  });
+
+  it("reports plainly when it finds no viewable image instead of throwing", async () => {
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([
+            messageDone("No pictures here.", ["https://text.test/article"]),
+            COMPLETED,
+          ]);
+        }
+        return htmlResponse("<html><body><p>Just words.</p></body></html>");
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "pusheen cat" });
+
+    expect((result.content as Part[]).some((p) => p.type === "image")).toBe(false);
+    expect(result.content[0].text as string).toMatch(/could ?n.?t find|no picture/i);
+  });
+
+  it("never downloads an image from a private or loopback address", async () => {
+    let imageFetches = 0;
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([messageDone("Here: http://127.0.0.1:8080/secret.png"), COMPLETED]);
+        }
+        imageFetches += 1;
+        return imageResponse(PNG_BYTES);
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "anything" });
+
+    expect(imageFetches).toBe(0);
+    expect((result.content as Part[]).some((p) => p.type === "image")).toBe(false);
+  });
+
+  it("skips non-image responses and only shows real pictures", async () => {
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([
+            messageDone("Try https://pics.test/not-real.png and https://pics.test/real.png"),
+            COMPLETED,
+          ]);
+        }
+        if (u === "https://93.184.216.34/not-real.png") {
+          // Looks like an image by name, but the server returns HTML (e.g. a 404 page).
+          return htmlResponse("<html><body>Not found</body></html>");
+        }
+        expect(u).toBe("https://93.184.216.34/real.png");
+        return imageResponse(PNG_BYTES, "image/png");
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "cat" });
+
+    const images = (result.content as Part[]).filter((p) => p.type === "image");
+    expect(images).toHaveLength(1);
+    expect(result.details?.sources).toEqual(["https://pics.test/real.png"]);
+  });
+
+  it("moves on to the next candidate when one download throws instead of failing the whole lookup", async () => {
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([
+            messageDone("Try https://pics.test/boom.png and https://pics.test/real.png"),
+            COMPLETED,
+          ]);
+        }
+        if (u === "https://93.184.216.34/boom.png") {
+          throw new Error("network down");
+        }
+        expect(u).toBe("https://93.184.216.34/real.png");
+        return imageResponse(PNG_BYTES, "image/png");
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "cat" });
+
+    const images = (result.content as Part[]).filter((p) => p.type === "image");
+    expect(images).toHaveLength(1);
+    expect(result.details?.sources).toEqual(["https://pics.test/real.png"]);
+  });
+});

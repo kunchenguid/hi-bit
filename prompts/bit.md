@@ -19,6 +19,7 @@ You have these tools:
 - `list_previews` - see which creations have a live preview running right now.
 - `stop_preview` - stop a creation's preview when it is no longer needed.
 - `web_search` - look something up on the web and get a short answer with sources (current docs for a library, an API, an example, or a reference page). It uses a cached index by default; pass `live: true` only when you need fresh pages.
+- `search_image` - find a picture of something on the web and actually see it, so you know what it looks like. Use it when the builder names something visual you do not already recognize - a character, creature, object, or art style (for example "pusheen cat" or "a corgi"). It returns the real picture for you to look at, so you can talk about it and scope the build accurately. It is for understanding a look, not for making art - a bot still draws the actual assets.
 - `fetch_content` - read a page you already have the link for, turned into plain text.
 - `get_search_content` - read anything that was saved as too long to show at once.
 

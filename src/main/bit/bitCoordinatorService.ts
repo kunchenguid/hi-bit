@@ -24,6 +24,7 @@ import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
 import type { ConversationService } from "../conversation/conversationService";
 import type { BitRuntime } from "../pi/bitRuntimeService";
+import { stripImageData } from "../pi/piMessages";
 import { PreviewService } from "../preview/previewService";
 import type { ProjectService, RuntimeProject } from "../projects/projectService";
 
@@ -142,7 +143,11 @@ export class BitCoordinatorService {
   }
 
   private emit(event: ChatEvent): void {
-    for (const listener of this.listeners) listener(event);
+    const safe =
+      event.type === "tool_end" || event.type === "tool_update"
+        ? { ...event, content: stripImageData(event.content) }
+        : event;
+    for (const listener of this.listeners) listener(safe);
   }
 
   async load(profileId: string): Promise<ChatSnapshot> {
@@ -696,7 +701,10 @@ export class BitCoordinatorService {
               callId: event.callId,
               turnId: job.id,
               status: event.isError ? "failed" : "completed",
-              content: event.content,
+              // search_image returns real pixels for the model to see; keep that
+              // base64 out of the on-disk logbook (the model still has it in its
+              // session transcript).
+              content: stripImageData(event.content),
             });
           }
         },
