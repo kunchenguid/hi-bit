@@ -213,20 +213,27 @@ export function registerIpc(services: Services): void {
 }
 
 /**
- * Lets the webcam capture UI open the camera. Electron denies `media` by default
- * unless a handler grants it; we allow only `media`, and only when the request
- * comes from Hi-Bit's own renderer (the dev server or the bundled file) - never
- * from a preview iframe or any other origin.
+ * Grants renderer-only browser permissions for camera and clipboard picture input.
  */
 function configureMediaPermission(): void {
   session.defaultSession.setPermissionRequestHandler(
     (_webContents, permission, callback, details) => {
-      callback(permission === "media" && isAppRendererSource(details.requestingUrl));
+      callback(isAllowedAppRendererPermission(permission, details.requestingUrl));
     },
   );
   session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
-    return permission === "media" && isAppRendererSource(requestingOrigin);
+    return isAllowedAppRendererPermission(permission, requestingOrigin);
   });
+}
+
+export function isAllowedAppRendererPermission(
+  permission: string,
+  requestingSource: string | undefined,
+): boolean {
+  return (
+    (permission === "media" || permission === "clipboard-read") &&
+    isAppRendererSource(requestingSource)
+  );
 }
 
 export function isAppRendererSource(

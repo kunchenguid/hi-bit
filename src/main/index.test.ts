@@ -93,3 +93,25 @@ describe("isAppRendererSource", () => {
     expect(isAppRendererSource("http://localhost:5173@evil.example/camera.html")).toBe(false);
   });
 });
+
+describe("isAllowedAppRendererPermission", () => {
+  beforeEach(() => {
+    delete process.env.ELECTRON_RENDERER_URL;
+  });
+
+  it("allows clipboard reads only for the app renderer", async () => {
+    process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+    const { isAllowedAppRendererPermission } = await import("./index");
+
+    expect(isAllowedAppRendererPermission("clipboard-read", "http://localhost:5173/")).toBe(true);
+    expect(isAllowedAppRendererPermission("clipboard-read", "http://localhost:5173/chat")).toBe(
+      true,
+    );
+    expect(
+      isAllowedAppRendererPermission("clipboard-read", "http://localhost:5173@evil.example/"),
+    ).toBe(false);
+    expect(isAllowedAppRendererPermission("clipboard-read", "http://127.0.0.1:12345/")).toBe(
+      false,
+    );
+  });
+});
