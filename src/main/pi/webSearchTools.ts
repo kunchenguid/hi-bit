@@ -58,6 +58,8 @@ const IMAGE_EXT_MIME: Record<string, string> = {
 const MAX_IMAGE_CANDIDATES = 8;
 const DEFAULT_IMAGE_COUNT = 1;
 const MAX_IMAGE_COUNT = 3;
+/** Wall-clock budget for downloading candidate pictures, so a kid never waits minutes. */
+const IMAGE_DOWNLOAD_BUDGET_MS = 30_000;
 
 export type WebSearchToolDeps = {
   /** Returns a current Codex access token; Hi-Bit refreshes it when expiring. */
@@ -271,11 +273,11 @@ async function postCodexSearch(
         await opts.sleep(1000 * 2 ** attempt);
         continue;
       }
-      throw new Error(`Codex web search failed (${response.status}): ${errorText}`.trim());
+      throw new Error(`Codex search failed (${response.status}): ${errorText}`.trim());
     }
     return await parseWebSearchSse(response, opts.signal);
   }
-  throw new Error("Codex web search failed.");
+  throw new Error("Codex search failed.");
 }
 
 // ---- search_image: find image URLs, then download the pixels -----------------
@@ -748,14 +750,26 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
 
       const images: ToolResultPart[] = [];
       const sources: string[] = [];
+      const deadline = AbortSignal.timeout(IMAGE_DOWNLOAD_BUDGET_MS);
+      const downloadSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
       for (const candidate of ordered) {
         if (signal?.aborted) throw new Error("Image lookup was stopped.");
-        if (images.length >= count) break;
-        const resolved = await fetchImageCandidate(
-          candidate,
-          { fetchFn: deps.fetchFn, lookupHost, maxBytes: MAX_IMAGE_BYTES, signal },
-          true,
-        );
+        if (deadline.aborted || images.length >= count) break;
+        let resolved: ResolvedImage | null = null;
+        try {
+          resolved = await fetchImageCandidate(
+            candidate,
+            {
+              fetchFn: deps.fetchFn,
+              lookupHost,
+              maxBytes: MAX_IMAGE_BYTES,
+              signal: downloadSignal,
+            },
+            true,
+          );
+        } catch {
+          if (signal?.aborted) throw new Error("Image lookup was stopped.");
+        }
         if (resolved) {
           images.push({ type: "image", data: resolved.data, mimeType: resolved.mimeType });
           sources.push(resolved.source);

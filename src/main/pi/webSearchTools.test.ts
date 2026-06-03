@@ -553,4 +553,32 @@ describe("search_image tool", () => {
     expect(images).toHaveLength(1);
     expect(result.details?.sources).toEqual(["https://pics.test/real.png"]);
   });
+
+  it("moves on to the next candidate when one download throws instead of failing the whole lookup", async () => {
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([
+            messageDone("Try https://pics.test/boom.png and https://pics.test/real.png"),
+            COMPLETED,
+          ]);
+        }
+        if (u === "https://93.184.216.34/boom.png") {
+          throw new Error("network down");
+        }
+        expect(u).toBe("https://93.184.216.34/real.png");
+        return imageResponse(PNG_BYTES, "image/png");
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "cat" });
+
+    const images = (result.content as Part[]).filter((p) => p.type === "image");
+    expect(images).toHaveLength(1);
+    expect(result.details?.sources).toEqual(["https://pics.test/real.png"]);
+  });
 });
