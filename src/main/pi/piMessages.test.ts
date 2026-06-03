@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   chatEventsFromPiEvent,
   chatMessagesFromPiMessages,
+  stripImageData,
   toolContentFromResult,
 } from "./piMessages";
 
@@ -175,5 +176,24 @@ describe("toolContentFromResult", () => {
       { type: "text", text: "hello" },
       { type: "image", data: "base64", mimeType: "image/png" },
     ]);
+  });
+});
+
+describe("stripImageData", () => {
+  it("replaces image parts with a placeholder so the logbook stays free of base64", () => {
+    expect(
+      stripImageData([
+        { type: "text", text: "Here is a picture of pusheen." },
+        { type: "image", data: "AAAAbase64AAAA", mimeType: "image/png" },
+      ]),
+    ).toEqual([
+      { type: "text", text: "Here is a picture of pusheen." },
+      { type: "text", text: "[looked at a picture]" },
+    ]);
+  });
+
+  it("leaves text-only content untouched", () => {
+    const content = [{ type: "text" as const, text: "just words" }];
+    expect(stripImageData(content)).toEqual(content);
   });
 });
