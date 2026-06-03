@@ -4,6 +4,7 @@ import {
   AuthStorage,
   createAgentSession,
   ModelRegistry,
+  type PromptOptions,
   SessionManager,
   SettingsManager,
   type ToolDefinition,
@@ -22,6 +23,7 @@ export type BitSession = {
   sessionId: string;
   sessionFile?: string;
   messages: unknown[];
+  supportsInlineImages?: boolean;
   subscribe: (listener: (event: unknown) => void) => () => void;
   prompt: (text: string, options?: BitPromptOptions) => Promise<void>;
   abort: () => Promise<void>;
@@ -141,8 +143,10 @@ export class BitRuntimeService implements BitRuntime {
     let status: BitTurnResult["status"] = "completed";
     let error: string | undefined;
     try {
-      const safeOptions = promptOptionsWithoutInlineImageData(options);
-      await session.prompt(promptTextWithImagePaths(text, safeOptions?.images), safeOptions);
+      const promptOptions = session.supportsInlineImages
+        ? options
+        : promptOptionsWithoutInlineImageData(options);
+      await session.prompt(promptTextWithImagePaths(text, promptOptions?.images), promptOptions);
       if (running.cancelled) status = "cancelled";
     } catch (caught) {
       if (running.cancelled) {
@@ -218,10 +222,14 @@ function assistantDeltaFromPiEvent(event: unknown): string | null {
 }
 
 class RealBitSessionAdapter implements BitSession {
+  readonly supportsInlineImages = true;
+
   constructor(
     private readonly session: AgentSession,
     private readonly authStorage: AuthStorage,
-  ) {}
+  ) {
+    scrubInlineImagesFromSessionPersistence(session);
+  }
 
   get sessionId(): string {
     return this.session.sessionId;
@@ -240,7 +248,7 @@ class RealBitSessionAdapter implements BitSession {
   }
 
   prompt(text: string, options?: BitPromptOptions): Promise<void> {
-    return this.session.prompt(promptTextWithImagePaths(text, options?.images), { source: "rpc" });
+    return this.session.prompt(text, promptOptionsForPiSession(options));
   }
 
   abort(): Promise<void> {
@@ -267,6 +275,33 @@ function promptOptionsWithoutInlineImageData(
       mimeType: image.mimeType,
     })),
   };
+}
+
+function promptOptionsForPiSession(options?: BitPromptOptions): PromptOptions {
+  const images = options?.images
+    ?.filter((image) => typeof image.data === "string" && image.data.length > 0)
+    .map((image) => ({ type: image.type, data: image.data as string, mimeType: image.mimeType }));
+  return images?.length ? { source: "rpc", images } : { source: "rpc" };
+}
+
+function scrubInlineImagesFromSessionPersistence(session: AgentSession): void {
+  const appendMessage = session.sessionManager.appendMessage.bind(session.sessionManager);
+  session.sessionManager.appendMessage = (message) => {
+    const scrubbed = scrubInlineImageData(message) as Parameters<typeof appendMessage>[0];
+    return appendMessage(scrubbed);
+  };
+}
+
+function scrubInlineImageData(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => scrubInlineImageData(item));
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  if (record.type === "image" && typeof record.data === "string") {
+    return { type: "text", text: "Attached image omitted from saved session." };
+  }
+  return Object.fromEntries(
+    Object.entries(record).map(([key, entry]) => [key, scrubInlineImageData(entry)]),
+  );
 }
 
 function promptTextWithImagePaths(text: string, images?: BitPromptImage[]): string {

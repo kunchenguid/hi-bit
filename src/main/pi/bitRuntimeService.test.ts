@@ -1,11 +1,43 @@
 import type { ChatEvent } from "@shared/chat";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type BitPromptOptions,
   BitRuntimeService,
   type BitSession,
   type CreateBitSessionInput,
 } from "./bitRuntimeService";
+
+const piRuntime = vi.hoisted(() => {
+  const agentSession = {
+    sessionId: "real-bit-1",
+    sessionFile: "/tmp/conversation/sessions/bit/real.jsonl",
+    messages: [],
+    sessionManager: { appendMessage: vi.fn() },
+    subscribe: vi.fn(() => () => {}),
+    prompt: vi.fn(async () => {}),
+    abort: vi.fn(async () => {}),
+    dispose: vi.fn(),
+  };
+  const authStorage = { setRuntimeApiKey: vi.fn() };
+  return { agentSession, authStorage, persistedMessages: [] as unknown[] };
+});
+
+vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@earendil-works/pi-coding-agent")>();
+  return {
+    ...actual,
+    AuthStorage: { inMemory: vi.fn(() => piRuntime.authStorage) },
+    ModelRegistry: {
+      inMemory: vi.fn(() => ({ find: vi.fn(() => ({ id: "gpt-5.5" })) })),
+    },
+    SessionManager: {
+      create: vi.fn(() => ({ kind: "created" })),
+      open: vi.fn(() => ({ kind: "opened" })),
+    },
+    SettingsManager: { inMemory: vi.fn(() => ({ kind: "settings" })) },
+    createAgentSession: vi.fn(async () => ({ session: piRuntime.agentSession })),
+  };
+});
 
 class FakeBitSession implements BitSession {
   sessionId = "bit-1";
@@ -61,6 +93,14 @@ function baseInput() {
 }
 
 describe("BitRuntimeService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    piRuntime.persistedMessages.length = 0;
+    piRuntime.agentSession.sessionManager.appendMessage = vi.fn((message: unknown) => {
+      piRuntime.persistedMessages.push(message);
+    });
+  });
+
   it("streams assistant text as profile-routed events and returns the accumulated reply", async () => {
     const session = new FakeBitSession();
     const sessionFiles: Array<string | undefined> = [];
@@ -142,6 +182,42 @@ describe("BitRuntimeService", () => {
     });
 
     expect(JSON.stringify(session.promptOptions.at(-1))).not.toContain("AAABBB");
+  });
+
+  it("passes attached image bytes to the production Pi session prompt", async () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+    });
+
+    await service.prompt(baseInput(), "what is this?", () => {}, {
+      images: [
+        {
+          type: "image",
+          path: "/tmp/profiles/ada/conversation/attachments/cat.png",
+          data: "AAABBB",
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    expect(piRuntime.agentSession.prompt).toHaveBeenCalledWith(
+      expect.stringContaining("/tmp/profiles/ada/conversation/attachments/cat.png"),
+      {
+        source: "rpc",
+        images: [{ type: "image", data: "AAABBB", mimeType: "image/png" }],
+      },
+    );
+
+    piRuntime.agentSession.sessionManager.appendMessage({
+      role: "user",
+      content: [
+        { type: "text", text: "what is this?" },
+        { type: "image", data: "AAABBB", mimeType: "image/png" },
+      ],
+    });
+
+    expect(JSON.stringify(piRuntime.persistedMessages.at(-1))).not.toContain("AAABBB");
   });
 
   it("gives Bit the web lookup tools alongside its delegation tools", async () => {
