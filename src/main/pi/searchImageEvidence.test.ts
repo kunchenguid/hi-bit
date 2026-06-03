@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { PNG } from "pngjs";
@@ -18,8 +19,7 @@ import { createWebSearchTools } from "./webSearchTools";
  * reviewer can literally open the picture the model "sees".
  */
 
-const EVIDENCE_DIR =
-  "/var/folders/0k/bf8mwt2n5qddzk24r20gfk0c0000gn/T/no-mistakes-evidence/01KT5YP5TZN09ZEHR4D62STEC6";
+const EVIDENCE_DIR = join(tmpdir(), "no-mistakes-evidence", "search-image");
 
 const RESPONSES_URL = "https://codex.test/responses";
 
