@@ -235,9 +235,9 @@ export function isAppRendererSource(
 ): boolean {
   if (!value) return false;
   const devServerUrl = process.env.ELECTRON_RENDERER_URL;
-  if (devServerUrl && value.startsWith(new URL(devServerUrl).origin)) return true;
   try {
     const url = new URL(value);
+    if (devServerUrl && url.origin === new URL(devServerUrl).origin) return true;
     return url.protocol === "file:" && url.href === pathToFileURL(bundledRendererFile).href;
   } catch {
     return false;

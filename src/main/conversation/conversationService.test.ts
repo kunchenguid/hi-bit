@@ -1,7 +1,7 @@
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bootstrapLayout, profileConversationPaths } from "../storage/layout";
 import { ConversationService } from "./conversationService";
 
@@ -127,6 +127,23 @@ describe("ConversationService", () => {
     await expect(service.saveAttachment("ada", { mimeType: "image/jpeg", data })).rejects.toThrow(
       "Image is too large.",
     );
+  });
+
+  it("rejects attachments with impossible encoded size before decoding", async () => {
+    const { service } = await createService();
+    const data = "A".repeat(Math.ceil((5 * 1024 * 1024 + 1) / 3) * 4);
+    const from = vi.spyOn(Buffer, "from").mockImplementation(() => {
+      throw new Error("decoded before size check");
+    });
+
+    try {
+      await expect(service.saveAttachment("ada", { mimeType: "image/jpeg", data })).rejects.toThrow(
+        "Image is too large.",
+      );
+      expect(from).not.toHaveBeenCalled();
+    } finally {
+      from.mockRestore();
+    }
   });
 
   it("rehydrates an attached picture's bytes when reading the transcript back", async () => {

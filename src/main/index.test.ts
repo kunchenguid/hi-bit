@@ -83,4 +83,13 @@ describe("isAppRendererSource", () => {
       ),
     ).toBe(false);
   });
+
+  it("allows only the parsed dev server origin in dev mode", async () => {
+    process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
+    const { isAppRendererSource } = await import("./index");
+
+    expect(isAppRendererSource("http://localhost:5173/")).toBe(true);
+    expect(isAppRendererSource("http://localhost:5173/chat")).toBe(true);
+    expect(isAppRendererSource("http://localhost:5173@evil.example/camera.html")).toBe(false);
+  });
 });
