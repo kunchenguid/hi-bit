@@ -1,4 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
+import { useEffect, useRef } from "react";
 
 type ReconnectOverlayProps = {
   status: AuthStatus | null;
@@ -15,8 +16,35 @@ type ReconnectOverlayProps = {
  * forward.
  */
 export function ReconnectOverlay({ status, busy, error, onReconnect }: ReconnectOverlayProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const reconnectButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (busy) {
+      dialogRef.current?.focus();
+      return;
+    }
+    reconnectButtonRef.current?.focus();
+  }, [busy]);
+
   return (
-    <div className="hb-reconnect-backdrop" role="dialog" aria-modal="true">
+    <div
+      ref={dialogRef}
+      className="hb-reconnect-backdrop"
+      role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === "Tab") {
+          event.preventDefault();
+          if (busy) {
+            dialogRef.current?.focus();
+            return;
+          }
+          reconnectButtonRef.current?.focus();
+        }
+      }}
+    >
       <section className="hb-card hb-auth-card hb-reconnect-card">
         <div className="hb-bit-badge">Bit</div>
         <p className="t-pixel">Codex disconnected</p>
@@ -31,6 +59,7 @@ export function ReconnectOverlay({ status, busy, error, onReconnect }: Reconnect
         </p>
         {error || status?.error ? <p className="hb-error">{error ?? status?.error}</p> : null}
         <button
+          ref={reconnectButtonRef}
           className="hb-button hb-button-primary"
           type="button"
           onClick={onReconnect}

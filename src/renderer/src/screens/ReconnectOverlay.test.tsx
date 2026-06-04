@@ -54,6 +54,42 @@ describe("ReconnectOverlay", () => {
     expect(onReconnect).toHaveBeenCalledTimes(1);
   });
 
+  it("moves focus into the dialog when mounted over a focused composer", () => {
+    const composer = document.createElement("textarea");
+    document.body.appendChild(composer);
+    composer.focus();
+    expect(document.activeElement).toBe(composer);
+
+    act(() =>
+      root.render(
+        <ReconnectOverlay status={authStatus} busy={false} error={null} onReconnect={vi.fn()} />,
+      ),
+    );
+
+    const button = host.querySelector("button");
+    expect(document.activeElement).toBe(button);
+
+    composer.remove();
+  });
+
+  it("moves focus into the dialog even when reconnecting disables the action", () => {
+    const composer = document.createElement("textarea");
+    document.body.appendChild(composer);
+    composer.focus();
+
+    act(() =>
+      root.render(
+        <ReconnectOverlay status={authStatus} busy={true} error={null} onReconnect={vi.fn()} />,
+      ),
+    );
+
+    const dialog = host.querySelector('[role="dialog"]');
+    expect(dialog?.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(composer);
+
+    composer.remove();
+  });
+
   it("disables the action and shows progress while reconnecting", () => {
     act(() =>
       root.render(
