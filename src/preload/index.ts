@@ -19,6 +19,11 @@ const api: HiBitApi = {
     status: (): Promise<AuthStatus> => ipcRenderer.invoke("hibit:auth:status"),
     login: (): Promise<AuthStatus> => ipcRenderer.invoke("hibit:auth:login"),
     logout: (): Promise<void> => ipcRenderer.invoke("hibit:auth:logout"),
+    onReconnectRequired: (listener: () => void): (() => void) => {
+      const handler = () => listener();
+      ipcRenderer.on("hibit:auth:reconnect-required", handler);
+      return () => ipcRenderer.off("hibit:auth:reconnect-required", handler);
+    },
   },
   profiles: {
     list: (): Promise<ProfileSummary[]> => ipcRenderer.invoke("hibit:profiles:list"),

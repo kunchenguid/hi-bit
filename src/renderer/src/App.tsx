@@ -22,6 +22,7 @@ import { applyEventToActivity } from "./activity";
 import { AuthGate } from "./screens/AuthGate";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
 import { ProfileGate } from "./screens/ProfileGate";
+import { ReconnectOverlay } from "./screens/ReconnectOverlay";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -36,6 +37,9 @@ export function App() {
   const [draft, setDraft] = useState("");
   const [attachedImage, setAttachedImage] = useState<OutgoingImage | null>(null);
   const [busy, setBusy] = useState(false);
+  // The Codex token died mid-session: overlay the blocking reconnect modal over
+  // the live chat (which stays mounted) until Codex is reconnected.
+  const [needsReauth, setNeedsReauth] = useState(false);
   const [running, setRunning] = useState(false);
   // The Bit turn currently producing output, set on turn_start and cleared on
   // turn_end. `running` drives the composer (a reply locks input); `activeTurn`
@@ -149,6 +153,10 @@ export function App() {
   }, [refreshAuth]);
 
   useEffect(() => {
+    return window.hibit.auth.onReconnectRequired(() => setNeedsReauth(true));
+  }, []);
+
+  useEffect(() => {
     if (!activeProfileId || !authStatus?.authenticated) return;
     let cancelled = false;
     void refreshProjects();
@@ -215,6 +223,27 @@ export function App() {
       setBusy(false);
     }
   }, [loadProfileState]);
+
+  // Reconnect after the token died mid-session. Unlike `login`, this never
+  // reloads profile state or clears the chat: it only swaps in a fresh token and
+  // drops the overlay, so the kid lands back on the exact same screen.
+  const reconnect = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const status = await window.hibit.auth.login();
+      if (status.authenticated) {
+        setAuthStatus(status);
+        setNeedsReauth(false);
+      } else {
+        setError(status.error ?? "Codex did not connect.");
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   const createProfile = useCallback(
     async (input: ProfileInput) => {
@@ -382,38 +411,43 @@ export function App() {
   }
 
   return (
-    <ChatWorkspace
-      authStatus={authStatus}
-      profile={activeProfile}
-      messages={messages}
-      activity={activity}
-      showActivity={showActivity}
-      draft={draft}
-      draftImage={attachedImage}
-      running={running}
-      activeTurn={activeTurn}
-      busy={busy}
-      error={error}
-      previews={previews}
-      playableProjectIds={playableProjectIds}
-      creations={projects}
-      activePreview={activePreview}
-      reloadSignal={activeReloadSignal}
-      onDraftChange={setDraft}
-      onAttachImage={setAttachedImage}
-      onClearImage={() => setAttachedImage(null)}
-      onSend={send}
-      onAbort={abort}
-      onOpenFolder={openFolder}
-      onSwitchProfile={switchProfile}
-      onUpdateProfile={updateProfile}
-      onShowActivity={showActivityView}
-      onHideActivity={() => setShowActivity(false)}
-      onPlayPreview={playPreview}
-      onClosePreview={closePreview}
-      onOpenPreviewExternal={openPreviewExternal}
-      onClearPreviewCache={clearPreviewCache}
-    />
+    <>
+      <ChatWorkspace
+        authStatus={authStatus}
+        profile={activeProfile}
+        messages={messages}
+        activity={activity}
+        showActivity={showActivity}
+        draft={draft}
+        draftImage={attachedImage}
+        running={running}
+        activeTurn={activeTurn}
+        busy={busy}
+        error={error}
+        previews={previews}
+        playableProjectIds={playableProjectIds}
+        creations={projects}
+        activePreview={activePreview}
+        reloadSignal={activeReloadSignal}
+        onDraftChange={setDraft}
+        onAttachImage={setAttachedImage}
+        onClearImage={() => setAttachedImage(null)}
+        onSend={send}
+        onAbort={abort}
+        onOpenFolder={openFolder}
+        onSwitchProfile={switchProfile}
+        onUpdateProfile={updateProfile}
+        onShowActivity={showActivityView}
+        onHideActivity={() => setShowActivity(false)}
+        onPlayPreview={playPreview}
+        onClosePreview={closePreview}
+        onOpenPreviewExternal={openPreviewExternal}
+        onClearPreviewCache={clearPreviewCache}
+      />
+      {needsReauth ? (
+        <ReconnectOverlay status={authStatus} busy={busy} error={error} onReconnect={reconnect} />
+      ) : null}
+    </>
   );
 }
 

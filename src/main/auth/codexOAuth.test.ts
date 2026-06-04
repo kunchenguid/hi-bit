@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCodexAuthorizationUrl,
+  CodexAuthError,
   codexAccessTokenIsExpiring,
   exchangeCodexAuthorizationCode,
   extractCodexAccountId,
@@ -127,6 +128,27 @@ describe("Codex token endpoint helpers", () => {
     await expect(refreshCodexTokens("secret-refresh", fetchFn as typeof fetch)).rejects.toThrow(
       /Codex token refresh failed with HTTP 500/,
     );
+  });
+
+  it("flags a rejected refresh token (401) as needing a reconnect", async () => {
+    const fetchFn = async () => new Response("{}", { status: 401 });
+
+    const error = await refreshCodexTokens("dead-refresh", fetchFn as typeof fetch).catch(
+      (caught) => caught,
+    );
+    expect(error).toBeInstanceOf(CodexAuthError);
+    expect(error).toMatchObject({ status: 401, requiresReconnect: true });
+    expect(String(error)).toContain("Codex token refresh failed with HTTP 401");
+  });
+
+  it("treats a transient refresh failure (500) as recoverable, not a reconnect", async () => {
+    const fetchFn = async () => new Response("{}", { status: 500 });
+
+    const error = await refreshCodexTokens("secret-refresh", fetchFn as typeof fetch).catch(
+      (caught) => caught,
+    );
+    expect(error).toBeInstanceOf(CodexAuthError);
+    expect(error).toMatchObject({ status: 500, requiresReconnect: false });
   });
 });
 

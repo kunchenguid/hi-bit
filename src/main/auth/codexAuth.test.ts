@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CodexAuthService, type CodexTokenCodec } from "./codexAuth";
 
 async function tempAuthPath(): Promise<string> {
@@ -67,6 +67,49 @@ describe("CodexAuthService", () => {
       authenticated: true,
       accountId: "acct-new",
     });
+  });
+
+  it("signals a reconnect and clears the dead credential when the refresh token is rejected", async () => {
+    const authPath = await tempAuthPath();
+    const onReconnectRequired = vi.fn();
+    const service = new CodexAuthService({
+      authPath,
+      now: () => new Date(900_000),
+      onReconnectRequired,
+      fetchFn: (async () => new Response("{}", { status: 401 })) as typeof fetch,
+    });
+    await service.saveTokenPair({
+      accessToken: jwtWithPayload({ exp: 1_000 }),
+      refreshToken: "dead-refresh",
+    });
+
+    await expect(service.getFreshAccessToken()).rejects.toThrow(
+      /Codex token refresh failed with HTTP 401/,
+    );
+    expect(onReconnectRequired).toHaveBeenCalledTimes(1);
+    // The dead token is cleared so a relaunch lands on the connect gate.
+    await expect(service.status()).resolves.toMatchObject({ authenticated: false });
+  });
+
+  it("keeps the credential and stays quiet on a transient refresh failure", async () => {
+    const authPath = await tempAuthPath();
+    const onReconnectRequired = vi.fn();
+    const service = new CodexAuthService({
+      authPath,
+      now: () => new Date(900_000),
+      onReconnectRequired,
+      fetchFn: (async () => new Response("{}", { status: 500 })) as typeof fetch,
+    });
+    await service.saveTokenPair({
+      accessToken: jwtWithPayload({ exp: 1_000 }),
+      refreshToken: "refresh-old",
+    });
+
+    await expect(service.getFreshAccessToken()).rejects.toThrow(
+      /Codex token refresh failed with HTTP 500/,
+    );
+    expect(onReconnectRequired).not.toHaveBeenCalled();
+    await expect(service.status()).resolves.toMatchObject({ authenticated: true });
   });
 
   it("asks to connect Codex when Bit needs a provider token", async () => {

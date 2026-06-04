@@ -633,8 +633,13 @@ pre {
 }
 
 .hb-composer textarea {
-  min-height: 84px;
-  resize: vertical;
+  /* One row by default; JS grows the height to fit wrapped or multi-line text,
+     capped here so a long draft scrolls instead of swallowing the chat. */
+  min-height: 0;
+  height: auto;
+  max-height: 30vh;
+  overflow-y: auto;
+  resize: none;
   border: var(--border-strong);
   border-radius: var(--r-xl);
   padding: var(--s-1\.5);
@@ -644,7 +649,7 @@ pre {
 
 .hb-composer-actions {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--s-1);
 }
 
@@ -693,18 +698,24 @@ pre {
 .hb-attach-button {
   width: 40px;
   height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 2px solid var(--ink);
   border-radius: var(--r-lg);
   background: var(--subject-css);
   box-shadow: var(--shadow-pixel);
   color: var(--ink);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1;
   cursor: pointer;
   transition:
     transform var(--dur-quick) var(--ease-out),
     box-shadow var(--dur-quick) var(--ease-out);
+}
+
+.hb-attach-plus {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .hb-attach-button:active {
@@ -802,6 +813,23 @@ pre {
 .hb-attach-icon-camera {
   background-color: #fbe3ee;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23E84C88' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z'/%3E%3Ccircle cx='12' cy='13' r='4'/%3E%3C/svg%3E");
+}
+
+/* Blocking overlay shown when the Codex token dies mid-session. Sits above the
+   live chat (which stays mounted) until the kid reconnects - no dismiss. */
+.hb-reconnect-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--s-3);
+  background: color-mix(in oklch, var(--ink) 55%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.hb-reconnect-card {
+  width: min(520px, 92vw);
 }
 
 /* Webcam capture modal. */
@@ -1255,6 +1283,9 @@ pre {
   height: 30px;
   display: grid;
   place-items: center;
+  /* Reset the UA button padding: its 6px sides shrink the grid track below the
+     20px mascot, so the overflowing icon lands off-center instead of centered. */
+  padding: 0;
   border: 2px solid var(--ink);
   border-radius: var(--r-md);
   background: var(--paper-3);

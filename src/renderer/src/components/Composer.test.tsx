@@ -62,6 +62,19 @@ describe("Composer", () => {
     host.remove();
   });
 
+  it("starts as a single-row input that auto-sizes to its content", () => {
+    act(() =>
+      root.render(
+        <Composer value="" running={false} onChange={vi.fn()} onSend={vi.fn()} onAbort={vi.fn()} />,
+      ),
+    );
+
+    const field = textarea(host);
+    expect(field.rows).toBe(1);
+    // The auto-grow effect drives the height inline rather than a fixed CSS row count.
+    expect(field.style.height).not.toBe("");
+  });
+
   it("sends the message when Enter is pressed", () => {
     const onSend = vi.fn();
     act(() =>

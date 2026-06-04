@@ -99,6 +99,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     authPath: layout.codexAuthPath,
     codec: createSafeStorageTokenCodec(safeStorage),
     openExternal: (url) => shell.openExternal(url),
+    onReconnectRequired: () => broadcastReconnectRequired(),
   });
   const profiles = new ProfileService(layout);
   const projects = new ProjectService(layout);
@@ -278,6 +279,17 @@ function broadcastChatEvent(event: ChatEvent): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
       win.webContents.send("hibit:chat:event", event);
+    }
+  }
+}
+
+// Tells every renderer that the Codex refresh token is dead and the kid must
+// reconnect. The renderer answers by overlaying the blocking reconnect modal,
+// keeping the live chat mounted underneath so no in-flight state is lost.
+function broadcastReconnectRequired(): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send("hibit:auth:reconnect-required");
     }
   }
 }

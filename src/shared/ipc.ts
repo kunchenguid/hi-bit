@@ -38,6 +38,11 @@ export type HiBitApi = {
     status: () => Promise<AuthStatus>;
     login: () => Promise<AuthStatus>;
     logout: () => Promise<void>;
+    /**
+     * Fires when a Codex token refresh is rejected mid-session, so the renderer
+     * can surface the blocking reconnect overlay without unmounting the chat.
+     */
+    onReconnectRequired: (listener: () => void) => Unsubscribe;
   };
   profiles: {
     list: () => Promise<ProfileSummary[]>;

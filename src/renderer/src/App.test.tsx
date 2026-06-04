@@ -621,6 +621,64 @@ describe("App", () => {
     expect(host.textContent).toContain("Sam");
     expect(host.textContent).not.toContain("what should we build?");
   });
+
+  it("overlays a blocking reconnect modal when the Codex token dies mid-session", async () => {
+    let signalReconnect: () => void = () => {};
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.auth.onReconnectRequired = vi.fn((listener) => {
+      signalReconnect = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    expect(host.querySelector(".hb-reconnect-backdrop")).toBeNull();
+
+    await act(async () => {
+      signalReconnect();
+    });
+
+    const dialog = host.querySelector('.hb-reconnect-backdrop[aria-modal="true"]');
+    expect(dialog).not.toBeNull();
+    expect(host.textContent).toContain("Reconnect Codex");
+    // The chat stays mounted underneath - no remount to the full-screen gate.
+    expect(host.querySelector("#hibit-composer")).not.toBeNull();
+  });
+
+  it("reconnects without reloading the chat, preserving the live session", async () => {
+    let signalReconnect: () => void = () => {};
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.auth.onReconnectRequired = vi.fn((listener) => {
+      signalReconnect = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    // Baseline load counts from the initial render; reconnecting must not add to
+    // them (a chat reload would wipe the draft and any open preview).
+    const loadsBefore = (api.chat.load as ReturnType<typeof vi.fn>).mock.calls.length;
+    const listsBefore = (api.profiles.list as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    await act(async () => {
+      signalReconnect();
+    });
+    await clickButton(host, "Reconnect Codex");
+
+    expect(api.auth.login).toHaveBeenCalledTimes(1);
+    expect(host.querySelector(".hb-reconnect-backdrop")).toBeNull();
+    expect((api.chat.load as ReturnType<typeof vi.fn>).mock.calls.length).toBe(loadsBefore);
+    expect((api.profiles.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(listsBefore);
+    expect(host.querySelector("#hibit-composer")).not.toBeNull();
+  });
 });
 
 async function renderApp(root: Root): Promise<void> {
@@ -736,6 +794,7 @@ function createApiMock(): HiBitApi {
       })),
       login: vi.fn(async () => ({ authenticated: true, storage: { path: "", encrypted: true } })),
       logout: vi.fn(async () => {}),
+      onReconnectRequired: vi.fn(() => () => {}),
     },
     profiles: {
       list: vi.fn(async () => []),

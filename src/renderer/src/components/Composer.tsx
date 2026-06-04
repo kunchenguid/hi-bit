@@ -1,5 +1,5 @@
 import type { OutgoingImage } from "@shared/chat";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { CameraCapture } from "./CameraCapture";
 import {
   imageDataUrl,
@@ -34,6 +34,20 @@ export function Composer({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Grow the box from one row only as far as the text needs: collapse to the
+  // natural height, then match the content. The body measures the DOM rather
+  // than `value`, but `value` is the dependency on purpose - it re-measures on
+  // every keystroke and shrinks back to one row when a send clears the draft.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: value is the re-measure trigger, read via the DOM.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const borderY = el.offsetHeight - el.clientHeight;
+    el.style.height = `${el.scrollHeight + borderY}px`;
+  }, [value]);
 
   const attach = (img: OutgoingImage) => {
     setAttachmentError(null);
@@ -105,6 +119,8 @@ export function Composer({
         ) : null}
         <textarea
           id="hibit-composer"
+          ref={textareaRef}
+          rows={1}
           placeholder="Ask Bit to build..."
           value={value}
           disabled={running}
@@ -155,7 +171,11 @@ export function Composer({
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
             >
-              +
+              {/* A geometric SVG plus, not a text glyph: it centers exactly in
+                  the button instead of riding the font's off-center baseline. */}
+              <svg className="hb-attach-plus" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M7 3h2v4h4v2H9v4H7V9H3V7h4z" fill="currentColor" />
+              </svg>
             </button>
           </div>
         ) : null}
