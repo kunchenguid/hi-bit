@@ -3,6 +3,7 @@ import type { AuthStatus } from "@shared/auth";
 import { readJsonFile, writeJsonFile } from "../storage/json";
 import {
   buildCodexAuthorizationUrl,
+  CodexAuthError,
   type CodexTokenPair,
   codexAccessTokenIsExpiring,
   createCodexOAuthState,
@@ -46,6 +47,13 @@ type CodexAuthServiceOptions = {
   openExternal?: (url: string) => Promise<unknown>;
   now?: () => Date;
   callbackTimeoutMs?: number;
+  /**
+   * Called when a token refresh is rejected because the stored refresh token is
+   * dead, so the kid must reconnect Codex. Wired to surface the reconnect
+   * overlay in the renderer. The credential is already cleared by the time this
+   * fires.
+   */
+  onReconnectRequired?: () => void;
 };
 
 export const plainCodexTokenCodec: CodexTokenCodec = {
@@ -62,6 +70,7 @@ export class CodexAuthService {
   private readonly openExternal: (url: string) => Promise<unknown>;
   private readonly now: () => Date;
   private readonly callbackTimeoutMs: number;
+  private readonly onReconnectRequired?: () => void;
 
   constructor(options: CodexAuthServiceOptions) {
     this.authPath = options.authPath;
@@ -70,6 +79,7 @@ export class CodexAuthService {
     this.openExternal = options.openExternal ?? (async () => undefined);
     this.now = options.now ?? (() => new Date());
     this.callbackTimeoutMs = options.callbackTimeoutMs ?? 5 * 60_000;
+    this.onReconnectRequired = options.onReconnectRequired;
   }
 
   async status(): Promise<AuthStatus> {
@@ -141,7 +151,22 @@ export class CodexAuthService {
       return credential.accessToken;
     }
 
-    const refreshed = await refreshCodexTokens(credential.refreshToken, this.fetchFn);
+    let refreshed: CodexTokenPair;
+    try {
+      refreshed = await refreshCodexTokens(credential.refreshToken, this.fetchFn);
+    } catch (error) {
+      // A dead refresh token can never recover on its own: clear it so the app
+      // is honest about being signed out, then ask the renderer to surface the
+      // reconnect overlay. Transient failures (5xx, network) just propagate.
+      if (error instanceof CodexAuthError && error.requiresReconnect) {
+        const latest = await this.loadCredential();
+        if (latest?.refreshToken === credential.refreshToken) {
+          await this.logout();
+          this.onReconnectRequired?.();
+        }
+      }
+      throw error;
+    }
     const next = await this.saveTokenPair(refreshed);
     return next.accessToken;
   }

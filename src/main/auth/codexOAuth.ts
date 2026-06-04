@@ -19,6 +19,28 @@ export type CodexTokenPair = {
   refreshToken: string;
 };
 
+/**
+ * A failure from a Codex token endpoint. `requiresReconnect` is true only when
+ * the stored refresh token is definitively dead (the OAuth server rejected the
+ * `refresh_token` grant), so the kid must re-run the connect-Codex flow. A
+ * transient failure (5xx, network) leaves it false: retrying may still succeed.
+ */
+export class CodexAuthError extends Error {
+  readonly status?: number;
+  readonly requiresReconnect: boolean;
+
+  constructor(message: string, options: { status?: number; requiresReconnect?: boolean } = {}) {
+    super(message);
+    this.name = "CodexAuthError";
+    this.status = options.status;
+    this.requiresReconnect = options.requiresReconnect ?? false;
+  }
+}
+
+// HTTP statuses the OAuth server returns when a refresh token is invalid,
+// expired, or revoked (vs. a transient 5xx). These mean: reconnect required.
+const REFRESH_REJECTED_STATUSES = new Set([400, 401, 403]);
+
 export async function createCodexPkce(
   randomBytesFn: (size: number) => Buffer = randomBytes,
 ): Promise<CodexPkce> {
@@ -117,6 +139,7 @@ export async function refreshCodexTokens(
     fallbackRefreshToken: cleanRefreshToken,
     httpFailureMessage: "Codex token refresh failed",
     missingAccessTokenMessage: "Codex token refresh response was missing access_token",
+    classifyRefreshFailure: true,
   });
 }
 
@@ -164,14 +187,19 @@ async function readCodexTokenResponse(
     fallbackRefreshToken = "",
     httpFailureMessage,
     missingAccessTokenMessage,
+    classifyRefreshFailure = false,
   }: {
     fallbackRefreshToken?: string;
     httpFailureMessage: string;
     missingAccessTokenMessage: string;
+    classifyRefreshFailure?: boolean;
   },
 ): Promise<CodexTokenPair> {
   if (!response.ok) {
-    throw new Error(`${httpFailureMessage} with HTTP ${response.status}`);
+    throw new CodexAuthError(`${httpFailureMessage} with HTTP ${response.status}`, {
+      status: response.status,
+      requiresReconnect: classifyRefreshFailure && REFRESH_REJECTED_STATUSES.has(response.status),
+    });
   }
 
   const payload = (await response.json()) as {

@@ -18,7 +18,7 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 ### Sources used to build this system
 
 - **Brand:** greenfield - no prior marks. This design system *is* the brand spec. Iterate it here, then implement.
-- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection, kid profiles, a profile-level Pi-backed Bit chat workspace with one-picture messages, live creation previews, and creations managed through chat.
+- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection and reconnect overlay, kid profiles, a profile-level Pi-backed Bit chat workspace with one-picture messages, live creation previews, and creations managed through chat.
 - **User brief:** desktop Electron AI tutor, kids 7-12, aesthetic that parents trust and kids find friendly.
 
 ---
@@ -86,6 +86,10 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 ### Example copy
 
 > **Codex provider:** Connect Codex so Bit can build with you on this computer.
+>
+> **Codex reconnect overlay:** Reconnect Codex.
+>
+> **Codex reconnect detail:** Reconnect to pick up exactly where you left off - your chat is still here.
 >
 > **Profile gate:** Who's using Hi-Bit?
 >
@@ -272,6 +276,6 @@ The canonical Hi-Bit creation card:
 1. Read this file top to bottom.
 2. Import `tokens/colors_and_type.css` - everything uses these tokens.
 3. Preview tokens in the **Design System** tab (cards in `preview/`).
-4. For the current product surfaces, review the renderer screens: Codex connection, profile gate, chat workspace, and live preview pane.
+4. For the current product surfaces, review the renderer screens: Codex connection, Codex reconnect overlay, profile gate, chat workspace, and live preview pane.
 5. Treat `ui-kits/desktop/index.html` as a legacy brand prototype for visual patterns, not the current product shell.
 6. If you're building a new screen: start from the current renderer flow, keep the subject-rainbow rule (one hue per creation moment, not all of them at once), and remember - **pixel is a spice, not the stew.**
