@@ -159,8 +159,11 @@ export class CodexAuthService {
       // is honest about being signed out, then ask the renderer to surface the
       // reconnect overlay. Transient failures (5xx, network) just propagate.
       if (error instanceof CodexAuthError && error.requiresReconnect) {
-        await this.logout();
-        this.onReconnectRequired?.();
+        const latest = await this.loadCredential();
+        if (latest?.refreshToken === credential.refreshToken) {
+          await this.logout();
+          this.onReconnectRequired?.();
+        }
       }
       throw error;
     }
