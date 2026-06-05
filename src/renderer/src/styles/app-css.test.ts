@@ -44,13 +44,16 @@ describe("app.css", () => {
     const mobileRules = css.slice(mobileRuleIndex).match(/^@media \(max-width: 520px\) \{[\s\S]*?\n\}/)?.[0] ?? "";
     const voiceCalloutIndex = css.indexOf(".hb-voice-callout {");
 
-    expect(ruleBlock(css, ".hb-composer")).toMatch(/position:\s*relative;/);
     expect(mobileRuleIndex).toBeGreaterThan(voiceCalloutIndex);
-    expect(mobileRules).toMatch(/\.hb-voice\s*\{[^}]*position:\s*static;/);
+    expect(ruleBlock(css, ".hb-voice")).toMatch(/position:\s*relative;/);
+    expect(mobileRules).not.toMatch(/\.hb-voice\s*\{[^}]*position:\s*static;/);
     expect(mobileRules).toMatch(/\.hb-voice-callout\s*\{/);
     expect(mobileRules).toMatch(/position:\s*absolute;/);
-    expect(mobileRules).toMatch(/left:\s*var\(--s-1\);/);
-    expect(mobileRules).toMatch(/right:\s*var\(--s-1\);/);
-    expect(mobileRules).toMatch(/width:\s*auto;/);
+    expect(mobileRules).toMatch(/left:\s*50%;/);
+    expect(mobileRules).toMatch(/right:\s*auto;/);
+    expect(mobileRules).toMatch(/width:\s*min\(220px,\s*calc\(100vw - var\(--s-3\)\)\);/);
+    expect(mobileRules).toMatch(/transform:\s*translateX\(-50%\);/);
+    expect(mobileRules).toMatch(/\.hb-voice-callout::after\s*\{/);
+    expect(mobileRules).toMatch(/transform:\s*translateX\(-50%\) rotate\(45deg\);/);
   });
 });

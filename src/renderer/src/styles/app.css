@@ -955,16 +955,19 @@ pre {
 }
 
 @media (max-width: 520px) {
-  .hb-voice {
-    position: static;
-  }
-
   .hb-voice-callout {
     position: absolute;
-    left: var(--s-1);
-    right: var(--s-1);
-    width: auto;
+    left: 50%;
+    right: auto;
+    width: min(220px, calc(100vw - var(--s-3)));
     max-width: none;
+    transform: translateX(-50%);
+  }
+
+  .hb-voice-callout::after {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) rotate(45deg);
   }
 }
 
