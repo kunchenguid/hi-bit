@@ -44,6 +44,11 @@ export default defineConfig({
     },
     build: {
       outDir: "out/renderer",
+      // Keep the audio capture worklet a real emitted file rather than an inlined
+      // data: URL: audioWorklet.addModule() must load it from 'self', and a
+      // data: URL is blocked by the renderer's script-src CSP in packaged builds.
+      assetsInlineLimit: (filePath: string) =>
+        filePath.includes("captureWorklet") ? false : undefined,
       rollupOptions: {
         input: resolve(__dirname, "src/renderer/index.html"),
       },

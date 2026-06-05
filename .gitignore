@@ -19,6 +19,9 @@ out/
 # TypeScript build info
 *.tsbuildinfo
 
+# Generated at predev/prebuild: onnxruntime-web wasm copied for the voice worker
+src/renderer/src/generated/
+
 # Env + secrets
 .env
 .env.local

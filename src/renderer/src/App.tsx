@@ -19,6 +19,7 @@ import {
   useState,
 } from "react";
 import { applyEventToActivity } from "./activity";
+import { detectVoiceSupport } from "./components/voiceInput";
 import { AuthGate } from "./screens/AuthGate";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
 import { ProfileGate } from "./screens/ProfileGate";
@@ -36,6 +37,9 @@ export function App() {
   const [showActivity, setShowActivity] = useState(false);
   const [draft, setDraft] = useState("");
   const [attachedImage, setAttachedImage] = useState<OutgoingImage | null>(null);
+  // Whether this device can run local voice input (WebGPU + mic). Detected once;
+  // when false the composer never shows the mic, hiding the feature entirely.
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const [busy, setBusy] = useState(false);
   // The Codex token died mid-session: overlay the blocking reconnect modal over
   // the live chat (which stays mounted) until Codex is reconnected.
@@ -151,6 +155,18 @@ export function App() {
   useEffect(() => {
     void refreshAuth();
   }, [refreshAuth]);
+
+  // Probe device capability once at startup so the mic is shown only where the
+  // local Whisper model can actually run.
+  useEffect(() => {
+    let cancelled = false;
+    void detectVoiceSupport().then((supported) => {
+      if (!cancelled) setVoiceSupported(supported);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     return window.hibit.auth.onReconnectRequired(() => setNeedsReauth(true));
@@ -336,6 +352,12 @@ export function App() {
     }
   }, [activeProfile, activeTurn, attachedImage, draft]);
 
+  // Transcribed speech joins the draft (rather than auto-sending) so the kid
+  // reads it over and presses Send themselves.
+  const appendVoiceText = useCallback((text: string) => {
+    setDraft((current) => (current.trim() ? `${current.trimEnd()} ${text}` : text));
+  }, []);
+
   const abort = useCallback(async () => {
     if (!activeProfile) return;
     await window.hibit.chat.abort(activeProfile.id);
@@ -420,6 +442,7 @@ export function App() {
         showActivity={showActivity}
         draft={draft}
         draftImage={attachedImage}
+        voiceSupported={voiceSupported}
         running={running}
         activeTurn={activeTurn}
         busy={busy}
@@ -432,6 +455,7 @@ export function App() {
         onDraftChange={setDraft}
         onAttachImage={setAttachedImage}
         onClearImage={() => setAttachedImage(null)}
+        onVoiceText={appendVoiceText}
         onSend={send}
         onAbort={abort}
         onOpenFolder={openFolder}

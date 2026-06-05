@@ -9,6 +9,7 @@ import type {
 import type { AppInfo, HiBitApi } from "@shared/ipc";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { CreateProjectInput, ProjectSummary } from "@shared/project";
+import type { VoiceDownloadProgress, VoiceStatus } from "@shared/voice";
 import { contextBridge, ipcRenderer } from "electron";
 
 const api: HiBitApi = {
@@ -63,6 +64,15 @@ const api: HiBitApi = {
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke("hibit:preview:open-external", url),
     clearCache: (): Promise<void> => ipcRenderer.invoke("hibit:preview:clear-cache"),
+  },
+  voice: {
+    status: (): Promise<VoiceStatus> => ipcRenderer.invoke("hibit:voice:status"),
+    ensureModel: (): Promise<void> => ipcRenderer.invoke("hibit:voice:ensure-model"),
+    onDownloadProgress: (listener: (progress: VoiceDownloadProgress) => void): (() => void) => {
+      const handler = (_event: unknown, payload: VoiceDownloadProgress) => listener(payload);
+      ipcRenderer.on("hibit:voice:download-progress", handler);
+      return () => ipcRenderer.off("hibit:voice:download-progress", handler);
+    },
   },
 };
 

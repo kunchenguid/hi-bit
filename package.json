@@ -9,11 +9,12 @@
   "main": "./out/main/index.js",
   "scripts": {
     "preinstall": "node scripts/ensure-pnpm.mjs",
-    "predev": "node scripts/ensure-pnpm.mjs",
+    "postinstall": "node scripts/copy-ort-assets.mjs",
+    "predev": "node scripts/ensure-pnpm.mjs && node scripts/copy-ort-assets.mjs",
     "dev": "bash -c 'trap \"stty sane 2>/dev/null\" EXIT; electron-vite dev \"$@\"' --",
-    "prebuild": "node scripts/ensure-pnpm.mjs",
+    "prebuild": "node scripts/ensure-pnpm.mjs && node scripts/copy-ort-assets.mjs",
     "build": "electron-vite build",
-    "prestart": "node scripts/ensure-pnpm.mjs",
+    "prestart": "node scripts/ensure-pnpm.mjs && node scripts/copy-ort-assets.mjs",
     "start": "electron-vite preview",
     "pretypecheck": "node scripts/ensure-pnpm.mjs",
     "typecheck": "tsc -b --pretty",
@@ -41,6 +42,7 @@
   "dependencies": {
     "@earendil-works/pi-ai": "^0.75.3",
     "@earendil-works/pi-coding-agent": "^0.75.3",
+    "@huggingface/transformers": "^4.2.0",
     "@mozilla/readability": "^0.6.0",
     "gifenc": "^1.0.3",
     "linkedom": "^0.18.12",

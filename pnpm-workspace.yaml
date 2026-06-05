@@ -6,5 +6,10 @@ allowBuilds:
   electron-winstaller: true
   esbuild: true
   koffi: true
+  # Pulled in transitively by @huggingface/transformers but never used: Hi-Bit
+  # runs Whisper through onnxruntime-web (WebGPU) in the renderer, not the Node
+  # binding, and does no Node-side image work via sharp.
+  onnxruntime-node: false
   protobufjs: true
+  sharp: false
 minimumReleaseAge: 0

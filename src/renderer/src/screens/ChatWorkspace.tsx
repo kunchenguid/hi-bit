@@ -23,6 +23,7 @@ type ChatWorkspaceProps = {
   showActivity: boolean;
   draft: string;
   draftImage: OutgoingImage | null;
+  voiceSupported: boolean;
   running: boolean;
   activeTurn: { id: string; kind: TurnKind } | null;
   busy: boolean;
@@ -35,6 +36,7 @@ type ChatWorkspaceProps = {
   onDraftChange: (value: string) => void;
   onAttachImage: (image: OutgoingImage) => void;
   onClearImage: () => void;
+  onVoiceText: (text: string) => void;
   onSend: () => void;
   onAbort: () => void;
   onOpenFolder: () => void;
@@ -56,6 +58,7 @@ export function ChatWorkspace({
   showActivity,
   draft,
   draftImage,
+  voiceSupported,
   running,
   activeTurn,
   busy,
@@ -68,6 +71,7 @@ export function ChatWorkspace({
   onDraftChange,
   onAttachImage,
   onClearImage,
+  onVoiceText,
   onSend,
   onAbort,
   onOpenFolder,
@@ -163,10 +167,12 @@ export function ChatWorkspace({
           <Composer
             value={draft}
             image={draftImage}
+            voiceSupported={voiceSupported}
             running={running}
             onChange={onDraftChange}
             onAttachImage={onAttachImage}
             onClearImage={onClearImage}
+            onVoiceText={onVoiceText}
             onSend={onSend}
             onAbort={onAbort}
           />
