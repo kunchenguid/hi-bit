@@ -80,7 +80,7 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
       setError("Bit could not understand that. Want to try again?");
       setPhase("error");
     }
-  }, [onVoiceText, reset]);
+  }, [onVoiceText, reset, teardown]);
 
   // Keep the ref the recorder's runaway guard calls pointing at the latest
   // finishCapture (its identity changes with onVoiceText).

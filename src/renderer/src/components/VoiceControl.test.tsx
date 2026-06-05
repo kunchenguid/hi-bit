@@ -4,7 +4,6 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VoiceControl } from "./VoiceControl";
-import { VOICE_SAMPLE_RATE } from "./voiceInput";
 import { transcribeAudio, warmUpWhisper } from "./whisperClient";
 
 vi.mock("./whisperClient", () => ({
