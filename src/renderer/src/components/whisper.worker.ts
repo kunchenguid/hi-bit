@@ -47,6 +47,9 @@ function getAsr() {
     asrPromise = pipeline("automatic-speech-recognition", MODEL_ID, {
       device: "webgpu",
       dtype: { encoder_model: "fp16", decoder_model_merged: "q4" },
+    }).catch((error) => {
+      asrPromise = null;
+      throw error;
     });
   }
   return asrPromise;
