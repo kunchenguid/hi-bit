@@ -9,27 +9,28 @@ import {
   resampleLinear,
 } from "./voiceInput";
 
-type Stubs = { gpu?: unknown; mediaDevices?: unknown; mediaRecorder?: unknown };
+type Stubs = { audioContext?: unknown; gpu?: unknown; mediaDevices?: unknown };
 
 /** Installs the browser globals detectVoiceSupport probes, returning a restore fn. */
-function stubEnv({ gpu, mediaDevices, mediaRecorder }: Stubs): () => void {
+function stubEnv({ audioContext = AudioContextStub, gpu, mediaDevices }: Stubs): () => void {
   const nav = navigator as unknown as Record<string, unknown>;
   const originalGpu = Object.getOwnPropertyDescriptor(nav, "gpu");
   const originalMedia = Object.getOwnPropertyDescriptor(nav, "mediaDevices");
-  const originalRecorder = (globalThis as Record<string, unknown>).MediaRecorder;
+  const originalAudioContext = (globalThis as Record<string, unknown>).AudioContext;
   Object.defineProperty(nav, "gpu", { value: gpu, configurable: true });
   Object.defineProperty(nav, "mediaDevices", { value: mediaDevices, configurable: true });
-  (globalThis as Record<string, unknown>).MediaRecorder = mediaRecorder;
+  (globalThis as Record<string, unknown>).AudioContext = audioContext;
   return () => {
     if (originalGpu) Object.defineProperty(nav, "gpu", originalGpu);
     else delete nav.gpu;
     if (originalMedia) Object.defineProperty(nav, "mediaDevices", originalMedia);
     else delete nav.mediaDevices;
-    (globalThis as Record<string, unknown>).MediaRecorder = originalRecorder;
+    (globalThis as Record<string, unknown>).AudioContext = originalAudioContext;
   };
 }
 
-const recorder = function MediaRecorder() {};
+function AudioContextStub() {}
+AudioContextStub.prototype.audioWorklet = { addModule: vi.fn() };
 const mediaDevices = { getUserMedia: () => Promise.resolve({}) };
 
 describe("detectVoiceSupport", () => {
@@ -37,7 +38,7 @@ describe("detectVoiceSupport", () => {
   afterEach(() => restore());
 
   it("is false when WebGPU is absent", async () => {
-    restore = stubEnv({ gpu: undefined, mediaDevices, mediaRecorder: recorder });
+    restore = stubEnv({ gpu: undefined, mediaDevices });
     expect(await detectVoiceSupport()).toBe(false);
   });
 
@@ -45,7 +46,6 @@ describe("detectVoiceSupport", () => {
     restore = stubEnv({
       gpu: { requestAdapter: vi.fn(async () => null) },
       mediaDevices,
-      mediaRecorder: recorder,
     });
     expect(await detectVoiceSupport()).toBe(false);
   });
@@ -54,7 +54,16 @@ describe("detectVoiceSupport", () => {
     restore = stubEnv({
       gpu: { requestAdapter: vi.fn(async () => ({})) },
       mediaDevices: undefined,
-      mediaRecorder: recorder,
+    });
+    expect(await detectVoiceSupport()).toBe(false);
+  });
+
+  it("is false when AudioWorklet capture is unavailable even with WebGPU", async () => {
+    function MissingWorkletAudioContext() {}
+    restore = stubEnv({
+      audioContext: MissingWorkletAudioContext,
+      gpu: { requestAdapter: vi.fn(async () => ({})) },
+      mediaDevices,
     });
     expect(await detectVoiceSupport()).toBe(false);
   });
@@ -67,18 +76,22 @@ describe("detectVoiceSupport", () => {
         }),
       },
       mediaDevices,
-      mediaRecorder: recorder,
     });
     expect(await detectVoiceSupport()).toBe(false);
   });
 
-  it("is true with a WebGPU adapter and microphone capture", async () => {
+  it("is true with a WebGPU adapter and AudioWorklet microphone capture", async () => {
+    const originalRecorder = (globalThis as Record<string, unknown>).MediaRecorder;
+    delete (globalThis as Record<string, unknown>).MediaRecorder;
     restore = stubEnv({
       gpu: { requestAdapter: vi.fn(async () => ({})) },
       mediaDevices,
-      mediaRecorder: recorder,
     });
-    expect(await detectVoiceSupport()).toBe(true);
+    try {
+      expect(await detectVoiceSupport()).toBe(true);
+    } finally {
+      (globalThis as Record<string, unknown>).MediaRecorder = originalRecorder;
+    }
   });
 });
 

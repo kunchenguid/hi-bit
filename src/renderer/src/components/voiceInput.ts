@@ -18,8 +18,9 @@ export type WhisperResponse =
  */
 export async function detectVoiceSupport(): Promise<boolean> {
   try {
-    if (typeof MediaRecorder === "undefined") return false;
     if (!navigator.mediaDevices?.getUserMedia) return false;
+    if (typeof AudioContext === "undefined") return false;
+    if (!("audioWorklet" in AudioContext.prototype)) return false;
     const gpu = (navigator as Navigator & { gpu?: { requestAdapter?: () => Promise<unknown> } })
       .gpu;
     if (!gpu?.requestAdapter) return false;

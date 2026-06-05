@@ -10,7 +10,7 @@ export const VOICE_MODEL_REPO = "onnx-community/whisper-large-v3-turbo";
  * Pinned revision so the downloaded file set stays deterministic even if the
  * repo's `main` changes. Bump deliberately if the manifest below needs to move.
  */
-export const VOICE_MODEL_REVISION = "main";
+export const VOICE_MODEL_REVISION = "360ebcde2559d60bb474678be3c1de9ef347d01a";
 
 /**
  * Exactly the files transformers.js requests for this model on WebGPU with

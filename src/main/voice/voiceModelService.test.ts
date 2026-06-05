@@ -2,7 +2,12 @@ import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { VOICE_MODEL_FILES, VOICE_MODEL_ID, VoiceModelService } from "./voiceModelService";
+import {
+  VOICE_MODEL_FILES,
+  VOICE_MODEL_ID,
+  VOICE_MODEL_REVISION,
+  VoiceModelService,
+} from "./voiceModelService";
 
 async function tempModelsDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "hibit-voice-"));
@@ -57,6 +62,11 @@ describe("VoiceModelService.resolveModelFile", () => {
 });
 
 describe("VoiceModelService.ensureModel", () => {
+  it("uses a pinned HuggingFace revision", () => {
+    expect(VOICE_MODEL_REVISION).toMatch(/^[0-9a-f]{40}$/);
+    expect(VOICE_MODEL_REVISION).not.toBe("main");
+  });
+
   it("downloads missing files, reports progress, and becomes ready", async () => {
     const dir = await tempModelsDir();
     const fetchImpl = vi.fn(async (url: string) => {
@@ -74,6 +84,7 @@ describe("VoiceModelService.ensureModel", () => {
     // Every manifest file was fetched from the pinned HuggingFace revision.
     expect(fetchImpl).toHaveBeenCalledTimes(VOICE_MODEL_FILES.length);
     expect(fetchImpl.mock.calls[0][0]).toContain("huggingface.co");
+    expect(fetchImpl.mock.calls[0][0]).toContain(`/resolve/${VOICE_MODEL_REVISION}/`);
     // Progress ends at fully complete.
     expect(progress.at(-1)).toBe(1);
   });
