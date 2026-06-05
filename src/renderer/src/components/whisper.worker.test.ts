@@ -63,4 +63,25 @@ describe("whisper.worker", () => {
     });
     expect(pipeline).toHaveBeenCalledTimes(2);
   });
+
+  it("runs the warm-up inference only once across repeated init calls", async () => {
+    const asr = vi.fn().mockResolvedValue({ text: "" });
+    pipeline.mockResolvedValue(asr);
+
+    listener?.({ data: { type: "init" } });
+    await vi.waitFor(() => {
+      expect(posted).toContainEqual({ type: "ready" });
+    });
+
+    posted.length = 0;
+    listener?.({ data: { type: "init" } });
+    await vi.waitFor(() => {
+      expect(posted).toContainEqual({ type: "ready" });
+    });
+
+    // The model loads once (pipeline cached) and the priming pass runs once;
+    // a second init still reports ready without re-inferring on silence.
+    expect(pipeline).toHaveBeenCalledTimes(1);
+    expect(asr).toHaveBeenCalledTimes(1);
+  });
 });
