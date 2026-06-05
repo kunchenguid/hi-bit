@@ -107,9 +107,27 @@ describe("VoiceControl", () => {
     await flush();
   });
 
-  it("does not open the microphone after canceling preparation", async () => {
-    const warmup = deferred<void>();
-    mockedWarmUpWhisper.mockReturnValue(warmup.promise);
+  it("starts recording without waiting for the model to warm up", async () => {
+    // Warm-up never resolves: recording must not depend on it. The model is only
+    // needed at transcribe time, so the mic should open and capture immediately.
+    mockedWarmUpWhisper.mockReturnValue(deferred<void>().promise);
+    act(() => root.render(<VoiceControl onVoiceText={vi.fn()} />));
+
+    const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
+    if (!mic) throw new Error("mic button not found");
+    await act(async () => {
+      mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+
+    expect(recorderInstances[0]?.start).toHaveBeenCalled();
+    expect(recorderInstances[0]?.beginCapture).toHaveBeenCalled();
+    expect(host.querySelector(".hb-voice-wave")).not.toBeNull();
+  });
+
+  it("does not open the microphone after canceling the model download", async () => {
+    const download = deferred<void>();
+    window.hibit.voice.status = vi.fn(async () => ({ modelReady: false }));
+    window.hibit.voice.ensureModel = vi.fn(() => download.promise);
     act(() => root.render(<VoiceControl onVoiceText={vi.fn()} />));
 
     const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
@@ -121,16 +139,17 @@ describe("VoiceControl", () => {
     if (!cancel) throw new Error("cancel button not found");
     act(() => cancel.click());
 
-    warmup.resolve();
+    download.resolve();
     await flush();
 
     expect(recorderInstances).toHaveLength(0);
     expect(host.querySelector("[role='dialog']")).toBeNull();
   });
 
-  it("does not open the microphone after unmounting during preparation", async () => {
-    const warmup = deferred<void>();
-    mockedWarmUpWhisper.mockReturnValue(warmup.promise);
+  it("does not open the microphone after unmounting during the model download", async () => {
+    const download = deferred<void>();
+    window.hibit.voice.status = vi.fn(async () => ({ modelReady: false }));
+    window.hibit.voice.ensureModel = vi.fn(() => download.promise);
     act(() => root.render(<VoiceControl onVoiceText={vi.fn()} />));
 
     const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
@@ -140,7 +159,7 @@ describe("VoiceControl", () => {
     });
     act(() => root.unmount());
 
-    warmup.resolve();
+    download.resolve();
     await flush();
 
     expect(recorderInstances).toHaveLength(0);

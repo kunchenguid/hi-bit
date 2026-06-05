@@ -48,19 +48,40 @@ describe("whisper.worker", () => {
     const failedLoad = Promise.reject(new Error("model unavailable"));
     pipeline.mockReturnValueOnce(failedLoad);
 
-    listener?.({ data: { type: "init" } });
+    listener?.({ data: { id: 1, type: "init" } });
     await vi.waitFor(() => {
-      expect(posted).toContainEqual({ type: "error", message: "model unavailable" });
+      expect(posted).toContainEqual({ id: 1, type: "error", message: "model unavailable" });
     });
 
     const asr = vi.fn().mockResolvedValue({ text: "hello" });
     pipeline.mockResolvedValueOnce(asr);
 
-    listener?.({ data: { type: "transcribe", audio: new Float32Array([1]) } });
+    listener?.({ data: { id: 2, type: "transcribe", audio: new Float32Array([1]) } });
 
     await vi.waitFor(() => {
-      expect(posted).toContainEqual({ type: "result", text: "hello" });
+      expect(posted).toContainEqual({ id: 2, type: "result", text: "hello" });
     });
     expect(pipeline).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs the warm-up inference only once across repeated init calls", async () => {
+    const asr = vi.fn().mockResolvedValue({ text: "" });
+    pipeline.mockResolvedValue(asr);
+
+    listener?.({ data: { id: 1, type: "init" } });
+    await vi.waitFor(() => {
+      expect(posted).toContainEqual({ id: 1, type: "ready" });
+    });
+
+    posted.length = 0;
+    listener?.({ data: { id: 2, type: "init" } });
+    await vi.waitFor(() => {
+      expect(posted).toContainEqual({ id: 2, type: "ready" });
+    });
+
+    // The model loads once (pipeline cached) and the priming pass runs once;
+    // a second init still reports ready without re-inferring on silence.
+    expect(pipeline).toHaveBeenCalledTimes(1);
+    expect(asr).toHaveBeenCalledTimes(1);
   });
 });

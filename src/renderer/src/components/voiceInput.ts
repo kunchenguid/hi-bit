@@ -1,14 +1,16 @@
 /** The sample rate Whisper expects: 16kHz mono. */
 export const VOICE_SAMPLE_RATE = 16000;
 
-/** Messages the renderer sends into the Whisper worker. */
-export type WhisperRequest = { type: "init" } | { type: "transcribe"; audio: Float32Array };
+/** Messages the renderer sends into the Whisper worker, keyed for out-of-order replies. */
+export type WhisperRequest =
+  | { id: number; type: "init" }
+  | { id: number; type: "transcribe"; audio: Float32Array };
 
-/** Messages the Whisper worker sends back. */
+/** Messages the Whisper worker sends back, keyed to the matching request. */
 export type WhisperResponse =
-  | { type: "ready" }
-  | { type: "result"; text: string }
-  | { type: "error"; message: string };
+  | { id: number; type: "ready" }
+  | { id: number; type: "result"; text: string }
+  | { id: number; type: "error"; message: string };
 
 /**
  * Whether this device can run local voice input. Gated on WebGPU (the Whisper

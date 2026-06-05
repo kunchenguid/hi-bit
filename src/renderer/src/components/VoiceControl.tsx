@@ -133,9 +133,11 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
     };
   }, [phase]);
 
-  // Prepare the model (download once) + open the mic, then start recording. The
-  // mode is decided by whether the kid is still holding when recording actually
-  // begins: held -> push-to-talk (release sends); already let go -> hands-free.
+  // Make sure the model file exists (download once), then open the mic and
+  // start recording. Whisper warm-up happens after capture begins, so the kid
+  // does not wait on the local model before talking. The mode is decided by
+  // whether the kid is still holding when recording actually begins: held ->
+  // push-to-talk (release sends); already let go -> hands-free.
   const begin = useCallback(async () => {
     const token = ++beginTokenRef.current;
     const isCurrent = () => beginTokenRef.current === token;
@@ -158,8 +160,10 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
       }
       if (!isCurrent()) return;
       setDownloadPct(null);
-      await warmUpWhisper();
-      if (!isCurrent()) return;
+      // Open the mic and start recording immediately - don't wait on the model.
+      // It's only needed to transcribe (at endCapture), so warm it up in the
+      // background; the worker queue runs init before our transcribe, and the
+      // load overlaps with the kid talking instead of delaying capture.
       const recorder = new MicRecorder();
       recorder.onLimitReached = () => finishCaptureRef.current();
       await recorder.start();
@@ -173,6 +177,8 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
       modeRef.current = pressedRef.current ? "hold" : "toggle";
       setRecordMode(modeRef.current);
       setPhase("recording");
+      // Errors surface on the real transcription; here it's only priming.
+      void warmUpWhisper().catch(() => {});
     } catch {
       if (!isCurrent()) return;
       setError("Bit could not get voice ready. You can still type your message.");

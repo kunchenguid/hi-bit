@@ -41,6 +41,10 @@ const TRANSCRIBE_OPTIONS = {
 
 // biome-ignore lint/suspicious/noExplicitAny: transformers' pipeline type is broad; we only call it.
 let asrPromise: Promise<any> | null = null;
+// The shader-compiling warm-up pass is worth doing once, but `init` is posted on
+// every mic press; without this guard each press re-ran a full silence inference
+// (~hundreds of ms) before recording could start.
+let warmedUp = false;
 
 function getAsr() {
   if (!asrPromise) {
@@ -66,25 +70,30 @@ ctx.addEventListener("message", async (event) => {
     if (message.type === "init") {
       const asr = await getAsr();
       // Warm-up: one pass on 0.5s of silence compiles the WebGPU shaders now, so
-      // the kid's first real transcription isn't several times slower. Errors
-      // here are harmless - it's only priming.
-      try {
-        await asr(new Float32Array(SAMPLE_RATE / 2), TRANSCRIBE_OPTIONS);
-      } catch {
-        // Priming failed; the real call will surface any genuine problem.
+      // the kid's first real transcription isn't several times slower. Run it
+      // once per worker lifetime - later inits just confirm the model is ready.
+      // Errors here are harmless - it's only priming.
+      if (!warmedUp) {
+        try {
+          await asr(new Float32Array(SAMPLE_RATE / 2), TRANSCRIBE_OPTIONS);
+        } catch {
+          // Priming failed; the real call will surface any genuine problem.
+        }
+        warmedUp = true;
       }
-      ctx.postMessage({ type: "ready" });
+      ctx.postMessage({ id: message.id, type: "ready" });
       return;
     }
     if (message.type === "transcribe") {
       const asr = await getAsr();
       const output = await asr(message.audio, TRANSCRIBE_OPTIONS);
       const text = (Array.isArray(output) ? output[0]?.text : output?.text) ?? "";
-      ctx.postMessage({ type: "result", text: String(text).trim() });
+      ctx.postMessage({ id: message.id, type: "result", text: String(text).trim() });
       return;
     }
   } catch (error) {
     ctx.postMessage({
+      id: message.id,
       type: "error",
       message: error instanceof Error ? error.message : String(error),
     });
