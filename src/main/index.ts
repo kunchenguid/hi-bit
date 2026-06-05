@@ -68,6 +68,19 @@ function skillsDirFor(): string {
   return app.isPackaged ? join(process.resourcesPath, "skills") : join(__dirname, "../../skills");
 }
 
+/**
+ * Bit's brand mascot SVG (`design/assets/mascot-boo.svg`). In dev it lives in the
+ * repo's `design/assets/`; packaged, electron-builder copies it to
+ * `resourcesPath/brand` (see `extraResources` in electron-builder.yml). The
+ * `view_bit` tool reads it on demand and rasterises it so Bit and bots can see
+ * exactly what Bit looks like.
+ */
+function mascotAssetFor(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, "brand", "mascot-boo.svg")
+    : join(__dirname, "../../design/assets/mascot-boo.svg");
+}
+
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1280,
@@ -117,11 +130,13 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
     skillsDir: skillsDirFor(),
+    mascotAssetPath: mascotAssetFor(),
   });
   const bitRuntime = new BitRuntimeService({
     agentDir: layout.piAgentDir,
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
+    mascotAssetPath: mascotAssetFor(),
     onSessionFile: (profileId, sessionFile) =>
       conversation.setBitSessionFile(profileId, sessionFile),
   });

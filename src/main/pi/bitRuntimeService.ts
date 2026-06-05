@@ -10,6 +10,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
+import { createViewBitTool } from "./brandTool";
 import { createBitResourceLoader } from "./piResources";
 import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
 import { createWebSearchTools } from "./webSearchTools";
@@ -75,6 +76,8 @@ type BitRuntimeServiceOptions = {
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateBitSessionInput) => Promise<BitSession>;
   onSessionFile?: (profileId: string, sessionFile: string | undefined) => Promise<void> | void;
+  /** Path to Bit's mascot SVG, so Bit can `view_bit` to see its own look. */
+  mascotAssetPath?: string;
 };
 
 type RunningTurn = {
@@ -101,6 +104,12 @@ export class BitRuntimeService implements BitRuntime {
    * coordinating, instead of having to delegate every lookup to a bot.
    */
   private readonly webTools: ToolDefinition[];
+  /**
+   * Bit's own self-portrait tool (`view_bit`), so Bit can actually look at its
+   * mascot when the builder asks what it looks like. Empty when no mascot asset
+   * path is configured (e.g. in tests).
+   */
+  private readonly brandTools: ToolDefinition[];
 
   constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
@@ -109,6 +118,9 @@ export class BitRuntimeService implements BitRuntime {
       getFreshAccessToken: options.getFreshAccessToken,
       model: this.modelId,
     });
+    this.brandTools = options.mascotAssetPath
+      ? [createViewBitTool({ mascotSvgPath: options.mascotAssetPath })]
+      : [];
   }
 
   async prompt(
@@ -197,7 +209,7 @@ export class BitRuntimeService implements BitRuntime {
     if (existing) return existing;
     const session = await this.createSession({
       ...input,
-      customTools: [...input.customTools, ...this.webTools],
+      customTools: [...input.customTools, ...this.webTools, ...this.brandTools],
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
