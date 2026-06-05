@@ -133,9 +133,11 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
     };
   }, [phase]);
 
-  // Prepare the model (download once) + open the mic, then start recording. The
-  // mode is decided by whether the kid is still holding when recording actually
-  // begins: held -> push-to-talk (release sends); already let go -> hands-free.
+  // Make sure the model file exists (download once), then open the mic and
+  // start recording. Whisper warm-up happens after capture begins, so the kid
+  // does not wait on the local model before talking. The mode is decided by
+  // whether the kid is still holding when recording actually begins: held ->
+  // push-to-talk (release sends); already let go -> hands-free.
   const begin = useCallback(async () => {
     const token = ++beginTokenRef.current;
     const isCurrent = () => beginTokenRef.current === token;

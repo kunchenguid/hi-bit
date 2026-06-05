@@ -51,7 +51,7 @@ function send(message: WhisperRequestPayload): Promise<string> {
   });
 }
 
-/** Loads the model into WebGPU. Safe to call repeatedly; only the first loads. */
+/** Loads the model and primes WebGPU once per worker. Safe to call repeatedly. */
 export function warmUpWhisper(): Promise<void> {
   return send({ type: "init" }).then(() => undefined);
 }
