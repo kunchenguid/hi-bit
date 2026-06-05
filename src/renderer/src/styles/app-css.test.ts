@@ -37,4 +37,17 @@ describe("app.css", () => {
     expect(mobileRules).toMatch(/right:\s*auto;/);
     expect(mobileRules).toMatch(/\.hb-profile-settings-popover\s*\{[^}]*width:\s*100%;/);
   });
+
+  it("keeps the voice callout inside the mobile viewport", () => {
+    const css = readFileSync(new URL("./app.css", import.meta.url), "utf8");
+    const mobileRules = css.match(/@media \(max-width: 520px\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+    expect(ruleBlock(css, ".hb-composer")).toMatch(/position:\s*relative;/);
+    expect(mobileRules).toMatch(/\.hb-voice\s*\{[^}]*position:\s*static;/);
+    expect(mobileRules).toMatch(/\.hb-voice-callout\s*\{/);
+    expect(mobileRules).toMatch(/position:\s*absolute;/);
+    expect(mobileRules).toMatch(/left:\s*var\(--s-1\);/);
+    expect(mobileRules).toMatch(/right:\s*var\(--s-1\);/);
+    expect(mobileRules).toMatch(/width:\s*auto;/);
+  });
 });

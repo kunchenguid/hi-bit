@@ -615,9 +615,22 @@ pre {
   .hb-idea-sparks {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .hb-voice {
+    position: static;
+  }
+
+  .hb-voice-callout {
+    position: absolute;
+    left: var(--s-1);
+    right: var(--s-1);
+    width: auto;
+    max-width: none;
+  }
 }
 
 .hb-composer {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--s-1);
