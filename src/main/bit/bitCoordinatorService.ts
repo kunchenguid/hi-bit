@@ -728,9 +728,9 @@ export class BitCoordinatorService {
               callId: event.callId,
               turnId: job.id,
               status: event.isError ? "failed" : "completed",
-              // search_image returns real pixels for the model to see; keep that
-              // base64 out of the on-disk logbook (the model still has it in its
-              // session transcript).
+              // Image-returning tools give the model real pixels to see; keep
+              // that base64 out of the on-disk logbook (the model still has it
+              // in its session transcript).
               content: stripImageData(event.content),
             });
           }

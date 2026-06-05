@@ -21,6 +21,11 @@ files:
 extraResources:
   - from: skills
     to: skills
+  # Bit's brand mascot, so the `view_bit` tool can rasterise it at runtime and let
+  # Bit and bots see exactly what Bit looks like. Copied out of the dev-only
+  # `design/` tree (which is otherwise not packaged) to `resourcesPath/brand`.
+  - from: design/assets/mascot-boo.svg
+    to: brand/mascot-boo.svg
 
 mac:
   category: public.app-category.education

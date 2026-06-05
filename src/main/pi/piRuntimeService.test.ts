@@ -124,6 +124,41 @@ describe("PiRuntimeService custom tools", () => {
     const allowed = botToolNames(captured?.customTools ?? []);
     expect(allowed).toEqual(expect.arrayContaining(expected));
   });
+
+  it("registers and allows view_bit when a mascot asset path is configured", async () => {
+    let captured: CreateRuntimeSessionInput | undefined;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      mascotAssetPath: "/tmp/brand/mascot-boo.svg",
+      createSession: async (input) => {
+        captured = input;
+        return new FakeSession();
+      },
+    });
+
+    await service.sendPrompt(project(), "put Bit in my game", () => {});
+
+    const toolNames = (captured?.customTools ?? []).map((tool) => tool.name);
+    expect(toolNames).toContain("view_bit");
+    expect(botToolNames(captured?.customTools ?? [])).toContain("view_bit");
+  });
+
+  it("omits view_bit when no mascot asset path is configured", async () => {
+    let captured: CreateRuntimeSessionInput | undefined;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async (input) => {
+        captured = input;
+        return new FakeSession();
+      },
+    });
+
+    await service.sendPrompt(project(), "draw a sprite", () => {});
+
+    expect((captured?.customTools ?? []).map((tool) => tool.name)).not.toContain("view_bit");
+  });
 });
 
 describe("PiRuntimeService", () => {

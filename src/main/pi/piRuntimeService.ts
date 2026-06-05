@@ -10,6 +10,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import type { RuntimeProject } from "../projects/projectService";
+import { createViewBitTool } from "./brandTool";
 import { createGenerateImageTool } from "./imageGenTool";
 import { chatEventsFromPiEvent } from "./piMessages";
 import { createBotResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
@@ -52,6 +53,8 @@ type PiRuntimeServiceOptions = {
   onSessionFile?: (projectId: string, sessionFile: string | undefined) => Promise<void> | void;
   /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to bots. */
   skillsDir?: string;
+  /** Path to Bit's mascot SVG, so the bot can `view_bit` to draw Bit on-model. */
+  mascotAssetPath?: string;
 };
 
 type RunningTurn = {
@@ -87,6 +90,12 @@ export class PiRuntimeService {
         getFreshAccessToken: options.getFreshAccessToken,
         model: this.modelId,
       }),
+      // Lets a bot see Bit's actual mascot before drawing Bit or Bit-branded art,
+      // so a "put Bit in my game" build stays on-model. Its name flows into the
+      // allowlist through botToolNames().
+      ...(options.mascotAssetPath
+        ? [createViewBitTool({ mascotSvgPath: options.mascotAssetPath })]
+        : []),
     ];
   }
 

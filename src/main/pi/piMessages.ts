@@ -55,9 +55,9 @@ export function toolContentFromResult(result: unknown): ToolContent[] {
 
 /**
  * Logbook-safe tool content: keeps text parts, but swaps image parts
- * (search_image's downloaded pixels) for a tiny placeholder so a creation's
- * on-disk logbook never balloons with base64. The model still sees the real
- * image - that lives in its session transcript, not the logbook.
+ * (`search_image` downloads and `view_bit`'s mascot PNG) for a tiny placeholder
+ * so a creation's on-disk logbook never balloons with base64. The model still
+ * sees the real image - that lives in its session transcript, not the logbook.
  */
 export function stripImageData(content: ToolContent[]): ToolContent[] {
   return content.map((part) =>

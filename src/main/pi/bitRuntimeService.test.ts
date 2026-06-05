@@ -135,6 +135,39 @@ describe("BitRuntimeService", () => {
     }
   });
 
+  it("gives Bit the view_bit brand tool when a mascot asset path is configured", async () => {
+    let captured: CreateBitSessionInput | undefined;
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      mascotAssetPath: "/tmp/brand/mascot-boo.svg",
+      createSession: async (input: CreateBitSessionInput) => {
+        captured = input;
+        return new FakeBitSession();
+      },
+    });
+
+    await service.prompt(baseInput(), "what do you look like?", () => {});
+
+    expect((captured?.customTools ?? []).map((tool) => tool.name)).toContain("view_bit");
+  });
+
+  it("omits view_bit when no mascot asset path is configured", async () => {
+    let captured: CreateBitSessionInput | undefined;
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        captured = input;
+        return new FakeBitSession();
+      },
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+
+    expect((captured?.customTools ?? []).map((tool) => tool.name)).not.toContain("view_bit");
+  });
+
   it("forwards an attached picture to the session prompt", async () => {
     const session = new FakeBitSession();
     const service = new BitRuntimeService({

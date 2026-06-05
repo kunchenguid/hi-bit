@@ -104,6 +104,19 @@ describe("buildBotSystemPrompt", () => {
     expect(prompt).toMatch(/no scrolling or overflow/i);
     expect(prompt).toMatch(/unless.*different layout/i);
   });
+
+  it("gives the bot Bit's brand spec and points Bit-art at view_bit", () => {
+    const runtimePrompt = buildBotSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bot.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      // The bot knows Bit is the mascot and what colours stay on-model...
+      expect(prompt).toMatch(/desktop-computer robot/i);
+      expect(prompt).toContain("#2EC4F1");
+      // ...and reaches for the real picture before drawing Bit.
+      expect(prompt).toContain("view_bit");
+    }
+  });
 });
 
 describe("buildBitSystemPrompt", () => {
@@ -165,6 +178,20 @@ describe("buildBitSystemPrompt", () => {
     expect(prompt).toContain("100vh");
     expect(prompt).toMatch(/no scrolling or overflow/i);
     expect(prompt).toMatch(/unless.*different layout/i);
+  });
+
+  it("tells Bit what it looks like and offers view_bit to see its own mascot", () => {
+    const runtimePrompt = buildBitSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      // Bit can answer "what do you look like?" from a verbal self-description...
+      expect(prompt).toMatch(/desktop-computer robot/i);
+      expect(prompt).toMatch(/cyan/i);
+      expect(prompt).toMatch(/antenna/i);
+      // ...and can pull up its own picture when it wants to actually look.
+      expect(prompt).toContain("view_bit");
+    }
   });
 
   it("gates inside words through the per-turn Words-you-may-use note, not by scrubbing the prompt", () => {
