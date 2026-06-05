@@ -81,18 +81,19 @@ ctx.addEventListener("message", async (event) => {
         }
         warmedUp = true;
       }
-      ctx.postMessage({ type: "ready" });
+      ctx.postMessage({ id: message.id, type: "ready" });
       return;
     }
     if (message.type === "transcribe") {
       const asr = await getAsr();
       const output = await asr(message.audio, TRANSCRIBE_OPTIONS);
       const text = (Array.isArray(output) ? output[0]?.text : output?.text) ?? "";
-      ctx.postMessage({ type: "result", text: String(text).trim() });
+      ctx.postMessage({ id: message.id, type: "result", text: String(text).trim() });
       return;
     }
   } catch (error) {
     ctx.postMessage({
+      id: message.id,
       type: "error",
       message: error instanceof Error ? error.message : String(error),
     });

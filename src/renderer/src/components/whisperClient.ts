@@ -3,16 +3,18 @@ import type { WhisperRequest, WhisperResponse } from "./voiceInput";
 /**
  * A thin wrapper over the Whisper Web Worker. The worker is created lazily and
  * kept alive across opens so the (expensive) WebGPU pipeline load only happens
- * once per session. Requests are serialized by the UI, so responses are matched
- * to callers FIFO - the worker replies exactly once, in order, per request.
+ * once per session.
  */
 let worker: Worker | null = null;
 
 type Pending = { resolve: (text: string) => void; reject: (error: Error) => void };
-const queue: Pending[] = [];
+type WhisperRequestPayload = { type: "init" } | { type: "transcribe"; audio: Float32Array };
+const pendingRequests = new Map<number, Pending>();
+let nextRequestId = 1;
 
 function rejectAll(error: Error): void {
-  while (queue.length > 0) queue.shift()?.reject(error);
+  for (const pending of pendingRequests.values()) pending.reject(error);
+  pendingRequests.clear();
 }
 
 function resetWorker(error: Error): void {
@@ -26,8 +28,9 @@ function ensureWorker(): Worker {
   const next = new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" });
   next.addEventListener("message", (event: MessageEvent<WhisperResponse>) => {
     const message = event.data;
-    const pending = queue.shift();
+    const pending = pendingRequests.get(message.id);
     if (!pending) return;
+    pendingRequests.delete(message.id);
     if (message.type === "error") pending.reject(new Error(message.message));
     else if (message.type === "result") pending.resolve(message.text);
     else pending.resolve(""); // "ready"
@@ -39,11 +42,12 @@ function ensureWorker(): Worker {
   return next;
 }
 
-function send(message: WhisperRequest): Promise<string> {
+function send(message: WhisperRequestPayload): Promise<string> {
   const active = ensureWorker();
+  const id = nextRequestId++;
   return new Promise((resolve, reject) => {
-    queue.push({ resolve, reject });
-    active.postMessage(message);
+    pendingRequests.set(id, { resolve, reject });
+    active.postMessage({ ...message, id });
   });
 }
 

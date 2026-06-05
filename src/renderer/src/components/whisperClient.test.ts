@@ -55,7 +55,19 @@ describe("whisperClient", () => {
 
     const retry = warmUpWhisper();
     expect(FakeWorker.instances).toHaveLength(2);
-    FakeWorker.instances[1]?.emit("message", { data: { type: "ready" } });
+    FakeWorker.instances[1]?.emit("message", { data: { id: 3, type: "ready" } });
     await expect(retry).resolves.toBeUndefined();
+  });
+
+  it("matches transcriptions to their request when warm-up finishes later", async () => {
+    const { transcribeAudio, warmUpWhisper } = await import("./whisperClient");
+    const warmup = warmUpWhisper();
+    const transcription = transcribeAudio(new Float32Array([1]));
+
+    FakeWorker.instances[0]?.emit("message", { data: { id: 2, type: "result", text: "hello" } });
+    await expect(transcription).resolves.toBe("hello");
+
+    FakeWorker.instances[0]?.emit("message", { data: { id: 1, type: "ready" } });
+    await expect(warmup).resolves.toBeUndefined();
   });
 });
