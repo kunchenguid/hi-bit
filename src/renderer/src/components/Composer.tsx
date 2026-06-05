@@ -7,28 +7,35 @@ import {
   readClipboardImage,
   toAttachment,
 } from "./imageInput";
+import { VoiceControl } from "./VoiceControl";
 
 type ComposerProps = {
   value: string;
   running: boolean;
   /** The picture currently attached to the draft, if any. */
   image?: OutgoingImage | null;
+  /** Whether this device can run local voice input (gated on WebGPU). */
+  voiceSupported?: boolean;
   onChange: (value: string) => void;
   onSend: () => void;
   onAbort: () => void;
   onAttachImage?: (image: OutgoingImage) => void;
   onClearImage?: () => void;
+  /** Appends transcribed speech to the draft for the kid to review before sending. */
+  onVoiceText?: (text: string) => void;
 };
 
 export function Composer({
   value,
   running,
   image,
+  voiceSupported,
   onChange,
   onSend,
   onAbort,
   onAttachImage,
   onClearImage,
+  onVoiceText,
 }: ComposerProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -137,6 +144,9 @@ export function Composer({
       </div>
       {attachmentError ? <p className="hb-composer-error">{attachmentError}</p> : null}
       <div className="hb-composer-actions">
+        {!running && voiceSupported && onVoiceText ? (
+          <VoiceControl onVoiceText={onVoiceText} />
+        ) : null}
         {!running && onAttachImage ? (
           <div className="hb-attach">
             {menuOpen ? (

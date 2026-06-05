@@ -67,6 +67,7 @@ function renderWorkspace(
         showActivity={overrides.showActivity ?? false}
         draft=""
         draftImage={null}
+        voiceSupported={false}
         running={false}
         activeTurn={null}
         busy={false}
@@ -79,6 +80,7 @@ function renderWorkspace(
         onDraftChange={vi.fn()}
         onAttachImage={vi.fn()}
         onClearImage={vi.fn()}
+        onVoiceText={vi.fn()}
         onSend={vi.fn()}
         onAbort={vi.fn()}
         onOpenFolder={vi.fn()}

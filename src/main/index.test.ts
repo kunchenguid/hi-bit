@@ -21,6 +21,8 @@ const electronMock = vi.hoisted(() => {
     },
     safeStorage: {},
     shell: { openExternal: vi.fn(), openPath: vi.fn() },
+    protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
+    net: { fetch: vi.fn() },
   };
 });
 

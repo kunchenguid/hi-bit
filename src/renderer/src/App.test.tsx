@@ -868,5 +868,10 @@ function createApiMock(): HiBitApi {
       openExternal: vi.fn(async () => {}),
       clearCache: vi.fn(async () => {}),
     },
+    voice: {
+      status: vi.fn(async () => ({ modelReady: false })),
+      ensureModel: vi.fn(async () => {}),
+      onDownloadProgress: vi.fn(() => () => {}),
+    },
   };
 }

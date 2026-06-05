@@ -15,9 +15,15 @@ import { ProjectService } from "./projects/projectService";
 import { readJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
 import { seedCodexAuthIfMissing } from "./storage/seedAuth";
+import { VoiceModelService } from "./voice/voiceModelService";
+import { handleVoiceModelProtocol, registerVoiceModelScheme } from "./voice/voiceProtocol";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
+
+// Privileged schemes must be registered before the app is ready. This one lets
+// the renderer's Whisper worker load the on-disk voice model over fetch().
+registerVoiceModelScheme();
 
 // The real, default userData dir - captured before any override so it can also
 // be the seed source for Codex auth in isolated dev runs.
@@ -45,6 +51,7 @@ type Services = {
   runtime: PiRuntimeService;
   bitRuntime: BitRuntimeService;
   preview: PreviewService;
+  voiceModel: VoiceModelService;
 };
 
 function hiBitRootFor(): string {
@@ -132,7 +139,19 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     bot: runtime,
     preview,
   });
-  return { layout, auth, profiles, projects, conversation, bit, runtime, bitRuntime, preview };
+  const voiceModel = new VoiceModelService(layout.modelsDir);
+  return {
+    layout,
+    auth,
+    profiles,
+    projects,
+    conversation,
+    bit,
+    runtime,
+    bitRuntime,
+    preview,
+    voiceModel,
+  };
 }
 
 export function registerIpc(services: Services): void {
@@ -211,6 +230,17 @@ export function registerIpc(services: Services): void {
   // their subresources. The renderer itself loads from file:// (prod) or the Vite
   // dev server, so clearing the HTTP cache costs nothing there.
   ipcMain.handle("hibit:preview:clear-cache", () => session.defaultSession.clearCache());
+
+  ipcMain.handle("hibit:voice:status", async () => ({
+    modelReady: await services.voiceModel.modelReady(),
+  }));
+  ipcMain.handle("hibit:voice:ensure-model", (event) =>
+    services.voiceModel.ensureModel((progress) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send("hibit:voice:download-progress", progress);
+      }
+    }),
+  );
 }
 
 /**
@@ -308,6 +338,7 @@ void app.whenReady().then(async () => {
   const services = await createServices(layout);
   services.bit.subscribe(broadcastChatEvent);
   registerIpc(services);
+  handleVoiceModelProtocol(services.voiceModel);
   configureMediaPermission();
   createMainWindow();
 

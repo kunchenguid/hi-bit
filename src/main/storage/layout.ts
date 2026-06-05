@@ -24,6 +24,8 @@ export type HiBitLayout = {
   piAgentDir: string;
   /** Holds one factory directory per kid, keyed by profile id. */
   factoriesDir: string;
+  /** On-disk home for downloaded local models (e.g. the Whisper voice model). */
+  modelsDir: string;
 };
 
 export type HiBitHomeRecord = {
@@ -58,6 +60,7 @@ export async function bootstrapLayout(root: string, now = () => new Date()): Pro
     mkdir(layout.authDir, { recursive: true }),
     mkdir(layout.piAgentDir, { recursive: true }),
     mkdir(layout.factoriesDir, { recursive: true }),
+    mkdir(layout.modelsDir, { recursive: true }),
   ]);
 
   const home = await readJsonFile<HiBitHomeRecord>(layout.homePath);
@@ -83,6 +86,7 @@ export function buildLayout(root: string): HiBitLayout {
     codexAuthPath: join(root, "auth", "codex.json"),
     piAgentDir: join(root, "pi-agent"),
     factoriesDir: join(root, "factories"),
+    modelsDir: join(root, "models"),
   };
 }
 

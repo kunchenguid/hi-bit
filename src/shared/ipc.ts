@@ -8,6 +8,7 @@ import type {
 } from "./chat";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "./profile";
 import type { CreateProjectInput, ProjectSummary } from "./project";
+import type { VoiceDownloadProgress, VoiceStatus } from "./voice";
 
 export type Platform =
   | "darwin"
@@ -69,6 +70,19 @@ export type HiBitApi = {
     openExternal: (url: string) => Promise<void>;
     /** Empties the HTTP cache so a preview reload refetches rebuilt files fresh. */
     clearCache: () => Promise<void>;
+  };
+  /**
+   * Local, on-device speech-to-text (Whisper). The renderer gates the feature on
+   * WebGPU itself; these calls cover the one-time model download. Transcription
+   * runs in a renderer worker, not over IPC - only text reaches `chat.send`.
+   */
+  voice: {
+    /** Whether the model is fully downloaded to userData. */
+    status: () => Promise<VoiceStatus>;
+    /** Downloads the model if missing; resolves once it is ready. */
+    ensureModel: () => Promise<void>;
+    /** Streams download progress while `ensureModel` runs. */
+    onDownloadProgress: (listener: (progress: VoiceDownloadProgress) => void) => Unsubscribe;
   };
 };
 
