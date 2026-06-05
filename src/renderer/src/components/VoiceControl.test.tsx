@@ -135,7 +135,7 @@ describe("VoiceControl", () => {
     await act(async () => {
       mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     });
-    const cancel = host.querySelector<HTMLButtonElement>(".hb-camera-actions button");
+    const cancel = host.querySelector<HTMLButtonElement>(".hb-voice-actions button");
     if (!cancel) throw new Error("cancel button not found");
     act(() => cancel.click());
 
@@ -143,7 +143,7 @@ describe("VoiceControl", () => {
     await flush();
 
     expect(recorderInstances).toHaveLength(0);
-    expect(host.querySelector("[role='dialog']")).toBeNull();
+    expect(host.querySelector(".hb-voice-callout")).toBeNull();
   });
 
   it("does not open the microphone after unmounting during the model download", async () => {
@@ -178,7 +178,7 @@ describe("VoiceControl", () => {
     await act(async () => {
       mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     });
-    const cancel = host.querySelector<HTMLButtonElement>(".hb-camera-actions button");
+    const cancel = host.querySelector<HTMLButtonElement>(".hb-voice-actions button");
     if (!cancel) throw new Error("cancel button not found");
     act(() => cancel.click());
 
@@ -186,5 +186,50 @@ describe("VoiceControl", () => {
     await flush();
 
     expect(offProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an anchored callout, not a modal dialog, while recording", async () => {
+    act(() => root.render(<VoiceControl onVoiceText={vi.fn()} />));
+
+    const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
+    if (!mic) throw new Error("mic button not found");
+    await act(async () => {
+      mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+
+    const callout = host.querySelector(".hb-voice-callout");
+    expect(callout).not.toBeNull();
+    // An ephemeral status readout anchored to the mic - not a focus-trapping
+    // modal, and no dimming backdrop over the chat.
+    expect(callout?.getAttribute("role")).toBe("status");
+    expect(host.querySelector("[role='dialog']")).toBeNull();
+    expect(host.querySelector(".hb-camera-backdrop")).toBeNull();
+  });
+
+  it("turns the mic into a stop control that ends a hands-free recording on the next tap", async () => {
+    const onVoiceText = vi.fn();
+    act(() => root.render(<VoiceControl onVoiceText={onVoiceText} />));
+
+    const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
+    if (!mic) throw new Error("mic button not found");
+    // Release before begin() finishes recording setup -> hands-free (toggle) mode.
+    await act(async () => {
+      mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      mic.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    });
+
+    // The mic itself becomes the stop control; there is no separate Stop button.
+    const stop = host.querySelector<HTMLButtonElement>("button[aria-label='Stop recording']");
+    expect(stop).not.toBeNull();
+    expect(host.querySelector(".hb-voice-callout")).not.toBeNull();
+
+    // Tapping it again ends the capture and transcribes.
+    await act(async () => {
+      stop?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    await flush();
+
+    expect(mockedTranscribeAudio).toHaveBeenCalled();
+    expect(onVoiceText).toHaveBeenCalledWith("make a game");
   });
 });
