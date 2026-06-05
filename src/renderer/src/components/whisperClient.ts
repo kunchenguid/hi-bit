@@ -11,6 +11,16 @@ let worker: Worker | null = null;
 type Pending = { resolve: (text: string) => void; reject: (error: Error) => void };
 const queue: Pending[] = [];
 
+function rejectAll(error: Error): void {
+  while (queue.length > 0) queue.shift()?.reject(error);
+}
+
+function resetWorker(error: Error): void {
+  worker?.terminate();
+  worker = null;
+  rejectAll(error);
+}
+
 function ensureWorker(): Worker {
   if (worker) return worker;
   const next = new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" });
@@ -23,7 +33,7 @@ function ensureWorker(): Worker {
     else pending.resolve(""); // "ready"
   });
   next.addEventListener("error", (event) => {
-    queue.shift()?.reject(new Error(event.message || "The voice helper stopped working."));
+    resetWorker(new Error(event.message || "The voice helper stopped working."));
   });
   worker = next;
   return next;

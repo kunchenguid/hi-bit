@@ -37,6 +37,7 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
   const recordingRef = useRef(false);
   const modeRef = useRef<RecordMode>("hold");
   const finishingRef = useRef(false);
+  const beginTokenRef = useRef(0);
   const finishCaptureRef = useRef<() => void>(() => {});
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -68,6 +69,7 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
     setPhase("transcribing");
     try {
       const samples = recorder.endCapture();
+      teardown();
       // Drop accidental taps and silence rather than letting Whisper invent text.
       if (samples.length >= VOICE_SAMPLE_RATE * MIN_CLIP_SECONDS && !isAudioSilent(samples)) {
         const text = await transcribeAudio(samples);
@@ -129,6 +131,8 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
   // mode is decided by whether the kid is still holding when recording actually
   // begins: held -> push-to-talk (release sends); already let go -> hands-free.
   const begin = useCallback(async () => {
+    const token = ++beginTokenRef.current;
+    const isCurrent = () => beginTokenRef.current === token;
     setError(null);
     finishingRef.current = false;
     setPhase("preparing");
@@ -142,14 +146,21 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
           setDownloadPct((prev) => (prev === null ? next : Math.max(prev, next)));
         });
         await window.hibit.voice.ensureModel();
+        if (!isCurrent()) return;
         offProgress();
         offProgress = () => {};
       }
+      if (!isCurrent()) return;
       setDownloadPct(null);
       await warmUpWhisper();
+      if (!isCurrent()) return;
       const recorder = new MicRecorder();
       recorder.onLimitReached = () => finishCaptureRef.current();
       await recorder.start();
+      if (!isCurrent()) {
+        recorder.stop();
+        return;
+      }
       recorderRef.current = recorder;
       recorder.beginCapture();
       recordingRef.current = true;
@@ -158,10 +169,16 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
       setPhase("recording");
     } catch {
       offProgress();
+      if (!isCurrent()) return;
       setError("Bit could not get voice ready. You can still type your message.");
       setPhase("error");
     }
   }, []);
+
+  const cancelPreparation = useCallback(() => {
+    beginTokenRef.current++;
+    reset();
+  }, [reset]);
 
   const onPressStart = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -265,7 +282,7 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
                   Close
                 </button>
               ) : phase === "preparing" ? (
-                <button type="button" className="hb-button" onClick={reset}>
+                <button type="button" className="hb-button" onClick={cancelPreparation}>
                   Cancel
                 </button>
               ) : null}

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -117,5 +117,37 @@ describe("VoiceModelService.ensureModel", () => {
     await expect(
       readFile(join(dir, VOICE_MODEL_ID, VOICE_MODEL_FILES[0]), "utf8"),
     ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("streams response bodies to disk instead of buffering the whole file", async () => {
+    const dir = await tempModelsDir();
+    let releaseSecondChunk!: () => void;
+    const secondChunk = new Promise<void>((resolve) => {
+      releaseSecondChunk = resolve;
+    });
+    const fetchImpl = vi.fn(async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(new Uint8Array([1, 2, 3]));
+          await secondChunk;
+          controller.enqueue(new Uint8Array([4, 5, 6]));
+          controller.close();
+        },
+      });
+      return new Response(stream, { status: 200, headers: { "content-length": "6" } });
+    });
+    const service = new VoiceModelService(dir, { fetchImpl });
+    const run = service.ensureModel();
+
+    try {
+      await vi.waitFor(async () => {
+        const partial = `${join(dir, VOICE_MODEL_ID, VOICE_MODEL_FILES[0])}.partial`;
+        const info = await stat(partial);
+        expect(info.size).toBe(3);
+      });
+    } finally {
+      releaseSecondChunk();
+      await run.catch(() => {});
+    }
   });
 });

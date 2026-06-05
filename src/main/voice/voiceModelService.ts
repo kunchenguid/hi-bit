@@ -1,4 +1,4 @@
-import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, open, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { VoiceDownloadProgress } from "@shared/voice";
 
@@ -167,27 +167,29 @@ export class VoiceModelService {
     const partial = `${target}.partial`;
     await mkdir(dirname(target), { recursive: true });
 
-    const total = Number(response.headers.get("content-length")) || 0;
-    const reader = response.body?.getReader();
-    if (reader) {
-      const chunks: Uint8Array[] = [];
-      let received = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          chunks.push(value);
-          received += value.byteLength;
-          if (total > 0) onFileProgress(Math.min(1, received / total));
-        }
-      }
-      await writeFile(partial, Buffer.concat(chunks));
-    } else {
-      // No streaming body (e.g. test doubles): fall back to a single buffer.
-      await writeFile(partial, Buffer.from(await response.arrayBuffer()));
-    }
-
     try {
+      const total = Number(response.headers.get("content-length")) || 0;
+      const reader = response.body?.getReader();
+      if (reader) {
+        const handle = await open(partial, "w");
+        try {
+          let received = 0;
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              await handle.write(value);
+              received += value.byteLength;
+              if (total > 0) onFileProgress(Math.min(1, received / total));
+            }
+          }
+        } finally {
+          await handle.close();
+        }
+      } else {
+        // No streaming body (e.g. test doubles): fall back to a single buffer.
+        await writeFile(partial, Buffer.from(await response.arrayBuffer()));
+      }
       await rename(partial, target);
     } catch (error) {
       await rm(partial, { force: true });
