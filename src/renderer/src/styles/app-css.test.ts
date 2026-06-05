@@ -40,9 +40,12 @@ describe("app.css", () => {
 
   it("keeps the voice callout inside the mobile viewport", () => {
     const css = readFileSync(new URL("./app.css", import.meta.url), "utf8");
-    const mobileRules = css.match(/@media \(max-width: 520px\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+    const mobileRuleIndex = css.lastIndexOf("@media (max-width: 520px)");
+    const mobileRules = css.slice(mobileRuleIndex).match(/^@media \(max-width: 520px\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+    const voiceCalloutIndex = css.indexOf(".hb-voice-callout {");
 
     expect(ruleBlock(css, ".hb-composer")).toMatch(/position:\s*relative;/);
+    expect(mobileRuleIndex).toBeGreaterThan(voiceCalloutIndex);
     expect(mobileRules).toMatch(/\.hb-voice\s*\{[^}]*position:\s*static;/);
     expect(mobileRules).toMatch(/\.hb-voice-callout\s*\{/);
     expect(mobileRules).toMatch(/position:\s*absolute;/);

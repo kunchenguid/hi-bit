@@ -616,17 +616,6 @@ pre {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .hb-voice {
-    position: static;
-  }
-
-  .hb-voice-callout {
-    position: absolute;
-    left: var(--s-1);
-    right: var(--s-1);
-    width: auto;
-    max-width: none;
-  }
 }
 
 .hb-composer {
@@ -963,6 +952,20 @@ pre {
   border-right: var(--border-pixel);
   border-bottom: var(--border-pixel);
   transform: rotate(45deg);
+}
+
+@media (max-width: 520px) {
+  .hb-voice {
+    position: static;
+  }
+
+  .hb-voice-callout {
+    position: absolute;
+    left: var(--s-1);
+    right: var(--s-1);
+    width: auto;
+    max-width: none;
+  }
 }
 
 .hb-voice-mic {
