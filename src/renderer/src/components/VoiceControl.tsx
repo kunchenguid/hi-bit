@@ -88,7 +88,13 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
     finishCaptureRef.current = () => void finishCapture();
   });
 
-  useEffect(() => () => teardown(), [teardown]);
+  useEffect(
+    () => () => {
+      beginTokenRef.current++;
+      teardown();
+    },
+    [teardown],
+  );
 
   // Draw the live waveform while recording.
   useEffect(() => {
@@ -146,9 +152,9 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
           setDownloadPct((prev) => (prev === null ? next : Math.max(prev, next)));
         });
         await window.hibit.voice.ensureModel();
-        if (!isCurrent()) return;
         offProgress();
         offProgress = () => {};
+        if (!isCurrent()) return;
       }
       if (!isCurrent()) return;
       setDownloadPct(null);
@@ -168,10 +174,11 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
       setRecordMode(modeRef.current);
       setPhase("recording");
     } catch {
-      offProgress();
       if (!isCurrent()) return;
       setError("Bit could not get voice ready. You can still type your message.");
       setPhase("error");
+    } finally {
+      offProgress();
     }
   }, []);
 

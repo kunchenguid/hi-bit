@@ -128,4 +128,45 @@ describe("VoiceControl", () => {
     expect(recorderInstances).toHaveLength(0);
     expect(host.querySelector("[role='dialog']")).toBeNull();
   });
+
+  it("does not open the microphone after unmounting during preparation", async () => {
+    const warmup = deferred<void>();
+    mockedWarmUpWhisper.mockReturnValue(warmup.promise);
+    act(() => root.render(<VoiceControl onVoiceText={vi.fn()} />));
+
+    const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
+    if (!mic) throw new Error("mic button not found");
+    await act(async () => {
+      mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    act(() => root.unmount());
+
+    warmup.resolve();
+    await flush();
+
+    expect(recorderInstances).toHaveLength(0);
+  });
+
+  it("unsubscribes from download progress when model preparation is canceled", async () => {
+    const ensureModel = deferred<void>();
+    const offProgress = vi.fn();
+    window.hibit.voice.status = vi.fn(async () => ({ modelReady: false }));
+    window.hibit.voice.ensureModel = vi.fn(() => ensureModel.promise);
+    window.hibit.voice.onDownloadProgress = vi.fn(() => offProgress);
+    act(() => root.render(<VoiceControl onVoiceText={vi.fn()} />));
+
+    const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
+    if (!mic) throw new Error("mic button not found");
+    await act(async () => {
+      mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    const cancel = host.querySelector<HTMLButtonElement>(".hb-camera-actions button");
+    if (!cancel) throw new Error("cancel button not found");
+    act(() => cancel.click());
+
+    ensureModel.resolve();
+    await flush();
+
+    expect(offProgress).toHaveBeenCalledTimes(1);
+  });
 });
