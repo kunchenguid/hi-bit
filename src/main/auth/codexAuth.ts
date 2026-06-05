@@ -71,6 +71,7 @@ export class CodexAuthService {
   private readonly now: () => Date;
   private readonly callbackTimeoutMs: number;
   private readonly onReconnectRequired?: () => void;
+  private refreshInFlight?: Promise<CodexCredential>;
 
   constructor(options: CodexAuthServiceOptions) {
     this.authPath = options.authPath;
@@ -151,6 +152,16 @@ export class CodexAuthService {
       return credential.accessToken;
     }
 
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = this.refreshCredential(credential).finally(() => {
+        this.refreshInFlight = undefined;
+      });
+    }
+    const next = await this.refreshInFlight;
+    return next.accessToken;
+  }
+
+  private async refreshCredential(credential: CodexCredential): Promise<CodexCredential> {
     let refreshed: CodexTokenPair;
     try {
       refreshed = await refreshCodexTokens(credential.refreshToken, this.fetchFn);
@@ -167,8 +178,7 @@ export class CodexAuthService {
       }
       throw error;
     }
-    const next = await this.saveTokenPair(refreshed);
-    return next.accessToken;
+    return this.saveTokenPair(refreshed);
   }
 
   async saveTokenPair(tokenPair: CodexTokenPair): Promise<CodexCredential> {
