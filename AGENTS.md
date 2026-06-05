@@ -84,7 +84,7 @@ Rules that must hold:
 
 Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
 
-Manual E2E testing should exercise the Codex connection gate, stale-token reconnect overlay, kid profile gate, profile-level Pi-backed chat workspace, live creation preview flow, and creations-folder action unless the task explicitly narrows scope.
+Manual E2E testing should exercise the Codex connection gate, stale-token reconnect overlay, kid profile gate, profile-level Pi-backed chat workspace, chat image and voice input, live creation preview flow, and creations-folder action unless the task explicitly narrows scope.
 For Codex reconnect, verify that an expired or rejected refresh token clears the stored credential, shows a blocking reconnect overlay, keeps the current chat workspace mounted underneath, and removes the overlay after Codex is reconnected without clearing the draft, transcript, or open preview.
 For the chat composer, verify that Enter sends the current message, Shift+Enter inserts a newline, Enter does not send while Bit is running, and IME composition is not interrupted.
 For chat image input, verify the composer accepts exactly one picture from paste, file picking, and camera capture; downscales it before send; allows image-only messages; shows the thumbnail in the draft and transcript after reload; stores bytes under `conversation/attachments` while transcript and Bit session persistence keep only paths or scrubbed placeholders; and passes the image to Bit when the runtime supports inline images.
