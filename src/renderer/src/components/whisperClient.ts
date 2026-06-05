@@ -1,4 +1,4 @@
-import type { WhisperRequest, WhisperResponse } from "./voiceInput";
+import type { WhisperResponse } from "./voiceInput";
 
 /**
  * A thin wrapper over the Whisper Web Worker. The worker is created lazily and
