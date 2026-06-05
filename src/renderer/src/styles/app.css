@@ -618,6 +618,7 @@ pre {
 }
 
 .hb-composer {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--s-1);
@@ -909,19 +910,69 @@ pre {
   gap: var(--s-1);
 }
 
-/* The talk-to-Bit modal reuses the camera backdrop/sheet/actions; its stage is
-   a simple status area with a mic glyph that pulses while recording. */
-.hb-voice-stage {
+/* The talk-to-Bit feedback is a callout anchored above the mic - same pattern
+   as the attach menu - not a modal. It grows out of the button the kid is
+   holding, so "let go to send" reads naturally and nothing dims the chat. */
+.hb-voice {
+  position: relative;
+  display: flex;
+}
+
+.hb-voice-callout {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  /* The mic is the leftmost action button, so anchor to its right edge and grow
+     leftward over the wide textarea - growing rightward would run off-frame past
+     the + and Send buttons. Same anchoring as the attach menu beside it. */
+  right: 0;
+  z-index: 6;
+  width: 220px;
+  max-width: calc(100vw - var(--s-3));
   display: grid;
-  place-items: center;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-2);
+  gap: var(--s-1);
+  padding: var(--s-1\.5);
+  background: var(--paper-3);
+  border: var(--border-pixel);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-soft);
   text-align: center;
+  justify-items: center;
+}
+
+/* Little downward arrow pinned over the mic button. */
+.hb-voice-callout::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  right: 14px;
+  width: 12px;
+  height: 12px;
+  background: var(--paper-3);
+  border-right: var(--border-pixel);
+  border-bottom: var(--border-pixel);
+  transform: rotate(45deg);
+}
+
+@media (max-width: 520px) {
+  .hb-voice-callout {
+    position: absolute;
+    left: 50%;
+    right: auto;
+    width: min(220px, calc(100vw - var(--s-3)));
+    max-width: none;
+    transform: translateX(-50%);
+  }
+
+  .hb-voice-callout::after {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) rotate(45deg);
+  }
 }
 
 .hb-voice-mic {
-  width: 88px;
-  height: 88px;
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
   border-radius: var(--r-pill);
@@ -930,20 +981,32 @@ pre {
   color: var(--ink);
 }
 
-/* Live microphone waveform shown while recording. */
+/* Live microphone waveform shown while recording, sized to the callout. */
 .hb-voice-wave {
-  width: min(360px, 80vw);
-  height: 88px;
+  width: 100%;
+  height: 46px;
   display: block;
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
   border: var(--border-pixel);
   background: var(--subject-js);
   color: var(--ink);
 }
 
 .hb-voice-status {
+  font-size: var(--t-small-size);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--ink-2);
+}
+
+.hb-voice-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.hb-button-sm {
+  min-height: 32px;
+  padding: 0 var(--s-1\.5);
+  font-size: var(--t-small-size);
 }
 
 /* The composer mic doubles as the push-to-talk control: hold it to talk. Keep

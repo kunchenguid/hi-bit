@@ -37,4 +37,24 @@ describe("app.css", () => {
     expect(mobileRules).toMatch(/right:\s*auto;/);
     expect(mobileRules).toMatch(/\.hb-profile-settings-popover\s*\{[^}]*width:\s*100%;/);
   });
+
+  it("keeps the voice callout inside the mobile viewport", () => {
+    const css = readFileSync(new URL("./app.css", import.meta.url), "utf8");
+    const mobileRuleIndex = css.lastIndexOf("@media (max-width: 520px)");
+    const mobileRules =
+      css.slice(mobileRuleIndex).match(/^@media \(max-width: 520px\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+    const voiceCalloutIndex = css.indexOf(".hb-voice-callout {");
+
+    expect(mobileRuleIndex).toBeGreaterThan(voiceCalloutIndex);
+    expect(ruleBlock(css, ".hb-voice")).toMatch(/position:\s*relative;/);
+    expect(mobileRules).not.toMatch(/\.hb-voice\s*\{[^}]*position:\s*static;/);
+    expect(mobileRules).toMatch(/\.hb-voice-callout\s*\{/);
+    expect(mobileRules).toMatch(/position:\s*absolute;/);
+    expect(mobileRules).toMatch(/left:\s*50%;/);
+    expect(mobileRules).toMatch(/right:\s*auto;/);
+    expect(mobileRules).toMatch(/width:\s*min\(220px,\s*calc\(100vw - var\(--s-3\)\)\);/);
+    expect(mobileRules).toMatch(/transform:\s*translateX\(-50%\);/);
+    expect(mobileRules).toMatch(/\.hb-voice-callout::after\s*\{/);
+    expect(mobileRules).toMatch(/transform:\s*translateX\(-50%\) rotate\(45deg\);/);
+  });
 });

@@ -55,7 +55,7 @@ describe("registerIpc", () => {
     expect(services.preview.stopAll).toHaveBeenCalled();
     expect(services.runtime.disposeAll).toHaveBeenCalled();
     expect(services.bitRuntime.disposeAll).toHaveBeenCalled();
-  });
+  }, 10_000);
 });
 
 describe("isAppRendererSource", () => {

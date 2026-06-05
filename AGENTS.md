@@ -22,7 +22,7 @@ This file is the canonical architecture and workflow guide for the current app. 
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
   `<userData>/.hi-bit/models/` holds locally downloaded models, currently the `whisper-large-v3-turbo` voice model fetched once on first voice use.
 - `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer, including preview-safe IPC helpers, `auth.onReconnectRequired()`, `chat.send(profileId, text, image?)`, and `voice.status()` / `voice.ensureModel()` / `voice.onDownloadProgress()` for the one-time voice-model download. Every renderer IPC call goes through here.
-- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, blocking Codex reconnect overlay, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer with one-picture input (paste, files, camera) and optional voice input - the composer mic button (`VoiceControl`) is itself push-to-talk (press and hold it to talk and release to send, or quick-click for a hands-free recording ended with Stop), shown only when the device supports it, with a small live-waveform overlay while active - backed by a `MicRecorder` (continuous AudioWorklet capture with a pre-roll buffer and a runaway cap) and a local Whisper Web Worker; camera capture modal, message list with attached-picture thumbnails, preview pane, profile settings menu, activity chip with persistent Play and the Factory view that merges creation picking with bot Logbook steps.
+- `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, blocking Codex reconnect overlay, kid profile gate, and profile-level chat workspace with its optional live-preview split pane; `components/` holds the chat composer with one-picture input (paste, files, camera) and optional voice input - the composer mic button (`VoiceControl`) is itself push-to-talk (press and hold it to talk and release to send, or quick-click for a hands-free recording the kid ends by tapping the mic again, which turns into a stop control), shown only when the device supports it, with a small live-waveform callout anchored above the button while active (a `role="status"` readout, not a modal - no backdrop) - backed by a `MicRecorder` (continuous AudioWorklet capture with a pre-roll buffer and a runaway cap) and a local Whisper Web Worker; camera capture modal, message list with attached-picture thumbnails, preview pane, profile settings menu, activity chip with persistent Play and the Factory view that merges creation picking with bot Logbook steps.
 - `src/shared/` - types and schema shared between main, preload, and renderer.
 - `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
 - `prompts/bit.md` and `prompts/bot.md` - Bit and bot system prompts. Product content, not code; edit them like you'd edit docs.
@@ -45,7 +45,7 @@ The locking decisions (recorded in the terminology review): the background worke
 | **build**         | kid-facing                   | making or changing a creation                                     | a bot job run                                                                              |
 | **Play**          | kid-facing                   | open and play a creation's live preview                           | `start_preview` / `list_previews` / `stop_preview` (the "Preview tools"), `PreviewService` |
 | **bot**           | unlocked word                | a background worker that makes things for the kid                 | `BotRuntime`, `prompts/bot.md`, `bots/`, `bot_job_*`                                       |
-| **factory**       | unlocked word                | the place all the kid's creations live and get built             | the per-kid factory (`factories/<profileId>/`, `ProjectService.list`)                       |
+| **factory**       | unlocked word                | the place all the kid's creations live and get built              | the per-kid factory (`factories/<profileId>/`, `ProjectService.list`)                      |
 | **Logbook**       | unlocked word                | every step taken on a creation                                    | per-creation logbook (`logbook/project.jsonl`)                                             |
 | **blueprint**     | unlocked word                | the plan a bot follows to build                                   | `BlueprintRecord`, `blueprints/`, `blueprint_*`                                            |
 | **machines**      | unlocked word                | checks that make sure a build works                               | machine inspections (`machines/`)                                                          |
@@ -64,14 +64,14 @@ The ladder governs exactly one thing: Bit's own chat.
 Bit never proactively brings up an inside word before the kid has done the thing it names; the word becomes sayable for Bit the moment it becomes real, and Bit says it once, warmly, in plain chat (no UI badge).
 Defined in `src/shared/concepts.ts`.
 
-| Tier | Becomes sayable for Bit                        | Trigger (what the kid did)               |
-| ---- | ---------------------------------------------- | ---------------------------------------- |
-| 0    | Bit, build, creation, Play                     | always sayable                           |
-| 1    | bot                                            | first delegated build finishes           |
-| 2    | factory                                        | the kid has a 2nd creation               |
-| 3    | Logbook                                        | the kid opens the Logbook                |
-| 4    | blueprint, machines                            | a few builds in (`buildsDelegated >= 3`) |
-| 5    | assembly line, save points, workbench          | many builds (`buildsDelegated >= 6`)     |
+| Tier | Becomes sayable for Bit               | Trigger (what the kid did)               |
+| ---- | ------------------------------------- | ---------------------------------------- |
+| 0    | Bit, build, creation, Play            | always sayable                           |
+| 1    | bot                                   | first delegated build finishes           |
+| 2    | factory                               | the kid has a 2nd creation               |
+| 3    | Logbook                               | the kid opens the Logbook                |
+| 4    | blueprint, machines                   | a few builds in (`buildsDelegated >= 3`) |
+| 5    | assembly line, save points, workbench | many builds (`buildsDelegated >= 6`)     |
 
 Rules that must hold:
 
@@ -88,7 +88,7 @@ Manual E2E testing should exercise the Codex connection gate, stale-token reconn
 For Codex reconnect, verify that an expired or rejected refresh token clears the stored credential, shows a blocking reconnect overlay, keeps the current chat workspace mounted underneath, and removes the overlay after Codex is reconnected without clearing the draft, transcript, or open preview.
 For the chat composer, verify that Enter sends the current message, Shift+Enter inserts a newline, Enter does not send while Bit is running, and IME composition is not interrupted.
 For chat image input, verify the composer accepts exactly one picture from paste, file picking, and camera capture; downscales it before send; allows image-only messages; shows the thumbnail in the draft and transcript after reload; stores bytes under `conversation/attachments` while transcript and Bit session persistence keep only paths or scrubbed placeholders; and passes the image to Bit when the runtime supports inline images.
-For voice input, verify that the mic appears in the composer only on WebGPU-capable devices (the feature is hidden, not disabled, when `navigator.gpu` has no usable adapter); that the first use downloads `whisper-large-v3-turbo` to `<userData>/.hi-bit/models/` with a visible, monotonic progress state and skips the download on later uses; that the model loads in the renderer worker over `hibit-model://` (served by the main process, never the network); that recording starts as soon as the model file is present instead of waiting for Whisper warm-up, and that the background warm-up primes the WebGPU pipeline only once per worker session; that recording is push-to-talk (hold the button to talk and release to send; quick-tap toggles a hands-free recording ended with Stop), captured as 16kHz mono PCM via Web Audio with a pre-roll buffer; that on-device transcription fills the composer draft for the kid to review and Send rather than auto-sending; that accidental sub-second or silent clips and stock Whisper hallucinations are dropped instead of filling the draft; and that the mic track stops when the modal closes. Speech longer than Whisper's 30s window is handled by chunked transcription (`chunk_length_s`/`stride_length_s`), not truncated.
+For voice input, verify that the mic appears in the composer only on WebGPU-capable devices (the feature is hidden, not disabled, when `navigator.gpu` has no usable adapter); that the first use downloads `whisper-large-v3-turbo` to `<userData>/.hi-bit/models/` with a visible, monotonic progress state and skips the download on later uses; that the model loads in the renderer worker over `hibit-model://` (served by the main process, never the network); that recording starts as soon as the model file is present instead of waiting for Whisper warm-up, and that the background warm-up primes the WebGPU pipeline only once per worker session; that recording is push-to-talk (hold the button to talk and release to send; quick-tap toggles a hands-free recording the kid ends by tapping the mic again, which becomes a stop control); that while active the feedback is a `role="status"` callout anchored above the mic (no backdrop, no `dialog` role), captured as 16kHz mono PCM via Web Audio with a pre-roll buffer; that on-device transcription fills the composer draft for the kid to review and Send rather than auto-sending; that accidental sub-second or silent clips and stock Whisper hallucinations are dropped instead of filling the draft; and that the mic track stops when the callout closes. Speech longer than Whisper's 30s window is handled by chunked transcription (`chunk_length_s`/`stride_length_s`), not truncated.
 Note that the renderer CSP must keep `'wasm-unsafe-eval'` (ORT WebAssembly) and `hibit-model:` in `connect-src`, and the scheme must stay `corsEnabled` or the cross-origin model fetch fails.
 For real-art requests, verify that a bot calls `generate_image`, saves the generated image under the creation, wires it into the app, and shows it in the preview; for moving or transparent game art, also verify that the bot reads the `game-assets` skill and runs `process_sprite_sheet`.
 For web-lookup requests, verify that Bit or a bot uses `web_search` for search with cached access by default, `fetch_content` for a known public URL, and `get_search_content` when a long fetched page is parked; do not send kid personal details in the test prompt.
@@ -172,14 +172,17 @@ Tip: `export CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:9222` for the sess
 
 ### Tearing down
 
-```
-chrome-devtools-axi stop
-```
+When you finish e2e testing - whether it passed, failed, or you are abandoning it - you MUST clean up after yourself.
+Leaving a dev server, CDP endpoint, AXI bridge, or scratch files behind is a defect, not a convenience for the next run.
+Do every step below, even if the test failed partway through.
 
-Then kill the `pnpm dev` process. Quitting the Electron window also ends the dev server because `electron-vite dev` is tied to Electron's lifecycle.
+1. Stop the AXI bridge: `chrome-devtools-axi stop`.
+2. Kill the dev server: stop the `pnpm dev` process you started (the one running `electron-vite dev`). Quitting the Electron window also ends it because the dev server is tied to Electron's lifecycle, but do not rely on a window quit alone - confirm the process is gone. If you launched it in the background, kill that background task by id; otherwise find and kill it (`pkill -f "electron-vite dev"`), then verify nothing still holds the debugging port (`lsof -i :9222` should be empty).
+3. Remove the isolated userData dir if you made one: `rm -rf /tmp/hibit-e2e` (or whatever `HIBIT_USER_DATA_DIR` path you used). Never delete the real userData dir.
+4. Delete any other scratch artifacts you created for the test: dumped logs, temp HTML, sample files written into a project, etc. Do not commit them and do not leave them in the working tree or `/tmp`.
 
-Always tear down the Electron dev app and the `chrome-devtools-axi` bridge when you finish e2e testing.
-Do not leave background dev apps, CDP endpoints, or AXI bridge processes running after validation.
+After teardown, run a quick check that the tree and processes are clean: `git status` should show only the changes you intend to keep, and no `electron-vite dev` / `chrome-devtools-axi` processes should remain.
+Do not leave background dev apps, CDP endpoints, AXI bridge processes, isolated userData dirs, or scratch files behind after validation.
 
 ### What E2E can and can't cover
 

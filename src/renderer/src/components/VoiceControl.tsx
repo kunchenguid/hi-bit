@@ -9,7 +9,7 @@ type VoiceControlProps = {
 };
 
 type Phase = "idle" | "preparing" | "recording" | "transcribing" | "error";
-/** How the current recording is ended: release the held mic, or tap stop. */
+/** How the current recording is ended: release the held mic, or tap it again. */
 type RecordMode = "hold" | "toggle";
 
 /** Clips shorter than this are treated as accidental taps and dropped. */
@@ -221,88 +221,87 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
   }, [phase, finishCapture]);
 
   const active = phase !== "idle";
+  // A hands-free recording is ended by tapping the mic again, so the button
+  // itself becomes the stop control - mic glyph turns into a stop square and
+  // its label changes - instead of a separate Stop button in the callout.
+  const isStopControl = phase === "recording" && recordMode === "toggle";
 
   return (
-    <>
+    <div className="hb-voice">
       <button
         type="button"
         className={`hb-mic-button${phase === "recording" ? " hb-mic-button-on" : ""}`}
-        aria-label="Talk to Bit"
+        aria-label={isStopControl ? "Stop recording" : "Talk to Bit"}
         aria-pressed={phase === "recording"}
         onPointerDown={onPressStart}
         onPointerUp={onPressEnd}
         onPointerCancel={onPressEnd}
       >
-        {/* A geometric microphone, not a glyph, so it centers in the button. */}
-        <svg viewBox="0 0 24 24" className="hb-mic-icon" aria-hidden="true">
-          <path
-            d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11Z"
-            fill="currentColor"
-          />
-        </svg>
+        {/* Geometric shapes, not glyphs, so they center in the button. The mic
+            becomes a stop square once a hands-free recording is running. */}
+        {isStopControl ? (
+          <svg viewBox="0 0 24 24" className="hb-mic-icon" aria-hidden="true">
+            <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="hb-mic-icon" aria-hidden="true">
+            <path
+              d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11Z"
+              fill="currentColor"
+            />
+          </svg>
+        )}
       </button>
       {active ? (
-        <div
-          className="hb-camera-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Talk to Bit"
-        >
-          <div className="hb-camera-sheet">
-            <div className="hb-voice-stage">
-              {phase === "recording" ? (
-                <canvas
-                  className="hb-voice-wave"
-                  ref={canvasRef}
-                  role="img"
-                  aria-label="Microphone waveform"
+        // A callout anchored above the mic with a caret pointing at it - an
+        // ephemeral status readout, not a focus-trapping modal, and no backdrop
+        // dimming the chat. The kid's eye stays on the button they're holding.
+        <div className="hb-voice-callout" role="status" aria-live="polite" aria-label="Talk to Bit">
+          {phase === "recording" ? (
+            <canvas
+              className="hb-voice-wave"
+              ref={canvasRef}
+              role="img"
+              aria-label="Microphone waveform"
+            />
+          ) : (
+            <div className="hb-voice-mic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
+                <path
+                  d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11Z"
+                  fill="currentColor"
                 />
-              ) : (
-                <div className="hb-voice-mic" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true">
-                    <path
-                      d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </div>
-              )}
-              <p className="hb-voice-status">
-                {phase === "preparing"
-                  ? downloadPct !== null
-                    ? `Getting your voice ready... ${downloadPct}%`
-                    : "Getting your voice ready..."
-                  : phase === "recording"
-                    ? recordMode === "hold"
-                      ? "Listening... let go when you're done"
-                      : "Listening... tap stop when you're done"
-                    : phase === "transcribing"
-                      ? "Working out what you said..."
-                      : (error ?? "Something went wrong.")}
-              </p>
+              </svg>
             </div>
-            <div className="hb-camera-actions">
-              {phase === "recording" && recordMode === "toggle" ? (
-                <button
-                  type="button"
-                  className="hb-button hb-button-primary"
-                  onClick={() => void finishCapture()}
-                >
-                  Stop
-                </button>
-              ) : phase === "error" ? (
-                <button type="button" className="hb-button" onClick={reset}>
-                  Close
-                </button>
-              ) : phase === "preparing" ? (
-                <button type="button" className="hb-button" onClick={cancelPreparation}>
-                  Cancel
-                </button>
-              ) : null}
+          )}
+          <p className="hb-voice-status">
+            {phase === "preparing"
+              ? downloadPct !== null
+                ? `Getting your voice ready... ${downloadPct}%`
+                : "Getting your voice ready..."
+              : phase === "recording"
+                ? recordMode === "hold"
+                  ? "Listening - let go to send"
+                  : "Listening - tap the mic to stop"
+                : phase === "transcribing"
+                  ? "Working out what you said..."
+                  : (error ?? "Something went wrong.")}
+          </p>
+          {phase === "preparing" ? (
+            <div className="hb-voice-actions">
+              <button type="button" className="hb-button hb-button-sm" onClick={cancelPreparation}>
+                Cancel
+              </button>
             </div>
-          </div>
+          ) : phase === "error" ? (
+            <div className="hb-voice-actions">
+              <button type="button" className="hb-button hb-button-sm" onClick={reset}>
+                Close
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
-    </>
+    </div>
   );
 }

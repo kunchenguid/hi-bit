@@ -91,11 +91,10 @@ describe("CodexAuthService", () => {
     await expect(service.status()).resolves.toMatchObject({ authenticated: false });
   });
 
-  it("keeps a newer credential when a stale concurrent refresh is rejected", async () => {
+  it("shares one refresh across concurrent access-token requests", async () => {
     const authPath = await tempAuthPath();
     const onReconnectRequired = vi.fn();
-    let firstRefresh: (() => void) | undefined;
-    let secondRefresh: (() => void) | undefined;
+    let releaseRefresh: (() => void) | undefined;
     let calls = 0;
     const service = new CodexAuthService({
       authPath,
@@ -105,16 +104,13 @@ describe("CodexAuthService", () => {
         calls += 1;
         if (calls === 1) {
           await new Promise<void>((resolve) => {
-            firstRefresh = resolve;
+            releaseRefresh = resolve;
           });
           return Response.json({
             access_token: jwtWithPayload({ exp: 2_000, chatgpt_account_id: "acct-new" }),
             refresh_token: "refresh-new",
           });
         }
-        await new Promise<void>((resolve) => {
-          secondRefresh = resolve;
-        });
         return new Response("{}", { status: 401 });
       }) as typeof fetch,
     });
@@ -125,15 +121,15 @@ describe("CodexAuthService", () => {
 
     const firstToken = service.getFreshAccessToken();
     const secondToken = service.getFreshAccessToken();
-    await vi.waitFor(() => expect(calls).toBe(2));
-    firstRefresh?.();
-    await expect(firstToken).resolves.toBe(
+    await vi.waitFor(() => expect(calls).toBe(1));
+    releaseRefresh?.();
+    await expect(Promise.all([firstToken, secondToken])).resolves.toEqual([
       jwtWithPayload({ exp: 2_000, chatgpt_account_id: "acct-new" }),
-    );
-    secondRefresh?.();
-    await expect(secondToken).rejects.toThrow(/Codex token refresh failed with HTTP 401/);
+      jwtWithPayload({ exp: 2_000, chatgpt_account_id: "acct-new" }),
+    ]);
 
     expect(onReconnectRequired).not.toHaveBeenCalled();
+    expect(calls).toBe(1);
     await expect(service.status()).resolves.toMatchObject({
       authenticated: true,
       accountId: "acct-new",

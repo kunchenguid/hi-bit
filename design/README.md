@@ -105,7 +105,11 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Voice input button:** Talk to Bit.
 >
-> **Voice input listening:** Listening... let go when you're done.
+> **Voice input stop button:** Stop recording.
+>
+> **Voice input hold listening:** Listening - let go to send.
+>
+> **Voice input hands-free listening:** Listening - tap the mic to stop.
 >
 > **Voice input transcribing:** Working out what you said...
 >

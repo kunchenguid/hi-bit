@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChatEvent, ToolContent } from "@shared/chat";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type BotJobRecord, BotJobService } from "../bots/botJobService";
 import type { BotBuild, BotPipeline, BotWorkbench } from "../bots/botPipeline";
 import { ConversationService } from "../conversation/conversationService";
@@ -858,16 +858,16 @@ describe("BitCoordinatorService (Bit)", () => {
     await bothPromptsStarted;
     releaseFirst?.();
     await secondInstallStarted;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    expect(s.events).toContainEqual(
-      expect.objectContaining({
-        type: "tool_end",
-        projectId: game.id,
-        turnId: "bot_job_1",
-        callId: "w1",
-        isError: true,
-      }),
+    await vi.waitFor(() =>
+      expect(s.events).toContainEqual(
+        expect.objectContaining({
+          type: "tool_end",
+          projectId: game.id,
+          turnId: "bot_job_1",
+          callId: "w1",
+          isError: true,
+        }),
+      ),
     );
     expect(s.events).not.toContainEqual(
       expect.objectContaining({ type: "build_end", projectId: game.id, turnId: "bot_job_1" }),
