@@ -273,7 +273,12 @@ export function registerIpc(services: Services): void {
 
   ipcMain.handle("hibit:preview:open-external", async (_event, url: string) => {
     // Only ever hand the OS a local preview URL - never an arbitrary scheme.
-    if (!isNavigationAllowed(url, services.preview.list().map((entry) => entry.url))) {
+    if (
+      !isNavigationAllowed(
+        url,
+        services.preview.list().map((entry) => entry.url),
+      )
+    ) {
       throw new Error("Refusing to open a non-preview URL.");
     }
     await shell.openExternal(url);
