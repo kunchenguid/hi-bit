@@ -34,6 +34,27 @@ function makeWindowFactory() {
   return { windows, createWindow };
 }
 
+function makeRejectingWindowFactory() {
+  const windows: Array<{ destroyed: boolean }> = [];
+  const createWindow = (): HeadlessWindow => {
+    const state = { destroyed: false };
+    windows.push(state);
+    return {
+      debugger: fakeDebugger(),
+      capture: async () => null,
+      loadURL: async () => {
+        throw new Error("navigation failed");
+      },
+      currentUrl: () => "",
+      title: () => "Headless",
+      destroy: () => {
+        state.destroyed = true;
+      },
+    };
+  };
+  return { windows, createWindow };
+}
+
 describe("HeadlessBrowserHost", () => {
   const allow = (url: string) => url.includes("127.0.0.1") || url.includes("wikipedia.org");
 
@@ -97,5 +118,17 @@ describe("HeadlessBrowserHost", () => {
     host.dispose();
     expect(factory.windows.every((w) => w.destroyed)).toBe(true);
     expect(await host.listTabs()).toHaveLength(0);
+  });
+
+  it("cleans up a new tab when initial navigation fails", async () => {
+    const factory = makeRejectingWindowFactory();
+    const host = new HeadlessBrowserHost({ createWindow: factory.createWindow, isAllowed: allow });
+
+    await expect(host.openTab("https://wikipedia.org/")).rejects.toThrow("navigation failed");
+
+    expect(factory.windows).toHaveLength(1);
+    expect(factory.windows[0].destroyed).toBe(true);
+    expect(await host.listTabs()).toHaveLength(0);
+    await expect(host.openTab("https://wikipedia.org/")).rejects.toThrow("navigation failed");
   });
 });

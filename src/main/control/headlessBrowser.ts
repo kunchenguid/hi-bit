@@ -64,7 +64,12 @@ export class HeadlessBrowserHost implements BrowserHost {
     const tab: HeadlessTab = { id, window, controller, kind: kindFor(url) };
     this.tabs.set(id, tab);
     this.activeId = id;
-    if (url) await window.loadURL(url);
+    try {
+      if (url) await window.loadURL(url);
+    } catch (error) {
+      await this.closeTab(id);
+      throw error;
+    }
     return this.toTab(tab);
   }
 

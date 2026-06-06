@@ -160,7 +160,11 @@ export class AppControlService {
       const frameKey = await this.activeFrameKey();
       return frameKey ? (await this.controllerFor()).readText(frameKey) : "";
     },
-    screenshot: () => this.deps.captureApp(),
+    screenshot: async () => {
+      await this.assertBrowserAllowed();
+      const frameKey = await this.activeFrameKey();
+      return frameKey ? (await this.controllerFor()).screenshotFrame(frameKey) : null;
+    },
     console: async () => {
       await this.assertBrowserAllowed();
       return (await this.controllerFor()).recentConsole();

@@ -150,6 +150,35 @@ describe("AppControlService visible browser", () => {
     expect(controller.firstDisallowedFrameUrl).toHaveBeenCalledWith(expect.any(Function), "frame-active");
     expect(controller.snapshotFrame).toHaveBeenCalledWith("frame-active");
   });
+
+  it("captures screenshots from only the active browser frame", async () => {
+    const { service } = makeService(["wikipedia.org"]);
+    await service.restore({
+      tabs: [{ id: "active", url: "https://wikipedia.org/", kind: "web" }],
+      activeTabId: "active",
+    });
+    const controller = {
+      isAttached: () => true,
+      firstDisallowedFrameUrl: vi.fn(async () => null),
+      findFrameKeyByUrl: vi.fn(async () => "frame-active"),
+      screenshotFrame: vi.fn(async () => "FRAME_PNG"),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        captureApp: vi.fn(async () => "APP_PNG"),
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await expect(service.browserHost.screenshot()).resolves.toBe("FRAME_PNG");
+
+    expect(controller.screenshotFrame).toHaveBeenCalledWith("frame-active");
+  });
 });
 
 describe("AppControlService spotlight", () => {

@@ -422,6 +422,55 @@ export class CdpController {
     return typeof value === "string" ? value : "";
   }
 
+  async screenshotFrame(frameKey: string): Promise<string | null> {
+    if (frameKey === TOP) return this.screenshot();
+    const rect = await this.frameViewportRect(frameKey);
+    if (!rect) return null;
+    try {
+      const result = (await this.send(
+        "Page.captureScreenshot",
+        { format: "png", clip: { ...rect, scale: 1 }, fromSurface: true },
+        TOP,
+      )) as { data?: string };
+      return result.data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async frameViewportRect(frameKey: string): Promise<Rect | null> {
+    const child = this.children.get(frameKey);
+    if (!child?.frameId) return null;
+    try {
+      const owner = (await this.send(
+        "DOM.getFrameOwner",
+        { frameId: child.frameId },
+        child.parentKey,
+      )) as { backendNodeId?: number };
+      if (typeof owner.backendNodeId !== "number") return null;
+      const box = (await this.send(
+        "DOM.getBoxModel",
+        { backendNodeId: owner.backendNodeId },
+        child.parentKey,
+      )) as { model?: { content?: number[]; border?: number[] } };
+      const q = box.model?.content ?? box.model?.border;
+      if (!q || q.length < 8) return null;
+      const xs = [q[0], q[2], q[4], q[6]];
+      const ys = [q[1], q[3], q[5], q[7]];
+      const offset = await this.offsetFor(child.parentKey);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+      return {
+        x: minX + offset.x,
+        y: minY + offset.y,
+        width: Math.max(...xs) - minX,
+        height: Math.max(...ys) - minY,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   /** Full-surface screenshot as base64 PNG. */
   screenshot(): Promise<string | null> {
     return this.capture();
