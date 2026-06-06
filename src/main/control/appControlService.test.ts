@@ -29,9 +29,8 @@ function fakeHeadlessWindow(): HeadlessWindow {
   };
 }
 
-function makeService(allowlist: string[] = ["wikipedia.org"]) {
+function makeService(previewUrls: readonly string[] = ["http://127.0.0.1:4310/"]) {
   const broadcasts: Array<{ channel: string; payload: unknown }> = [];
-  const saved: string[][] = [];
   const service = new AppControlService({
     getAppDebugger: () => null,
     getAppWebContentsId: () => null,
@@ -40,63 +39,38 @@ function makeService(allowlist: string[] = ["wikipedia.org"]) {
     createHeadlessWindow: () => {
       throw new Error("not used");
     },
-    loadAllowlist: async () => [...allowlist],
-    saveAllowlist: async (domains) => {
-      saved.push([...domains]);
-    },
+    getPreviewUrls: () => previewUrls,
   });
-  return { service, broadcasts, saved };
+  return { service, broadcasts };
 }
 
-describe("AppControlService allowlist", () => {
-  it("adds, normalizes, and persists a domain", async () => {
-    const { service, saved } = makeService([]);
-    const next = await service.addAllowedDomain("HTTPS://www.NASA.gov/foo");
-    expect(next).toContain("nasa.gov");
-    expect(saved.at(-1)).toContain("nasa.gov");
-  });
-
-  it("removes a domain and persists", async () => {
-    const { service, saved } = makeService(["wikipedia.org", "nasa.gov"]);
-    const next = await service.removeAllowedDomain("nasa.gov");
-    expect(next).toEqual(["wikipedia.org"]);
-    expect(saved.at(-1)).toEqual(["wikipedia.org"]);
-  });
-
-  it("loads only once under concurrent callers (no double first-run seed)", async () => {
-    let loadCount = 0;
-    const service = new AppControlService({
-      getAppDebugger: () => null,
-      getAppWebContentsId: () => null,
-      captureApp: async () => null,
-      broadcast: () => {},
-      createHeadlessWindow: fakeHeadlessWindow,
-      loadAllowlist: async () => {
-        loadCount++;
-        return ["wikipedia.org"];
-      },
-      saveAllowlist: async () => {},
-    });
-    // Two IPC calls racing on startup (e.g. React StrictMode double-invokes the
-    // settings effect) must share one load, not each trigger their own.
-    const [a, b] = await Promise.all([service.listAllowedDomains(), service.listAllowedDomains()]);
-    expect(a).toEqual(["wikipedia.org"]);
-    expect(b).toEqual(["wikipedia.org"]);
-    expect(loadCount).toBe(1);
-  });
-});
-
 describe("AppControlService visible browser", () => {
-  it("opens an external website when listed", async () => {
+  it("refuses to open an external website", async () => {
     const { service } = makeService();
-    await service.listAllowedDomains();
-    const opened = service.browserHost.openTab("https://wikipedia.org/");
+    await expect(service.browserHost.openTab("https://wikipedia.org/")).rejects.toBeInstanceOf(
+      NavigationBlockedError,
+    );
+    expect(service.state().tabs).toHaveLength(0);
+  });
+
+  it("opens a creation's own loopback preview", async () => {
+    const { service } = makeService();
+    const opened = service.browserHost.openTab("http://127.0.0.1:4310/");
     await Promise.resolve();
     const tabId = service.state().tabs[0]?.id;
-    if (tabId) await service.onTabLoaded(tabId, "https://wikipedia.org/");
+    if (tabId) await service.onTabLoaded(tabId, "http://127.0.0.1:4310/");
     const tab = await opened;
 
-    expect(tab).toMatchObject({ url: "https://wikipedia.org/", kind: "web" });
+    expect(tab).toMatchObject({ url: "http://127.0.0.1:4310/", kind: "creation" });
+  });
+
+  it("refuses loopback urls that are not active previews", async () => {
+    const { service } = makeService(["http://127.0.0.1:4310/"]);
+
+    await expect(service.browserHost.openTab("http://127.0.0.1:5173/")).rejects.toBeInstanceOf(
+      NavigationBlockedError,
+    );
+    expect(service.state().tabs).toHaveLength(0);
   });
 
   it("focuses an existing loopback tab instead of duplicating it", async () => {
@@ -137,8 +111,8 @@ describe("AppControlService visible browser", () => {
     expect(state.tabs).toHaveLength(1);
   });
 
-  it("drops external tabs on restore", async () => {
-    const { service } = makeService(["wikipedia.org"]);
+  it("drops external tabs on restore, keeping only loopback creations", async () => {
+    const { service } = makeService();
     await service.restore({
       tabs: [
         { id: "a", url: "https://wikipedia.org/", kind: "web" },
@@ -148,31 +122,33 @@ describe("AppControlService visible browser", () => {
       activeTabId: "b",
     });
     const state = service.state();
-    expect(state.tabs.map((t) => t.id).sort()).toEqual(["a", "c"]);
-    // The active id pointed at the dropped tab, so it falls back to a kept one.
-    expect(state.activeTabId).not.toBe("b");
+    expect(state.tabs.map((t) => t.id)).toEqual(["c"]);
+    // The active id pointed at a dropped tab, so it falls back to the kept one.
+    expect(state.activeTabId).toBe("c");
   });
 
-  it("constructs a headless browser that allows listed external websites", async () => {
+  it("constructs a headless browser that refuses external websites", async () => {
     const service = new AppControlService({
       getAppDebugger: () => null,
       getAppWebContentsId: () => null,
       captureApp: async () => null,
       broadcast: () => {},
       createHeadlessWindow: fakeHeadlessWindow,
-      loadAllowlist: vi.fn(async () => ["wikipedia.org"]),
-      saveAllowlist: async () => {},
+      getPreviewUrls: () => ["http://127.0.0.1:5000/"],
     });
 
     const host = service.createHeadlessBrowser();
 
-    await expect(host.openTab("https://wikipedia.org/")).resolves.toMatchObject({
-      url: "https://wikipedia.org/",
+    await expect(host.openTab("https://wikipedia.org/")).rejects.toBeInstanceOf(
+      NavigationBlockedError,
+    );
+    await expect(host.openTab("http://127.0.0.1:5000/")).resolves.toMatchObject({
+      url: "http://127.0.0.1:5000/",
     });
   });
 
   it("validates and snapshots only the active browser frame", async () => {
-    const { service } = makeService(["wikipedia.org"]);
+    const { service } = makeService();
     await service.restore({
       tabs: [{ id: "active", url: "http://127.0.0.1:4310/", kind: "creation" }],
       activeTabId: "active",
@@ -205,7 +181,7 @@ describe("AppControlService visible browser", () => {
   });
 
   it("captures screenshots from only the active browser frame", async () => {
-    const { service } = makeService(["wikipedia.org"]);
+    const { service } = makeService();
     await service.restore({
       tabs: [{ id: "active", url: "http://127.0.0.1:4310/", kind: "creation" }],
       activeTabId: "active",
@@ -287,7 +263,7 @@ describe("AppControlService tab loaded", () => {
   });
 
   it("stores the committed loopback frame URL after a redirect", async () => {
-    const { service } = makeService(["wikipedia.org"]);
+    const { service } = makeService();
     await service.restore({
       tabs: [{ id: "active", url: "http://127.0.0.1:4310/start", kind: "creation" }],
       activeTabId: "active",
@@ -313,5 +289,110 @@ describe("AppControlService tab loaded", () => {
     await service.onTabLoaded("active", "http://127.0.0.1:4310/start");
 
     expect(service.state().tabs[0].url).toBe("http://127.0.0.1:4310/redirected");
+  });
+
+  it("clears the tab when a committed frame load is not an active preview", async () => {
+    const { service } = makeService(["http://127.0.0.1:4310/"]);
+    await service.restore({
+      tabs: [{ id: "active", url: "http://127.0.0.1:4310/start", kind: "creation" }],
+      activeTabId: "active",
+    });
+    const controller = {
+      isAttached: () => true,
+      findFrameKeyByUrl: vi.fn(async () => undefined),
+      childFrameUrls: vi.fn(async () => [
+        { frameKey: "frame-active", url: "http://127.0.0.1:5173/" },
+      ]),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await service.onTabLoaded("active", "http://127.0.0.1:4310/start");
+
+    expect(service.state().tabs[0].url).toBe("");
+  });
+
+  it("broadcasts after clearing a committed frame load that is not an active preview", async () => {
+    const { service, broadcasts } = makeService(["http://127.0.0.1:4310/"]);
+    await service.restore({
+      tabs: [{ id: "active", url: "http://127.0.0.1:4310/start", kind: "creation" }],
+      activeTabId: "active",
+    });
+    broadcasts.length = 0;
+    const controller = {
+      isAttached: () => true,
+      findFrameKeyByUrl: vi.fn(async () => undefined),
+      childFrameUrls: vi.fn(async () => [
+        { frameKey: "frame-active", url: "http://127.0.0.1:5173/" },
+      ]),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await service.onTabLoaded("active", "http://127.0.0.1:4310/start");
+
+    expect(broadcasts).toContainEqual({
+      channel: "hibit:browser:state",
+      payload: {
+        tabs: [{ id: "active", url: "", kind: "web" }],
+        activeTabId: "active",
+      },
+    });
+  });
+
+  it("clears a hidden tab when its committed frame load is not an active preview", async () => {
+    const { service, broadcasts } = makeService(["http://127.0.0.1:4310/"]);
+    await service.restore({
+      tabs: [
+        { id: "active", url: "http://127.0.0.1:4310/active", kind: "creation" },
+        { id: "hidden", url: "http://127.0.0.1:4310/start", kind: "creation" },
+      ],
+      activeTabId: "active",
+    });
+    broadcasts.length = 0;
+    const controller = {
+      isAttached: () => true,
+      findFrameKeyByUrl: vi.fn(async () => undefined),
+      childFrameUrls: vi.fn(async () => [
+        { frameKey: "frame-hidden", url: "http://127.0.0.1:5173/" },
+      ]),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await service.onTabLoaded("hidden", "http://127.0.0.1:4310/start");
+
+    expect(service.state().tabs.find((tab) => tab.id === "hidden")?.url).toBe("");
+    expect(broadcasts.at(-1)?.payload).toMatchObject({
+      tabs: [
+        { id: "active", url: "http://127.0.0.1:4310/active", kind: "creation" },
+        { id: "hidden", url: "", kind: "web" },
+      ],
+      activeTabId: "active",
+    });
   });
 });

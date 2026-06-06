@@ -947,11 +947,6 @@ function createApiMock(): HiBitApi {
         };
       }),
       onSpotlight: vi.fn(() => () => {}),
-      allowlist: {
-        list: vi.fn(async () => []),
-        add: vi.fn(async () => []),
-        remove: vi.fn(async () => []),
-      },
     },
     voice: {
       status: vi.fn(async () => ({ modelReady: false })),

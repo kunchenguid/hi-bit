@@ -10,7 +10,6 @@ import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { ActivityChip } from "../components/ActivityChip";
 import { BrowserPane } from "../components/BrowserPane";
-import { BrowserSettings } from "../components/BrowserSettings";
 import { Composer } from "../components/Composer";
 import { FactoryView } from "../components/FactoryView";
 import { MessageList } from "../components/MessageList";
@@ -125,7 +124,6 @@ export function ChatWorkspace({
           <summary className="hb-button hb-button-secondary">Grown-up menu</summary>
           <div className="hb-card hb-parent-menu-popover">
             <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
-            <BrowserSettings />
             <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
               Open creations folder
             </button>

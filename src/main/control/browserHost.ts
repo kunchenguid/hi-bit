@@ -5,8 +5,8 @@ import type { BrowserTab } from "@shared/browser";
  * `VisibleBrowserHost` backs it with renderer iframes (Bit); `HeadlessBrowserHost`
  * backs it with offscreen windows (bots). Tools never know which.
  *
- * Navigation passes through the host's allowlist gate before any load - the tools
- * just surface the refusal.
+ * Navigation passes through the host's loopback gate before any load - only a
+ * creation's own preview may load, and the tools just surface the refusal.
  */
 export interface BrowserHost {
   openTab(url?: string): Promise<BrowserTab>;
@@ -35,10 +35,10 @@ export interface BrowserHost {
   console(): Promise<string[]>;
 }
 
-/** Thrown when a navigation target is neither loopback nor parent-approved. */
+/** Thrown when a navigation target is anything but a creation's own preview. */
 export class NavigationBlockedError extends Error {
   constructor(url: string) {
-    super(`I can only open this creation's own preview or a grown-up-approved website: ${url}.`);
+    super(`I can only open this creation's own preview, not other websites: ${url}.`);
     this.name = "NavigationBlockedError";
   }
 }

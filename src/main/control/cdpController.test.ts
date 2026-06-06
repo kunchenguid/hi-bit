@@ -148,7 +148,7 @@ describe("CdpController", () => {
     expect(presses[0].sessionId).toBeUndefined(); // dispatched on the TOP session
   });
 
-  it("reports the first attached frame URL rejected by a caller allowlist", async () => {
+  it("reports the first attached frame URL rejected by a caller gate", async () => {
     const fake = makeFakeDebugger();
     const controller = new CdpController({ debugger: fake.dbg, capture: async () => "png" });
     await controller.attach();

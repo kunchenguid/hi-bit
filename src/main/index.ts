@@ -6,9 +6,9 @@ import type { AppInfo, Platform } from "@shared/ipc";
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
-import { AllowlistStore } from "./control/allowlistStore";
 import { AppControlService, type AppDebugger } from "./control/appControlService";
 import type { HeadlessWindow } from "./control/headlessBrowser";
+import { isNavigationAllowed } from "./control/navigation";
 import { ConversationService } from "./conversation/conversationService";
 import { BitRuntimeService } from "./pi/bitRuntimeService";
 import { planShorterEdgeResize } from "./pi/captureImage";
@@ -130,15 +130,19 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   const projects = new ProjectService(layout);
   const conversation = new ConversationService(layout);
   const modelId = modelIdFromConfig(config.defaultModel);
-  const allowlistStore = new AllowlistStore(layout.browserAllowlistPath);
+  const preview = new PreviewService({
+    resolveWorkbenchDir: (profileId, projectId) =>
+      projects.pathsFor(profileId, projectId).mainWorkbenchDir,
+    onStopped: ({ profileId, projectId }) =>
+      broadcastChatEvent({ type: "preview_stopped", profileId, projectId }),
+  });
   const appControl = new AppControlService({
     getAppDebugger: () => (getMainWindow()?.webContents.debugger as AppDebugger) ?? null,
     getAppWebContentsId: () => getMainWindow()?.webContents.id ?? null,
     captureApp: captureAppScreen,
     broadcast: broadcastToRenderer,
     createHeadlessWindow,
-    loadAllowlist: () => allowlistStore.load(),
-    saveAllowlist: (domains) => allowlistStore.save(domains),
+    getPreviewUrls: () => preview.list().map((entry) => entry.url),
   });
   const runtime = new PiRuntimeService({
     agentDir: layout.piAgentDir,
@@ -157,12 +161,6 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     browserHost: appControl.browserHost,
     onSessionFile: (profileId, sessionFile) =>
       conversation.setBitSessionFile(profileId, sessionFile),
-  });
-  const preview = new PreviewService({
-    resolveWorkbenchDir: (profileId, projectId) =>
-      projects.pathsFor(profileId, projectId).mainWorkbenchDir,
-    onStopped: ({ profileId, projectId }) =>
-      broadcastChatEvent({ type: "preview_stopped", profileId, projectId }),
   });
   const bit = new BitCoordinatorService({
     profiles,
@@ -272,17 +270,17 @@ export function registerIpc(services: Services): void {
   ipcMain.on("hibit:browser:tab-loaded", (_event, tabId: string, url: string, title?: string) =>
     services.appControl.onTabLoaded(tabId, url, title),
   );
-  ipcMain.handle("hibit:browser:allowlist:list", () => services.appControl.listAllowedDomains());
-  ipcMain.handle("hibit:browser:allowlist:add", (_event, domain: string) =>
-    services.appControl.addAllowedDomain(domain),
-  );
-  ipcMain.handle("hibit:browser:allowlist:remove", (_event, domain: string) =>
-    services.appControl.removeAllowedDomain(domain),
-  );
 
   ipcMain.handle("hibit:preview:open-external", async (_event, url: string) => {
     // Only ever hand the OS a local preview URL - never an arbitrary scheme.
-    if (!isLoopbackHttpUrl(url)) throw new Error("Refusing to open a non-preview URL.");
+    if (
+      !isNavigationAllowed(
+        url,
+        services.preview.list().map((entry) => entry.url),
+      )
+    ) {
+      throw new Error("Refusing to open a non-preview URL.");
+    }
     await shell.openExternal(url);
   });
 
@@ -354,17 +352,6 @@ export function isAppRendererSource(
     const url = new URL(value);
     if (devServerUrl && url.origin === new URL(devServerUrl).origin) return true;
     return url.protocol === "file:" && url.href === pathToFileURL(bundledRendererFile).href;
-  } catch {
-    return false;
-  }
-}
-
-function isLoopbackHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "http:" && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
-    );
   } catch {
     return false;
   }
