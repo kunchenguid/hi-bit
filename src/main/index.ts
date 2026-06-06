@@ -129,12 +129,19 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   const projects = new ProjectService(layout);
   const conversation = new ConversationService(layout);
   const modelId = modelIdFromConfig(config.defaultModel);
+  const preview = new PreviewService({
+    resolveWorkbenchDir: (profileId, projectId) =>
+      projects.pathsFor(profileId, projectId).mainWorkbenchDir,
+    onStopped: ({ profileId, projectId }) =>
+      broadcastChatEvent({ type: "preview_stopped", profileId, projectId }),
+  });
   const appControl = new AppControlService({
     getAppDebugger: () => (getMainWindow()?.webContents.debugger as AppDebugger) ?? null,
     getAppWebContentsId: () => getMainWindow()?.webContents.id ?? null,
     captureApp: captureAppScreen,
     broadcast: broadcastToRenderer,
     createHeadlessWindow,
+    getPreviewUrls: () => preview.list().map((entry) => entry.url),
   });
   const runtime = new PiRuntimeService({
     agentDir: layout.piAgentDir,
@@ -153,12 +160,6 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     browserHost: appControl.browserHost,
     onSessionFile: (profileId, sessionFile) =>
       conversation.setBitSessionFile(profileId, sessionFile),
-  });
-  const preview = new PreviewService({
-    resolveWorkbenchDir: (profileId, projectId) =>
-      projects.pathsFor(profileId, projectId).mainWorkbenchDir,
-    onStopped: ({ profileId, projectId }) =>
-      broadcastChatEvent({ type: "preview_stopped", profileId, projectId }),
   });
   const bit = new BitCoordinatorService({
     profiles,

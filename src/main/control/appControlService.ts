@@ -21,6 +21,7 @@ export type AppControlDeps = {
   broadcast: (channel: string, payload: unknown) => void;
   /** Make a fresh headless offscreen window for a bot tab. */
   createHeadlessWindow: () => HeadlessWindow;
+  getPreviewUrls: () => readonly string[];
 };
 
 /** Electron's debugger shape, re-exported so deps don't import the controller. */
@@ -47,7 +48,7 @@ export class AppControlService {
 
   /** Only a creation's own loopback preview may load; external sites are refused. */
   private isAllowed(url: string): boolean {
-    return isNavigationAllowed(url);
+    return isNavigationAllowed(url, this.deps.getPreviewUrls());
   }
 
   // --- the lazily-attached app controller ----------------------------------

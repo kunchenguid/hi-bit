@@ -29,7 +29,7 @@ function fakeHeadlessWindow(): HeadlessWindow {
   };
 }
 
-function makeService() {
+function makeService(previewUrls: readonly string[] = ["http://127.0.0.1:4310/"]) {
   const broadcasts: Array<{ channel: string; payload: unknown }> = [];
   const service = new AppControlService({
     getAppDebugger: () => null,
@@ -39,6 +39,7 @@ function makeService() {
     createHeadlessWindow: () => {
       throw new Error("not used");
     },
+    getPreviewUrls: () => previewUrls,
   });
   return { service, broadcasts };
 }
@@ -61,6 +62,15 @@ describe("AppControlService visible browser", () => {
     const tab = await opened;
 
     expect(tab).toMatchObject({ url: "http://127.0.0.1:4310/", kind: "creation" });
+  });
+
+  it("refuses loopback urls that are not active previews", async () => {
+    const { service } = makeService(["http://127.0.0.1:4310/"]);
+
+    await expect(service.browserHost.openTab("http://127.0.0.1:5173/")).rejects.toBeInstanceOf(
+      NavigationBlockedError,
+    );
+    expect(service.state().tabs).toHaveLength(0);
   });
 
   it("focuses an existing loopback tab instead of duplicating it", async () => {
@@ -124,6 +134,7 @@ describe("AppControlService visible browser", () => {
       captureApp: async () => null,
       broadcast: () => {},
       createHeadlessWindow: fakeHeadlessWindow,
+      getPreviewUrls: () => ["http://127.0.0.1:5000/"],
     });
 
     const host = service.createHeadlessBrowser();
