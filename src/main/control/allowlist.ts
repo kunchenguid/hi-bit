@@ -1,7 +1,7 @@
 /**
  * The navigation allowlist for Bit's and bots' browser. Hi-Bit is for kids, so
- * the browser may only ever load loopback (a creation's own preview server).
- * Everything else is refused before a navigation is ever issued.
+ * the browser may only ever load loopback (a creation's own preview server) or
+ * parent-approved websites. Everything else is refused before navigation.
  *
  * Pure on purpose: the gate logic is unit-tested here.
  */
@@ -30,9 +30,9 @@ export function normalizeDomain(entry: string): string | null {
 
 /**
  * The single gate every browser navigation passes through. Loopback is always
- * allowed. Anything unparseable, any non-http scheme, and any external host is refused.
+ * allowed. External websites must match a parent-approved domain or subdomain.
  */
-export function isNavigationAllowed(url: string, _allowlist: readonly AllowedDomain[]): boolean {
+export function isNavigationAllowed(url: string, allowlist: readonly AllowedDomain[]): boolean {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -40,7 +40,13 @@ export function isNavigationAllowed(url: string, _allowlist: readonly AllowedDom
     return false;
   }
   if (parsed.protocol === "http:" && isLoopbackHost(parsed.hostname)) return true;
-  return false;
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  const host = normalizeDomain(parsed.hostname);
+  if (!host) return false;
+  return allowlist.some((entry) => {
+    const domain = normalizeDomain(entry);
+    return domain !== null && (host === domain || host.endsWith(`.${domain}`));
+  });
 }
 
 /** The kid-safe domains shipped on by default; parents add more in settings. */

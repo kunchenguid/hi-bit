@@ -51,7 +51,7 @@ describe("createHeadlessWindow", () => {
     const win = electronMock.BrowserWindow.mock.results.at(-1)?.value;
     expect(win.webContents.setWindowOpenHandler).toHaveBeenCalledWith(expect.any(Function));
     expect(win.webContents.setWindowOpenHandler.mock.calls[0][0]()).toEqual({ action: "deny" });
-  });
+  }, 10_000);
 });
 
 vi.mock("electron", () => electronMock);

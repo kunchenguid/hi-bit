@@ -2,6 +2,32 @@ import type { SpotlightRect } from "@shared/browser";
 import { describe, expect, it, vi } from "vitest";
 import { AppControlService } from "./appControlService";
 import { NavigationBlockedError } from "./browserHost";
+import type { CdpDebugger } from "./cdpController";
+import type { HeadlessWindow } from "./headlessBrowser";
+
+function fakeDebugger(): CdpDebugger {
+  return {
+    isAttached: () => false,
+    attach: vi.fn(),
+    detach: vi.fn(),
+    sendCommand: vi.fn(async () => ({})),
+    on: vi.fn(),
+  };
+}
+
+function fakeHeadlessWindow(): HeadlessWindow {
+  let currentUrl = "";
+  return {
+    debugger: fakeDebugger(),
+    capture: async () => null,
+    loadURL: async (url) => {
+      currentUrl = url;
+    },
+    currentUrl: () => currentUrl,
+    title: () => "Headless",
+    destroy: () => {},
+  };
+}
 
 function makeService(allowlist: string[] = ["wikipedia.org"]) {
   const broadcasts: Array<{ channel: string; payload: unknown }> = [];
@@ -44,9 +70,7 @@ describe("AppControlService allowlist", () => {
       getAppWebContentsId: () => null,
       captureApp: async () => null,
       broadcast: () => {},
-      createHeadlessWindow: () => {
-        throw new Error("not used");
-      },
+      createHeadlessWindow: fakeHeadlessWindow,
       loadAllowlist: async () => {
         loadCount++;
         return ["wikipedia.org"];
@@ -63,11 +87,16 @@ describe("AppControlService allowlist", () => {
 });
 
 describe("AppControlService visible browser", () => {
-  it("refuses opening an external website even when listed", async () => {
+  it("opens an external website when listed", async () => {
     const { service } = makeService();
-    await expect(service.browserHost.openTab("https://wikipedia.org/")).rejects.toBeInstanceOf(
-      NavigationBlockedError,
-    );
+    await service.listAllowedDomains();
+    const opened = service.browserHost.openTab("https://wikipedia.org/");
+    await Promise.resolve();
+    const tabId = service.state().tabs[0]?.id;
+    if (tabId) await service.onTabLoaded(tabId, "https://wikipedia.org/");
+    const tab = await opened;
+
+    expect(tab).toMatchObject({ url: "https://wikipedia.org/", kind: "web" });
   });
 
   it("focuses an existing loopback tab instead of duplicating it", async () => {
@@ -119,29 +148,27 @@ describe("AppControlService visible browser", () => {
       activeTabId: "b",
     });
     const state = service.state();
-    expect(state.tabs.map((t) => t.id).sort()).toEqual(["c"]);
+    expect(state.tabs.map((t) => t.id).sort()).toEqual(["a", "c"]);
     // The active id pointed at the dropped tab, so it falls back to a kept one.
     expect(state.activeTabId).not.toBe("b");
   });
 
-  it("constructs a headless browser that refuses external websites", async () => {
+  it("constructs a headless browser that allows listed external websites", async () => {
     const service = new AppControlService({
       getAppDebugger: () => null,
       getAppWebContentsId: () => null,
       captureApp: async () => null,
       broadcast: () => {},
-      createHeadlessWindow: () => {
-        throw new Error("not used");
-      },
+      createHeadlessWindow: fakeHeadlessWindow,
       loadAllowlist: vi.fn(async () => ["wikipedia.org"]),
       saveAllowlist: async () => {},
     });
 
     const host = service.createHeadlessBrowser();
 
-    await expect(host.openTab("https://wikipedia.org/")).rejects.toBeInstanceOf(
-      NavigationBlockedError,
-    );
+    await expect(host.openTab("https://wikipedia.org/")).resolves.toMatchObject({
+      url: "https://wikipedia.org/",
+    });
   });
 
   it("validates and snapshots only the active browser frame", async () => {

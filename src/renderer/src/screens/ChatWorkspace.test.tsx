@@ -129,6 +129,13 @@ describe("ChatWorkspace header", () => {
     // The kid-facing chrome no longer surfaces "Codex" or an account id anywhere.
     expect(host.textContent).not.toContain("Codex provider connected");
   });
+
+  it("exposes allowed website settings in the grown-up menu", () => {
+    renderWorkspace(host);
+
+    const menu = host.querySelector(".hb-parent-menu-popover");
+    expect(menu?.textContent).toContain("Allowed websites");
+  });
 });
 
 describe("ChatWorkspace factory floor", () => {
