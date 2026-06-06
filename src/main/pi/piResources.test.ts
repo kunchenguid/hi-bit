@@ -194,6 +194,18 @@ describe("buildBitSystemPrompt", () => {
     }
   });
 
+  it("offers view_screen in both Bit prompt sources for visual app questions", () => {
+    const runtimePrompt = buildBitSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      expect(prompt).toContain("view_screen");
+      expect(prompt).toMatch(/whole Hi-Bit screen|whole.*screen/i);
+      expect(prompt).toMatch(/builder.*see|what they see/i);
+      expect(prompt).toMatch(/looks weird|wrong place|look like this|visual/i);
+    }
+  });
+
   it("gates inside words through the per-turn Words-you-may-use note, not by scrubbing the prompt", () => {
     const runtimePrompt = buildBitSystemPrompt();
     const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");

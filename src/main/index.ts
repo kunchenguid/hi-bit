@@ -9,6 +9,7 @@ import { BitCoordinatorService } from "./bit/bitCoordinatorService";
 import { ConversationService } from "./conversation/conversationService";
 import { BitRuntimeService } from "./pi/bitRuntimeService";
 import { PiRuntimeService } from "./pi/piRuntimeService";
+import { planShorterEdgeResize } from "./pi/screenTool";
 import { PreviewService } from "./preview/previewService";
 import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
@@ -137,6 +138,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
     mascotAssetPath: mascotAssetFor(),
+    captureScreen: captureAppScreen,
     onSessionFile: (profileId, sessionFile) =>
       conversation.setBitSessionFile(profileId, sessionFile),
   });
@@ -318,6 +320,28 @@ function isLoopbackHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** The shorter edge of Bit's screenshots is capped here (see `view_screen`). */
+const MAX_SCREENSHOT_SHORTER_EDGE = 1024;
+
+/**
+ * Captures the live app renderer - chat, chrome, and the live creation preview
+ * iframe - as a base64 PNG for Bit's `view_screen` tool, or `null` when there is
+ * no window to capture (e.g. during shutdown). `capturePage()` composites the
+ * whole renderer, so the running preview is included. The frame is downscaled so
+ * its shorter edge is at most 1024px - legible for the vision model without
+ * spending image tokens on Retina-doubled pixels.
+ */
+async function captureAppScreen(): Promise<string | null> {
+  const win = BrowserWindow.getAllWindows().find(
+    (candidate) => !candidate.isDestroyed() && !candidate.webContents.isDestroyed(),
+  );
+  if (!win) return null;
+  let image = await win.webContents.capturePage();
+  const resize = planShorterEdgeResize(image.getSize(), MAX_SCREENSHOT_SHORTER_EDGE);
+  if (resize) image = image.resize(resize);
+  return image.toPNG().toString("base64");
 }
 
 function broadcastChatEvent(event: ChatEvent): void {

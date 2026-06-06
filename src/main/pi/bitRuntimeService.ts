@@ -13,6 +13,7 @@ import type { ChatEvent } from "@shared/chat";
 import { createViewBitTool } from "./brandTool";
 import { createBitResourceLoader } from "./piResources";
 import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
+import { createViewScreenTool } from "./screenTool";
 import { createWebSearchTools } from "./webSearchTools";
 
 /** A picture handed to the model with a prompt, in the Pi runtime's content shape. */
@@ -78,6 +79,11 @@ type BitRuntimeServiceOptions = {
   onSessionFile?: (profileId: string, sessionFile: string | undefined) => Promise<void> | void;
   /** Path to Bit's mascot SVG, so Bit can `view_bit` to see its own look. */
   mascotAssetPath?: string;
+  /**
+   * Captures the live app renderer as a base64 PNG (or `null` if no window),
+   * backing Bit's `view_screen` tool. Omitted in tests, so the tool is absent.
+   */
+  captureScreen?: () => Promise<string | null>;
 };
 
 type RunningTurn = {
@@ -110,6 +116,12 @@ export class BitRuntimeService implements BitRuntime {
    * path is configured (e.g. in tests).
    */
   private readonly brandTools: ToolDefinition[];
+  /**
+   * Bit's "look at the app" tool (`view_screen`), so Bit can see the whole
+   * renderer - chat, chrome, and live preview - when the builder describes
+   * something visual. Empty when no capture function is configured (e.g. tests).
+   */
+  private readonly screenTools: ToolDefinition[];
 
   constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
@@ -120,6 +132,9 @@ export class BitRuntimeService implements BitRuntime {
     });
     this.brandTools = options.mascotAssetPath
       ? [createViewBitTool({ mascotSvgPath: options.mascotAssetPath })]
+      : [];
+    this.screenTools = options.captureScreen
+      ? [createViewScreenTool({ capture: options.captureScreen })]
       : [];
   }
 
@@ -209,7 +224,12 @@ export class BitRuntimeService implements BitRuntime {
     if (existing) return existing;
     const session = await this.createSession({
       ...input,
-      customTools: [...input.customTools, ...this.webTools, ...this.brandTools],
+      customTools: [
+        ...input.customTools,
+        ...this.webTools,
+        ...this.brandTools,
+        ...this.screenTools,
+      ],
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,

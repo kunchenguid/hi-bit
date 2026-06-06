@@ -253,6 +253,39 @@ describe("BitRuntimeService", () => {
     expect(JSON.stringify(piRuntime.persistedMessages.at(-1))).not.toContain("AAABBB");
   });
 
+  it("gives Bit the view_screen tool when a screen capture function is configured", async () => {
+    let captured: CreateBitSessionInput | undefined;
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      captureScreen: async () => "PNGBYTES",
+      createSession: async (input: CreateBitSessionInput) => {
+        captured = input;
+        return new FakeBitSession();
+      },
+    });
+
+    await service.prompt(baseInput(), "why does this button look weird?", () => {});
+
+    expect((captured?.customTools ?? []).map((tool) => tool.name)).toContain("view_screen");
+  });
+
+  it("omits view_screen when no screen capture function is configured", async () => {
+    let captured: CreateBitSessionInput | undefined;
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        captured = input;
+        return new FakeBitSession();
+      },
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+
+    expect((captured?.customTools ?? []).map((tool) => tool.name)).not.toContain("view_screen");
+  });
+
   it("gives Bit the web lookup tools alongside its delegation tools", async () => {
     let captured: CreateBitSessionInput | undefined;
     const service = new BitRuntimeService({
