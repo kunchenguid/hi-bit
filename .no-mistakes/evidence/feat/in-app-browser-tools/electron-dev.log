@@ -1,0 +1,39 @@
+$ node scripts/ensure-pnpm.mjs && node scripts/copy-ort-assets.mjs
+[hi-bit] copied 2 onnxruntime-web asset(s) to /Users/kunchen/.no-mistakes/worktrees/9fcac924d900/01KTFCY0RMKW4H7JHFXSDJRD64/src/renderer/src/generated/ort
+$ bash -c 'trap "stty sane 2>/dev/null" EXIT; electron-vite dev "$@"' -- -- --remote-debugging-port=9222
+vite v7.3.3 building ssr environment for development...
+transforming...
+✓ 40 modules transformed.
+rendering chunks...
+out/main/index.js  252.04 kB
+✓ built in 254ms
+
+electron main process built successfully
+
+-----
+
+vite v7.3.3 building ssr environment for development...
+transforming...
+✓ 1 modules transformed.
+rendering chunks...
+out/preload/index.cjs  4.20 kB
+✓ built in 7ms
+
+electron preload scripts built successfully
+
+-----
+
+dev server running for the electron renderer process at:
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+
+starting electron app...
+
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/9ea60f10-7bfb-418e-aaf1-ad6d40b75208
+[hi-bit] isolated userData at /Users/kunchen/.no-mistakes/worktrees/9fcac924d900/01KTFCY0RMKW4H7JHFXSDJRD64/.no-mistakes/tmp-user-data (codex auth: seeded)
+Error occurred in handler for 'hibit:browser:open': NavigationBlockedError: I can only open this creation's own preview, not external websites: https://blocked-navigation-check.invalid/.
+    at AppControlService.openTab (file:///Users/kunchen/.no-mistakes/worktrees/9fcac924d900/01KTFCY0RMKW4H7JHFXSDJRD64/out/main/index.js:2653:39)
+    at async Session.<anonymous> (node:electron/js2c/browser_init:2:116356)
+[ELIFECYCLE] Command failed.
