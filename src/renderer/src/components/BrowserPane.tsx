@@ -5,6 +5,7 @@ type BrowserPaneProps = {
   state: BrowserState;
   /** Bumped by the parent to reload the active tab (e.g. after a rebuild). */
   reloadSignal?: number;
+  reloadProjectId?: string | null;
   /** Empties the HTTP cache before a creation tab remounts, so rebuilds show. */
   clearCache?: () => Promise<void>;
   onSwitchTab: (tabId: string) => void;
@@ -50,6 +51,7 @@ function tabLabel(title: string | undefined, url: string): string {
 export function BrowserPane({
   state,
   reloadSignal = 0,
+  reloadProjectId = null,
   clearCache,
   onSwitchTab,
   onCloseTab,
@@ -62,10 +64,9 @@ export function BrowserPane({
   // Per-tab remount counter so reloading one tab refetches without disturbing others.
   const [reloadCounts, setReloadCounts] = useState<Record<string, number>>({});
 
-  const reloadActive = () => {
-    if (!active) return;
+  const reloadTab = (tabId: string) => {
     const remount = () =>
-      setReloadCounts((counts) => ({ ...counts, [active.id]: (counts[active.id] ?? 0) + 1 }));
+      setReloadCounts((counts) => ({ ...counts, [tabId]: (counts[tabId] ?? 0) + 1 }));
     if (!clearCache) {
       remount();
       return;
@@ -73,10 +74,20 @@ export function BrowserPane({
     void clearCache().then(remount, remount);
   };
 
+  const reloadActive = () => {
+    if (!active) return;
+    reloadTab(active.id);
+  };
+
   // Parent-driven reload (a rebuild finished). A ref keeps the latest active id
   // out of the effect deps so a new tab can't trigger a spurious reload.
   const reloadRef = useRef<() => void>(() => {});
-  reloadRef.current = reloadActive;
+  reloadRef.current = () => {
+    const target = reloadProjectId
+      ? tabs.find((tab) => tab.kind === "creation" && tab.projectId === reloadProjectId)
+      : active;
+    if (target) reloadTab(target.id);
+  };
   useEffect(() => {
     if (reloadSignal > 0) reloadRef.current();
   }, [reloadSignal]);
@@ -154,7 +165,7 @@ export function BrowserPane({
             title={tabLabel(tab.title, tab.url)}
             src={tab.url || "about:blank"}
             hidden={tab.id !== activeTabId}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups allow-modals"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-modals"
             onLoad={() => {
               onReportLoaded(tab.id, tab.url, tab.title);
               if (tab.id === activeTabId) frameRefs.current.get(tab.id)?.focus();

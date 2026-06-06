@@ -315,8 +315,7 @@ export class CdpController {
   /** Focuses a field by ref, clears it, and types `text`. */
   async fill(ref: string, text: string): Promise<void> {
     await this.click(ref);
-    // Select-all + delete so we replace rather than append.
-    await this.press("Control+a");
+    await this.press(process.platform === "darwin" ? "Meta+a" : "Control+a");
     await this.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Delete" }, TOP);
     await this.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Delete" }, TOP);
     await this.send("Input.insertText", { text }, TOP);
@@ -378,6 +377,16 @@ export class CdpController {
       if (frameUrl && (frameUrl === url || frameUrl.startsWith(url))) return frameKey;
     }
     return undefined;
+  }
+
+  async firstDisallowedFrameUrl(
+    isAllowed: (url: string) => boolean | Promise<boolean>,
+  ): Promise<string | null> {
+    for (const frameKey of this.allFrameKeys()) {
+      const url = await this.frameUrl(frameKey);
+      if (url && !(await isAllowed(url))) return url;
+    }
+    return null;
   }
 
   /** The readable text of a frame (its document.body.innerText). */

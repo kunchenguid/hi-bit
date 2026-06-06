@@ -16,7 +16,7 @@ export interface HeadlessWindow {
 export type HeadlessBrowserOptions = {
   createWindow: () => HeadlessWindow;
   /** Allowlist gate (loopback already allowed by the caller's implementation). */
-  isAllowed: (url: string) => boolean;
+  isAllowed: (url: string) => boolean | Promise<boolean>;
   maxTabs?: number;
 };
 
@@ -37,7 +37,7 @@ export class HeadlessBrowserHost implements BrowserHost {
   private readonly tabs = new Map<string, HeadlessTab>();
   private activeId: string | null = null;
   private readonly createWindow: () => HeadlessWindow;
-  private readonly isAllowed: (url: string) => boolean;
+  private readonly isAllowed: (url: string) => boolean | Promise<boolean>;
   private readonly maxTabs: number;
 
   constructor(options: HeadlessBrowserOptions) {
@@ -56,7 +56,7 @@ export class HeadlessBrowserHost implements BrowserHost {
     if (this.tabs.size >= this.maxTabs) {
       throw new Error(`Too many tabs open (max ${this.maxTabs}). Close one first.`);
     }
-    if (url && !this.isAllowed(url)) throw new NavigationBlockedError(url);
+    if (url && !(await this.isAllowed(url))) throw new NavigationBlockedError(url);
     const window = this.createWindow();
     const controller = new CdpController({ debugger: window.debugger, capture: window.capture });
     await controller.attach();
@@ -87,54 +87,73 @@ export class HeadlessBrowserHost implements BrowserHost {
   }
 
   async navigate(url: string): Promise<void> {
-    if (!this.isAllowed(url)) throw new NavigationBlockedError(url);
+    if (!(await this.isAllowed(url))) throw new NavigationBlockedError(url);
     const tab = this.active();
     tab.kind = kindFor(url);
     await tab.window.loadURL(url);
   }
 
   async back(): Promise<void> {
+    await this.assertActiveAllowed();
     await this.active().controller.back();
   }
 
   async reload(): Promise<void> {
+    await this.assertActiveAllowed();
     await this.active().controller.reload();
   }
 
-  snapshot(): Promise<string> {
+  async snapshot(): Promise<string> {
+    await this.assertActiveAllowed();
     return this.active().controller.snapshot("all");
   }
 
-  click(ref: string): Promise<void> {
+  async click(ref: string): Promise<void> {
+    await this.assertActiveAllowed();
     return this.active().controller.click(ref);
   }
 
-  fill(ref: string, text: string): Promise<void> {
+  async fill(ref: string, text: string): Promise<void> {
+    await this.assertActiveAllowed();
     return this.active().controller.fill(ref, text);
   }
 
-  type(text: string): Promise<void> {
+  async type(text: string): Promise<void> {
+    await this.assertActiveAllowed();
     return this.active().controller.type(text);
   }
 
-  press(key: string): Promise<void> {
+  async press(key: string): Promise<void> {
+    await this.assertActiveAllowed();
     return this.active().controller.press(key);
   }
 
-  scroll(direction: "up" | "down"): Promise<void> {
+  async scroll(direction: "up" | "down"): Promise<void> {
+    await this.assertActiveAllowed();
     return this.active().controller.scroll(direction);
   }
 
-  read(): Promise<string> {
+  async read(): Promise<string> {
+    await this.assertActiveAllowed();
     return this.active().controller.readText();
   }
 
-  screenshot(): Promise<string | null> {
+  async screenshot(): Promise<string | null> {
+    await this.assertActiveAllowed();
     return this.active().controller.screenshot();
   }
 
   async console(): Promise<string[]> {
+    await this.assertActiveAllowed();
     return this.active().controller.recentConsole();
+  }
+
+  private async assertActiveAllowed(): Promise<void> {
+    const tab = this.active();
+    const current = tab.window.currentUrl();
+    if (current && !(await this.isAllowed(current))) throw new NavigationBlockedError(current);
+    const frameUrl = await tab.controller.firstDisallowedFrameUrl((url) => this.isAllowed(url));
+    if (frameUrl) throw new NavigationBlockedError(frameUrl);
   }
 
   /** Tears down every headless window. Call when the bot job ends. */

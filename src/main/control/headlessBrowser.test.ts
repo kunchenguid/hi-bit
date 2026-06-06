@@ -60,6 +60,15 @@ describe("HeadlessBrowserHost", () => {
     await expect(host.navigate("https://evil.com/")).rejects.toBeInstanceOf(NavigationBlockedError);
   });
 
+  it("refuses reads after the loaded page redirects off the allowlist", async () => {
+    const factory = makeWindowFactory();
+    const host = new HeadlessBrowserHost({ createWindow: factory.createWindow, isAllowed: allow });
+    await host.openTab("https://wikipedia.org/");
+    factory.windows[0].url = "https://evil.com/";
+
+    await expect(host.read()).rejects.toBeInstanceOf(NavigationBlockedError);
+  });
+
   it("caps the number of open tabs", async () => {
     const factory = makeWindowFactory();
     const host = new HeadlessBrowserHost({

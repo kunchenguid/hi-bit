@@ -68,6 +68,7 @@ function renderWorkspace(
         creations={overrides.creations ?? []}
         browserState={{ tabs: [], activeTabId: null }}
         reloadSignal={0}
+        reloadProjectId={null}
         onDraftChange={vi.fn()}
         onAttachImage={vi.fn()}
         onClearImage={vi.fn()}

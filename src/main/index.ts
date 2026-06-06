@@ -248,7 +248,7 @@ export function registerIpc(services: Services): void {
   ipcMain.handle("hibit:preview:play", async (_event, profileId: string, projectId: string) => {
     const info = await services.bit.playPreview(profileId, projectId);
     // Play folds into the browser: open (or focus) the creation's tab.
-    await services.appControl.playInTab(info.url, info.title ?? "Your creation");
+    await services.appControl.playInTab(info.url, info.title ?? "Your creation", projectId);
     return info;
   });
 

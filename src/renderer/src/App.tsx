@@ -63,8 +63,10 @@ export function App() {
   // The in-app browser, owned in main and mirrored here. App-level (not per
   // profile), so a creation tab and website tabs share one surface.
   const [browserState, setBrowserState] = useState<BrowserState>({ tabs: [], activeTabId: null });
-  // Bumped on every build_end so the open browser tab refetches a rebuilt creation.
-  const [browserReloadSignal, setBrowserReloadSignal] = useState(0);
+  const [browserReloadRequest, setBrowserReloadRequest] = useState<{
+    projectId: string;
+    signal: number;
+  } | null>(null);
   const activeProfileIdRef = useRef(activeProfileId);
 
   useEffect(() => {
@@ -218,8 +220,12 @@ export function App() {
         setPlayableProjectIds,
       });
       if (event.type === "profile_updated") void refreshActiveProfile();
-      // A finished build changed a creation's files; refetch the open browser tab.
-      if (event.type === "build_end") setBrowserReloadSignal((n) => n + 1);
+      if (event.type === "build_end" && event.projectId) {
+        setBrowserReloadRequest((request) => ({
+          projectId: event.projectId as string,
+          signal: (request?.signal ?? 0) + 1,
+        }));
+      }
       // A new creation can appear (a build creating one) or change playability
       // (a preview starting); keep the picker's list and Play/picker swap fresh.
       if (
@@ -466,7 +472,8 @@ export function App() {
         playableProjectIds={playableProjectIds}
         creations={projects}
         browserState={browserState}
-        reloadSignal={browserReloadSignal}
+        reloadSignal={browserReloadRequest?.signal ?? 0}
+        reloadProjectId={browserReloadRequest?.projectId ?? null}
         onDraftChange={setDraft}
         onAttachImage={setAttachedImage}
         onClearImage={() => setAttachedImage(null)}
@@ -533,8 +540,6 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
       break;
     case "build_end":
       setActivity((current) => applyEventToActivity(current, event));
-      // The open browser tab is refetched via browserReloadSignal (bumped in the
-      // event subscription), so a finished rebuild shows its new files.
       break;
     case "build_start":
     case "tool_start":

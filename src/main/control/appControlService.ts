@@ -140,22 +140,27 @@ export class AppControlService {
     switchTab: (tabId) => this.switchTab(tabId),
     navigate: (url) => this.navigateActive(url),
     back: async () => {
+      await this.assertBrowserAllowed();
       const frameKey = await this.activeFrameKey();
       if (frameKey) await (await this.controllerFor()).back(frameKey);
     },
     reload: () => this.reloadActive(),
-    snapshot: async () => (await this.controllerFor()).snapshot("children"),
-    click: async (ref) => (await this.controllerFor()).click(ref),
-    fill: async (ref, text) => (await this.controllerFor()).fill(ref, text),
-    type: async (text) => (await this.controllerFor()).type(text),
-    press: async (key) => (await this.controllerFor()).press(key),
-    scroll: async (direction) => (await this.controllerFor()).scroll(direction),
+    snapshot: async () => (await this.browserController()).snapshot("children"),
+    click: async (ref) => (await this.browserController()).click(ref),
+    fill: async (ref, text) => (await this.browserController()).fill(ref, text),
+    type: async (text) => (await this.browserController()).type(text),
+    press: async (key) => (await this.browserController()).press(key),
+    scroll: async (direction) => (await this.browserController()).scroll(direction),
     read: async () => {
+      await this.assertBrowserAllowed();
       const frameKey = await this.activeFrameKey();
       return frameKey ? (await this.controllerFor()).readText(frameKey) : "";
     },
     screenshot: () => this.deps.captureApp(),
-    console: async () => (await this.controllerFor()).recentConsole(),
+    console: async () => {
+      await this.assertBrowserAllowed();
+      return (await this.controllerFor()).recentConsole();
+    },
   };
 
   private activeTab(): BrowserTab | undefined {
@@ -200,12 +205,13 @@ export class AppControlService {
   }
 
   /** Opens or focuses a creation's tab (Play). */
-  async playInTab(url: string, title: string): Promise<BrowserState> {
+  async playInTab(url: string, title: string, projectId?: string): Promise<BrowserState> {
     const existing = this.tabs.find((t) => t.url === url);
     if (existing) {
       this.activeTabId = existing.id;
+      existing.projectId = projectId ?? existing.projectId;
     } else {
-      const tab: BrowserTab = { id: randomUUID(), url, title, kind: "creation" };
+      const tab: BrowserTab = { id: randomUUID(), url, title, kind: "creation", projectId };
       this.tabs = [...this.tabs, tab];
       this.activeTabId = tab.id;
     }
@@ -237,8 +243,21 @@ export class AppControlService {
   }
 
   private async reloadActive(): Promise<void> {
+    await this.assertBrowserAllowed();
     const frameKey = await this.activeFrameKey();
     if (frameKey) await (await this.controllerFor()).reload(frameKey);
+  }
+
+  private async browserController(): Promise<CdpController> {
+    await this.assertBrowserAllowed();
+    return this.controllerFor();
+  }
+
+  private async assertBrowserAllowed(): Promise<void> {
+    await this.ensureAllowlist();
+    const controller = await this.controllerFor();
+    const disallowed = await controller.firstDisallowedFrameUrl((url) => this.isAllowed(url));
+    if (disallowed) throw new NavigationBlockedError(disallowed);
   }
 
   /**
@@ -288,7 +307,10 @@ export class AppControlService {
   createHeadlessBrowser(): HeadlessBrowserHost {
     return new HeadlessBrowserHost({
       createWindow: this.deps.createHeadlessWindow,
-      isAllowed: (url) => this.isAllowed(url),
+      isAllowed: async (url) => {
+        await this.ensureAllowlist();
+        return this.isAllowed(url);
+      },
     });
   }
 }

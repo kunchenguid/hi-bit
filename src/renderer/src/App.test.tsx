@@ -522,6 +522,55 @@ describe("App", () => {
     expect(host.querySelector("iframe")?.getAttribute("src")).toBe("http://127.0.0.1:4310/");
   });
 
+  it("reloads the rebuilt creation tab instead of the active tab", async () => {
+    let emit: (event: ChatEvent) => void = () => {};
+    const tabs: BrowserTab[] = [
+      {
+        id: "tab-p1",
+        url: "http://127.0.0.1:4310/",
+        title: "Snake",
+        kind: "creation",
+        projectId: "p1",
+      },
+      {
+        id: "tab-p2",
+        url: "http://127.0.0.1:4320/",
+        title: "Maze",
+        kind: "creation",
+        projectId: "p2",
+      },
+    ];
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.browser.state = vi.fn(async () => ({ tabs, activeTabId: "tab-p2" }));
+    api.chat.onEvent = vi.fn((listener) => {
+      emit = listener;
+      return () => {};
+    });
+
+    await renderApp(root);
+    const framesBefore = Array.from(host.querySelectorAll("iframe"));
+
+    await act(async () => {
+      emit({
+        type: "build_end",
+        profileId: "ada",
+        turnId: "t1",
+        projectId: "p1",
+        status: "completed",
+      });
+    });
+    await flushAsyncWork();
+
+    const framesAfter = Array.from(host.querySelectorAll("iframe"));
+    expect(framesAfter[0]).not.toBe(framesBefore[0]);
+    expect(framesAfter[1]).toBe(framesBefore[1]);
+  });
+
   it("ignores a Play result if the kid switches profiles before it resolves", async () => {
     const playResult = deferred<Awaited<ReturnType<HiBitApi["preview"]["play"]>>>();
     api.auth.status = vi.fn(async () => ({
@@ -872,7 +921,7 @@ function createApiMock(): HiBitApi {
           startedAt: "2026-01-01T00:00:00.000Z",
         };
         browserTabs = [
-          { id: `tab-${projectId}`, url: info.url, title: info.title, kind: "creation" },
+          { id: `tab-${projectId}`, url: info.url, title: info.title, kind: "creation", projectId },
         ];
         browserStateListener?.({ tabs: browserTabs, activeTabId: `tab-${projectId}` });
         return info;

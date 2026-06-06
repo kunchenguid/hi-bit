@@ -138,6 +138,35 @@ describe("CdpController", () => {
     expect(presses[0].sessionId).toBeUndefined(); // dispatched on the TOP session
   });
 
+  it("reports the first attached frame URL rejected by a caller allowlist", async () => {
+    const fake = makeFakeDebugger();
+    const controller = new CdpController({ debugger: fake.dbg, capture: async () => "png" });
+    await controller.attach();
+    fake.fireAttachedChild();
+
+    await expect(controller.firstDisallowedFrameUrl((url) => url.includes("app://"))).resolves.toBe(
+      "http://127.0.0.1:5000/",
+    );
+  });
+
+  it("uses the platform select-all chord before replacing field text", async () => {
+    const fake = makeFakeDebugger();
+    const controller = new CdpController({ debugger: fake.dbg, capture: async () => "png" });
+    await controller.attach();
+    await controller.snapshot();
+    await controller.fill("e1", "new text");
+
+    const keyDowns = fake.sent.filter(
+      (s) =>
+        s.method === "Input.dispatchKeyEvent" && (s.params as { type?: string }).type === "keyDown",
+    );
+    const selectAll = keyDowns.find((s) => (s.params as { key?: string }).key === "a");
+    expect(selectAll?.params).toMatchObject({
+      key: "a",
+      modifiers: process.platform === "darwin" ? 4 : 2,
+    });
+  });
+
   it("rejects an unknown ref with a re-snapshot hint", async () => {
     const fake = makeFakeDebugger();
     const controller = new CdpController({ debugger: fake.dbg, capture: async () => "png" });

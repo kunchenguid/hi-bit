@@ -1,5 +1,5 @@
 import type { SpotlightRect } from "@shared/browser";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AppControlService } from "./appControlService";
 import { NavigationBlockedError } from "./browserHost";
 
@@ -99,6 +99,26 @@ describe("AppControlService visible browser", () => {
     expect(state.tabs.map((t) => t.id).sort()).toEqual(["a", "c"]);
     // The active id pointed at the dropped tab, so it falls back to a kept one.
     expect(state.activeTabId).not.toBe("b");
+  });
+
+  it("loads the allowlist before constructing a headless browser", async () => {
+    const service = new AppControlService({
+      getAppDebugger: () => null,
+      getAppWebContentsId: () => null,
+      captureApp: async () => null,
+      broadcast: () => {},
+      createHeadlessWindow: () => {
+        throw new Error("not used");
+      },
+      loadAllowlist: vi.fn(async () => ["wikipedia.org"]),
+      saveAllowlist: async () => {},
+    });
+
+    const host = await service.createHeadlessBrowser();
+
+    await expect(host.openTab("https://wikipedia.org/")).rejects.not.toBeInstanceOf(
+      NavigationBlockedError,
+    );
   });
 });
 

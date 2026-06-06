@@ -13,6 +13,7 @@ export type BrowserTab = {
   url: string;
   title?: string;
   kind: BrowserTabKind;
+  projectId?: string;
 };
 
 /** The renderer's full browser state, mirrored to main and persisted per profile. */

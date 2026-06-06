@@ -33,6 +33,7 @@ type ChatWorkspaceProps = {
   creations: ProjectSummary[];
   browserState: BrowserState;
   reloadSignal: number;
+  reloadProjectId: string | null;
   onDraftChange: (value: string) => void;
   onAttachImage: (image: OutgoingImage) => void;
   onClearImage: () => void;
@@ -69,6 +70,7 @@ export function ChatWorkspace({
   creations,
   browserState,
   reloadSignal,
+  reloadProjectId,
   onDraftChange,
   onAttachImage,
   onClearImage,
@@ -183,6 +185,7 @@ export function ChatWorkspace({
           <BrowserPane
             state={browserState}
             reloadSignal={reloadSignal}
+            reloadProjectId={reloadProjectId}
             clearCache={onClearPreviewCache}
             onSwitchTab={onSwitchTab}
             onCloseTab={onCloseTab}
