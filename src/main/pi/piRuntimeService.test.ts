@@ -258,8 +258,9 @@ describe("PiRuntimeService", () => {
       },
     });
 
-    await expect(service.sendPrompt({ ...project(), runtimeKey: "bot_job_1" }, "Build", () => {}))
-      .rejects.toThrow("session failed");
+    await expect(
+      service.sendPrompt({ ...project(), runtimeKey: "bot_job_1" }, "Build", () => {}),
+    ).rejects.toThrow("session failed");
     expect(disposed).toBe(true);
   });
 });
