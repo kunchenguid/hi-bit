@@ -1,4 +1,5 @@
 import type { AuthStatus } from "./auth";
+import type { BrowserState, BrowserTab, SpotlightRect } from "./browser";
 import type {
   ChatEvent,
   ChatSnapshot,
@@ -70,6 +71,29 @@ export type HiBitApi = {
     openExternal: (url: string) => Promise<void>;
     /** Empties the HTTP cache so a preview reload refetches rebuilt files fresh. */
     clearCache: () => Promise<void>;
+  };
+  /**
+   * The in-app browser. Tab state is owned in main and mirrored here via
+   * `onState`; the renderer renders one sandboxed iframe per tab and reports a
+   * tab's load back so a tool's navigate can resolve. `onSpotlight` drives the
+   * tutorial highlight overlay (null clears it).
+   */
+  browser: {
+    state: () => Promise<BrowserState>;
+    open: (url?: string) => Promise<BrowserTab>;
+    close: (tabId: string) => Promise<void>;
+    switch: (tabId: string) => Promise<void>;
+    navigate: (url: string) => Promise<void>;
+    reload: () => Promise<void>;
+    /** Renderer -> main: an iframe finished loading (resolves pending navigates). */
+    reportTabLoaded: (tabId: string, url: string, title?: string) => void;
+    onState: (listener: (state: BrowserState) => void) => Unsubscribe;
+    onSpotlight: (listener: (rect: SpotlightRect | null) => void) => Unsubscribe;
+    allowlist: {
+      list: () => Promise<string[]>;
+      add: (domain: string) => Promise<string[]>;
+      remove: (domain: string) => Promise<string[]>;
+    };
   };
   /**
    * Local, on-device speech-to-text (Whisper). The renderer gates the feature on

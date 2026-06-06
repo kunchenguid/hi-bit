@@ -253,12 +253,35 @@ describe("BitRuntimeService", () => {
     expect(JSON.stringify(piRuntime.persistedMessages.at(-1))).not.toContain("AAABBB");
   });
 
-  it("gives Bit the view_screen tool when a screen capture function is configured", async () => {
+  it("gives Bit the app and browser tools when their surfaces are configured", async () => {
     let captured: CreateBitSessionInput | undefined;
     const service = new BitRuntimeService({
       agentDir: "/tmp/pi-agent",
       getFreshAccessToken: async () => "token-1",
-      captureScreen: async () => "PNGBYTES",
+      appSurface: {
+        screenshot: async () => "PNGBYTES",
+        snapshotChrome: async () => "",
+        highlight: async () => true,
+        clearHighlight: async () => {},
+      },
+      browserHost: {
+        openTab: async () => ({ id: "t1", url: "", kind: "web" }),
+        closeTab: async () => {},
+        listTabs: async () => [],
+        switchTab: async () => {},
+        navigate: async () => {},
+        back: async () => {},
+        reload: async () => {},
+        snapshot: async () => "",
+        click: async () => {},
+        fill: async () => {},
+        type: async () => {},
+        press: async () => {},
+        scroll: async () => {},
+        read: async () => "",
+        screenshot: async () => null,
+        console: async () => [],
+      },
       createSession: async (input: CreateBitSessionInput) => {
         captured = input;
         return new FakeBitSession();
@@ -267,10 +290,14 @@ describe("BitRuntimeService", () => {
 
     await service.prompt(baseInput(), "why does this button look weird?", () => {});
 
-    expect((captured?.customTools ?? []).map((tool) => tool.name)).toContain("view_screen");
+    const names = (captured?.customTools ?? []).map((tool) => tool.name);
+    expect(names).toContain("app_screenshot");
+    expect(names).toContain("app_highlight");
+    expect(names).toContain("browser_open_tab");
+    expect(names).toContain("browser_click");
   });
 
-  it("omits view_screen when no screen capture function is configured", async () => {
+  it("omits app and browser tools when no surfaces are configured", async () => {
     let captured: CreateBitSessionInput | undefined;
     const service = new BitRuntimeService({
       agentDir: "/tmp/pi-agent",
@@ -283,7 +310,9 @@ describe("BitRuntimeService", () => {
 
     await service.prompt(baseInput(), "hi", () => {});
 
-    expect((captured?.customTools ?? []).map((tool) => tool.name)).not.toContain("view_screen");
+    const names = (captured?.customTools ?? []).map((tool) => tool.name);
+    expect(names).not.toContain("app_screenshot");
+    expect(names).not.toContain("browser_open_tab");
   });
 
   it("gives Bit the web lookup tools alongside its delegation tools", async () => {

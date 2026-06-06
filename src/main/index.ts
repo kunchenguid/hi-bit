@@ -6,10 +6,13 @@ import type { AppInfo, Platform } from "@shared/ipc";
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
+import { AllowlistStore } from "./control/allowlistStore";
+import { AppControlService, type AppDebugger } from "./control/appControlService";
+import type { HeadlessWindow } from "./control/headlessBrowser";
 import { ConversationService } from "./conversation/conversationService";
 import { BitRuntimeService } from "./pi/bitRuntimeService";
+import { planShorterEdgeResize } from "./pi/captureImage";
 import { PiRuntimeService } from "./pi/piRuntimeService";
-import { planShorterEdgeResize } from "./pi/screenTool";
 import { PreviewService } from "./preview/previewService";
 import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
@@ -52,6 +55,7 @@ type Services = {
   runtime: PiRuntimeService;
   bitRuntime: BitRuntimeService;
   preview: PreviewService;
+  appControl: AppControlService;
   voiceModel: VoiceModelService;
 };
 
@@ -126,19 +130,31 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   const projects = new ProjectService(layout);
   const conversation = new ConversationService(layout);
   const modelId = modelIdFromConfig(config.defaultModel);
+  const allowlistStore = new AllowlistStore(layout.browserAllowlistPath);
+  const appControl = new AppControlService({
+    getAppDebugger: () => (getMainWindow()?.webContents.debugger as AppDebugger) ?? null,
+    getAppWebContentsId: () => getMainWindow()?.webContents.id ?? null,
+    captureApp: captureAppScreen,
+    broadcast: broadcastToRenderer,
+    createHeadlessWindow,
+    loadAllowlist: () => allowlistStore.load(),
+    saveAllowlist: (domains) => allowlistStore.save(domains),
+  });
   const runtime = new PiRuntimeService({
     agentDir: layout.piAgentDir,
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
     skillsDir: skillsDirFor(),
     mascotAssetPath: mascotAssetFor(),
+    createBrowser: () => appControl.createHeadlessBrowser(),
   });
   const bitRuntime = new BitRuntimeService({
     agentDir: layout.piAgentDir,
     modelId,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
     mascotAssetPath: mascotAssetFor(),
-    captureScreen: captureAppScreen,
+    appSurface: appControl.appSurface,
+    browserHost: appControl.browserHost,
     onSessionFile: (profileId, sessionFile) =>
       conversation.setBitSessionFile(profileId, sessionFile),
   });
@@ -167,6 +183,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     runtime,
     bitRuntime,
     preview,
+    appControl,
     voiceModel,
   };
 }
@@ -228,8 +245,39 @@ export function registerIpc(services: Services): void {
     services.bit.markActivitiesOpened(profileId),
   );
 
-  ipcMain.handle("hibit:preview:play", (_event, profileId: string, projectId: string) =>
-    services.bit.playPreview(profileId, projectId),
+  ipcMain.handle("hibit:preview:play", async (_event, profileId: string, projectId: string) => {
+    const info = await services.bit.playPreview(profileId, projectId);
+    // Play folds into the browser: open (or focus) the creation's tab.
+    await services.appControl.playInTab(info.url, info.title ?? "Your creation", projectId);
+    return info;
+  });
+
+  // The in-app browser. State is owned in main and mirrored to the renderer over
+  // BROWSER_STATE_CHANNEL; these let the renderer drive its own tab strip and
+  // report back when an iframe finishes loading so a tool's navigate can resolve.
+  ipcMain.handle("hibit:browser:state", () => services.appControl.state());
+  ipcMain.handle("hibit:browser:open", (_event, url?: string) =>
+    services.appControl.browserHost.openTab(url),
+  );
+  ipcMain.handle("hibit:browser:close", (_event, tabId: string) =>
+    services.appControl.browserHost.closeTab(tabId),
+  );
+  ipcMain.handle("hibit:browser:switch", (_event, tabId: string) =>
+    services.appControl.browserHost.switchTab(tabId),
+  );
+  ipcMain.handle("hibit:browser:navigate", (_event, url: string) =>
+    services.appControl.browserHost.navigate(url),
+  );
+  ipcMain.handle("hibit:browser:reload", () => services.appControl.browserHost.reload());
+  ipcMain.on("hibit:browser:tab-loaded", (_event, tabId: string, url: string, title?: string) =>
+    services.appControl.onTabLoaded(tabId, url, title),
+  );
+  ipcMain.handle("hibit:browser:allowlist:list", () => services.appControl.listAllowedDomains());
+  ipcMain.handle("hibit:browser:allowlist:add", (_event, domain: string) =>
+    services.appControl.addAllowedDomain(domain),
+  );
+  ipcMain.handle("hibit:browser:allowlist:remove", (_event, domain: string) =>
+    services.appControl.removeAllowedDomain(domain),
   );
 
   ipcMain.handle("hibit:preview:open-external", async (_event, url: string) => {
@@ -333,15 +381,69 @@ const MAX_SCREENSHOT_SHORTER_EDGE = 1024;
  * its shorter edge is at most 1024px - legible for the vision model without
  * spending image tokens on Retina-doubled pixels.
  */
-async function captureAppScreen(): Promise<string | null> {
-  const win = BrowserWindow.getAllWindows().find(
-    (candidate) => !candidate.isDestroyed() && !candidate.webContents.isDestroyed(),
+function getMainWindow(): BrowserWindow | null {
+  return (
+    BrowserWindow.getAllWindows().find(
+      (candidate) =>
+        !candidate.isDestroyed() &&
+        !candidate.webContents.isDestroyed() &&
+        isAppRendererSource(candidate.webContents.getURL() || undefined),
+    ) ?? null
   );
+}
+
+async function captureAppScreen(): Promise<string | null> {
+  const win = getMainWindow();
   if (!win) return null;
   let image = await win.webContents.capturePage();
   const resize = planShorterEdgeResize(image.getSize(), MAX_SCREENSHOT_SHORTER_EDGE);
   if (resize) image = image.resize(resize);
   return image.toPNG().toString("base64");
+}
+
+/** Sends a payload to every live app renderer (browser state, spotlight rects). */
+function broadcastToRenderer(channel: string, payload: unknown): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send(channel, payload);
+    }
+  }
+}
+
+/**
+ * A headless offscreen window for a bot's browser tab - real Chromium, never
+ * shown to the kid. Driven entirely over CDP by a `CdpController`.
+ */
+export function createHeadlessWindow(): HeadlessWindow {
+  const win = new BrowserWindow({
+    show: false,
+    width: 1280,
+    height: 820,
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  return {
+    debugger: win.webContents.debugger as unknown as HeadlessWindow["debugger"],
+    capture: async () => {
+      if (win.isDestroyed()) return null;
+      try {
+        let image = await win.webContents.capturePage();
+        const resize = planShorterEdgeResize(image.getSize(), MAX_SCREENSHOT_SHORTER_EDGE);
+        if (resize) image = image.resize(resize);
+        return image.isEmpty() ? null : image.toPNG().toString("base64");
+      } catch {
+        return null;
+      }
+    },
+    loadURL: async (url) => {
+      await win.loadURL(url);
+    },
+    currentUrl: () => (win.isDestroyed() ? "" : win.webContents.getURL()),
+    title: () => (win.isDestroyed() ? "" : win.webContents.getTitle()),
+    destroy: () => {
+      if (!win.isDestroyed()) win.destroy();
+    },
+  };
 }
 
 function broadcastChatEvent(event: ChatEvent): void {

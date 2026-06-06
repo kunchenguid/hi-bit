@@ -1,0 +1,3 @@
+result: "{\"name\":\"Error\",\"message\":\"Error invoking remote method 'hibit:browser:open': NavigationBlockedError: I can only open this creation's own preview, not external websites: https://blocked-navigation-check.invalid/.\"}"
+help[1]:
+  Run `chrome-devtools-axi snapshot` to see current page state

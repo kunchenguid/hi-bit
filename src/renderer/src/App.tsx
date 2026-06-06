@@ -1,4 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
+import type { BrowserState } from "@shared/browser";
 import type {
   ChatEvent,
   ChatMessage,
@@ -19,6 +20,7 @@ import {
   useState,
 } from "react";
 import { applyEventToActivity } from "./activity";
+import { SpotlightOverlay } from "./components/SpotlightOverlay";
 import { detectVoiceSupport } from "./components/voiceInput";
 import { AuthGate } from "./screens/AuthGate";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
@@ -58,9 +60,13 @@ export function App() {
   // The kid's full set of creations (their factory), used to decide whether the
   // status-bar Play becomes a picker and to populate it.
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
-  // Per-creation reload counters: bumped on build_end so an open pane refreshes.
-  const [reloadSignals, setReloadSignals] = useState<Record<string, number>>({});
+  // The in-app browser, owned in main and mirrored here. App-level (not per
+  // profile), so creation preview tabs share one surface.
+  const [browserState, setBrowserState] = useState<BrowserState>({ tabs: [], activeTabId: null });
+  const [browserReloadRequest, setBrowserReloadRequest] = useState<{
+    projectId: string;
+    signal: number;
+  } | null>(null);
   const activeProfileIdRef = useRef(activeProfileId);
 
   useEffect(() => {
@@ -82,15 +88,9 @@ export function App() {
     setPreviews([]);
     setPlayableProjectIds([]);
     setProjects([]);
-    setActivePreviewId(null);
-    setReloadSignals({});
+    // Note: browser tabs are app-global (owned in main), not per-profile, so they
+    // are intentionally NOT reset here - main stays the source of truth via onState.
   }, []);
-
-  const activePreview = useMemo(
-    () => previews.find((preview) => preview.projectId === activePreviewId) ?? null,
-    [previews, activePreviewId],
-  );
-  const activeReloadSignal = activePreview ? (reloadSignals[activePreview.projectId] ?? 0) : 0;
 
   const loadProfileState = useCallback(async () => {
     const [nextProfiles, storedActiveProfileId] = await Promise.all([
@@ -172,6 +172,15 @@ export function App() {
     return window.hibit.auth.onReconnectRequired(() => setNeedsReauth(true));
   }, []);
 
+  // The in-app browser state lives in main; mirror it here and keep it current.
+  useEffect(() => {
+    void window.hibit.browser
+      .state()
+      .then(setBrowserState)
+      .catch(() => {});
+    return window.hibit.browser.onState(setBrowserState);
+  }, []);
+
   useEffect(() => {
     if (!activeProfileId || !authStatus?.authenticated) return;
     let cancelled = false;
@@ -209,9 +218,14 @@ export function App() {
         setError,
         setPreviews,
         setPlayableProjectIds,
-        setReloadSignals,
       });
       if (event.type === "profile_updated") void refreshActiveProfile();
+      if (event.type === "build_end" && event.projectId) {
+        setBrowserReloadRequest((request) => ({
+          projectId: event.projectId as string,
+          signal: (request?.signal ?? 0) + 1,
+        }));
+      }
       // A new creation can appear (a build creating one) or change playability
       // (a preview starting); keep the picker's list and Play/picker swap fresh.
       if (
@@ -378,14 +392,14 @@ export function App() {
       if (!requestedProfileId) return;
       try {
         // Idempotent: ensures the server is up (restarting it after an app quit
-        // if needed), then opens the pane. Repeated presses are harmless.
+        // if needed); main opens (or focuses) the creation's browser tab, which
+        // arrives via the mirrored browser state. Repeated presses are harmless.
         const info = await window.hibit.preview.play(requestedProfileId, projectId);
         if (activeProfileIdRef.current !== requestedProfileId) return;
         setPreviews((current) => [
           info,
           ...current.filter((preview) => preview.projectId !== projectId),
         ]);
-        setActivePreviewId(projectId);
       } catch (caught) {
         if (activeProfileIdRef.current !== requestedProfileId) return;
         setError(caught instanceof Error ? caught.message : String(caught));
@@ -394,8 +408,16 @@ export function App() {
     [activeProfileId],
   );
 
-  const closePreview = useCallback(() => {
-    setActivePreviewId(null);
+  const switchTab = useCallback((tabId: string) => {
+    void window.hibit.browser.switch(tabId).catch(() => {});
+  }, []);
+
+  const closeTab = useCallback((tabId: string) => {
+    void window.hibit.browser.close(tabId).catch(() => {});
+  }, []);
+
+  const reportTabLoaded = useCallback((tabId: string, url: string, title?: string) => {
+    window.hibit.browser.reportTabLoaded(tabId, url, title);
   }, []);
 
   const openPreviewExternal = useCallback((url: string) => {
@@ -435,7 +457,6 @@ export function App() {
   return (
     <>
       <ChatWorkspace
-        authStatus={authStatus}
         profile={activeProfile}
         messages={messages}
         activity={activity}
@@ -450,8 +471,9 @@ export function App() {
         previews={previews}
         playableProjectIds={playableProjectIds}
         creations={projects}
-        activePreview={activePreview}
-        reloadSignal={activeReloadSignal}
+        browserState={browserState}
+        reloadSignal={browserReloadRequest?.signal ?? 0}
+        reloadProjectId={browserReloadRequest?.projectId ?? null}
         onDraftChange={setDraft}
         onAttachImage={setAttachedImage}
         onClearImage={() => setAttachedImage(null)}
@@ -464,10 +486,13 @@ export function App() {
         onShowActivity={showActivityView}
         onHideActivity={() => setShowActivity(false)}
         onPlayPreview={playPreview}
-        onClosePreview={closePreview}
+        onSwitchTab={switchTab}
+        onCloseTab={closeTab}
+        onReportTabLoaded={reportTabLoaded}
         onOpenPreviewExternal={openPreviewExternal}
         onClearPreviewCache={clearPreviewCache}
       />
+      <SpotlightOverlay />
       {needsReauth ? (
         <ReconnectOverlay status={authStatus} busy={busy} error={error} onReconnect={reconnect} />
       ) : null}
@@ -483,7 +508,6 @@ type ChatEventHandlers = {
   setError: Dispatch<SetStateAction<string | null>>;
   setPreviews: Dispatch<SetStateAction<PreviewInfo[]>>;
   setPlayableProjectIds: Dispatch<SetStateAction<string[]>>;
-  setReloadSignals: Dispatch<SetStateAction<Record<string, number>>>;
 };
 
 function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
@@ -495,7 +519,6 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
     setError,
     setPreviews,
     setPlayableProjectIds,
-    setReloadSignals,
   } = handlers;
   switch (event.type) {
     case "turn_start": {
@@ -517,11 +540,6 @@ function applyChatEvent(event: ChatEvent, handlers: ChatEventHandlers): void {
       break;
     case "build_end":
       setActivity((current) => applyEventToActivity(current, event));
-      // A finished rebuild means newer files: nudge an open pane to reload.
-      if (event.projectId) {
-        const projectId = event.projectId;
-        setReloadSignals((current) => ({ ...current, [projectId]: (current[projectId] ?? 0) + 1 }));
-      }
       break;
     case "build_start":
     case "tool_start":

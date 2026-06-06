@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
@@ -17,7 +18,10 @@ export async function writeJsonFile(
   options: { mode?: number } = {},
 ): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  const tmpPath = `${path}.${process.pid}.${Date.now()}.tmp`;
+  // A random suffix keeps the temp name unique even for writes that land in the
+  // same process and millisecond (e.g. two concurrent first-run seeds), so one
+  // rename can't move a temp file out from under another and trigger ENOENT.
+  const tmpPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
   await writeFile(tmpPath, `${JSON.stringify(value, null, 2)}\n`, {
     encoding: "utf8",
     mode: options.mode,

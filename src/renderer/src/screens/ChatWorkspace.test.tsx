@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 /// <reference types="node" />
 
-import type { AuthStatus } from "@shared/auth";
 import type { CreationActivity } from "@shared/chat";
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
@@ -27,12 +26,6 @@ const profile: ProfileSummary = {
   unlockStats: { buildsDelegated: 0, openedActivities: false },
 };
 
-const authStatus: AuthStatus = {
-  authenticated: true,
-  accountId: "bd596edf-af40-47f6-b10f-a7f2ffdb4ab3",
-  storage: { path: "/tmp/codex.json", encrypted: true },
-};
-
 function makeCreation(id: string, title: string): ProjectSummary {
   return {
     schemaVersion: 1,
@@ -47,7 +40,6 @@ function makeCreation(id: string, title: string): ProjectSummary {
 function renderWorkspace(
   host: HTMLElement,
   overrides: {
-    authStatus?: AuthStatus | null;
     creations?: ProjectSummary[];
     activity?: CreationActivity[];
     showActivity?: boolean;
@@ -60,7 +52,6 @@ function renderWorkspace(
   act(() =>
     root.render(
       <ChatWorkspace
-        authStatus={overrides.authStatus === undefined ? authStatus : overrides.authStatus}
         profile={profile}
         messages={[]}
         activity={overrides.activity ?? []}
@@ -75,8 +66,9 @@ function renderWorkspace(
         previews={[]}
         playableProjectIds={overrides.playableProjectIds ?? []}
         creations={overrides.creations ?? []}
-        activePreview={null}
+        browserState={{ tabs: [], activeTabId: null }}
         reloadSignal={0}
+        reloadProjectId={null}
         onDraftChange={vi.fn()}
         onAttachImage={vi.fn()}
         onClearImage={vi.fn()}
@@ -89,7 +81,9 @@ function renderWorkspace(
         onShowActivity={overrides.onShowActivity ?? vi.fn()}
         onHideActivity={vi.fn()}
         onPlayPreview={overrides.onPlayPreview ?? vi.fn()}
-        onClosePreview={vi.fn()}
+        onSwitchTab={vi.fn()}
+        onCloseTab={vi.fn()}
+        onReportTabLoaded={vi.fn()}
         onOpenPreviewExternal={vi.fn()}
         onClearPreviewCache={vi.fn(async () => {})}
       />,
@@ -130,25 +124,17 @@ describe("ChatWorkspace header", () => {
     expect(header?.textContent).not.toContain("Tell Bit your idea");
   });
 
-  it("tucks the Codex provider status inside the Grown-up menu, not the header copy", () => {
+  it("keeps the grown-up menu free of technical provider plumbing", () => {
     renderWorkspace(host);
-    const header = host.querySelector(".hb-workspace-header");
-    const menu = header?.querySelector(".hb-parent-menu-popover");
-    expect(menu).not.toBeNull();
-
-    // Provider plumbing (including the account id) lives in the grown-up menu.
-    expect(menu?.textContent).toContain("Codex provider connected");
-    expect(menu?.textContent).toContain("bd596edf-af40-47f6-b10f-a7f2ffdb4ab3");
-
-    // It is not sitting in the always-visible greeting row.
-    const greeting = header?.querySelector("h1");
-    expect(greeting?.textContent).not.toContain("Codex provider connected");
+    // The kid-facing chrome no longer surfaces "Codex" or an account id anywhere.
+    expect(host.textContent).not.toContain("Codex provider connected");
   });
 
-  it("still reports the provider when no account id is known", () => {
-    renderWorkspace(host, { authStatus: { ...authStatus, accountId: undefined } });
+  it("exposes allowed website settings in the grown-up menu", () => {
+    renderWorkspace(host);
+
     const menu = host.querySelector(".hb-parent-menu-popover");
-    expect(menu?.textContent).toContain("Codex provider connected");
+    expect(menu?.textContent).toContain("Allowed websites");
   });
 });
 

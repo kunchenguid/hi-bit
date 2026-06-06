@@ -1,4 +1,5 @@
 import type { AuthStatus } from "@shared/auth";
+import type { BrowserState, BrowserTab, SpotlightRect } from "@shared/browser";
 import type {
   ChatEvent,
   ChatSnapshot,
@@ -64,6 +65,33 @@ const api: HiBitApi = {
     openExternal: (url: string): Promise<void> =>
       ipcRenderer.invoke("hibit:preview:open-external", url),
     clearCache: (): Promise<void> => ipcRenderer.invoke("hibit:preview:clear-cache"),
+  },
+  browser: {
+    state: (): Promise<BrowserState> => ipcRenderer.invoke("hibit:browser:state"),
+    open: (url?: string): Promise<BrowserTab> => ipcRenderer.invoke("hibit:browser:open", url),
+    close: (tabId: string): Promise<void> => ipcRenderer.invoke("hibit:browser:close", tabId),
+    switch: (tabId: string): Promise<void> => ipcRenderer.invoke("hibit:browser:switch", tabId),
+    navigate: (url: string): Promise<void> => ipcRenderer.invoke("hibit:browser:navigate", url),
+    reload: (): Promise<void> => ipcRenderer.invoke("hibit:browser:reload"),
+    reportTabLoaded: (tabId: string, url: string, title?: string): void =>
+      ipcRenderer.send("hibit:browser:tab-loaded", tabId, url, title),
+    onState: (listener: (state: BrowserState) => void): (() => void) => {
+      const handler = (_event: unknown, payload: BrowserState) => listener(payload);
+      ipcRenderer.on("hibit:browser:state", handler);
+      return () => ipcRenderer.off("hibit:browser:state", handler);
+    },
+    onSpotlight: (listener: (rect: SpotlightRect | null) => void): (() => void) => {
+      const handler = (_event: unknown, payload: SpotlightRect | null) => listener(payload);
+      ipcRenderer.on("hibit:browser:spotlight", handler);
+      return () => ipcRenderer.off("hibit:browser:spotlight", handler);
+    },
+    allowlist: {
+      list: (): Promise<string[]> => ipcRenderer.invoke("hibit:browser:allowlist:list"),
+      add: (domain: string): Promise<string[]> =>
+        ipcRenderer.invoke("hibit:browser:allowlist:add", domain),
+      remove: (domain: string): Promise<string[]> =>
+        ipcRenderer.invoke("hibit:browser:allowlist:remove", domain),
+    },
   },
   voice: {
     status: (): Promise<VoiceStatus> => ipcRenderer.invoke("hibit:voice:status"),
