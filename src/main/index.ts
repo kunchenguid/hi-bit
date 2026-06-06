@@ -8,6 +8,7 @@ import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth"
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
 import { AppControlService, type AppDebugger } from "./control/appControlService";
 import type { HeadlessWindow } from "./control/headlessBrowser";
+import { isNavigationAllowed } from "./control/navigation";
 import { ConversationService } from "./conversation/conversationService";
 import { BitRuntimeService } from "./pi/bitRuntimeService";
 import { planShorterEdgeResize } from "./pi/captureImage";
@@ -272,7 +273,9 @@ export function registerIpc(services: Services): void {
 
   ipcMain.handle("hibit:preview:open-external", async (_event, url: string) => {
     // Only ever hand the OS a local preview URL - never an arbitrary scheme.
-    if (!isLoopbackHttpUrl(url)) throw new Error("Refusing to open a non-preview URL.");
+    if (!isNavigationAllowed(url, services.preview.list().map((entry) => entry.url))) {
+      throw new Error("Refusing to open a non-preview URL.");
+    }
     await shell.openExternal(url);
   });
 
@@ -344,17 +347,6 @@ export function isAppRendererSource(
     const url = new URL(value);
     if (devServerUrl && url.origin === new URL(devServerUrl).origin) return true;
     return url.protocol === "file:" && url.href === pathToFileURL(bundledRendererFile).href;
-  } catch {
-    return false;
-  }
-}
-
-function isLoopbackHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "http:" && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
-    );
   } catch {
     return false;
   }

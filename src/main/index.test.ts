@@ -60,6 +60,7 @@ describe("registerIpc", () => {
   beforeEach(() => {
     electronMock.handlers.clear();
     electronMock.ipcMain.handle.mockClear();
+    electronMock.shell.openExternal.mockClear();
   });
 
   it("stops preview servers on logout", async () => {
@@ -83,6 +84,35 @@ describe("registerIpc", () => {
     expect(services.preview.stopAll).toHaveBeenCalled();
     expect(services.runtime.disposeAll).toHaveBeenCalled();
     expect(services.bitRuntime.disposeAll).toHaveBeenCalled();
+  }, 10_000);
+
+  it("opens externally only active preview urls", async () => {
+    const { registerIpc } = await import("./index");
+    const services = {
+      auth: {},
+      runtime: {},
+      bitRuntime: {},
+      preview: { list: vi.fn(() => [{ url: "http://127.0.0.1:4310/" }]) },
+      profiles: {},
+      projects: {},
+      conversation: {},
+      bit: {},
+      layout: { root: "/tmp/hi-bit" },
+      appControl: {},
+      voiceModel: {},
+    };
+
+    registerIpc(services as never);
+    const openExternal = electronMock.handlers.get("hibit:preview:open-external");
+
+    await expect(openExternal?.({}, "http://localhost:5173/")).rejects.toThrow(
+      "Refusing to open a non-preview URL.",
+    );
+    expect(electronMock.shell.openExternal).not.toHaveBeenCalled();
+
+    await openExternal?.({}, "http://127.0.0.1:4310/game.html");
+
+    expect(electronMock.shell.openExternal).toHaveBeenCalledWith("http://127.0.0.1:4310/game.html");
   }, 10_000);
 });
 
