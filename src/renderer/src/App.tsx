@@ -61,7 +61,7 @@ export function App() {
   // status-bar Play becomes a picker and to populate it.
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   // The in-app browser, owned in main and mirrored here. App-level (not per
-  // profile), so a creation tab and website tabs share one surface.
+  // profile), so creation preview tabs share one surface.
   const [browserState, setBrowserState] = useState<BrowserState>({ tabs: [], activeTabId: null });
   const [browserReloadRequest, setBrowserReloadRequest] = useState<{
     projectId: string;

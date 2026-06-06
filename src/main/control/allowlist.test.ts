@@ -37,10 +37,10 @@ describe("isNavigationAllowed", () => {
     expect(isNavigationAllowed("http://localhost:5173/index.html", [])).toBe(true);
   });
 
-  it("allows http(s) to an allowed domain or subdomain", () => {
-    expect(isNavigationAllowed("https://wikipedia.org/", list)).toBe(true);
-    expect(isNavigationAllowed("https://en.wikipedia.org/wiki/Cat", list)).toBe(true);
-    expect(isNavigationAllowed("https://www.nasa.gov/", list)).toBe(true);
+  it("refuses external websites even when domains are listed", () => {
+    expect(isNavigationAllowed("https://wikipedia.org/", list)).toBe(false);
+    expect(isNavigationAllowed("https://en.wikipedia.org/wiki/Cat", list)).toBe(false);
+    expect(isNavigationAllowed("https://www.nasa.gov/", list)).toBe(false);
   });
 
   it("refuses off-list hosts", () => {
@@ -63,8 +63,8 @@ describe("isNavigationAllowed", () => {
     expect(isNavigationAllowed("not a url", list)).toBe(false);
   });
 
-  it("ships a non-empty kid-safe default list", () => {
+  it("keeps the default external list inert for browser navigation", () => {
     expect(DEFAULT_ALLOWLIST.length).toBeGreaterThan(0);
-    expect(isNavigationAllowed("https://en.wikipedia.org/", DEFAULT_ALLOWLIST)).toBe(true);
+    expect(isNavigationAllowed("https://en.wikipedia.org/", DEFAULT_ALLOWLIST)).toBe(false);
   });
 });

@@ -214,7 +214,7 @@ describe("buildBitSystemPrompt", () => {
       expect(prompt).toContain("browser_open_tab");
       expect(prompt).toContain("browser_click");
       expect(prompt).toContain("app_highlight");
-      expect(prompt).toMatch(/allowed list|allow/i);
+      expect(prompt).toMatch(/external websites are refused/i);
       expect(prompt).toMatch(/never tap|NEVER tap|You point/i);
     }
   });

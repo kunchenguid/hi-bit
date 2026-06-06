@@ -2,6 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const electronMock = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  class BrowserWindowMock {
+    webContents = {
+      debugger: {},
+      capturePage: vi.fn(),
+      getURL: vi.fn(() => ""),
+      getTitle: vi.fn(() => ""),
+      setWindowOpenHandler: vi.fn(),
+    };
+    isDestroyed = vi.fn(() => false);
+    loadURL = vi.fn();
+    destroy = vi.fn();
+  }
+  const BrowserWindow = vi.fn(BrowserWindowMock);
   return {
     handlers,
     app: {
@@ -13,7 +26,7 @@ const electronMock = vi.hoisted(() => {
       quit: vi.fn(),
       whenReady: vi.fn(() => new Promise(() => {})),
     },
-    BrowserWindow: Object.assign(vi.fn(), { getAllWindows: vi.fn(() => []) }),
+    BrowserWindow: Object.assign(BrowserWindow, { getAllWindows: vi.fn(() => []) }),
     ipcMain: {
       handle: vi.fn((name: string, handler: (...args: unknown[]) => unknown) => {
         handlers.set(name, handler);
@@ -27,6 +40,18 @@ const electronMock = vi.hoisted(() => {
     protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
     net: { fetch: vi.fn() },
   };
+});
+
+describe("createHeadlessWindow", () => {
+  it("denies window.open popups in headless bot tabs", async () => {
+    const { createHeadlessWindow } = await import("./index");
+
+    createHeadlessWindow();
+
+    const win = electronMock.BrowserWindow.mock.results.at(-1)?.value;
+    expect(win.webContents.setWindowOpenHandler).toHaveBeenCalledWith(expect.any(Function));
+    expect(win.webContents.setWindowOpenHandler.mock.calls[0][0]()).toEqual({ action: "deny" });
+  });
 });
 
 vi.mock("electron", () => electronMock);

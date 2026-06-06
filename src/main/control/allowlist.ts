@@ -1,11 +1,9 @@
 /**
  * The navigation allowlist for Bit's and bots' browser. Hi-Bit is for kids, so
- * the browser may only ever load loopback (a creation's own preview server) plus
- * a small set of parent-approved domains. Everything else is refused before a
- * navigation is ever issued.
+ * the browser may only ever load loopback (a creation's own preview server).
+ * Everything else is refused before a navigation is ever issued.
  *
- * Pure on purpose: the gate logic is unit-tested here, and the live list lives in
- * config on disk (see `AppControlService`), edited through the parent settings UI.
+ * Pure on purpose: the gate logic is unit-tested here.
  */
 
 /** A domain entry like `wikipedia.org` - matches that host and any subdomain. */
@@ -30,17 +28,11 @@ export function normalizeDomain(entry: string): string | null {
   }
 }
 
-/** True when `hostname` equals `domain` or is a subdomain of it. */
-function hostMatchesDomain(hostname: string, domain: string): boolean {
-  return hostname === domain || hostname.endsWith(`.${domain}`);
-}
-
 /**
  * The single gate every browser navigation passes through. Loopback is always
- * allowed; otherwise the URL must be http(s) to an allowed domain (or subdomain).
- * Anything unparseable, any non-http scheme, and any off-list host is refused.
+ * allowed. Anything unparseable, any non-http scheme, and any external host is refused.
  */
-export function isNavigationAllowed(url: string, allowlist: readonly AllowedDomain[]): boolean {
+export function isNavigationAllowed(url: string, _allowlist: readonly AllowedDomain[]): boolean {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -48,10 +40,7 @@ export function isNavigationAllowed(url: string, allowlist: readonly AllowedDoma
     return false;
   }
   if (parsed.protocol === "http:" && isLoopbackHost(parsed.hostname)) return true;
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-  if (isLoopbackHost(parsed.hostname)) return true;
-  const host = parsed.hostname.startsWith("www.") ? parsed.hostname.slice(4) : parsed.hostname;
-  return allowlist.some((domain) => hostMatchesDomain(host, domain));
+  return false;
 }
 
 /** The kid-safe domains shipped on by default; parents add more in settings. */

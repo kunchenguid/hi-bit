@@ -414,13 +414,14 @@ function broadcastToRenderer(channel: string, payload: unknown): void {
  * A headless offscreen window for a bot's browser tab - real Chromium, never
  * shown to the kid. Driven entirely over CDP by a `CdpController`.
  */
-function createHeadlessWindow(): HeadlessWindow {
+export function createHeadlessWindow(): HeadlessWindow {
   const win = new BrowserWindow({
     show: false,
     width: 1280,
     height: 820,
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   return {
     debugger: win.webContents.debugger as unknown as HeadlessWindow["debugger"],
     capture: async () => {

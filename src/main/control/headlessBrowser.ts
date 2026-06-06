@@ -15,7 +15,7 @@ export interface HeadlessWindow {
 
 export type HeadlessBrowserOptions = {
   createWindow: () => HeadlessWindow;
-  /** Allowlist gate (loopback already allowed by the caller's implementation). */
+  /** Navigation gate. */
   isAllowed: (url: string) => boolean | Promise<boolean>;
   maxTabs?: number;
 };

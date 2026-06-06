@@ -203,6 +203,12 @@ export class AppControlService {
     if (url) {
       await this.ensureAllowlist();
       if (!this.isAllowed(url)) throw new NavigationBlockedError(url);
+      const existing = this.tabs.find((t) => t.url === url);
+      if (existing) {
+        this.activeTabId = existing.id;
+        this.broadcastState();
+        return existing;
+      }
     }
     const tab: BrowserTab = { id: randomUUID(), url: url ?? "", kind: kindFor(url) };
     this.tabs = [...this.tabs, tab];
@@ -264,9 +270,20 @@ export class AppControlService {
   private async assertBrowserAllowed(): Promise<void> {
     await this.ensureAllowlist();
     const frameKey = await this.activeFrameKey();
-    if (!frameKey) return;
     const controller = await this.controllerFor();
-    const disallowed = await controller.firstDisallowedFrameUrl((url) => this.isAllowed(url), frameKey);
+    if (!frameKey) {
+      const activeUrl = this.activeTab()?.url;
+      const disallowed = (await controller.childFrameUrls()).find(
+        (frame) => !this.isAllowed(frame.url),
+      );
+      if (disallowed) throw new NavigationBlockedError(disallowed.url);
+      if (activeUrl) throw new NavigationBlockedError(activeUrl);
+      return;
+    }
+    const disallowed = await controller.firstDisallowedFrameUrl(
+      (url) => this.isAllowed(url),
+      frameKey,
+    );
     if (disallowed) throw new NavigationBlockedError(disallowed);
   }
 

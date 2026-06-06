@@ -130,8 +130,8 @@ export class BitRuntimeService implements BitRuntime {
    */
   private readonly appTools: ToolDefinition[];
   /**
-   * Bit's browser tools (`browser_*`): open and operate visible tabs - creations
-   * and allowed websites. Empty when no browser host is configured (e.g. tests).
+   * Bit's browser tools (`browser_*`): open and operate visible creation tabs.
+   * Empty when no browser host is configured (e.g. tests).
    */
   private readonly browserTools: ToolDefinition[];
 
