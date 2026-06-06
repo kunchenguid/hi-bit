@@ -319,4 +319,80 @@ describe("AppControlService tab loaded", () => {
 
     expect(service.state().tabs[0].url).toBe("");
   });
+
+  it("broadcasts after clearing a committed frame load that is not an active preview", async () => {
+    const { service, broadcasts } = makeService(["http://127.0.0.1:4310/"]);
+    await service.restore({
+      tabs: [{ id: "active", url: "http://127.0.0.1:4310/start", kind: "creation" }],
+      activeTabId: "active",
+    });
+    broadcasts.length = 0;
+    const controller = {
+      isAttached: () => true,
+      findFrameKeyByUrl: vi.fn(async () => undefined),
+      childFrameUrls: vi.fn(async () => [
+        { frameKey: "frame-active", url: "http://127.0.0.1:5173/" },
+      ]),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await service.onTabLoaded("active", "http://127.0.0.1:4310/start");
+
+    expect(broadcasts).toContainEqual({
+      channel: "hibit:browser:state",
+      payload: {
+        tabs: [{ id: "active", url: "", kind: "web" }],
+        activeTabId: "active",
+      },
+    });
+  });
+
+  it("clears a hidden tab when its committed frame load is not an active preview", async () => {
+    const { service, broadcasts } = makeService(["http://127.0.0.1:4310/"]);
+    await service.restore({
+      tabs: [
+        { id: "active", url: "http://127.0.0.1:4310/active", kind: "creation" },
+        { id: "hidden", url: "http://127.0.0.1:4310/start", kind: "creation" },
+      ],
+      activeTabId: "active",
+    });
+    broadcasts.length = 0;
+    const controller = {
+      isAttached: () => true,
+      findFrameKeyByUrl: vi.fn(async () => undefined),
+      childFrameUrls: vi.fn(async () => [
+        { frameKey: "frame-hidden", url: "http://127.0.0.1:5173/" },
+      ]),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await service.onTabLoaded("hidden", "http://127.0.0.1:4310/start");
+
+    expect(service.state().tabs.find((tab) => tab.id === "hidden")?.url).toBe("");
+    expect(broadcasts.at(-1)?.payload).toMatchObject({
+      tabs: [
+        { id: "active", url: "http://127.0.0.1:4310/active", kind: "creation" },
+        { id: "hidden", url: "", kind: "web" },
+      ],
+      activeTabId: "active",
+    });
+  });
 });
