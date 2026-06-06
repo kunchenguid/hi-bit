@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { BrowserState, BrowserTab } from "@shared/browser";
 import type { ChatEvent } from "@shared/chat";
 import type { HiBitApi } from "@shared/ipc";
 import { act } from "react";
@@ -114,7 +115,6 @@ describe("App", () => {
 
     expect(api.chat.load).toHaveBeenCalledWith("ada");
     expect(host.textContent).toContain("Hi Ada - what should we build?");
-    expect(host.textContent).toContain("Codex provider connected");
     expect(host.textContent).toContain("Ask Bit to build");
     expect(host.textContent).not.toContain("New project");
     expect(host.textContent).not.toContain("Log out");
@@ -778,6 +778,8 @@ function samProfile() {
 }
 
 function createApiMock(): HiBitApi {
+  let browserTabs: BrowserTab[] = [];
+  let browserStateListener: ((state: BrowserState) => void) | null = null;
   return {
     app: {
       info: vi.fn(async () => ({
@@ -858,15 +860,49 @@ function createApiMock(): HiBitApi {
       markActivitiesOpened: vi.fn(async () => {}),
       onEvent: vi.fn(() => () => {}),
     },
+    // The browser tab model lives in main; here it's a tiny in-memory mirror.
+    // Play folds into a creation tab, so `preview.play` also pushes browser state
+    // through `onState`, exactly as the real main process does via `playInTab`.
     preview: {
-      play: vi.fn(async (_profileId, projectId) => ({
-        projectId,
-        title: "Snake Game",
-        url: "http://127.0.0.1:4310/",
-        startedAt: "2026-01-01T00:00:00.000Z",
-      })),
+      play: vi.fn(async (_profileId, projectId) => {
+        const info = {
+          projectId,
+          title: "Snake Game",
+          url: "http://127.0.0.1:4310/",
+          startedAt: "2026-01-01T00:00:00.000Z",
+        };
+        browserTabs = [
+          { id: `tab-${projectId}`, url: info.url, title: info.title, kind: "creation" },
+        ];
+        browserStateListener?.({ tabs: browserTabs, activeTabId: `tab-${projectId}` });
+        return info;
+      }),
       openExternal: vi.fn(async () => {}),
       clearCache: vi.fn(async () => {}),
+    },
+    browser: {
+      state: vi.fn(async () => ({
+        tabs: browserTabs,
+        activeTabId: browserTabs[0]?.id ?? null,
+      })),
+      open: vi.fn(async (url?: string) => ({ id: "tab-1", url: url ?? "", kind: "web" as const })),
+      close: vi.fn(async () => {}),
+      switch: vi.fn(async () => {}),
+      navigate: vi.fn(async () => {}),
+      reload: vi.fn(async () => {}),
+      reportTabLoaded: vi.fn(() => {}),
+      onState: vi.fn((listener: (state: BrowserState) => void) => {
+        browserStateListener = listener;
+        return () => {
+          browserStateListener = null;
+        };
+      }),
+      onSpotlight: vi.fn(() => () => {}),
+      allowlist: {
+        list: vi.fn(async () => []),
+        add: vi.fn(async () => []),
+        remove: vi.fn(async () => []),
+      },
     },
     voice: {
       status: vi.fn(async () => ({ modelReady: false })),

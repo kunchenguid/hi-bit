@@ -1263,6 +1263,269 @@ pre {
   background: #fff;
 }
 
+/* The in-app browser: one toolbar (tabs + actions) above the tab frames. */
+.hb-browser-pane {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.hb-browser-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-1);
+  /* No bottom padding: tabs sit flush to the bottom border so the active one can
+     break through it (Chrome-style) and connect to the content below. */
+  padding: 6px 6px 0;
+  background: var(--paper-3);
+  border-bottom: 2px solid var(--ink);
+}
+
+.hb-browser-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  /* No overflow clip: the active tab bleeds 2px downward to connect to the page,
+     and overflow-x:auto would coerce overflow-y to clip that bleed. Tabs shrink
+     (label ellipsis) instead of scrolling - fine for the few Bit opens. */
+}
+
+.hb-browser-tab {
+  display: flex;
+  align-items: center;
+  max-width: 180px;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  background: transparent;
+  color: var(--ink-60, var(--ink));
+}
+
+.hb-browser-tab:not(.is-active):hover {
+  background: var(--paper-2);
+}
+
+/* The active tab takes the content's fill, keeps a top + side border but no
+   bottom, and overlaps the toolbar's bottom border by 2px - so its fill covers
+   that line and the tab reads as one surface with the page below it. */
+.hb-browser-tab.is-active {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -2px;
+  background: var(--paper-1, #fff);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-bottom: 0;
+}
+
+.hb-browser-actions {
+  flex: none;
+  /* Sit at the toolbar's bottom, then lift off the connection line by a fixed
+     gap. The toolbar has no bottom padding (so the active tab can reach the
+     border), so the gap lives here instead. */
+  align-self: flex-end;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hb-browser-action {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  justify-content: center;
+}
+
+.hb-browser-tab-label {
+  min-width: 0;
+  flex: 1;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--t-small-size);
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.hb-browser-tab-close {
+  flex: none;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.hb-browser-frames {
+  position: relative;
+  min-height: 0;
+  /* Same fill as the active tab, so the tab connects seamlessly into the page. */
+  background: var(--paper-1, #fff);
+}
+
+.hb-browser-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.hb-browser-frame[hidden] {
+  display: none;
+}
+
+/* The tutorial spotlight: a dim modal with a hole. The four mask panels dim the
+   app and absorb outside clicks (a tap there just dismisses); the hole is left
+   open so a tap passes through to the real control. The ring and caption sit on
+   top, click-transparent, so they never get in the way. */
+.hb-spotlight-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.hb-spotlight-mask {
+  position: fixed;
+  background: rgba(14, 16, 32, 0.45);
+  pointer-events: auto;
+}
+
+.hb-spotlight-ring {
+  position: fixed;
+  pointer-events: none;
+  border: 3px solid var(--brand, #ff7a59);
+  border-radius: var(--r-lg, 12px);
+  box-shadow: 0 0 0 4px rgba(255, 122, 89, 0.35);
+  animation: hb-spotlight-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes hb-spotlight-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(255, 122, 89, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(255, 122, 89, 0.2);
+  }
+}
+
+.hb-spotlight-label {
+  position: fixed;
+  pointer-events: none;
+  max-width: 240px;
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-md);
+  background: var(--brand, #ff7a59);
+  color: #fff;
+  font-weight: 700;
+  font-size: var(--t-small-size);
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+/* The grown-up allowlist editor inside the parent menu. */
+/* "Allowed websites" matches the other full-width, centered menu buttons. */
+.hb-browser-settings {
+  width: 100%;
+}
+
+.hb-browser-settings > summary.hb-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.hb-browser-settings > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hb-browser-settings-body {
+  margin-top: var(--s-1);
+  /* .hb-card is a bare bordered surface; add the inner padding ourselves so the
+     helper text and list don't hug the gray border. */
+  padding: var(--s-2);
+  display: grid;
+  gap: var(--s-1\.5);
+}
+
+.hb-allowlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.hb-allowlist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-1);
+  padding: 5px 6px 5px 10px;
+  background: var(--paper-2);
+  border: var(--border-hairline);
+  border-radius: var(--r-md);
+}
+
+.hb-allowlist-domain {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.hb-allowlist-empty {
+  padding: var(--s-1);
+  text-align: center;
+  opacity: 0.7;
+}
+
+.hb-allowlist-remove {
+  flex: none;
+  padding: 3px 10px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-md);
+  background: var(--paper-1, #fff);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.hb-allowlist-remove:hover:not(:disabled) {
+  background: var(--paper-3);
+}
+
+.hb-allowlist-add {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.hb-allowlist-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-md);
+  font-family: inherit;
+  font-size: var(--t-small-size);
+}
+
+.hb-allowlist-add .hb-button {
+  flex: none;
+}
+
 /* The factory floor: every creation as a machine, with its bots and steps. */
 .hb-factory-backdrop {
   position: fixed;

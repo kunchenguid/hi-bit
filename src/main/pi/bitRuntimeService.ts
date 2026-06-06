@@ -10,10 +10,12 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
+import type { BrowserHost } from "../control/browserHost";
+import { type AppSurface, createAppTools } from "./appTools";
 import { createViewBitTool } from "./brandTool";
+import { createBrowserTools } from "./browserTools";
 import { createBitResourceLoader } from "./piResources";
 import { createProfileTools, type ProfileDirectMutation } from "./profileJailedTools";
-import { createViewScreenTool } from "./screenTool";
 import { createWebSearchTools } from "./webSearchTools";
 
 /** A picture handed to the model with a prompt, in the Pi runtime's content shape. */
@@ -80,10 +82,15 @@ type BitRuntimeServiceOptions = {
   /** Path to Bit's mascot SVG, so Bit can `view_bit` to see its own look. */
   mascotAssetPath?: string;
   /**
-   * Captures the live app renderer as a base64 PNG (or `null` if no window),
-   * backing Bit's `view_screen` tool. Omitted in tests, so the tool is absent.
+   * Backs Bit's `app_*` tools (screenshot/snapshot/spotlight). Omitted in tests,
+   * so those tools are absent.
    */
-  captureScreen?: () => Promise<string | null>;
+  appSurface?: AppSurface;
+  /**
+   * Backs Bit's `browser_*` tools (visible tabs). Omitted in tests, so those
+   * tools are absent.
+   */
+  browserHost?: BrowserHost;
 };
 
 type RunningTurn = {
@@ -117,11 +124,16 @@ export class BitRuntimeService implements BitRuntime {
    */
   private readonly brandTools: ToolDefinition[];
   /**
-   * Bit's "look at the app" tool (`view_screen`), so Bit can see the whole
-   * renderer - chat, chrome, and live preview - when the builder describes
-   * something visual. Empty when no capture function is configured (e.g. tests).
+   * Bit's app tools (`app_screenshot`/`app_snapshot`/`app_highlight`): see the
+   * whole renderer and spotlight controls for the kid, but never click them.
+   * Empty when no app surface is configured (e.g. tests).
    */
-  private readonly screenTools: ToolDefinition[];
+  private readonly appTools: ToolDefinition[];
+  /**
+   * Bit's browser tools (`browser_*`): open and operate visible tabs - creations
+   * and allowed websites. Empty when no browser host is configured (e.g. tests).
+   */
+  private readonly browserTools: ToolDefinition[];
 
   constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
@@ -133,9 +145,8 @@ export class BitRuntimeService implements BitRuntime {
     this.brandTools = options.mascotAssetPath
       ? [createViewBitTool({ mascotSvgPath: options.mascotAssetPath })]
       : [];
-    this.screenTools = options.captureScreen
-      ? [createViewScreenTool({ capture: options.captureScreen })]
-      : [];
+    this.appTools = options.appSurface ? createAppTools(options.appSurface) : [];
+    this.browserTools = options.browserHost ? createBrowserTools(options.browserHost) : [];
   }
 
   async prompt(
@@ -228,7 +239,8 @@ export class BitRuntimeService implements BitRuntime {
         ...input.customTools,
         ...this.webTools,
         ...this.brandTools,
-        ...this.screenTools,
+        ...this.appTools,
+        ...this.browserTools,
       ],
       accessToken,
       agentDir: this.options.agentDir,

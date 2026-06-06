@@ -1,4 +1,4 @@
-import type { AuthStatus } from "@shared/auth";
+import type { BrowserState } from "@shared/browser";
 import type {
   ChatMessage,
   CreationActivity,
@@ -9,14 +9,14 @@ import type {
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { ActivityChip } from "../components/ActivityChip";
+import { BrowserPane } from "../components/BrowserPane";
+import { BrowserSettings } from "../components/BrowserSettings";
 import { Composer } from "../components/Composer";
 import { FactoryView } from "../components/FactoryView";
 import { MessageList } from "../components/MessageList";
-import { PreviewPane } from "../components/PreviewPane";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
 
 type ChatWorkspaceProps = {
-  authStatus: AuthStatus | null;
   profile: ProfileSummary;
   messages: ChatMessage[];
   activity: CreationActivity[];
@@ -31,7 +31,7 @@ type ChatWorkspaceProps = {
   previews: PreviewInfo[];
   playableProjectIds: string[];
   creations: ProjectSummary[];
-  activePreview: PreviewInfo | null;
+  browserState: BrowserState;
   reloadSignal: number;
   onDraftChange: (value: string) => void;
   onAttachImage: (image: OutgoingImage) => void;
@@ -45,13 +45,14 @@ type ChatWorkspaceProps = {
   onShowActivity: () => void;
   onHideActivity: () => void;
   onPlayPreview: (projectId: string) => void;
-  onClosePreview: () => void;
+  onSwitchTab: (tabId: string) => void;
+  onCloseTab: (tabId: string) => void;
+  onReportTabLoaded: (tabId: string, url: string, title?: string) => void;
   onOpenPreviewExternal: (url: string) => void;
   onClearPreviewCache: () => Promise<void>;
 };
 
 export function ChatWorkspace({
-  authStatus,
   profile,
   messages,
   activity,
@@ -66,7 +67,7 @@ export function ChatWorkspace({
   previews,
   playableProjectIds,
   creations,
-  activePreview,
+  browserState,
   reloadSignal,
   onDraftChange,
   onAttachImage,
@@ -80,14 +81,12 @@ export function ChatWorkspace({
   onShowActivity,
   onHideActivity,
   onPlayPreview,
-  onClosePreview,
+  onSwitchTab,
+  onCloseTab,
+  onReportTabLoaded,
   onOpenPreviewExternal,
   onClearPreviewCache,
 }: ChatWorkspaceProps) {
-  const providerStatus = authStatus?.accountId
-    ? `Codex provider connected (${authStatus.accountId})`
-    : "Codex provider connected";
-
   // Show the pending Bit bubble during the gap before Bit's first streamed
   // token (and any tool-only stretches). Once the active turn's own bubble is
   // streaming, its text is the liveness cue and the dots step aside. Keying off
@@ -123,8 +122,8 @@ export function ChatWorkspace({
         <details className="hb-parent-menu hb-header-actions">
           <summary className="hb-button hb-button-secondary">Grown-up menu</summary>
           <div className="hb-card hb-parent-menu-popover">
-            <p className="t-small hb-provider-status">{providerStatus}</p>
             <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
+            <BrowserSettings />
             <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
               Open creations folder
             </button>
@@ -139,7 +138,10 @@ export function ChatWorkspace({
         </details>
       </header>
 
-      <section className="hb-chat-layout" data-preview={activePreview ? "open" : "closed"}>
+      <section
+        className="hb-chat-layout"
+        data-preview={browserState.tabs.length > 0 ? "open" : "closed"}
+      >
         <div className="hb-chat-card">
           <MessageList
             messages={messages}
@@ -177,13 +179,15 @@ export function ChatWorkspace({
             onAbort={onAbort}
           />
         </div>
-        {activePreview ? (
-          <PreviewPane
-            preview={activePreview}
+        {browserState.tabs.length > 0 ? (
+          <BrowserPane
+            state={browserState}
             reloadSignal={reloadSignal}
             clearCache={onClearPreviewCache}
+            onSwitchTab={onSwitchTab}
+            onCloseTab={onCloseTab}
+            onReportLoaded={onReportTabLoaded}
             onOpenExternal={onOpenPreviewExternal}
-            onClose={onClosePreview}
           />
         ) : null}
       </section>

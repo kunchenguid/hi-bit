@@ -18,6 +18,9 @@ const electronMock = vi.hoisted(() => {
       handle: vi.fn((name: string, handler: (...args: unknown[]) => unknown) => {
         handlers.set(name, handler);
       }),
+      on: vi.fn((name: string, handler: (...args: unknown[]) => unknown) => {
+        handlers.set(name, handler);
+      }),
     },
     safeStorage: {},
     shell: { openExternal: vi.fn(), openPath: vi.fn() },

@@ -9,8 +9,10 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
+import type { HeadlessBrowserHost } from "../control/headlessBrowser";
 import type { RuntimeProject } from "../projects/projectService";
 import { createViewBitTool } from "./brandTool";
+import { createBrowserTools } from "./browserTools";
 import { createGenerateImageTool } from "./imageGenTool";
 import { chatEventsFromPiEvent } from "./piMessages";
 import { createBotResourceLoader, HI_BIT_ACTIVE_TOOLS } from "./piResources";
@@ -55,6 +57,12 @@ type PiRuntimeServiceOptions = {
   skillsDir?: string;
   /** Path to Bit's mascot SVG, so the bot can `view_bit` to draw Bit on-model. */
   mascotAssetPath?: string;
+  /**
+   * Makes a fresh headless browser for a bot session, so bots get the `browser_*`
+   * tools over offscreen windows (never the kid's screen, never the `app_*`
+   * tools). Omitted in tests, so bots have no browser there.
+   */
+  createBrowser?: () => HeadlessBrowserHost;
 };
 
 type RunningTurn = {
@@ -66,6 +74,8 @@ type RunningTurn = {
 export class PiRuntimeService {
   private readonly sessions = new Map<string, RuntimePiSession>();
   private readonly running = new Map<string, RunningTurn>();
+  /** One headless browser per bot session, torn down with the session. */
+  private readonly browsers = new Map<string, HeadlessBrowserHost>();
   private readonly createSession: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   private readonly modelId: string;
   private readonly customTools: ToolDefinition[];
@@ -167,13 +177,19 @@ export class PiRuntimeService {
   disposeProject(projectId: string): void {
     this.sessions.get(projectId)?.dispose();
     this.sessions.delete(projectId);
+    this.browsers.get(projectId)?.dispose();
+    this.browsers.delete(projectId);
   }
 
   disposeAll(): void {
     for (const session of this.sessions.values()) {
       session.dispose();
     }
+    for (const browser of this.browsers.values()) {
+      browser.dispose();
+    }
     this.sessions.clear();
+    this.browsers.clear();
     this.running.clear();
   }
 
@@ -188,12 +204,20 @@ export class PiRuntimeService {
     const runtimeKey = runtimeKeyFor(project);
     const existing = this.sessions.get(runtimeKey);
     if (existing) return existing;
+    // A bot gets its own headless browser (and the browser_* tools over it) for
+    // this session; it never sees the kid's screen or the app_* tools.
+    let customTools = this.customTools;
+    if (this.options.createBrowser) {
+      const browser = this.options.createBrowser();
+      this.browsers.set(runtimeKey, browser);
+      customTools = [...this.customTools, ...createBrowserTools(browser)];
+    }
     const session = await this.createSession({
       project,
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
-      customTools: this.customTools,
+      customTools,
       skillsDir: this.options.skillsDir,
     });
     this.sessions.set(runtimeKey, session);

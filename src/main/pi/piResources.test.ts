@@ -194,15 +194,28 @@ describe("buildBitSystemPrompt", () => {
     }
   });
 
-  it("offers view_screen in both Bit prompt sources for visual app questions", () => {
+  it("offers app_screenshot in both Bit prompt sources for visual app questions", () => {
     const runtimePrompt = buildBitSystemPrompt();
     const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
 
     for (const prompt of [runtimePrompt, mirroredPrompt]) {
-      expect(prompt).toContain("view_screen");
+      expect(prompt).toContain("app_screenshot");
       expect(prompt).toMatch(/whole Hi-Bit screen|whole.*screen/i);
       expect(prompt).toMatch(/builder.*see|what they see/i);
       expect(prompt).toMatch(/looks weird|wrong place|look like this|visual/i);
+    }
+  });
+
+  it("gives Bit the browser and spotlight tools, and forbids tapping the app's own buttons", () => {
+    const runtimePrompt = buildBitSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      expect(prompt).toContain("browser_open_tab");
+      expect(prompt).toContain("browser_click");
+      expect(prompt).toContain("app_highlight");
+      expect(prompt).toMatch(/allowed list|allow/i);
+      expect(prompt).toMatch(/never tap|NEVER tap|You point/i);
     }
   });
 
