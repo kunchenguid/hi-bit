@@ -241,4 +241,25 @@ describe("PiRuntimeService", () => {
     expect(service.getMessages("bot_job_1")).toHaveLength(2);
     expect(service.getMessages("bot_job_2")).toHaveLength(2);
   });
+
+  it("disposes a headless browser when bot session creation fails", async () => {
+    let disposed = false;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createBrowser: () =>
+        ({
+          dispose: () => {
+            disposed = true;
+          },
+        }) as never,
+      createSession: async () => {
+        throw new Error("session failed");
+      },
+    });
+
+    await expect(service.sendPrompt({ ...project(), runtimeKey: "bot_job_1" }, "Build", () => {}))
+      .rejects.toThrow("session failed");
+    expect(disposed).toBe(true);
+  });
 });

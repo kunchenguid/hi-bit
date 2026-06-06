@@ -145,7 +145,11 @@ export class AppControlService {
       if (frameKey) await (await this.controllerFor()).back(frameKey);
     },
     reload: () => this.reloadActive(),
-    snapshot: async () => (await this.browserController()).snapshot("children"),
+    snapshot: async () => {
+      await this.assertBrowserAllowed();
+      const frameKey = await this.activeFrameKey();
+      return frameKey ? (await this.controllerFor()).snapshotFrame(frameKey) : "";
+    },
     click: async (ref) => (await this.browserController()).click(ref),
     fill: async (ref, text) => (await this.browserController()).fill(ref, text),
     type: async (text) => (await this.browserController()).type(text),
@@ -255,8 +259,10 @@ export class AppControlService {
 
   private async assertBrowserAllowed(): Promise<void> {
     await this.ensureAllowlist();
+    const frameKey = await this.activeFrameKey();
+    if (!frameKey) return;
     const controller = await this.controllerFor();
-    const disallowed = await controller.firstDisallowedFrameUrl((url) => this.isAllowed(url));
+    const disallowed = await controller.firstDisallowedFrameUrl((url) => this.isAllowed(url), frameKey);
     if (disallowed) throw new NavigationBlockedError(disallowed);
   }
 
@@ -292,10 +298,24 @@ export class AppControlService {
   }
 
   /** Called from IPC when the renderer finishes loading a tab's iframe. */
-  onTabLoaded(tabId: string, url: string, title?: string): void {
+  async onTabLoaded(tabId: string, url: string, title?: string): Promise<void> {
     const tab = this.tabs.find((t) => t.id === tabId);
+    let loadedUrl = url;
+    try {
+      const controller = await this.controllerFor();
+      const frameKey = await controller.findFrameKeyByUrl(url);
+      if (frameKey) {
+        loadedUrl = await controller.currentUrl(frameKey);
+      } else if (tabId === this.activeTabId) {
+        const candidates = await controller.childFrameUrls();
+        const allowed = candidates.find((candidate) => this.isAllowed(candidate.url));
+        if (allowed) loadedUrl = allowed.url;
+      }
+    } catch {
+      // The app window may not be attachable during startup or shutdown.
+    }
     if (tab) {
-      if (url) tab.url = url;
+      if (loadedUrl) tab.url = loadedUrl;
       if (title) tab.title = title;
     }
     this.pendingLoads.get(tabId)?.();

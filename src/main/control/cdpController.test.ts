@@ -31,7 +31,12 @@ function makeFakeDebugger() {
       sent.push({ method, params, sessionId });
       const p = params as Record<string, unknown>;
       if (method === "Page.getFrameTree") {
-        const url = sessionId === "s1" ? "http://127.0.0.1:5000/" : "app://app";
+        const url =
+          sessionId === "s1"
+            ? "http://127.0.0.1:5000/"
+            : sessionId === "s2"
+              ? "https://wikipedia.org/"
+              : "app://app";
         return { frameTree: { frame: { url } } };
       }
       if (method === "Accessibility.getFullAXTree") {
@@ -92,6 +97,11 @@ function makeFakeDebugger() {
         sessionId: "s1",
         targetInfo: { targetId: "f1", type: "iframe" },
       }),
+    fireAttachedSecondChild: () =>
+      messageHandler?.(null, "Target.attachedToTarget", {
+        sessionId: "s2",
+        targetInfo: { targetId: "f2", type: "iframe" },
+      }),
   };
 }
 
@@ -147,6 +157,31 @@ describe("CdpController", () => {
     await expect(controller.firstDisallowedFrameUrl((url) => url.includes("app://"))).resolves.toBe(
       "http://127.0.0.1:5000/",
     );
+  });
+
+  it("can validate only one browser frame and ignore the app frame", async () => {
+    const fake = makeFakeDebugger();
+    const controller = new CdpController({ debugger: fake.dbg, capture: async () => "png" });
+    await controller.attach();
+    fake.fireAttachedChild();
+
+    await expect(controller.firstDisallowedFrameUrl(() => false, "s1")).resolves.toBe(
+      "http://127.0.0.1:5000/",
+    );
+  });
+
+  it("snapshots only the requested active browser frame", async () => {
+    const fake = makeFakeDebugger();
+    const controller = new CdpController({ debugger: fake.dbg, capture: async () => "png" });
+    await controller.attach();
+    fake.fireAttachedChild();
+    fake.fireAttachedSecondChild();
+
+    const text = await controller.snapshotFrame("s1");
+
+    expect(text).toContain('button "Inner btn"');
+    expect(text).not.toContain("app://app");
+    expect(text).not.toContain("https://wikipedia.org/");
   });
 
   it("uses the platform select-all chord before replacing field text", async () => {

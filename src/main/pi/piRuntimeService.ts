@@ -207,8 +207,9 @@ export class PiRuntimeService {
     // A bot gets its own headless browser (and the browser_* tools over it) for
     // this session; it never sees the kid's screen or the app_* tools.
     let customTools = this.customTools;
+    let browser: HeadlessBrowserHost | undefined;
     if (this.options.createBrowser) {
-      const browser = this.options.createBrowser();
+      browser = this.options.createBrowser();
       this.browsers.set(runtimeKey, browser);
       customTools = [...this.customTools, ...createBrowserTools(browser)];
     }
@@ -219,6 +220,10 @@ export class PiRuntimeService {
       modelId: this.modelId,
       customTools,
       skillsDir: this.options.skillsDir,
+    }).catch((error) => {
+      browser?.dispose();
+      this.browsers.delete(runtimeKey);
+      throw error;
     });
     this.sessions.set(runtimeKey, session);
     return session;

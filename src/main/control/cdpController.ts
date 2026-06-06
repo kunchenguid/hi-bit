@@ -181,13 +181,17 @@ export class CdpController {
     return [TOP, ...this.children.keys()];
   }
 
-  /** Pulls accessibility trees for the chosen frames and builds the ref'd text. */
-  async snapshot(scope: SnapshotScope = "all"): Promise<string> {
+  private frameKeysUnder(rootFrameKey: string): string[] {
+    const keys = [rootFrameKey];
+    for (const [key, child] of this.children) {
+      if (child.parentKey === rootFrameKey) keys.push(...this.frameKeysUnder(key));
+    }
+    return keys;
+  }
+
+  private async snapshotKeys(keys: string[]): Promise<string> {
     this.offsetCache.clear();
     const frames: FrameTree[] = [];
-    const keys = this.allFrameKeys().filter((key) =>
-      scope === "all" ? true : scope === "top" ? key === TOP : key !== TOP,
-    );
     for (const frameKey of keys) {
       try {
         const url = await this.frameUrl(frameKey);
@@ -202,6 +206,18 @@ export class CdpController {
     const snap = buildSnapshot(frames);
     this.refs = snap.refs;
     return snap.text;
+  }
+
+  /** Pulls accessibility trees for the chosen frames and builds the ref'd text. */
+  async snapshot(scope: SnapshotScope = "all"): Promise<string> {
+    const keys = this.allFrameKeys().filter((key) =>
+      scope === "all" ? true : scope === "top" ? key === TOP : key !== TOP,
+    );
+    return this.snapshotKeys(keys);
+  }
+
+  async snapshotFrame(frameKey: string): Promise<string> {
+    return this.snapshotKeys(this.frameKeysUnder(frameKey));
   }
 
   private async frameUrl(frameKey: string): Promise<string> {
@@ -356,8 +372,8 @@ export class CdpController {
     await this.send("Page.reload", {}, frameKey);
   }
 
-  async currentUrl(): Promise<string> {
-    return this.frameUrl(TOP);
+  async currentUrl(frameKey = TOP): Promise<string> {
+    return this.frameUrl(frameKey);
   }
 
   /** Evaluates JS in a frame and returns the value (best effort). */
@@ -379,10 +395,21 @@ export class CdpController {
     return undefined;
   }
 
+  async childFrameUrls(): Promise<Array<{ frameKey: string; url: string }>> {
+    const urls: Array<{ frameKey: string; url: string }> = [];
+    for (const frameKey of this.children.keys()) {
+      const url = await this.frameUrl(frameKey);
+      if (url) urls.push({ frameKey, url });
+    }
+    return urls;
+  }
+
   async firstDisallowedFrameUrl(
     isAllowed: (url: string) => boolean | Promise<boolean>,
+    rootFrameKey?: string,
   ): Promise<string | null> {
-    for (const frameKey of this.allFrameKeys()) {
+    const frameKeys = rootFrameKey ? this.frameKeysUnder(rootFrameKey) : this.allFrameKeys();
+    for (const frameKey of frameKeys) {
       const url = await this.frameUrl(frameKey);
       if (url && !(await isAllowed(url))) return url;
     }

@@ -120,6 +120,36 @@ describe("AppControlService visible browser", () => {
       NavigationBlockedError,
     );
   });
+
+  it("validates and snapshots only the active browser frame", async () => {
+    const { service } = makeService(["wikipedia.org"]);
+    await service.restore({
+      tabs: [{ id: "active", url: "https://wikipedia.org/", kind: "web" }],
+      activeTabId: "active",
+    });
+    const controller = {
+      isAttached: () => true,
+      firstDisallowedFrameUrl: vi.fn(async () => null),
+      findFrameKeyByUrl: vi.fn(async () => "frame-active"),
+      snapshotFrame: vi.fn(async () => "active snapshot"),
+      snapshot: vi.fn(async () => "all snapshots"),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await expect(service.browserHost.snapshot()).resolves.toBe("active snapshot");
+
+    expect(controller.firstDisallowedFrameUrl).toHaveBeenCalledWith(expect.any(Function), "frame-active");
+    expect(controller.snapshotFrame).toHaveBeenCalledWith("frame-active");
+  });
 });
 
 describe("AppControlService spotlight", () => {
@@ -145,7 +175,36 @@ describe("AppControlService tab loaded", () => {
     const state = await tabPromise;
     const tabId = state.tabs[0].id;
     // Reporting load updates the title; no throw, and state reflects it.
-    service.onTabLoaded(tabId, "http://127.0.0.1:4310/", "Snake Game");
+    await service.onTabLoaded(tabId, "http://127.0.0.1:4310/", "Snake Game");
     expect(service.state().tabs[0].title).toBe("Snake Game");
+  });
+
+  it("stores the committed frame URL after a redirect", async () => {
+    const { service } = makeService(["wikipedia.org"]);
+    await service.restore({
+      tabs: [{ id: "active", url: "https://wikipedia.org/start", kind: "web" }],
+      activeTabId: "active",
+    });
+    const controller = {
+      isAttached: () => true,
+      findFrameKeyByUrl: vi.fn(async () => undefined),
+      childFrameUrls: vi.fn(async () => [
+        { frameKey: "frame-active", url: "https://wikipedia.org/redirected" },
+      ]),
+    };
+    Object.assign(service as unknown as { controller: unknown; controllerWcId: number }, {
+      controller,
+      controllerWcId: 1,
+    });
+    Object.assign(service as unknown as { deps: Record<string, unknown> }, {
+      deps: {
+        ...(service as unknown as { deps: Record<string, unknown> }).deps,
+        getAppWebContentsId: () => 1,
+      },
+    });
+
+    await service.onTabLoaded("active", "https://wikipedia.org/start");
+
+    expect(service.state().tabs[0].url).toBe("https://wikipedia.org/redirected");
   });
 });
