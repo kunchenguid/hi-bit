@@ -121,7 +121,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Activity chip with browser preview:** Play.
 >
-> **Browser settings:** Websites Bit can open.
+> **Browser action:** Open in browser.
 >
 > **Activity chip with factory:** The Factory.
 >
