@@ -6,7 +6,6 @@ import type { AppInfo, Platform } from "@shared/ipc";
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
-import { AllowlistStore } from "./control/allowlistStore";
 import { AppControlService, type AppDebugger } from "./control/appControlService";
 import type { HeadlessWindow } from "./control/headlessBrowser";
 import { ConversationService } from "./conversation/conversationService";
@@ -130,15 +129,12 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   const projects = new ProjectService(layout);
   const conversation = new ConversationService(layout);
   const modelId = modelIdFromConfig(config.defaultModel);
-  const allowlistStore = new AllowlistStore(layout.browserAllowlistPath);
   const appControl = new AppControlService({
     getAppDebugger: () => (getMainWindow()?.webContents.debugger as AppDebugger) ?? null,
     getAppWebContentsId: () => getMainWindow()?.webContents.id ?? null,
     captureApp: captureAppScreen,
     broadcast: broadcastToRenderer,
     createHeadlessWindow,
-    loadAllowlist: () => allowlistStore.load(),
-    saveAllowlist: (domains) => allowlistStore.save(domains),
   });
   const runtime = new PiRuntimeService({
     agentDir: layout.piAgentDir,
@@ -271,13 +267,6 @@ export function registerIpc(services: Services): void {
   ipcMain.handle("hibit:browser:reload", () => services.appControl.browserHost.reload());
   ipcMain.on("hibit:browser:tab-loaded", (_event, tabId: string, url: string, title?: string) =>
     services.appControl.onTabLoaded(tabId, url, title),
-  );
-  ipcMain.handle("hibit:browser:allowlist:list", () => services.appControl.listAllowedDomains());
-  ipcMain.handle("hibit:browser:allowlist:add", (_event, domain: string) =>
-    services.appControl.addAllowedDomain(domain),
-  );
-  ipcMain.handle("hibit:browser:allowlist:remove", (_event, domain: string) =>
-    services.appControl.removeAllowedDomain(domain),
   );
 
   ipcMain.handle("hibit:preview:open-external", async (_event, url: string) => {

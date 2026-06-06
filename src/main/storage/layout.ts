@@ -26,8 +26,6 @@ export type HiBitLayout = {
   factoriesDir: string;
   /** On-disk home for downloaded local models (e.g. the Whisper voice model). */
   modelsDir: string;
-  /** Parent-managed allowlist of websites Bit's browser may open. */
-  browserAllowlistPath: string;
 };
 
 export type HiBitHomeRecord = {
@@ -89,7 +87,6 @@ export function buildLayout(root: string): HiBitLayout {
     piAgentDir: join(root, "pi-agent"),
     factoriesDir: join(root, "factories"),
     modelsDir: join(root, "models"),
-    browserAllowlistPath: join(root, "browser-allowlist.json"),
   };
 }
 

@@ -89,11 +89,6 @@ export type HiBitApi = {
     reportTabLoaded: (tabId: string, url: string, title?: string) => void;
     onState: (listener: (state: BrowserState) => void) => Unsubscribe;
     onSpotlight: (listener: (rect: SpotlightRect | null) => void) => Unsubscribe;
-    allowlist: {
-      list: () => Promise<string[]>;
-      add: (domain: string) => Promise<string[]>;
-      remove: (domain: string) => Promise<string[]>;
-    };
   };
   /**
    * Local, on-device speech-to-text (Whisper). The renderer gates the feature on

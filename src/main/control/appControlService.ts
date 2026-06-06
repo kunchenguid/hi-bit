@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { BrowserState, BrowserTab, SpotlightRect } from "@shared/browser";
 import type { AppSurface } from "../pi/appTools";
-import { type AllowedDomain, isNavigationAllowed, normalizeDomain } from "./allowlist";
 import { type BrowserHost, NavigationBlockedError } from "./browserHost";
 import { CdpController } from "./cdpController";
 import { HeadlessBrowserHost, type HeadlessWindow } from "./headlessBrowser";
+import { isNavigationAllowed } from "./navigation";
 
 /** Renderer-facing channels this service broadcasts on. */
 export const BROWSER_STATE_CHANNEL = "hibit:browser:state";
@@ -21,8 +21,6 @@ export type AppControlDeps = {
   broadcast: (channel: string, payload: unknown) => void;
   /** Make a fresh headless offscreen window for a bot tab. */
   createHeadlessWindow: () => HeadlessWindow;
-  loadAllowlist: () => Promise<AllowedDomain[]>;
-  saveAllowlist: (domains: AllowedDomain[]) => Promise<void>;
 };
 
 /** Electron's debugger shape, re-exported so deps don't import the controller. */
@@ -38,10 +36,6 @@ export type AppDebugger = ConstructorParameters<typeof CdpController>[0]["debugg
 export class AppControlService {
   private controller: CdpController | null = null;
   private controllerWcId: number | null = null;
-  private allowlist: AllowedDomain[] = [];
-  private allowlistLoaded = false;
-  /** Shared in-flight load so concurrent callers don't each re-seed/re-save. */
-  private allowlistLoading: Promise<void> | null = null;
 
   private tabs: BrowserTab[] = [];
   private activeTabId: string | null = null;
@@ -49,44 +43,11 @@ export class AppControlService {
 
   constructor(private readonly deps: AppControlDeps) {}
 
-  // --- allowlist -----------------------------------------------------------
+  // --- navigation gate -----------------------------------------------------
 
-  private async ensureAllowlist(): Promise<void> {
-    if (this.allowlistLoaded) return;
-    // Collapse concurrent callers onto one load: the store seeds (and writes) the
-    // defaults on first read, so two parallel loads would race on that write.
-    this.allowlistLoading ??= this.deps.loadAllowlist().then((domains) => {
-      this.allowlist = domains;
-      this.allowlistLoaded = true;
-      this.allowlistLoading = null;
-    });
-    await this.allowlistLoading;
-  }
-
-  async listAllowedDomains(): Promise<AllowedDomain[]> {
-    await this.ensureAllowlist();
-    return [...this.allowlist];
-  }
-
-  async addAllowedDomain(entry: string): Promise<AllowedDomain[]> {
-    await this.ensureAllowlist();
-    const domain = normalizeDomain(entry);
-    if (domain && !this.allowlist.includes(domain)) {
-      this.allowlist = [...this.allowlist, domain].sort();
-      await this.deps.saveAllowlist(this.allowlist);
-    }
-    return [...this.allowlist];
-  }
-
-  async removeAllowedDomain(domain: string): Promise<AllowedDomain[]> {
-    await this.ensureAllowlist();
-    this.allowlist = this.allowlist.filter((d) => d !== domain);
-    await this.deps.saveAllowlist(this.allowlist);
-    return [...this.allowlist];
-  }
-
+  /** Only a creation's own loopback preview may load; external sites are refused. */
   private isAllowed(url: string): boolean {
-    return isNavigationAllowed(url, this.allowlist);
+    return isNavigationAllowed(url);
   }
 
   // --- the lazily-attached app controller ----------------------------------
@@ -189,9 +150,8 @@ export class AppControlService {
     return { tabs: [...this.tabs], activeTabId: this.activeTabId };
   }
 
-  /** Restore persisted tabs, dropping any external URL no longer allowed. */
+  /** Restore persisted tabs, dropping any non-creation URL no longer allowed. */
   async restore(state: BrowserState): Promise<void> {
-    await this.ensureAllowlist();
     this.tabs = state.tabs.filter((t) => !t.url || this.isAllowed(t.url));
     this.activeTabId = this.tabs.some((t) => t.id === state.activeTabId)
       ? state.activeTabId
@@ -201,7 +161,6 @@ export class AppControlService {
 
   private async openTab(url?: string): Promise<BrowserTab> {
     if (url) {
-      await this.ensureAllowlist();
       if (!this.isAllowed(url)) throw new NavigationBlockedError(url);
       const existing = this.tabs.find((t) => t.url === url);
       if (existing) {
@@ -246,7 +205,6 @@ export class AppControlService {
   }
 
   private async navigateActive(url: string): Promise<void> {
-    await this.ensureAllowlist();
     if (!this.isAllowed(url)) throw new NavigationBlockedError(url);
     const tab = this.activeTab();
     if (!tab) throw new Error("No tab is open. Open one with browser_open_tab first.");
@@ -268,7 +226,6 @@ export class AppControlService {
   }
 
   private async assertBrowserAllowed(): Promise<void> {
-    await this.ensureAllowlist();
     const frameKey = await this.activeFrameKey();
     const controller = await this.controllerFor();
     if (!frameKey) {
@@ -348,10 +305,7 @@ export class AppControlService {
   createHeadlessBrowser(): HeadlessBrowserHost {
     return new HeadlessBrowserHost({
       createWindow: this.deps.createHeadlessWindow,
-      isAllowed: async (url) => {
-        await this.ensureAllowlist();
-        return this.isAllowed(url);
-      },
+      isAllowed: (url) => this.isAllowed(url),
     });
   }
 }

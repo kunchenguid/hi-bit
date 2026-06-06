@@ -74,14 +74,14 @@ describe("HeadlessBrowserHost", () => {
     expect(factory.windows).toHaveLength(0);
   });
 
-  it("refuses navigation to an off-allowlist url", async () => {
+  it("refuses navigation to a non-loopback url", async () => {
     const factory = makeWindowFactory();
     const host = new HeadlessBrowserHost({ createWindow: factory.createWindow, isAllowed: allow });
     await host.openTab("http://127.0.0.1:5000/");
     await expect(host.navigate("https://evil.com/")).rejects.toBeInstanceOf(NavigationBlockedError);
   });
 
-  it("refuses reads after the loaded page redirects off the allowlist", async () => {
+  it("refuses reads after the loaded page redirects off loopback", async () => {
     const factory = makeWindowFactory();
     const host = new HeadlessBrowserHost({ createWindow: factory.createWindow, isAllowed: allow });
     await host.openTab("http://127.0.0.1:5000/");

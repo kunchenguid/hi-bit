@@ -85,13 +85,6 @@ const api: HiBitApi = {
       ipcRenderer.on("hibit:browser:spotlight", handler);
       return () => ipcRenderer.off("hibit:browser:spotlight", handler);
     },
-    allowlist: {
-      list: (): Promise<string[]> => ipcRenderer.invoke("hibit:browser:allowlist:list"),
-      add: (domain: string): Promise<string[]> =>
-        ipcRenderer.invoke("hibit:browser:allowlist:add", domain),
-      remove: (domain: string): Promise<string[]> =>
-        ipcRenderer.invoke("hibit:browser:allowlist:remove", domain),
-    },
   },
   voice: {
     status: (): Promise<VoiceStatus> => ipcRenderer.invoke("hibit:voice:status"),

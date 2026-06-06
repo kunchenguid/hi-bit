@@ -38,15 +38,17 @@ function tabLabel(title: string | undefined, url: string): string {
  * The in-app browser surface: a tab strip plus one sandboxed iframe per tab
  * (only the active one shown, so switching preserves each page's state). Tab
  * state is owned in main and arrives via `state`; the kid can switch and close
- * tabs, Bit opens and steers them. Reload empties the HTTP cache then remounts
- * the active tab so a rebuilt creation shows its new files (same fix as the old
- * PreviewPane). Each load is reported back so a tool's navigate can resolve, and
- * the active frame is focused so game controls work without a click.
+ * tabs, Bit opens and steers them. Every tab is a creation's own loopback
+ * preview - external websites are never loaded. Reload empties the HTTP cache
+ * then remounts the active tab so a rebuilt creation shows its new files (same
+ * fix as the old PreviewPane). Each load is reported back so a tool's navigate
+ * can resolve, and the active frame is focused so game controls work without a
+ * click.
  *
- * The sandbox keeps `allow-same-origin` so creations and sites behave like real
- * pages (localStorage, cookies). It stays safe because each tab loads a loopback
- * or web origin that always differs from the app's own origin, so same-origin
- * policy still blocks a frame from reaching the parent to escape.
+ * The sandbox keeps `allow-same-origin` so a creation behaves like a real page
+ * (localStorage, cookies). It stays safe because each tab loads a loopback
+ * origin that always differs from the app's own origin, so same-origin policy
+ * still blocks a frame from reaching the parent to escape.
  */
 export function BrowserPane({
   state,
@@ -115,7 +117,7 @@ export function BrowserPane({
                 onClick={() => onSwitchTab(tab.id)}
                 title={tab.url}
               >
-                {tab.kind === "creation" ? "▶ " : "🌐 "}
+                {"▶ "}
                 {tabLabel(tab.title, tab.url)}
               </button>
               <button

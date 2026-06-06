@@ -5,8 +5,9 @@ import type { BrowserHost } from "../control/browserHost";
 /**
  * The `browser_*` tool family - an in-app browser shaped like `chrome-devtools-axi`.
  * Bit drives visible tabs; bots drive headless ones. Both reach the same
- * `BrowserHost`. Navigation is allowlist-gated inside the host, so a refused load
- * comes back as plain text the model can relay, never an unhandled throw.
+ * `BrowserHost`. Navigation is loopback-gated inside the host (only a creation's
+ * own preview loads), so a refused load comes back as plain text the model can
+ * relay, never an unhandled throw.
  *
  * Snapshot returns refs (`[e7] button "Start"`); click/fill/press act on a ref or
  * the focused field. Reads return the page's text so the model can answer
@@ -27,7 +28,7 @@ export function createBrowserTools(host: BrowserHost): ToolDefinition[] {
       name: "browser_open_tab",
       label: "Open a browser tab",
       description:
-        "Open a new browser tab. Pass a creation preview loopback url or grown-up-approved website to load it, or leave it empty for a blank tab. Other websites are refused.",
+        "Open a new browser tab. Pass a creation's own preview loopback url to load it, or leave it empty for a blank tab. External websites are refused.",
       parameters: Type.Object({
         url: Type.Optional(
           Type.String({ description: "The page to load, or empty for a blank tab." }),
@@ -93,7 +94,7 @@ export function createBrowserTools(host: BrowserHost): ToolDefinition[] {
       name: "browser_navigate",
       label: "Go to a page",
       description:
-        "Navigate the active tab to a creation preview loopback url or grown-up-approved website. Other websites are refused.",
+        "Navigate the active tab to a creation's own preview loopback url. External websites are refused.",
       parameters: Type.Object({ url: Type.String() }),
       executionMode: "sequential",
       async execute(_callId, params) {
