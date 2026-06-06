@@ -287,15 +287,22 @@ export class AppControlService {
         loadedUrl = await controller.currentUrl(frameKey);
       } else if (tabId === this.activeTabId) {
         const candidates = await controller.childFrameUrls();
-        const allowed = candidates.find((candidate) => this.isAllowed(candidate.url));
-        if (allowed) loadedUrl = allowed.url;
+        const disallowed = candidates.find((candidate) => !this.isAllowed(candidate.url));
+        if (disallowed) {
+          loadedUrl = "";
+        } else {
+          const allowed = candidates.find((candidate) => this.isAllowed(candidate.url));
+          if (allowed) loadedUrl = allowed.url;
+        }
       }
     } catch {
       // The app window may not be attachable during startup or shutdown.
     }
     if (tab) {
-      if (loadedUrl) tab.url = loadedUrl;
+      if (!loadedUrl || this.isAllowed(loadedUrl)) tab.url = loadedUrl;
+      else tab.url = "";
       if (title) tab.title = title;
+      tab.kind = kindFor(tab.url);
     }
     this.pendingLoads.get(tabId)?.();
   }
