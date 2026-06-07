@@ -22,7 +22,7 @@ import {
 } from "react";
 import { applyEventToActivity } from "./activity";
 import { SpotlightOverlay } from "./components/SpotlightOverlay";
-import { detectVoiceSupport } from "./components/voiceInput";
+import { appendVoiceTranscript, detectVoiceSupport } from "./components/voiceInput";
 import { AuthGate } from "./screens/AuthGate";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
 import { ProfileGate } from "./screens/ProfileGate";
@@ -430,7 +430,7 @@ export function App() {
   // Transcribed speech joins the draft (rather than auto-sending) so the kid
   // reads it over and presses Send themselves.
   const appendVoiceText = useCallback((text: string) => {
-    setDraft((current) => (current.trim() ? `${current.trimEnd()} ${text}` : text));
+    setDraft((current) => appendVoiceTranscript(current, text));
   }, []);
 
   const abort = useCallback(async () => {

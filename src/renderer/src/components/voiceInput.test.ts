@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  appendVoiceTranscript,
   detectVoiceSupport,
   downmixToMono,
   framesToMono16k,
@@ -158,6 +159,21 @@ describe("isAudioSilent", () => {
   it("treats a clip with real signal as not silent", () => {
     const loud = new Float32Array(1000).map((_, i) => (i % 2 ? 0.3 : -0.3));
     expect(isAudioSilent(loud)).toBe(false);
+  });
+});
+
+describe("appendVoiceTranscript", () => {
+  it("sets the transcript as the whole draft and trails a space when empty", () => {
+    expect(appendVoiceTranscript("", "make a snake game")).toBe("make a snake game ");
+    expect(appendVoiceTranscript("   ", "make a snake game")).toBe("make a snake game ");
+  });
+
+  it("appends to an existing draft, space-separated, with a trailing space", () => {
+    expect(appendVoiceTranscript("hello", "world")).toBe("hello world ");
+  });
+
+  it("collapses trailing whitespace on the existing draft before joining", () => {
+    expect(appendVoiceTranscript("hello   ", "world")).toBe("hello world ");
   });
 });
 
