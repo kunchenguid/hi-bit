@@ -30,11 +30,30 @@ export type AppInfo = {
   hiBitDir: string;
 };
 
+/**
+ * Whether a newer Hi-Bit release exists. The main process answers this by
+ * checking the public GitHub releases API; there is no in-app auto-updater, so
+ * the renderer just points the grown-up at the Homebrew upgrade command and the
+ * release notes. `latestVersion`/`releaseUrl` are null when the check has not
+ * succeeded yet (offline, rate-limited), in which case `updateAvailable` is
+ * false so the shell never shows a false positive.
+ */
+export type UpdateStatus = {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  releaseUrl: string | null;
+};
+
 export type Unsubscribe = () => void;
 
 export type HiBitApi = {
   app: {
     info: () => Promise<AppInfo>;
+    /** Cached "is a newer release out?" status, refreshed in the background. */
+    getUpdateStatus: () => Promise<UpdateStatus>;
+    /** Opens the newest release page (or the generic releases page) externally. */
+    openReleasePage: () => Promise<void>;
   };
   auth: {
     status: () => Promise<AuthStatus>;

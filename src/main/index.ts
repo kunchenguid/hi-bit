@@ -20,6 +20,7 @@ import { readJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
 import { seedCodexAuthIfMissing } from "./storage/seedAuth";
 import { startAppTelemetry } from "./telemetry";
+import { createUpdateChecker, type UpdateChecker } from "./updateChecker";
 import { VoiceModelService } from "./voice/voiceModelService";
 import { handleVoiceModelProtocol, registerVoiceModelScheme } from "./voice/voiceProtocol";
 
@@ -58,6 +59,7 @@ type Services = {
   preview: PreviewService;
   appControl: AppControlService;
   voiceModel: VoiceModelService;
+  updateChecker: UpdateChecker;
 };
 
 function hiBitRootFor(): string {
@@ -174,6 +176,13 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     preview,
   });
   const voiceModel = new VoiceModelService(layout.modelsDir);
+  const updateChecker = createUpdateChecker({
+    currentVersion: app.getVersion(),
+    openExternal: (url) => shell.openExternal(url),
+    // Dev/source builds are never "behind" a release, so force the indicator on
+    // there to make it visible while developing. Packaged builds do the real check.
+    simulateUpdate: !app.isPackaged,
+  });
   return {
     layout,
     auth,
@@ -186,6 +195,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     preview,
     appControl,
     voiceModel,
+    updateChecker,
   };
 }
 
@@ -199,6 +209,8 @@ export function registerIpc(services: Services): void {
       hiBitDir: services.layout.root,
     }),
   );
+  ipcMain.handle("hibit:app:get-update-status", () => services.updateChecker.getStatus());
+  ipcMain.handle("hibit:app:open-release-page", () => services.updateChecker.openReleasePage());
 
   ipcMain.handle("hibit:auth:status", () => services.auth.status());
   ipcMain.handle("hibit:auth:login", () => services.auth.login());

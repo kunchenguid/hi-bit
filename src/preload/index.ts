@@ -7,7 +7,7 @@ import type {
   PreviewInfo,
   SendMessageResult,
 } from "@shared/chat";
-import type { AppInfo, HiBitApi } from "@shared/ipc";
+import type { AppInfo, HiBitApi, UpdateStatus } from "@shared/ipc";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { CreateProjectInput, ProjectSummary } from "@shared/project";
 import type { VoiceDownloadProgress, VoiceStatus } from "@shared/voice";
@@ -16,6 +16,8 @@ import { contextBridge, ipcRenderer } from "electron";
 const api: HiBitApi = {
   app: {
     info: (): Promise<AppInfo> => ipcRenderer.invoke("hibit:app:info"),
+    getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke("hibit:app:get-update-status"),
+    openReleasePage: (): Promise<void> => ipcRenderer.invoke("hibit:app:open-release-page"),
   },
   auth: {
     status: (): Promise<AuthStatus> => ipcRenderer.invoke("hibit:auth:status"),

@@ -837,6 +837,13 @@ function createApiMock(): HiBitApi {
         userDataDir: "/tmp/userData",
         hiBitDir: "/tmp/userData/.hi-bit",
       })),
+      getUpdateStatus: vi.fn(async () => ({
+        currentVersion: "0.0.1",
+        latestVersion: null,
+        updateAvailable: false,
+        releaseUrl: null,
+      })),
+      openReleasePage: vi.fn(async () => {}),
     },
     auth: {
       status: vi.fn(async () => ({

@@ -206,6 +206,62 @@ pre {
   justify-content: center;
 }
 
+/* A quiet "there's an update" dot on the Grown-up menu summary - the only hint
+   the kid sees; the upgrade details live inside the popover. */
+.hb-update-dot {
+  width: 8px;
+  height: 8px;
+  margin-left: var(--s-1);
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: var(--shadow-glow-brand);
+}
+
+/* The grown-up-only update block inside the menu popover. */
+.hb-update-notice {
+  display: grid;
+  gap: var(--s-1);
+  margin-top: var(--s-1);
+  padding: var(--s-2);
+  border: var(--border-hairline);
+  border-radius: var(--r-lg);
+  background: var(--paper-3);
+}
+
+.hb-update-notice-title {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.hb-update-notice-sub {
+  color: var(--ink-3);
+}
+
+.hb-update-notice-command {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.hb-update-notice-command code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: var(--s-0\.5) var(--s-1);
+  border-radius: var(--r-lg);
+  background: var(--ink-06);
+  font-family: var(--font-mono);
+  font-size: var(--t-small-size);
+  color: var(--ink);
+}
+
+.hb-update-notice-copy {
+  flex-shrink: 0;
+}
+
 .hb-profile-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(96px, 140px);
