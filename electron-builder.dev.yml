@@ -1,0 +1,6 @@
+# Local/dev packaging config. CI release builds use electron-builder.yml directly.
+# A distinct appId and productName keeps local bundles from colliding with the
+# installed cask app in macOS LaunchServices.
+extends: ./electron-builder.yml
+appId: com.hibit.app.dev
+productName: Hi-Bit Dev

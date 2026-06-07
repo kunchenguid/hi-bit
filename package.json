@@ -30,6 +30,8 @@
     "check": "biome check .",
     "predist": "node scripts/ensure-pnpm.mjs",
     "dist": "electron-vite build && electron-builder",
+    "prepackage:mac": "node scripts/ensure-pnpm.mjs",
+    "package:mac": "rm -rf dist && pnpm build && electron-builder --mac dir --universal --config electron-builder.dev.yml",
     "predist:mac": "node scripts/ensure-pnpm.mjs",
     "dist:mac": "electron-vite build && electron-builder --mac",
     "predist:win": "node scripts/ensure-pnpm.mjs",
@@ -42,7 +44,6 @@
   "dependencies": {
     "@earendil-works/pi-ai": "^0.75.3",
     "@earendil-works/pi-coding-agent": "^0.75.3",
-    "@huggingface/transformers": "^4.2.0",
     "@mozilla/readability": "^0.6.0",
     "gifenc": "^1.0.3",
     "linkedom": "^0.18.12",
@@ -54,6 +55,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.0",
+    "@huggingface/transformers": "^4.2.0",
     "@types/node": "^24.0.0",
     "@types/pngjs": "^6.0.5",
     "@types/react": "^19.2.0",
@@ -61,7 +63,7 @@
     "@types/turndown": "^5.0.6",
     "@vitejs/plugin-react": "^5.0.0",
     "electron": "^41.3.0",
-    "electron-builder": "^26.8.1",
+    "electron-builder": "26.8.2",
     "electron-vite": "^5.0.0",
     "jsdom": "^28.0.0",
     "typescript": "^5.9.0",

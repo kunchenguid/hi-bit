@@ -29,6 +29,7 @@ extraResources:
 
 mac:
   category: public.app-category.education
+  icon: build/icon.icns
   # Lets a kid snap a photo of a drawing or build to show Bit. macOS requires this
   # string before the webcam can open, even for unsigned builds.
   extendInfo:
@@ -45,6 +46,7 @@ mac:
   identity: null
   hardenedRuntime: false
   gatekeeperAssess: false
+  x64ArchFiles: Contents/Resources/app.asar.unpacked/node_modules/koffi/**
 
 dmg:
   writeUpdateInfo: false

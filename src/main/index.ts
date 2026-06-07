@@ -19,6 +19,7 @@ import { ProjectService } from "./projects/projectService";
 import { readJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
 import { seedCodexAuthIfMissing } from "./storage/seedAuth";
+import { startAppTelemetry } from "./telemetry";
 import { VoiceModelService } from "./voice/voiceModelService";
 import { handleVoiceModelProtocol, registerVoiceModelScheme } from "./voice/voiceProtocol";
 
@@ -455,6 +456,11 @@ function broadcastReconnectRequired(): void {
 }
 
 void app.whenReady().then(async () => {
+  const telemetry = startAppTelemetry({
+    version: app.getVersion(),
+    platform: process.platform,
+    arch: process.arch,
+  });
   const layout = await bootstrapLayout(hiBitRootFor());
   if (isolatedUserDataDir) {
     // Inherit the real Codex auth into the fresh dir so the app starts signed
@@ -482,6 +488,7 @@ void app.whenReady().then(async () => {
     services.preview.stopAll();
     services.runtime.disposeAll();
     services.bitRuntime.disposeAll();
+    void telemetry.close(1_000);
   });
 });
 
