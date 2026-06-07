@@ -70,10 +70,18 @@ export function App() {
     signal: number;
   } | null>(null);
   const activeProfileIdRef = useRef(activeProfileId);
+  const thinkingSpeedRef = useRef(thinkingSpeed);
+  const confirmedThinkingSpeedRef = useRef(thinkingSpeed);
+  const queuedThinkingSpeedRef = useRef<ThinkingSpeed | null>(null);
+  const thinkingSpeedWriteRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     activeProfileIdRef.current = activeProfileId;
   }, [activeProfileId]);
+
+  useEffect(() => {
+    thinkingSpeedRef.current = thinkingSpeed;
+  }, [thinkingSpeed]);
 
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
@@ -177,7 +185,10 @@ export function App() {
     void window.hibit.config
       .get()
       .then((config) => {
-        if (!cancelled) setThinkingSpeed(config.thinkingSpeed);
+        if (!cancelled) {
+          confirmedThinkingSpeedRef.current = config.thinkingSpeed;
+          setThinkingSpeed(config.thinkingSpeed);
+        }
       })
       .catch(() => {});
     return () => {
@@ -185,16 +196,35 @@ export function App() {
     };
   }, []);
 
+  const flushThinkingSpeedWrite = useCallback(() => {
+    if (thinkingSpeedWriteRef.current || !queuedThinkingSpeedRef.current) return;
+    const requestedSpeed = queuedThinkingSpeedRef.current;
+    queuedThinkingSpeedRef.current = null;
+    const write = window.hibit.config
+      .setThinkingSpeed(requestedSpeed)
+      .then((config) => {
+        confirmedThinkingSpeedRef.current = config.thinkingSpeed;
+        if (thinkingSpeedRef.current === requestedSpeed) setThinkingSpeed(config.thinkingSpeed);
+      })
+      .catch((caught) => {
+        if (queuedThinkingSpeedRef.current || thinkingSpeedRef.current !== requestedSpeed) return;
+        setThinkingSpeed(confirmedThinkingSpeedRef.current);
+        setError(caught instanceof Error ? caught.message : String(caught));
+      })
+      .finally(() => {
+        if (thinkingSpeedWriteRef.current === write) thinkingSpeedWriteRef.current = null;
+        flushThinkingSpeedWrite();
+      });
+    thinkingSpeedWriteRef.current = write;
+  }, []);
+
   const changeThinkingSpeed = useCallback(
     (speed: ThinkingSpeed) => {
-      const previous = thinkingSpeed;
       setThinkingSpeed(speed); // Optimistic: the slider should feel instant.
-      void window.hibit.config.setThinkingSpeed(speed).catch((caught) => {
-        setThinkingSpeed(previous); // Roll back if the write failed.
-        setError(caught instanceof Error ? caught.message : String(caught));
-      });
+      queuedThinkingSpeedRef.current = speed;
+      flushThinkingSpeedWrite();
     },
-    [thinkingSpeed],
+    [flushThinkingSpeedWrite],
   );
 
   useEffect(() => {

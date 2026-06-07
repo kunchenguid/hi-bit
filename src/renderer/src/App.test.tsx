@@ -728,6 +728,31 @@ describe("App", () => {
     expect((api.profiles.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(listsBefore);
     expect(host.querySelector("#hibit-composer")).not.toBeNull();
   });
+
+  it("keeps the latest thinking speed when an older write fails later", async () => {
+    const olderWrite = deferred<{ thinkingSpeed: "low" }>();
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      accountId: "acct-1",
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.config.setThinkingSpeed = vi.fn((speed) => {
+      if (speed === "low") return olderWrite.promise;
+      return Promise.resolve({ thinkingSpeed: speed });
+    });
+
+    await renderApp(root);
+    await setThinkingSpeedSlider(host, 1);
+    await setThinkingSpeedSlider(host, 4);
+
+    olderWrite.reject(new Error("Could not save low"));
+    await flushAsyncWork();
+
+    expect(host.querySelector(".hb-speed-control-value")?.textContent).toBe("Smartest");
+    expect(host.textContent).not.toContain("Could not save low");
+  });
 });
 
 async function renderApp(root: Root): Promise<void> {
@@ -765,6 +790,17 @@ async function fillInput(host: HTMLElement, name: string, value: string): Promis
   await flushAsyncWork();
 }
 
+async function setThinkingSpeedSlider(host: HTMLElement, value: number): Promise<void> {
+  const input = host.querySelector<HTMLInputElement>("#hb-speed-slider");
+  if (!input) throw new Error("Thinking speed slider not found");
+  await act(async () => {
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    valueSetter?.call(input, String(value));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await flushAsyncWork();
+}
+
 async function pasteImage(host: HTMLElement): Promise<void> {
   const input = host.querySelector<HTMLTextAreaElement>("#hibit-composer");
   if (!input) throw new Error("Composer not found");
@@ -788,12 +824,18 @@ async function flushAsyncWork(): Promise<void> {
   });
 }
 
-function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason: unknown) => void;
+} {
   let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((settle) => {
+  let reject: (reason: unknown) => void = () => {};
+  const promise = new Promise<T>((settle, rejectPromise) => {
     resolve = settle;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function adaProfile() {
