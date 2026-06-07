@@ -16,13 +16,22 @@ type RecordMode = "hold" | "toggle";
 const MIN_CLIP_SECONDS = 0.4;
 
 /**
+ * How long the mic must be held before the gesture commits to push-to-talk.
+ * A press shorter than this is a click: it starts a hands-free recording the kid
+ * ends by tapping the mic again. Without this gate a warm model and mic open in
+ * a few ms, so a normal click would still be "held" when recording begins and
+ * get read as push-to-talk - then sent and dropped the instant the kid let go.
+ */
+export const HOLD_THRESHOLD_MS = 500;
+
+/**
  * The talk-to-Bit control: the composer mic button itself is push-to-talk. Press
  * and hold it to talk and release to send; a quick click instead starts a
- * hands-free recording the kid ends with Stop. One gesture - the button is the
- * thing you talk into, not a door to another button. While active it shows a
- * small overlay with a live waveform. The mic only opens on press (privacy), and
- * the model downloads once on first use. Accidental taps and silence are dropped
- * so Whisper can't hallucinate on them.
+ * hands-free recording the kid ends by tapping the mic again. One gesture - the
+ * button is the thing you talk into, not a door to another button. While active
+ * it shows a small overlay with a live waveform. The mic only opens on press
+ * (privacy), and the model downloads once on first use. Accidental taps and
+ * silence are dropped so Whisper can't hallucinate on them.
  */
 export function VoiceControl({ onVoiceText }: VoiceControlProps) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -36,11 +45,21 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
   const pressedRef = useRef(false);
   const recordingRef = useRef(false);
   const modeRef = useRef<RecordMode>("hold");
+  // Fires once the press outlasts the hold threshold, promoting the gesture from
+  // a click (hands-free) to push-to-talk.
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishingRef = useRef(false);
   const beginTokenRef = useRef(0);
   const finishCaptureRef = useRef<() => void>(() => {});
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
+
+  const clearHoldTimer = useCallback(() => {
+    if (holdTimerRef.current !== null) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }, []);
 
   const teardown = useCallback(() => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
@@ -52,10 +71,11 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
 
   const reset = useCallback(() => {
     teardown();
+    clearHoldTimer();
     finishingRef.current = false;
     setDownloadPct(null);
     setPhase("idle");
-  }, [teardown]);
+  }, [teardown, clearHoldTimer]);
 
   const finishCapture = useCallback(async () => {
     if (finishingRef.current) return; // a release and the runaway guard can both fire
@@ -91,9 +111,10 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
   useEffect(
     () => () => {
       beginTokenRef.current++;
+      clearHoldTimer();
       teardown();
     },
-    [teardown],
+    [teardown, clearHoldTimer],
   );
 
   // Draw the live waveform while recording.
@@ -135,9 +156,10 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
 
   // Make sure the model file exists (download once), then open the mic and
   // start recording. Whisper warm-up happens after capture begins, so the kid
-  // does not wait on the local model before talking. The mode is decided by
-  // whether the kid is still holding when recording actually begins: held ->
-  // push-to-talk (release sends); already let go -> hands-free.
+  // does not wait on the local model before talking. The hold-vs-click mode is
+  // owned by the press handlers and the hold timer, not by whatever the button
+  // happens to be doing the instant recording begins (a warm mic opens too fast
+  // to tell a click from a hold apart that way).
   const begin = useCallback(async () => {
     const token = ++beginTokenRef.current;
     const isCurrent = () => beginTokenRef.current === token;
@@ -174,7 +196,8 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
       recorderRef.current = recorder;
       recorder.beginCapture();
       recordingRef.current = true;
-      modeRef.current = pressedRef.current ? "hold" : "toggle";
+      // Reflect the mode chosen so far (toggle by default; the hold timer or a
+      // long press may have already promoted it to push-to-talk).
       setRecordMode(modeRef.current);
       setPhase("recording");
       // Errors surface on the real transcription; here it's only priming.
@@ -197,6 +220,18 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
     (event: React.PointerEvent<HTMLButtonElement>) => {
       if (phase === "idle") {
         pressedRef.current = true;
+        // Start as a click (hands-free); only a press that outlasts the hold
+        // threshold becomes push-to-talk. This is the gate that keeps a kid's
+        // normal click from being read as a hold.
+        modeRef.current = "toggle";
+        setRecordMode("toggle");
+        clearHoldTimer();
+        holdTimerRef.current = setTimeout(() => {
+          holdTimerRef.current = null;
+          if (!pressedRef.current) return; // already let go: it was a click
+          modeRef.current = "hold";
+          setRecordMode("hold");
+        }, HOLD_THRESHOLD_MS);
         try {
           event.currentTarget.setPointerCapture?.(event.pointerId);
         } catch {
@@ -208,17 +243,25 @@ export function VoiceControl({ onVoiceText }: VoiceControlProps) {
         void finishCapture();
       }
     },
-    [phase, begin, finishCapture],
+    [phase, begin, finishCapture, clearHoldTimer],
   );
 
   const onPressEnd = useCallback(() => {
+    const wasPressed = pressedRef.current;
     pressedRef.current = false;
-    // Only a held (push-to-talk) recording ends on release; a hands-free one
-    // waits for Stop. If recording hasn't started yet, begin() picks the mode.
-    if (phase === "recording" && modeRef.current === "hold" && recordingRef.current) {
-      void finishCapture();
+    clearHoldTimer();
+    if (!wasPressed) return; // a stray pointerup (e.g. right after a stop tap)
+    if (recordingRef.current) {
+      // Push-to-talk ends on release; a hands-free recording keeps listening
+      // until the kid taps the mic again.
+      if (modeRef.current === "hold") void finishCapture();
+    } else {
+      // Let go before the mic even opened: a click, not a hold. Make sure the
+      // recording that's still spinning up runs hands-free so a tap can stop it.
+      modeRef.current = "toggle";
+      setRecordMode("toggle");
     }
-  }, [phase, finishCapture]);
+  }, [finishCapture, clearHoldTimer]);
 
   const active = phase !== "idle";
   // A hands-free recording is ended by tapping the mic again, so the button

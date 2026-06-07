@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Click Recording Evidence</title>
+  <style>
+    :root {
+      --ink: #1c1a17;
+      --ink-2: #3a342e;
+      --paper: #fff7df;
+      --paper-2: #fff0bd;
+      --paper-3: #fffaf0;
+      --subject-js: #ffe15a;
+      --subject-css: #86e7ff;
+      --brand: #7b61ff;
+      --shadow-pixel: 4px 4px 0 var(--ink);
+      --shadow-soft: 0 18px 45px rgba(28, 26, 23, 0.18);
+      --border-pixel: 2px solid var(--ink);
+      --r-lg: 18px;
+      --r-md: 12px;
+      --r-pill: 999px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top left, #d8f7ff, transparent 32rem), var(--paper);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px; }
+    main { max-width: 980px; margin: 0 auto; display: grid; gap: 22px; }
+    .hero { display: grid; gap: 10px; }
+    h1 { margin: 0; font-size: clamp(28px, 5vw, 52px); line-height: 0.96; letter-spacing: -0.05em; }
+    p { margin: 0; line-height: 1.5; }
+    .summary { max-width: 760px; color: var(--ink-2); font-size: 18px; }
+    .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .card { position: relative; min-height: 330px; padding: 22px; border: var(--border-pixel); border-radius: 26px; background: var(--paper-3); box-shadow: var(--shadow-soft); overflow: hidden; }
+    .card h2 { margin: 0 0 8px; font-size: 24px; }
+    .card .result { display: inline-flex; margin-bottom: 16px; padding: 6px 10px; border: var(--border-pixel); border-radius: var(--r-pill); background: white; font-weight: 800; }
+    .demo-area { position: relative; height: 200px; margin-top: 22px; display: grid; place-items: end center; padding-bottom: 18px; border: 2px dashed rgba(28,26,23,.28); border-radius: 22px; background: linear-gradient(180deg, rgba(255,225,90,.18), rgba(134,231,255,.16)); }
+    .hb-voice { position: relative; display: flex; }
+    .hb-mic-button { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 2px solid var(--ink); border-radius: var(--r-lg); background: var(--subject-js); box-shadow: var(--shadow-pixel); color: var(--ink); touch-action: none; user-select: none; }
+    .hb-mic-button-on { transform: translateY(2px); box-shadow: none; background: var(--subject-css); }
+    .hb-mic-icon { width: 20px; height: 20px; display: block; }
+    .hb-voice-callout { position: absolute; bottom: calc(100% + 12px); right: 0; z-index: 6; width: 220px; display: grid; gap: 10px; padding: 14px; background: var(--paper-3); border: var(--border-pixel); border-radius: var(--r-lg); box-shadow: var(--shadow-soft); text-align: center; justify-items: center; }
+    .hb-voice-callout::after { content: ""; position: absolute; bottom: -7px; right: 14px; width: 12px; height: 12px; background: var(--paper-3); border-right: var(--border-pixel); border-bottom: var(--border-pixel); transform: rotate(45deg); }
+    .hb-voice-wave { width: 100%; height: 46px; display: block; border-radius: var(--r-md); border: var(--border-pixel); background: var(--subject-js); }
+    .wave { width: 100%; height: 100%; }
+    .hb-voice-status { font-size: 14px; font-weight: 800; color: var(--ink-2); }
+    .timeline { display: grid; gap: 10px; padding: 18px; border: var(--border-pixel); border-radius: 24px; background: var(--paper-2); }
+    .track { position: relative; height: 18px; border: var(--border-pixel); border-radius: var(--r-pill); background: white; overflow: hidden; }
+    .fill-click { width: calc(100% * 0.4); height: 100%; background: var(--subject-js); }
+    .fill-hold { width: 100%; height: 100%; background: var(--subject-css); }
+    .meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; font-size: 13px; color: var(--ink-2); }
+    code { padding: 2px 6px; border-radius: 8px; background: rgba(123,97,255,.12); font-weight: 700; }
+    @media (max-width: 760px) { body { padding: 18px; } .cards { grid-template-columns: 1fr; } .meta { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Voice mic gesture evidence</h1>
+      <p class="summary">The checked-out source exports <code>HOLD_THRESHOLD_MS = 500</code>. The targeted test exercises a fast mic start, then releases before that threshold. The expected end-user result is hands-free recording, not push-to-talk send-on-release.</p>
+    </section>
+    <section class="cards" aria-label="Gesture outcomes">
+      <article class="card">
+        <span class="result">Quick tap: toggle recording</span>
+        <h2>Release before 500ms</h2>
+        <p>The button becomes <code>aria-label="Stop recording"</code> and the callout tells the child to tap the mic to stop. No transcription is triggered on release.</p>
+        <div class="demo-area">
+          <div class="hb-voice">
+            <div class="hb-voice-callout" role="status" aria-label="Talk to Bit">
+              <div class="hb-voice-wave" role="img" aria-label="Microphone waveform"><svg class="wave" viewBox="0 0 200 46" aria-hidden="true"><path d="M0 23 C12 8 20 8 32 23 S54 38 66 23 S88 8 100 23 S122 38 134 23 S156 8 168 23 S190 38 200 23" fill="none" stroke="#1c1a17" stroke-width="4"/></svg></div>
+              <p class="hb-voice-status">Listening - tap the mic to stop</p>
+            </div>
+            <button class="hb-mic-button hb-mic-button-on" aria-label="Stop recording" aria-pressed="true"><svg viewBox="0 0 24 24" class="hb-mic-icon" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" /></svg></button>
+          </div>
+        </div>
+      </article>
+      <article class="card">
+        <span class="result">Sustained press: push-to-talk</span>
+        <h2>Hold through 500ms</h2>
+        <p>The same mic stays in held mode and the callout tells the child that letting go sends. Release ends capture and transcribes.</p>
+        <div class="demo-area">
+          <div class="hb-voice">
+            <div class="hb-voice-callout" role="status" aria-label="Talk to Bit">
+              <div class="hb-voice-wave" role="img" aria-label="Microphone waveform"><svg class="wave" viewBox="0 0 200 46" aria-hidden="true"><path d="M0 24 C10 34 20 34 30 24 S50 14 60 24 S80 34 90 24 S110 14 120 24 S140 34 150 24 S170 14 180 24 S196 30 200 24" fill="none" stroke="#1c1a17" stroke-width="4"/></svg></div>
+              <p class="hb-voice-status">Listening - let go to send</p>
+            </div>
+            <button class="hb-mic-button hb-mic-button-on" aria-label="Talk to Bit" aria-pressed="true"><svg viewBox="0 0 24 24" class="hb-mic-icon" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11Z" fill="currentColor" /></svg></button>
+          </div>
+        </div>
+      </article>
+    </section>
+    <section class="timeline" aria-label="Timing proof">
+      <strong>Timing gate exercised</strong>
+      <div class="track" aria-label="quick tap finishes before hold threshold"><div class="fill-click"></div></div>
+      <div class="track" aria-label="hold reaches threshold"><div class="fill-hold"></div></div>
+      <div class="meta">
+        <span>Quick tap test releases at <code>400ms</code>.</span>
+        <span>Threshold promotion happens at <code>500ms</code>.</span>
+        <span>Held test releases after <code>550ms</code>.</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
