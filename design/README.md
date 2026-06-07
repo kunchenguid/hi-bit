@@ -125,6 +125,10 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Activity chip with factory:** The Factory.
 >
+> **Factory Logbook pill:** Logbook.
+>
+> **Factory Logbook panel:** Dino Dash - Logbook.
+>
 > **Open folder:** Open creations folder.
 
 ### What we avoid
@@ -264,10 +268,10 @@ The canonical Hi-Bit creation card:
 
 - **Where pixel-art doesn't fit** (dense info-density screens like project review tools, or system chrome like close/minimize), we fall back to **Lucide React** via CDN, rendered at 18px stroke-1.75. This compromise is documented per-screen in each UI kit's README.
 - **Emoji:** never in persistent chrome.
-  Allowed as mascot reactions in tutor chat (one per message, end-of-message only), and as one cue per temporary empty-chat idea spark.
+  Allowed as mascot reactions in tutor chat (one per message, end-of-message only), as one cue per temporary empty-chat idea spark, and as the small book cue inside The Factory's Logbook pill and panel title.
 - **Unicode-as-icon:** avoided.
   If it's not a real icon, we don't fake one with `✓` or `→`.
-  Temporary empty-chat idea sparks are the only current exception.
+  Temporary empty-chat idea sparks, Play's triangle, ready ticks, and The Factory's Logbook book cue are the current exceptions.
 
 **Logos:**
 - `assets/logo-wordmark.svg` - "HI BIT" in Press Start 2P, filled `--ink` (light) / `--phosphor` (dark).

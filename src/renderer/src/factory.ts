@@ -6,7 +6,8 @@ import { friendlyStep } from "./activity";
  * One bot working a creation. A bot is a single background job; every tool step
  * already carries that job's id as `turnId`, so grouping a creation's steps by
  * `turnId` recovers the bots with no extra data from the main process. Bots have
- * no names - identity is the stable color from {@link botHue} plus their face.
+ * no personal names - identity is the stable color from {@link botHue} plus
+ * their face, while the Logbook chapter title comes from the task summary.
  */
 export type BotLane = {
   /** The bot job id (a step's `turnId`), stable for the life of the build. */
@@ -23,7 +24,7 @@ export type BotLane = {
   steps: ToolActivity[];
 };
 
-/** One machine on the factory floor: a creation plus the bots building it. */
+/** One machine on the factory floor: a creation plus current and finished bot lanes. */
 export type CreationFloor = {
   projectId: string;
   title: string;
