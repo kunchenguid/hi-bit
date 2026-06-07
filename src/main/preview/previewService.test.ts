@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { type PreviewChild, PreviewService, type SpawnLike } from "./previewService";
+import {
+  PREVIEW_PORT_MAX,
+  PREVIEW_PORT_MIN,
+  type PreviewChild,
+  PreviewService,
+  preferredPreviewPort,
+  type SpawnLike,
+} from "./previewService";
 
 /** A spawned child stand-in: records the kill signal, never touches a real process. */
 function fakeChild(): PreviewChild & {
@@ -109,6 +116,7 @@ describe("PreviewService", () => {
     const first = service.start("ada", "project_1", "cmd");
     const second = service.start("ada", "project_1", "cmd-again");
     await Promise.resolve();
+    await Promise.resolve();
     expect(portResolvers).toHaveLength(1);
 
     portResolvers[0]?.(4310);
@@ -198,7 +206,7 @@ describe("PreviewService", () => {
       waitForPort: async () => new Promise(() => {}),
     });
     const start = service.start("ada", "project_1", "cmd");
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     child?.emit("error", new Error("spawn failed"));
 
@@ -219,7 +227,7 @@ describe("PreviewService", () => {
       waitForPort: async () => new Promise(() => {}),
     });
     const start = service.start("ada", "project_1", "cmd");
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     child?.emit("exit");
 
@@ -233,6 +241,112 @@ describe("PreviewService", () => {
     expect(service.list("ada")).toEqual([]);
   });
 
+  it("prefers the creation's deterministic in-band port so its origin is stable", async () => {
+    let seenPreferred = -1;
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => fakeChild(),
+      findFreePort: async (preferred: number) => {
+        seenPreferred = preferred;
+        return preferred;
+      },
+      waitForPort: async () => {},
+    });
+
+    const info = await service.start("ada", "project_1", "cmd");
+    const expected = preferredPreviewPort("project_1");
+
+    expect(seenPreferred).toBe(expected);
+    expect(expected).toBeGreaterThanOrEqual(PREVIEW_PORT_MIN);
+    expect(expected).toBeLessThan(PREVIEW_PORT_MAX);
+    expect(info.url).toBe(`http://127.0.0.1:${expected}/`);
+  });
+
+  it("reuses a remembered port and does not re-save it while it is still free", async () => {
+    const saved: number[] = [];
+    let seenPreferred = -1;
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => fakeChild(),
+      findFreePort: async (preferred: number) => {
+        seenPreferred = preferred;
+        return preferred;
+      },
+      waitForPort: async () => {},
+      loadStablePort: async () => 41234,
+      saveStablePort: async (_profileId, _projectId, port) => {
+        saved.push(port);
+      },
+    });
+
+    const info = await service.start("ada", "project_1", "cmd");
+
+    expect(seenPreferred).toBe(41234);
+    expect(info.url).toBe("http://127.0.0.1:41234/");
+    expect(saved).toEqual([]);
+  });
+
+  it("passes other persisted preview ports to the allocator as unavailable", async () => {
+    const preferred = preferredPreviewPort("project_1");
+    let seenUnavailable: ReadonlySet<number> | undefined;
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => fakeChild(),
+      findFreePort: async (_preferred: number, unavailable?: ReadonlySet<number>) => {
+        seenUnavailable = unavailable;
+        return preferred + 1;
+      },
+      waitForPort: async () => {},
+      loadStablePort: async () => undefined,
+      loadReservedPorts: async () => [preferred, 41234],
+    });
+
+    await service.start("ada", "project_1", "cmd");
+
+    expect(seenUnavailable?.has(preferred)).toBe(true);
+    expect(seenUnavailable?.has(41234)).toBe(true);
+  });
+
+  it("does not replace a remembered port when a fallback preview fails to start", async () => {
+    const saved: number[] = [];
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => fakeChild(),
+      findFreePort: async () => 41235,
+      waitForPort: async () => {
+        throw new Error("port never answered");
+      },
+      loadStablePort: async () => 41234,
+      saveStablePort: async (_profileId, _projectId, port) => {
+        saved.push(port);
+      },
+    });
+
+    await expect(service.start("ada", "project_1", "cmd")).rejects.toThrow("port never answered");
+
+    expect(saved).toEqual([]);
+  });
+
+  it("remembers a freshly allocated port for next time when the preferred one was taken", async () => {
+    const saved: Array<{ projectId: string; port: number }> = [];
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => fakeChild(),
+      findFreePort: async (preferred: number) => preferred + 5, // pretend preferred was busy
+      waitForPort: async () => {},
+      loadStablePort: async () => undefined,
+      saveStablePort: async (_profileId, projectId, port) => {
+        saved.push({ projectId, port });
+      },
+    });
+
+    await service.start("ada", "project_1", "cmd");
+
+    expect(saved).toEqual([
+      { projectId: "project_1", port: preferredPreviewPort("project_1") + 5 },
+    ]);
+  });
+
   it("notifies when a running preview process exits on its own", async () => {
     const onStopped = vi.fn();
     const h = createService({ onStopped });
@@ -243,5 +357,25 @@ describe("PreviewService", () => {
     expect(onStopped).toHaveBeenCalledWith(
       expect.objectContaining({ profileId: "ada", projectId: "project_1" }),
     );
+  });
+});
+
+describe("preferredPreviewPort", () => {
+  it("is deterministic and lands in a quiet band below the macOS ephemeral range", () => {
+    for (const id of ["project_1", "abc-123", "a", "creation-with-a-long-id-0000"]) {
+      const port = preferredPreviewPort(id);
+      expect(port).toBe(preferredPreviewPort(id));
+      expect(port).toBeGreaterThanOrEqual(PREVIEW_PORT_MIN);
+      expect(port).toBeLessThan(PREVIEW_PORT_MAX);
+      expect(PREVIEW_PORT_MAX).toBeLessThanOrEqual(49152); // stay clear of OS ephemeral ports
+    }
+  });
+
+  it("spreads different creations across the band", () => {
+    const ids = Array.from({ length: 50 }, (_, i) => `project_${i}`);
+    const ports = new Set(ids.map(preferredPreviewPort));
+    // Different ids should almost always get different ports (collisions are rare
+    // in a 9000-wide band; allow a tiny margin rather than demanding all unique).
+    expect(ports.size).toBeGreaterThanOrEqual(ids.length - 2);
   });
 });

@@ -24,6 +24,9 @@ const world = HiBit3D.createWorld(canvas, { background: "#90e0ef" });
 const SPEED = 8;
 const ROUND_TIME = 30; // seconds
 
+GameSave.namespace("collector-3d");
+let best = GameSave.load("best", 0);
+
 const ground = world.addGround({ size: 50, color: "#80b918" });
 const player = world.addBox({ x: 0, y: 0, z: 0, w: 1, h: 1.2, d: 1, color: "#ffd166" });
 
@@ -65,6 +68,7 @@ function update(dt) {
         c.mesh.visible = false;      // hide the mesh
         coins.splice(i, 1);          // drop it from the list
         score += 1;
+        if (score > best) { best = score; GameSave.save("best", best); }
       }
     }
 
@@ -75,8 +79,8 @@ function update(dt) {
 
   hud.textContent =
     timeLeft > 0
-      ? `Score: ${score}   Time: ${Math.ceil(timeLeft)}`
-      : `Time's up! Final score ${score} - press Space`;
+      ? `Score: ${score}   Best: ${best}   Time: ${Math.ceil(timeLeft)}`
+      : `Time's up! Final score ${score} Best ${best} - press Space`;
 
   if (timeLeft <= 0 && input.wasPressed("action")) {
     score = 0; timeLeft = ROUND_TIME;       // restart
@@ -89,6 +93,7 @@ function update(dt) {
 - **Drive, do not walk**: make the player a flatter, wider box (a car) and turn with left/right, drive forward with up.
 - **Dodge, do not collect**: make some bodies *bad* - if `HiBit3D.overlap(player, hazard)` is true, lose a life or time.
 - **Verticality**: put coins on platforms at different heights and add gravity + jump from the platformer recipe.
+- **Saving**: save the best score, unlocked arenas, or collected badge list with `GameSave.save(...)` when they change.
 - **Real look**: replace the coin spheres with a textured box (a gem picture from `generate_image`), or texture the ground.
 
 ## Click-to-collect (a pointer version)

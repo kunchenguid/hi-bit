@@ -72,5 +72,5 @@ for (const t of things) drawThing(ctx, t);
 ## Add-ons, one at a time
 
 - **A bigger world + camera**: keep the world larger than the canvas and `ctx.translate(-camX, -camY)` where the camera centers on the player (clamp so it stops at the edges).
-- **Pickups / doors**: small boxes; `HiBitGame.overlap(player, item)` triggers picking up, opening, or moving to the next room.
+- **Pickups / doors**: small boxes; `HiBitGame.overlap(player, item)` triggers picking up, opening, or moving to the next room. Save unlocked doors, inventory, or the current room with `GameSave.save(...)` when they change.
 - **Four-facing character**: the game-assets skill makes a 4x4 walk sprite (down, left, right, up). Pick the row from the last direction the player pressed, and draw it instead of the box.

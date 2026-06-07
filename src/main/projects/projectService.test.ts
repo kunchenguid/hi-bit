@@ -113,6 +113,20 @@ describe("ProjectService", () => {
     expect(listed.find((p) => p.id === project.id)?.lastPreviewCommand).toBe(command);
   });
 
+  it("remembers a creation's preview port and keeps it across a touch", async () => {
+    const project = await service.create(adaId, { title: "Snake Game" });
+
+    await service.rememberPreviewPort(adaId, project.id, 41234);
+    await expect(service.get(adaId, project.id)).resolves.toMatchObject({ previewPort: 41234 });
+
+    // A later build completion touches the record; the stable port must survive,
+    // or the preview origin (and the game's saved progress) would change.
+    await service.touch(adaId, project.id);
+    await expect(service.get(adaId, project.id)).resolves.toMatchObject({ previewPort: 41234 });
+    const listed = await service.list(adaId);
+    expect(listed.find((p) => p.id === project.id)?.previewPort).toBe(41234);
+  });
+
   it("reports preview history from the logbook, even without a remembered command", async () => {
     const project = await service.create(adaId, { title: "Snake Game" });
     await expect(service.hasPreviewHistory(adaId, project.id)).resolves.toBe(false);

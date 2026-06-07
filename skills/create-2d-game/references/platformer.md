@@ -88,6 +88,6 @@ function draw(ctx) {
 ## Add-ons, one at a time
 
 - **One-way platforms** (jump up through, land on top): only treat the platform as solid in step 5 when the player is moving down *and* was above it last frame (`player.y + player.h - player.vy * dt <= s.y`).
-- **Coins / pickups**: an array of small boxes; in `update`, if `HiBitGame.overlap(player, coin)` then remove it and `score++`.
+- **Coins / pickups**: an array of small boxes; in `update`, if `HiBitGame.overlap(player, coin)` then remove it, `score++`, and save the coin total or cleared level with `GameSave.save(...)`.
 - **Falling off**: if `player.y > canvas.height + 100`, reset the player to the start.
 - **Real character**: get the sprite from the game-assets skill (a walk and an idle), and draw it instead of the yellow box.

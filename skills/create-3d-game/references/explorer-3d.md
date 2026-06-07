@@ -90,5 +90,5 @@ The player's box stays hidden inside the camera, but it is what stops you at wal
 
 - **A bigger world**: add more boxes for buildings, trees (a brown box trunk plus a green box top), and steps. Keep the count modest so the preview stays smooth.
 - **Real surfaces**: make grass, brick, and wood with `generate_image`, then `world.texture(...)` them onto the ground and blocks.
-- **Doors and signs**: when `HiBit3D.overlap(player, trigger)` is true, show an HTML message or move the player to a new spot.
+- **Doors and signs**: when `HiBit3D.overlap(player, trigger)` is true, show an HTML message or move the player to a new spot. Save unlocked doors, the last area, or placed blocks with `GameSave.save(...)` when they change.
 - **Falling off**: if `player.y < -20`, set the player back to the start.

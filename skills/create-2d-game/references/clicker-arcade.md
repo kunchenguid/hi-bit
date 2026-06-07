@@ -18,9 +18,13 @@ const SPAWN_EVERY = 0.7; // seconds between new targets
 const FALL_SPEED = 150; // how fast targets fall
 const ROUND_TIME = 30; // seconds per round
 
+GameSave.namespace("clicker-arcade");
+let best = GameSave.load("best", 0);
+
 let score = 0;
 let timeLeft = ROUND_TIME;
 let spawnTimer = 0;
+let savedRound = false;
 const targets = []; // each: { x, y, w, h }
 
 function spawn() {
@@ -29,7 +33,10 @@ function spawn() {
 }
 
 function update(dt) {
-  if (timeLeft <= 0) return; // round over - freeze
+  if (timeLeft <= 0) {
+    if (!savedRound) { best = Math.max(best, score); GameSave.save("best", best); savedRound = true; }
+    return; // round over - freeze
+  }
 
   timeLeft -= dt;
   spawnTimer += dt;
@@ -62,7 +69,7 @@ function draw(ctx) {
   ctx.fillText("Time: " + Math.max(0, Math.ceil(timeLeft)), 12, 54);
   if (timeLeft <= 0) {
     ctx.textAlign = "center";
-    ctx.fillText("Time's up! Final score " + score, canvas.width / 2, canvas.height / 2);
+    ctx.fillText("Time's up! Final score " + score + " Best " + best, canvas.width / 2, canvas.height / 2);
   }
 }
 ```
@@ -73,6 +80,7 @@ function draw(ctx) {
 - **Catch, do not click**: replace the click test with a paddle box the player moves with the mouse or arrows; `HiBitGame.overlap(paddle, t)` catches.
 - **Dodge**: count overlaps as *bad* - if a falling block hits the player box, lose a life instead of scoring.
 - **Restart**: when `timeLeft <= 0`, let `input.wasPressed("action")` reset `score`, `timeLeft`, and `targets`.
+- **Saving**: for longer games, save `best`, unlocked rounds, or coins with `GameSave.save(...)` when they change, not every frame.
 
 ## Real art
 

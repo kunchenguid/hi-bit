@@ -18,10 +18,22 @@ export type PreviewServiceOptions = {
   /** Where a creation's files live - the cwd a preview command runs in. */
   resolveWorkbenchDir: (profileId: string, projectId: string) => string;
   spawn?: SpawnLike;
-  findFreePort?: () => Promise<number>;
+  /**
+   * Allocate a free loopback port, trying `preferred` first. The default scans a
+   * quiet band so a creation keeps a stable origin (see {@link allocatePort}).
+   */
+  findFreePort?: (preferred: number, unavailable?: ReadonlySet<number>) => Promise<number>;
   waitForPort?: (port: number) => Promise<void>;
   terminate?: (child: PreviewChild) => void;
   onStopped?: (preview: PreviewInfo & { profileId: string }) => void;
+  /** The port this creation used last time, if any, so its origin stays stable. */
+  loadStablePort?: (
+    profileId: string,
+    projectId: string,
+  ) => Promise<number | undefined> | number | undefined;
+  loadReservedPorts?: (profileId: string, projectId: string) => Promise<number[]> | number[];
+  /** Remember a newly allocated port so the next launch reuses the same origin. */
+  saveStablePort?: (profileId: string, projectId: string, port: number) => Promise<void> | void;
   now?: () => Date;
 };
 
@@ -43,19 +55,28 @@ export class PreviewService {
   private readonly starting = new Map<string, Promise<PreviewInfo>>();
   private readonly resolveWorkbenchDir: (profileId: string, projectId: string) => string;
   private readonly spawn: SpawnLike;
-  private readonly findFreePort: () => Promise<number>;
+  private readonly findFreePort: (
+    preferred: number,
+    unavailable?: ReadonlySet<number>,
+  ) => Promise<number>;
   private readonly waitForPort: (port: number) => Promise<void>;
   private readonly terminate: (child: PreviewChild) => void;
   private readonly onStopped?: (preview: PreviewInfo & { profileId: string }) => void;
+  private readonly loadStablePort?: PreviewServiceOptions["loadStablePort"];
+  private readonly loadReservedPorts?: PreviewServiceOptions["loadReservedPorts"];
+  private readonly saveStablePort?: PreviewServiceOptions["saveStablePort"];
   private readonly now: () => Date;
 
   constructor(options: PreviewServiceOptions) {
     this.resolveWorkbenchDir = options.resolveWorkbenchDir;
     this.spawn = options.spawn ?? defaultSpawn;
-    this.findFreePort = options.findFreePort ?? findFreePort;
+    this.findFreePort = options.findFreePort ?? allocatePort;
     this.waitForPort = options.waitForPort ?? waitForPort;
     this.terminate = options.terminate ?? terminateTree;
     this.onStopped = options.onStopped;
+    this.loadStablePort = options.loadStablePort;
+    this.loadReservedPorts = options.loadReservedPorts;
+    this.saveStablePort = options.saveStablePort;
     this.now = options.now ?? (() => new Date());
   }
 
@@ -85,7 +106,14 @@ export class PreviewService {
     command: string,
     title?: string,
   ): Promise<PreviewInfo> {
-    const port = await this.findFreePort();
+    // Prefer the port this creation used last time (falling back to a port
+    // derived from its id), then bind it if free. Keeping the same port keeps the
+    // same loopback origin, so a game's localStorage save survives across plays.
+    const remembered = await this.loadStablePort?.(profileId, projectId);
+    const preferred = remembered ?? preferredPreviewPort(projectId);
+    const unavailable = new Set(await this.loadReservedPorts?.(profileId, projectId));
+    if (remembered !== undefined) unavailable.delete(remembered);
+    const port = await this.findFreePort(preferred, unavailable);
     const cwd = this.resolveWorkbenchDir(profileId, projectId);
     const child = this.spawn(command, {
       cwd,
@@ -137,6 +165,14 @@ export class PreviewService {
     }
     startupSettled = true;
     started = true;
+    if (remembered === undefined) {
+      try {
+        await this.saveStablePort?.(profileId, projectId, port);
+      } catch {
+        // Persistence is best-effort; a missed save just means we may re-derive
+        // the preferred port next launch, not a broken preview.
+      }
+    }
     return toInfo(entry);
   }
 
@@ -193,7 +229,59 @@ function defaultSpawn(
   });
 }
 
-function findFreePort(): Promise<number> {
+/**
+ * The band we draw preview ports from: high registered ports that are quiet on a
+ * regular machine. The upper bound stays below the macOS ephemeral floor (49152,
+ * `net.inet.ip.portrange.first`) so the OS never hands one of our ports to a
+ * transient outbound socket while a creation is idle, and the lower bound clears
+ * the usual dev-tool clutter (3000, 5173, 8080, 9222, ...). MAX is exclusive.
+ */
+export const PREVIEW_PORT_MIN = 40000;
+export const PREVIEW_PORT_MAX = 49000;
+
+/**
+ * A deterministic in-band port for a creation, derived from its id (FNV-1a). The
+ * same creation maps to the same port every launch, so its preview keeps a stable
+ * `http://127.0.0.1:<port>/` origin - which is what lets the game's localStorage
+ * persist - while different creations spread across the band and stay isolated.
+ */
+export function preferredPreviewPort(projectId: string): number {
+  let hash = 2166136261; // FNV-1a 32-bit offset basis
+  for (let i = 0; i < projectId.length; i++) {
+    hash ^= projectId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const span = PREVIEW_PORT_MAX - PREVIEW_PORT_MIN;
+  return PREVIEW_PORT_MIN + ((hash >>> 0) % span);
+}
+
+/**
+ * Bind `preferred` if it is free, otherwise scan forward through the band (and
+ * only as a last resort, when the whole band is busy, let the OS pick any port).
+ */
+async function allocatePort(
+  preferred: number,
+  unavailable: ReadonlySet<number> = new Set<number>(),
+): Promise<number> {
+  if (!unavailable.has(preferred) && (await isPortFree(preferred))) return preferred;
+  const span = PREVIEW_PORT_MAX - PREVIEW_PORT_MIN;
+  const seed = (((preferred - PREVIEW_PORT_MIN) % span) + span) % span;
+  for (let i = 1; i < span; i++) {
+    const port = PREVIEW_PORT_MIN + ((seed + i) % span);
+    if (!unavailable.has(port) && (await isPortFree(port))) return port;
+  }
+  return osAssignedPort();
+}
+
+function isPortFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once("error", () => resolve(false));
+    server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));
+  });
+}
+
+function osAssignedPort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
     server.once("error", reject);

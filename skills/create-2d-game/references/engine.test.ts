@@ -48,6 +48,81 @@ function loadEngine() {
   };
 }
 
+function loadSave(store = new Map<string, string>()) {
+  const sandbox = {
+    window: { addEventListener() {} },
+    requestAnimationFrame() {
+      return 0;
+    },
+    cancelAnimationFrame() {},
+    localStorage: {
+      getItem: (k: string) => (store.has(k) ? store.get(k) : null),
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+    },
+  };
+  const source = readFileSync(resolve("skills/create-2d-game/references/engine.js"), "utf8");
+  const GameSave = vm.runInNewContext(`${source}\nGameSave;`, sandbox) as {
+    namespace(name: string): void;
+    load(name: string, fallback?: unknown): unknown;
+    save(name: string, value: unknown): boolean;
+    clear(name: string): void;
+  };
+  return { GameSave, store };
+}
+
+describe("create-2d-game GameSave", () => {
+  it("round-trips JSON values and returns the fallback when nothing is saved", () => {
+    const { GameSave } = loadSave();
+
+    expect(GameSave.load("progress", { level: 1 })).toEqual({ level: 1 });
+    expect(GameSave.save("progress", { level: 4, coins: 12 })).toBe(true);
+    expect(GameSave.load("progress")).toEqual({ level: 4, coins: 12 });
+
+    GameSave.clear("progress");
+    expect(GameSave.load("progress", null)).toBeNull();
+  });
+
+  it("namespaces keys so two games never read each other's saves", () => {
+    const store = new Map<string, string>();
+    const a = loadSave(store).GameSave;
+    const b = loadSave(store).GameSave;
+    a.namespace("maze");
+    b.namespace("racer");
+
+    a.save("best", 100);
+    b.save("best", 7);
+
+    expect(a.load("best")).toBe(100);
+    expect(b.load("best")).toBe(7);
+  });
+
+  it("returns false instead of throwing when storage is unavailable", () => {
+    const source = readFileSync(resolve("skills/create-2d-game/references/engine.js"), "utf8");
+    const GameSave = vm.runInNewContext(`${source}\nGameSave;`, {
+      window: { addEventListener() {} },
+      requestAnimationFrame: () => 0,
+      cancelAnimationFrame() {},
+      localStorage: {
+        getItem() {
+          throw new Error("blocked");
+        },
+        setItem() {
+          throw new Error("blocked");
+        },
+        removeItem() {},
+      },
+    }) as { load(n: string, f?: unknown): unknown; save(n: string, v: unknown): boolean };
+
+    expect(GameSave.save("progress", { level: 1 })).toBe(false);
+    expect(GameSave.load("progress", "fallback")).toBe("fallback");
+  });
+});
+
 describe("create-2d-game reference engine", () => {
   it("keeps fixed-step edge inputs until an update consumes them", () => {
     const { canvas, dispatchCanvas, dispatchWindow, engine, nextFrame } = loadEngine();

@@ -92,6 +92,9 @@ Set `player.x`/`player.y`/`player.z` to move it - the mesh follows automatically
 **Collision.** `HiBit3D.overlap(a, b)` is true when two boxes touch in 3D.
 `HiBit3D.moveAndCollide(entity, { x, y, z }, solids)` moves a box by that amount, one axis at a time, and stops it against the solids - this is how you walk into walls and land on the ground (see the platformer recipe).
 
+**Saving progress.** `GameSave` stores small JSON values in `localStorage`, so progress works inside Hi-Bit and when the world is opened somewhere else.
+Call `GameSave.namespace("my-world")` once, `GameSave.load(...)` when the world starts, and `GameSave.save(...)` when a best score, reached area, placed block list, or unlock changes.
+
 **Stopping the loop.** `run` returns a `stop` function. Use it to clean up before a restart, or when leaving the game:
 
 ```js
@@ -130,6 +133,8 @@ Hold the current scene in a variable and branch on it, exactly like the 2D engin
 
 ```js
 let scene = "title"; // "title" | "playing" | "over"
+GameSave.namespace("starter-3d");
+let best = GameSave.load("best", 0);
 let score = 0;
 
 function update(dt) {
@@ -146,6 +151,7 @@ function update(dt) {
 ```
 
 Draw titles and scores with a plain HTML overlay (a `<div>` on top of the canvas) - that is easier to read than text in 3D.
+When the game ends, update `best` and call `GameSave.save("best", best)` before showing the final score.
 
 ## Putting a real picture on a surface
 

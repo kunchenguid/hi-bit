@@ -143,6 +143,31 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
       projects.pathsFor(profileId, projectId).mainWorkbenchDir,
     onStopped: ({ profileId, projectId }) =>
       broadcastChatEvent({ type: "preview_stopped", profileId, projectId }),
+    // Keep each creation on a stable loopback port across launches so its preview
+    // origin never changes - that is what lets a game's localStorage save persist.
+    loadStablePort: async (profileId, projectId) => {
+      try {
+        return (await projects.get(profileId, projectId)).previewPort;
+      } catch {
+        return undefined;
+      }
+    },
+    loadReservedPorts: async (profileId, projectId) => {
+      try {
+        const reserved: number[] = [];
+        for (const profile of await profiles.list()) {
+          for (const project of await projects.list(profile.id)) {
+            if (profile.id === profileId && project.id === projectId) continue;
+            if (typeof project.previewPort === "number") reserved.push(project.previewPort);
+          }
+        }
+        return reserved;
+      } catch {
+        return [];
+      }
+    },
+    saveStablePort: (profileId, projectId, port) =>
+      projects.rememberPreviewPort(profileId, projectId, port),
   });
   const appControl = new AppControlService({
     getAppDebugger: () => (getMainWindow()?.webContents.debugger as AppDebugger) ?? null,

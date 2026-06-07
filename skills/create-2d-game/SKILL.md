@@ -44,6 +44,20 @@ So the normal flow for a game with a character is:
 
 Never hand-draw a character with shapes in code. Boxes are fine while you build the rules; finished art comes from game-assets.
 
+## Saving progress
+
+A game that forgets the score and the level every time the builder leaves feels broken to a kid.
+If the game has anything worth keeping - a high score, the current level, coins, unlocked things - save it.
+
+`engine.js` gives you `GameSave` for exactly this. It uses the browser's `localStorage`, so the save works the same wherever the game is opened: inside Hi-Bit, or shared out on a real website later. No server, no setup.
+
+1. Once, near the top of your game, give the game a name so its save stays separate from other games: `GameSave.namespace("maze")`.
+2. When the game starts, load what was saved (with a fallback for the very first visit): `const saved = GameSave.load("progress", { level: 1, best: 0 })`.
+3. Whenever something worth keeping changes - a level cleared, a new high score - save it: `GameSave.save("progress", { level, best })`.
+
+Save the small facts you need to restart where the builder left off, not the whole game state every frame.
+Values can be any JSON (numbers, strings, arrays, objects). `GameSave.save` never throws - it returns `false` if storage is blocked, which a game can simply ignore.
+
 ## Keep it kid-sized
 
 - Build the smallest playable thing first - a player that moves and one rule - then add to it. A builder who can move something in 30 seconds stays excited.
@@ -53,6 +67,6 @@ Never hand-draw a character with shapes in code. Boxes are fine while you build 
 
 ## Resources
 
-- `references/engine.js`: the loop, keyboard/mouse input, and box-overlap helper. Copy it into the creation.
+- `references/engine.js`: the loop, keyboard/mouse input, the box-overlap helper, and `GameSave` for saving progress. Copy it into the creation.
 - `references/game-loop.md`: the universal skeleton every genre starts from.
 - `references/platformer.md`, `references/top-down.md`, `references/clicker-arcade.md`, `references/shooter.md`: one focused recipe per genre.

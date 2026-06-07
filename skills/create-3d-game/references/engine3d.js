@@ -374,3 +374,52 @@ const HiBit3D = (() => {
     pick,
   };
 })();
+
+// GameSave - remember the builder's progress between visits.
+//
+// A world with no memory forgets where the builder got to the moment they leave.
+// Save it. GameSave uses the browser's localStorage, so it works the same wherever
+// the game is opened - inside Hi-Bit, or shared out on a real website - with no
+// server and no setup.
+//
+//   GameSave.namespace("blocks");        // once, so two games never mix saves
+//   GameSave.save("world", { spawn: "cave", blocks: placed });
+//   const saved = GameSave.load("world", { spawn: "start", blocks: [] }); // fallback if none yet
+//
+// Save whenever something worth keeping changes (a level cleared, blocks placed),
+// and load once when the game starts. Values can be any JSON: numbers, strings,
+// arrays, objects. save() returns false if storage is blocked (it never throws).
+const GameSave = (() => {
+  let prefix = "game:"; // change with namespace() so each game gets its own keys
+  const keyFor = (name) => prefix + (name || "save");
+  return {
+    // Call once with your game's name so its saves stay separate from other games.
+    namespace(name) {
+      if (name) prefix = `${name}:`;
+    },
+    // Read the saved value for `name`, or `fallback` if nothing is saved yet.
+    load(name, fallback = null) {
+      try {
+        const raw = localStorage.getItem(keyFor(name));
+        return raw === null ? fallback : JSON.parse(raw);
+      } catch {
+        return fallback;
+      }
+    },
+    // Save any JSON-able value under `name`. Returns true if it was stored.
+    save(name, value) {
+      try {
+        localStorage.setItem(keyFor(name), JSON.stringify(value));
+        return true;
+      } catch {
+        return false; // storage full, blocked, or unavailable (e.g. some file:// modes)
+      }
+    },
+    // Forget a saved value.
+    clear(name) {
+      try {
+        localStorage.removeItem(keyFor(name));
+      } catch {}
+    },
+  };
+})();
