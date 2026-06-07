@@ -140,6 +140,35 @@ describe("createUpdateChecker", () => {
     });
   });
 
+  it("times out a stalled release check", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn(
+        (_url: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      );
+      const checker = createUpdateChecker({ currentVersion: "0.1.7", fetchImpl, now: () => 0 });
+
+      const status = checker.getStatus();
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await expect(status).resolves.toEqual({
+        currentVersion: "0.1.7",
+        latestVersion: null,
+        updateAvailable: false,
+        releaseUrl: null,
+      });
+      expect(fetchImpl).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("treats a non-ok HTTP response as a failed check", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({}, false, 403));
     const checker = createUpdateChecker({ currentVersion: "0.1.7", fetchImpl, now: () => 0 });

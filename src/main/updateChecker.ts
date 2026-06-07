@@ -7,6 +7,7 @@ import type { UpdateStatus } from "@shared/ipc";
 const DEFAULT_REPO = "kunchenguid/hi-bit";
 // Matches the cadence used elsewhere in Kun's apps: a check at most every 4 hours.
 const DEFAULT_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 10 * 1000;
 
 export type UpdateChecker = {
   /** Returns the cached status, refreshing in the background once it goes stale. */
@@ -83,9 +84,12 @@ export function createUpdateChecker(options: CreateUpdateCheckerOptions): Update
 
   async function refresh(): Promise<UpdateStatus> {
     if (!fetchImpl) return lastStatus ?? fallbackStatus();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
     try {
       const response = await fetchImpl(apiUrl, {
         headers: { Accept: "application/vnd.github+json", "User-Agent": "hi-bit" },
+        signal: controller.signal,
       });
       if (!response.ok) throw new Error(`GitHub releases request failed: ${response.status}`);
       const release = parseLatestRelease(await response.json());
@@ -101,6 +105,8 @@ export function createUpdateChecker(options: CreateUpdateCheckerOptions): Update
       // Update checks are best-effort. Keep the last good status if we have one,
       // otherwise report "no update" so the shell never shows a false positive.
       return lastStatus ?? fallbackStatus();
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
