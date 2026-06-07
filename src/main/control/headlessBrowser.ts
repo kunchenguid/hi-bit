@@ -18,7 +18,12 @@ export type HeadlessBrowserOptions = {
   /** Loopback gate: only a creation's own preview may load. */
   isAllowed: (url: string) => boolean | Promise<boolean>;
   maxTabs?: number;
+  /** Page-load deadline; a stuck preview must never hang a bot's tool call. */
+  loadTimeoutMs?: number;
 };
+
+/** Matches the visible browser's `waitForLoad` deadline (appControlService). */
+const DEFAULT_LOAD_TIMEOUT_MS = 8000;
 
 type HeadlessTab = {
   id: string;
@@ -39,11 +44,13 @@ export class HeadlessBrowserHost implements BrowserHost {
   private readonly createWindow: () => HeadlessWindow;
   private readonly isAllowed: (url: string) => boolean | Promise<boolean>;
   private readonly maxTabs: number;
+  private readonly loadTimeoutMs: number;
 
   constructor(options: HeadlessBrowserOptions) {
     this.createWindow = options.createWindow;
     this.isAllowed = options.isAllowed;
     this.maxTabs = options.maxTabs ?? 4;
+    this.loadTimeoutMs = options.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
   }
 
   private active(): HeadlessTab {
@@ -59,18 +66,72 @@ export class HeadlessBrowserHost implements BrowserHost {
     if (url && !(await this.isAllowed(url))) throw new NavigationBlockedError(url);
     const window = this.createWindow();
     const controller = new CdpController({ debugger: window.debugger, capture: window.capture });
-    await controller.attach();
     const id = randomUUID();
     const tab: HeadlessTab = { id, window, controller, kind: kindFor(url) };
     this.tabs.set(id, tab);
     this.activeId = id;
     try {
-      if (url) await window.loadURL(url);
+      // Order matters: a CDP command (`Page.enable` etc.) sent to a webContents
+      // that has never navigated never resolves, so `controller.attach()` would
+      // hang forever. The page must load - committing a real document - before
+      // the controller attaches. A blank tab has nothing to commit, so it stays
+      // unattached until its first `navigate()` loads a real page.
+      if (url) {
+        await this.loadWithDeadline(window, url);
+        await this.attachController(tab);
+      }
     } catch (error) {
       await this.closeTab(id);
       throw error;
     }
     return this.toTab(tab);
+  }
+
+  /**
+   * Attaches the controller behind a deadline. Once a page has committed this is
+   * near-instant; the deadline only guards the pathological case where the
+   * document never commits (a server that accepts but never responds), which
+   * would otherwise leave the enable commands - and the bot's tool call - hung.
+   */
+  private async attachController(tab: HeadlessTab): Promise<void> {
+    if (tab.controller.isAttached()) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () =>
+          reject(new Error("The page never finished loading, so the browser could not attach.")),
+        this.loadTimeoutMs,
+      );
+    });
+    try {
+      await Promise.race([tab.controller.attach(), deadline]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Loads a url but resolves once the page-load deadline passes even if the page
+   * never reports done - a creation preview that stalls mid-load (a subresource
+   * that never finishes, a server that streams forever) would otherwise leave
+   * Electron's `loadURL` promise pending and hang the bot's tool call forever.
+   * A genuine load failure still rejects (so the caller can clean up the tab);
+   * only an unbounded wait is converted into "return the tab anyway".
+   */
+  private async loadWithDeadline(window: HeadlessWindow, url: string): Promise<void> {
+    const load = window.loadURL(url);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, this.loadTimeoutMs);
+    });
+    try {
+      await Promise.race([load, deadline]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    // If the deadline won, the load promise is still pending; swallow any later
+    // rejection (e.g. Electron's ERR_ABORTED) so it can't surface as unhandled.
+    void load.catch(() => {});
   }
 
   async closeTab(tabId: string): Promise<void> {
@@ -95,7 +156,10 @@ export class HeadlessBrowserHost implements BrowserHost {
     if (!(await this.isAllowed(url))) throw new NavigationBlockedError(url);
     const tab = this.active();
     tab.kind = kindFor(url);
-    await tab.window.loadURL(url);
+    await this.loadWithDeadline(tab.window, url);
+    // A blank tab opened without a url is still unattached; now that it has
+    // committed a real page, the controller can attach (see openTab).
+    await this.attachController(tab);
   }
 
   async back(): Promise<void> {
@@ -155,6 +219,10 @@ export class HeadlessBrowserHost implements BrowserHost {
 
   private async assertActiveAllowed(): Promise<void> {
     const tab = this.active();
+    // A blank tab stays unattached (see openTab); driving CDP at it would hang.
+    if (!tab.controller.isAttached()) {
+      throw new Error("This tab has no page yet. Navigate to a creation's preview first.");
+    }
     const current = tab.window.currentUrl();
     if (current && !(await this.isAllowed(current))) throw new NavigationBlockedError(current);
     const frameUrl = await tab.controller.firstDisallowedFrameUrl((url) => this.isAllowed(url));
