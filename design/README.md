@@ -130,6 +130,12 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 > **Factory Logbook panel:** Dino Dash - Logbook.
 >
 > **Open folder:** Open creations folder.
+>
+> **Update indicator:** Update available.
+>
+> **Update command help:** Run this in a terminal to update:
+>
+> **Update release notes:** Release notes.
 
 ### What we avoid
 

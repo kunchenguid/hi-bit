@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hi-Bit update notice evidence</title>
+    <style>
+      :root {
+        --paper: #fff7df;
+        --paper-2: #fffdf5;
+        --paper-3: #fff4cf;
+        --ink: #21180d;
+        --ink-3: #6e5c43;
+        --ink-06: rgba(33, 24, 13, 0.06);
+        --success: #21b56f;
+        --brand-wash: rgba(255, 199, 77, 0.36);
+        --border-hairline: 1px solid rgba(33, 24, 13, 0.16);
+        --shadow-soft-lg: 0 18px 48px rgba(87, 57, 18, 0.16);
+        --shadow-glow-brand: 0 0 0 4px rgba(33, 181, 111, 0.18);
+        --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        --s-0\.5: 4px;
+        --s-1: 8px;
+        --s-2: 16px;
+        --s-3: 24px;
+        --s-4: 32px;
+        --r-lg: 16px;
+        --r-2xl: 28px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: var(--s-4);
+        background: radial-gradient(circle at top left, var(--brand-wash), transparent 32rem), var(--paper);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .evidence-shell {
+        max-width: 1040px;
+        margin: 0 auto;
+        display: grid;
+        gap: var(--s-3);
+      }
+
+      .hb-workspace-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--s-2);
+      }
+
+      .hb-workspace-greeting {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 44px);
+        letter-spacing: -0.04em;
+      }
+
+      .hb-card {
+        border: var(--border-hairline);
+        border-radius: var(--r-2xl);
+        background: var(--paper-2);
+        box-shadow: var(--shadow-soft-lg);
+      }
+
+      .hb-button {
+        min-height: 44px;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        padding: 0 18px;
+        background: #ffffff;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 800;
+      }
+
+      .hb-button-secondary {
+        background: #ffffff;
+      }
+
+      .hb-parent-menu {
+        position: relative;
+      }
+
+      .hb-parent-menu summary.hb-button {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .hb-parent-menu summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .hb-parent-menu-popover {
+        display: grid;
+        gap: var(--s-1);
+        width: min(440px, calc(100vw - var(--s-4)));
+        margin-top: var(--s-1);
+        margin-left: auto;
+        padding: var(--s-3);
+      }
+
+      .hb-update-dot {
+        width: 8px;
+        height: 8px;
+        margin-left: var(--s-1);
+        border-radius: 999px;
+        background: var(--success);
+        box-shadow: var(--shadow-glow-brand);
+      }
+
+      .hb-update-notice {
+        display: grid;
+        gap: var(--s-1);
+        margin-top: var(--s-1);
+        padding: var(--s-2);
+        border: var(--border-hairline);
+        border-radius: var(--r-lg);
+        background: var(--paper-3);
+      }
+
+      .hb-update-notice-title {
+        margin: 0;
+        font-weight: 800;
+        color: var(--ink);
+      }
+
+      .hb-update-notice-sub {
+        margin: 0;
+        color: var(--ink-3);
+      }
+
+      .hb-update-notice-command {
+        display: flex;
+        align-items: center;
+        gap: var(--s-1);
+        min-width: 0;
+      }
+
+      .hb-update-notice-command code {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: var(--s-0\.5) var(--s-1);
+        border-radius: var(--r-lg);
+        background: var(--ink-06);
+        font-family: var(--font-mono);
+        font-size: 14px;
+        color: var(--ink);
+      }
+
+      .hb-update-notice-copy {
+        flex-shrink: 0;
+      }
+
+      .evidence-caption {
+        margin: 0;
+        color: var(--ink-3);
+        line-height: 1.5;
+      }
+
+      @media (max-width: 760px) {
+        body {
+          padding: var(--s-2);
+        }
+
+        .hb-workspace-header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .hb-parent-menu-popover {
+          width: 100%;
+          margin-left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="evidence-shell" aria-label="Update notice visual evidence">
+      <section class="hb-workspace-header" aria-label="Closed Grown-up menu">
+        <h1 class="hb-workspace-greeting">Hi Avery - what should we build?</h1>
+        <details class="hb-parent-menu hb-header-actions">
+          <summary class="hb-button hb-button-secondary">
+            Grown-up menu
+            <span class="hb-update-dot" role="img" aria-label="update available"></span>
+          </summary>
+        </details>
+      </section>
+
+      <section aria-label="Opened Grown-up menu">
+        <details class="hb-parent-menu hb-header-actions" open>
+          <summary class="hb-button hb-button-secondary">
+            Grown-up menu
+            <span class="hb-update-dot" role="img" aria-label="update available"></span>
+          </summary>
+          <div class="hb-card hb-parent-menu-popover">
+            <button class="hb-button hb-button-secondary" type="button">Builder settings</button>
+            <button class="hb-button hb-button-secondary" type="button">Open creations folder</button>
+            <button class="hb-button hb-button-secondary" type="button">Switch profile</button>
+            <section class="hb-update-notice" aria-label="update available">
+              <p class="hb-update-notice-title"><span aria-hidden="true">⬆</span> Update available - v0.0.3</p>
+              <p class="hb-update-notice-sub">You&rsquo;re on v0.0.2. Run this in a terminal to update:</p>
+              <div class="hb-update-notice-command">
+                <code>brew update &amp;&amp; brew upgrade --cask hi-bit</code>
+                <button class="hb-button hb-button-secondary hb-update-notice-copy" type="button" aria-label="copy update command">Copy</button>
+              </div>
+              <button class="hb-button hb-button-secondary" type="button">Release notes</button>
+            </section>
+          </div>
+        </details>
+      </section>
+
+      <p class="evidence-caption">
+        Evidence captures the intended end-user surface: a quiet update dot on the Grown-up menu, with update details, Homebrew command, copy affordance, and release notes access only after opening the grown-up popover.
+      </p>
+    </main>
+  </body>
+</html>
