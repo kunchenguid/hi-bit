@@ -37,6 +37,7 @@ class FakeSession implements RuntimePiSession {
   messages: unknown[] = [];
   accessTokens: string[] = [];
   blockPrompt = false;
+  onPrompt: (() => void) | undefined;
   private listeners: Array<(event: unknown) => void> = [];
   private aborted = false;
   private unblock: (() => void) | undefined;
@@ -53,6 +54,7 @@ class FakeSession implements RuntimePiSession {
   }
 
   async prompt(text: string): Promise<void> {
+    this.onPrompt?.();
     this.messages.push({ role: "user", content: text, timestamp: 1 });
     this.emit({
       type: "message_update",
@@ -240,6 +242,41 @@ describe("PiRuntimeService", () => {
     expect(sessions).toHaveLength(2);
     expect(service.getMessages("bot_job_1")).toHaveLength(2);
     expect(service.getMessages("bot_job_2")).toHaveLength(2);
+  });
+
+  it("registers the builder's reference pictures for the bot's workbench while it runs, then clears them", async () => {
+    let resolvedDuringTurn: { path: string; mimeType: string } | undefined;
+    let wrongCwdDuringTurn: { path: string; mimeType: string } | undefined;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async () => {
+        const session = new FakeSession();
+        session.onPrompt = () => {
+          // generate_image resolves a reference id against the running job's
+          // workbench cwd (here, the project's main-workbench).
+          resolvedDuringTurn = service.resolveJobReference("/tmp/project/main-workbench", "pic_1");
+          wrongCwdDuringTurn = service.resolveJobReference("/somewhere/else", "pic_1");
+        };
+        return session;
+      },
+    });
+
+    const proj: RuntimeProject = {
+      ...project(),
+      runtimeKey: "bot_job_1",
+      references: [{ id: "pic_1", path: "/factory/ada/attachments/a.png", mimeType: "image/png" }],
+    };
+    await service.sendPrompt(proj, "draw a hero like the picture", () => {});
+
+    // Resolvable mid-turn, scoped to this job's workbench...
+    expect(resolvedDuringTurn).toEqual({
+      path: "/factory/ada/attachments/a.png",
+      mimeType: "image/png",
+    });
+    expect(wrongCwdDuringTurn).toBeUndefined();
+    // ...and gone once the turn ends, so a later job can't read it.
+    expect(service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toBeUndefined();
   });
 
   it("disposes a headless browser when bot session creation fails", async () => {

@@ -5,12 +5,22 @@ import type { RuntimeProject } from "../projects/projectService";
 import { writeJsonFile } from "../storage/json";
 import type { BotBuild, BotWorkbench, InspectionReport } from "./botPipeline";
 
+/**
+ * A picture the builder shared that this build may use as an art-direction
+ * reference. `path` is relative to the profile's conversation dir (durable, so
+ * the blueprint survives a userData move); the coordinator resolves it to an
+ * absolute file when it hands the build to the bot runtime.
+ */
+export type BlueprintReference = { id: string; path: string; mimeType: string };
+
 export type BlueprintRecord = {
   schemaVersion: 1;
   id: string;
   projectId: string;
   leadPrompt: string;
   projectCatalog: Array<{ id: string; title: string; updatedAt: string }>;
+  /** Builder pictures handed to this build as references, when any. */
+  references?: BlueprintReference[];
   status: "dispatched";
   createdAt: string;
 };
@@ -50,6 +60,7 @@ export class BotJobService {
     project: RuntimeProject,
     leadPrompt: string,
     projectCatalog: ProjectSummary[],
+    references: BlueprintReference[] = [],
   ): Promise<BlueprintRecord> {
     const blueprint: BlueprintRecord = {
       schemaVersion: 1,
@@ -61,6 +72,7 @@ export class BotJobService {
         title: item.title,
         updatedAt: item.updatedAt,
       })),
+      ...(references.length ? { references } : {}),
       status: "dispatched",
       createdAt: this.now().toISOString(),
     };

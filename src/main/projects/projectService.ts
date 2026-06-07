@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
-import type { PreviewInfo, ToolActivity, ToolContent } from "@shared/chat";
+import type { ImageReference, PreviewInfo, ToolActivity, ToolContent } from "@shared/chat";
 import type { CreateProjectInput, ProjectRecord, ProjectSummary } from "@shared/project";
 import { appendJsonl, readJsonFile, readJsonl, writeJsonFile } from "../storage/json";
 import { type HiBitLayout, projectDir, projectsDir } from "../storage/layout";
@@ -47,6 +47,13 @@ export type RuntimeProject = ProjectRecord &
   ProjectPaths & {
     activeBitSessionFile?: string;
     runtimeKey?: string;
+    /**
+     * Pictures the builder shared, made available to this bot run as
+     * art-direction references (resolved to absolute, factory-level paths). The
+     * runtime registers them so `generate_image`'s `reference_paths` can name
+     * them by id. Runtime-only, never persisted.
+     */
+    references?: ImageReference[];
   };
 
 export class ProjectService {

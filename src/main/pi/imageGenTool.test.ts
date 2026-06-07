@@ -1,6 +1,6 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createGenerateImageTool } from "./imageGenTool";
 
@@ -135,6 +135,124 @@ describe("generate_image tool", () => {
         cwd,
       } as unknown as Parameters<typeof tool.execute>[4]),
     ).rejects.toThrow(/did not return an image/i);
+  });
+
+  it("attaches a known job reference picture as an input_image, by id", async () => {
+    const cwd = await makeCwd();
+    // The builder's picture lives at factory level, outside the workbench.
+    const refDir = await makeCwd();
+    const refBytes = Buffer.from("reference-jpeg-bytes");
+    await writeFile(join(refDir, "builder.jpg"), refBytes);
+    let capturedBody: { input: Array<{ content: Array<Record<string, unknown>> }> } | undefined;
+
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      // Resolves the reference id to the factory-level file (never copied into cwd).
+      resolveReference: (toolCwd, ref) => {
+        expect(toolCwd).toBe(cwd);
+        return ref === "pic_42"
+          ? { path: join(refDir, "builder.jpg"), mimeType: "image/jpeg" }
+          : undefined;
+      },
+      fetchFn: async (_url, init) => {
+        capturedBody = JSON.parse(String(init?.body));
+        return sseResponse([imageDoneEvent(Buffer.from("png").toString("base64"))]);
+      },
+    });
+
+    await tool.execute(
+      "call-ref",
+      { prompt: "a hero like the picture", fileName: "hero.png", reference_paths: ["pic_42"] },
+      undefined,
+      undefined,
+      { cwd } as unknown as Parameters<typeof tool.execute>[4],
+    );
+
+    const content = capturedBody?.input[0].content ?? [];
+    expect(content[0]).toEqual({ type: "input_text", text: "a hero like the picture" });
+    const image = content.find((part) => part.type === "input_image");
+    expect(image).toEqual({
+      type: "input_image",
+      image_url: `data:image/jpeg;base64,${refBytes.toString("base64")}`,
+    });
+  });
+
+  it("attaches a workbench-relative reference file as an input_image", async () => {
+    const cwd = await makeCwd();
+    const refBytes = Buffer.from("earlier-generated-art");
+    await mkdir(dirname(join(cwd, "images/prior.png")), { recursive: true });
+    await writeFile(join(cwd, "images/prior.png"), refBytes);
+    let capturedBody: { input: Array<{ content: Array<Record<string, unknown>> }> } | undefined;
+
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async (_url, init) => {
+        capturedBody = JSON.parse(String(init?.body));
+        return sseResponse([imageDoneEvent(Buffer.from("png").toString("base64"))]);
+      },
+    });
+
+    await tool.execute(
+      "call-ref2",
+      { prompt: "match this", fileName: "next.png", reference_paths: ["images/prior.png"] },
+      undefined,
+      undefined,
+      { cwd } as unknown as Parameters<typeof tool.execute>[4],
+    );
+
+    const image = (capturedBody?.input[0].content ?? []).find(
+      (part) => part.type === "input_image",
+    );
+    expect(image).toEqual({
+      type: "input_image",
+      image_url: `data:image/png;base64,${refBytes.toString("base64")}`,
+    });
+  });
+
+  it("errors clearly when a reference path can't be found", async () => {
+    const cwd = await makeCwd();
+    let fetched = false;
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => {
+        fetched = true;
+        return sseResponse([imageDoneEvent(Buffer.from("x").toString("base64"))]);
+      },
+    });
+
+    await expect(
+      tool.execute(
+        "call-ref3",
+        { prompt: "x", fileName: "x.png", reference_paths: ["images/missing.png"] },
+        undefined,
+        undefined,
+        { cwd } as unknown as Parameters<typeof tool.execute>[4],
+      ),
+    ).rejects.toThrow(/reference/i);
+    expect(fetched).toBe(false);
+  });
+
+  it("rejects a reference path that escapes the workbench", async () => {
+    const cwd = await makeCwd();
+    let fetched = false;
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => {
+        fetched = true;
+        return sseResponse([imageDoneEvent(Buffer.from("x").toString("base64"))]);
+      },
+    });
+
+    await expect(
+      tool.execute(
+        "call-ref4",
+        { prompt: "x", fileName: "x.png", reference_paths: ["../secret.png"] },
+        undefined,
+        undefined,
+        { cwd } as unknown as Parameters<typeof tool.execute>[4],
+      ),
+    ).rejects.toThrow(/inside the creation|outside/i);
+    expect(fetched).toBe(false);
   });
 
   it("refuses to write outside the workbench", async () => {

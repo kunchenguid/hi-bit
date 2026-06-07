@@ -19,6 +19,30 @@ const EXT_BY_MIME: Record<string, string> = {
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const BASE64_CHARS = /^[A-Za-z0-9+/]+={0,2}$/;
 
+/** A shared picture Bit can name as a build reference: stable id, mime, on-disk path, when shared. */
+export type AttachmentSummary = {
+  id: string;
+  mimeType: string;
+  /** Relative to the profile's conversation dir. */
+  path: string;
+  sharedAt: string;
+};
+
+/** Derives an attachment's id, falling back to the file-name stem for legacy lines. */
+function attachmentId(image: ChatImage): string | undefined {
+  if (image.id) return image.id;
+  if (!image.path) return undefined;
+  return basename(image.path).replace(/\.[^.]+$/, "");
+}
+
+function attachmentSummary(message: ChatMessage): AttachmentSummary | undefined {
+  const image = message.image;
+  if (!image?.path) return undefined;
+  const id = attachmentId(image);
+  if (!id) return undefined;
+  return { id, mimeType: image.mimeType, path: image.path, sharedAt: message.createdAt };
+}
+
 type ConversationStateRecord = {
   schemaVersion: 1;
   activeBitSessionFile?: string;
@@ -78,9 +102,32 @@ export class ConversationService {
     if (bytes.length > MAX_ATTACHMENT_BYTES) throw new Error("Image is too large.");
     const { attachmentsDir } = this.paths(profileId);
     await mkdir(attachmentsDir, { recursive: true });
-    const fileName = `${randomUUID()}.${ext}`;
+    // The id doubles as the file name stem, so legacy attachments (saved before
+    // ids existed) can still be recalled by deriving the id from the path.
+    const id = randomUUID();
+    const fileName = `${id}.${ext}`;
     await writeFile(join(attachmentsDir, fileName), bytes);
-    return { mimeType: image.mimeType, path: join("attachments", fileName) };
+    return { id, mimeType: image.mimeType, path: join("attachments", fileName) };
+  }
+
+  /**
+   * The builder's shared pictures, newest first, so Bit can recall one later as
+   * an art-direction reference for a build.
+   */
+  async listAttachments(profileId: string): Promise<AttachmentSummary[]> {
+    const messages = await this.readTranscript(profileId);
+    const summaries: AttachmentSummary[] = [];
+    for (const message of messages) {
+      const summary = attachmentSummary(message);
+      if (summary) summaries.push(summary);
+    }
+    return summaries.reverse();
+  }
+
+  /** Looks up one shared picture by its stable id, for building a build's references. */
+  async resolveAttachment(profileId: string, id: string): Promise<AttachmentSummary | undefined> {
+    const summaries = await this.listAttachments(profileId);
+    return summaries.find((summary) => summary.id === id);
   }
 
   async readAttachmentData(profileId: string, image: ChatImage): Promise<string | undefined> {

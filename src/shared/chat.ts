@@ -15,10 +15,25 @@ export type ChatImage = {
   data?: string;
   /** Where the bytes live on disk, relative to the conversation dir. */
   path?: string;
+  /**
+   * Stable handle for this picture, so Bit can recall it later as an
+   * art-direction reference for a build (see [[ImageReference]]). Older
+   * transcript lines may lack it; derive it from the file name in that case.
+   */
+  id?: string;
 };
 
 /** A picture the builder is attaching to the next message (always carries bytes). */
 export type OutgoingImage = { mimeType: string; data: string };
+
+/**
+ * A picture made available to a bot as an art-direction reference for image
+ * generation. `id` is the stable handle a bot passes to `generate_image`'s
+ * `reference_paths`; `path` is the on-disk file (absolute at runtime). The
+ * canonical bytes are the builder's attachment, stored at factory level - never
+ * copied into a creation.
+ */
+export type ImageReference = { id: string; path: string; mimeType: string };
 
 export type ChatMessage = {
   id: string;

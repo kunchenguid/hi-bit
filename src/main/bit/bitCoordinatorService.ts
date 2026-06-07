@@ -6,6 +6,7 @@ import type {
   ChatMessage,
   ChatSnapshot,
   CreationActivity,
+  ImageReference,
   OutgoingImage,
   PreviewInfo,
   SendMessageResult,
@@ -22,9 +23,9 @@ import {
 import type { ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { Type } from "typebox";
-import { type BotJobRecord, BotJobService } from "../bots/botJobService";
+import { type BlueprintReference, type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
-import type { ConversationService } from "../conversation/conversationService";
+import type { AttachmentSummary, ConversationService } from "../conversation/conversationService";
 import type { BitPromptImage, BitRuntime } from "../pi/bitRuntimeService";
 import { stripImageData } from "../pi/piMessages";
 import { PreviewService } from "../preview/previewService";
@@ -248,7 +249,12 @@ export class BitCoordinatorService {
       const portfolio = await this.projects.list(profileId);
       // Image-only messages still need words for Bit, so it knows a picture came in.
       const builderSays = prompt || "(the builder shared a picture without words)";
-      const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}`;
+      // Tell Bit the picture's reference id so it can hand it to a build as art
+      // direction (now, or later via list_builder_pictures).
+      const pictureNote = storedImage?.id
+        ? `\n(The builder attached a picture - reference id: ${storedImage.id}. To build something whose look matches it, pass this id to create_creation or delegate_build as referencePictureIds.)`
+        : "";
+      const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}${pictureNote}`;
       const paths = this.conversation.paths(profileId);
       const imageData = storedImage
         ? await this.conversation.readAttachmentData(profileId, storedImage)
@@ -450,6 +456,21 @@ export class BitCoordinatorService {
       },
     });
 
+    const listBuilderPictures = defineTool({
+      name: "list_builder_pictures",
+      label: "List builder pictures",
+      description:
+        "List pictures the builder has shared in chat, newest first, with the id you pass to create_creation/delegate_build referencePictureIds to use one as art direction for a build.",
+      parameters: Type.Object({}),
+      async execute() {
+        const pictures = await self.conversation.listAttachments(profileId);
+        const text = pictures.length
+          ? pictures.map((p) => `- [id: ${p.id}] shared ${p.sharedAt}`).join("\n")
+          : "(the builder hasn't shared any pictures yet)";
+        return { content: [{ type: "text", text }], details: { count: pictures.length } };
+      },
+    });
+
     const createCreation = defineTool({
       name: "create_creation",
       label: "Create creation",
@@ -463,13 +484,20 @@ export class BitCoordinatorService {
         confirmed: Type.Boolean({
           description: "true only after the builder said yes to making this",
         }),
+        referencePictureIds: Type.Optional(
+          Type.Array(Type.String(), {
+            description:
+              "ids of pictures the builder shared to give the bot as art-direction references (a picture they just shared, or one from list_builder_pictures). Use when the builder wants the look based on a picture.",
+          }),
+        ),
       }),
       executionMode: "parallel",
       async execute(_callId, params) {
-        const { title, instructions, confirmed } = params as {
+        const { title, instructions, confirmed, referencePictureIds } = params as {
           title: string;
           instructions: string;
           confirmed: boolean;
+          referencePictureIds?: string[];
         };
         if (confirmed !== true) {
           return {
@@ -483,7 +511,7 @@ export class BitCoordinatorService {
           };
         }
         const project = await self.projects.create(profileId, { title });
-        const job = await self.slingBot(profileId, project.id, instructions);
+        const job = await self.slingBot(profileId, project.id, instructions, referencePictureIds);
         return {
           content: [{ type: "text", text: `Started "${title}". A bot is building it now.` }],
           details: { created: true, projectId: project.id, jobId: job.id } as CreateDetails,
@@ -501,15 +529,22 @@ export class BitCoordinatorService {
         instructions: Type.String({
           description: "what the bot should build or change",
         }),
+        referencePictureIds: Type.Optional(
+          Type.Array(Type.String(), {
+            description:
+              "ids of pictures the builder shared to give the bot as art-direction references (a picture they just shared, or one from list_builder_pictures). Use when the builder wants the look based on a picture.",
+          }),
+        ),
       }),
       executionMode: "parallel",
       async execute(_callId, params) {
-        const { creationId, instructions } = params as {
+        const { creationId, instructions, referencePictureIds } = params as {
           creationId: string;
           instructions: string;
+          referencePictureIds?: string[];
         };
         try {
-          const job = await self.slingBot(profileId, creationId, instructions);
+          const job = await self.slingBot(profileId, creationId, instructions, referencePictureIds);
           return {
             content: [{ type: "text", text: "A bot started working on that creation." }],
             details: { jobId: job.id, projectId: creationId } as BuildDetails,
@@ -626,6 +661,7 @@ export class BitCoordinatorService {
 
     const tools = [
       listCreations,
+      listBuilderPictures,
       createCreation,
       delegateBuild,
       startPreview,
@@ -643,10 +679,24 @@ export class BitCoordinatorService {
     profileId: string,
     creationId: string,
     instructions: string,
+    referencePictureIds?: string[],
   ): Promise<BotJobRecord> {
     const project = await this.projects.get(profileId, creationId);
     const portfolio = await this.projects.list(profileId);
-    const blueprint = await this.botJobs.createBlueprint(project, instructions, portfolio);
+    // Resolve the builder's chosen pictures once: durable (relative) refs go on
+    // the blueprint, and the same set feeds the bot run as art-direction.
+    const references = await this.resolveReferences(profileId, referencePictureIds);
+    const blueprintReferences: BlueprintReference[] = references.map((reference) => ({
+      id: reference.id,
+      path: reference.path,
+      mimeType: reference.mimeType,
+    }));
+    const blueprint = await this.botJobs.createBlueprint(
+      project,
+      instructions,
+      portfolio,
+      blueprintReferences,
+    );
     let job = await this.botJobs.createJob(project, blueprint);
     const workbench = await this.pipeline.prepareBotWorkbench(project, job);
     job = await this.botJobs.markRunning(project, job, workbench);
@@ -659,12 +709,31 @@ export class BitCoordinatorService {
       startedAt: this.now().toISOString(),
     });
 
-    const run = this.runBotPipeline(profileId, project, job, workbench, instructions).catch(
-      () => {},
-    );
+    const run = this.runBotPipeline(
+      profileId,
+      project,
+      job,
+      workbench,
+      instructions,
+      references,
+    ).catch(() => {});
     this.pending.add(run);
     void run.finally(() => this.pending.delete(run));
     return job;
+  }
+
+  /** Looks up the builder pictures Bit named for a build, skipping any unknown id. */
+  private async resolveReferences(
+    profileId: string,
+    ids: string[] | undefined,
+  ): Promise<AttachmentSummary[]> {
+    if (!ids?.length) return [];
+    const resolved: AttachmentSummary[] = [];
+    for (const id of ids) {
+      const found = await this.conversation.resolveAttachment(profileId, id);
+      if (found) resolved.push(found);
+    }
+    return resolved;
   }
 
   private async runBotPipeline(
@@ -673,8 +742,18 @@ export class BitCoordinatorService {
     job: BotJobRecord,
     workbench: { path: string },
     instructions: string,
+    references: AttachmentSummary[] = [],
   ): Promise<void> {
     const profile = await this.profiles.get(profileId).catch(() => undefined);
+    // The builder's pictures live at factory level; hand the bot run absolute
+    // paths to them so generate_image can read them as references without
+    // copying anything into the creation.
+    const conversationDir = this.conversation.paths(profileId).conversationDir;
+    const runtimeReferences: ImageReference[] = references.map((reference) => ({
+      id: reference.id,
+      path: join(conversationDir, reference.path),
+      mimeType: reference.mimeType,
+    }));
     let outcome: "completed" | "cancelled" | "failed" = "completed";
     let summary = "";
     let readyToPlay = false;
@@ -697,11 +776,12 @@ export class BitCoordinatorService {
         bitSessionsDir: project.botSessionsDir,
         activeBitSessionFile: undefined,
         runtimeKey: job.id,
+        references: runtimeReferences.length ? runtimeReferences : undefined,
       };
       let botText = "";
       const result = await this.bot.sendPrompt(
         botProject,
-        botPrompt({ instructions, profile, project }),
+        botPrompt({ instructions, profile, project, references }),
         (event) => {
           if (event.type === "assistant_delta") {
             botText += event.text;
@@ -963,6 +1043,7 @@ function botPrompt(input: {
   instructions: string;
   profile: ProfileSummary | undefined;
   project: RuntimeProject;
+  references?: AttachmentSummary[];
 }): string {
   const profileLines = input.profile
     ? `Builder:
@@ -971,6 +1052,10 @@ function botPrompt(input: {
 - Interests: ${input.profile.interests.length ? input.profile.interests.join(", ") : "not set"}
 - Parent notes: ${input.profile.notes?.trim() || "None."}`
     : "Builder: a young creator.";
+  const referenceLines = input.references?.length
+    ? `\n\nReference pictures the builder shared - match their art direction. When you draw art, pass these ids to generate_image's reference_paths so the look matches:
+${input.references.map((reference) => `- ${reference.id}`).join("\n")}`
+    : "";
   return `Build or change this creation in your isolated Workbench.
 
 ${profileLines}
@@ -978,7 +1063,7 @@ ${profileLines}
 Creation: ${input.project.title}
 
 Job:
-${input.instructions}
+${input.instructions}${referenceLines}
 
 Do the work in this Workbench only. Bit will run Machines and the Assembly Line after you finish.`;
 }

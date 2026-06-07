@@ -439,6 +439,80 @@ describe("BitCoordinatorService (Bit)", () => {
     }
   });
 
+  it("hands a builder's freshly shared picture to the bot as an art-direction reference", async () => {
+    const s = await createCoordinator();
+    const data = Buffer.from("pretend-cat-png").toString("base64");
+    let sharedTurnText = "";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      sharedTurnText = text;
+      const id = text.match(/reference id: ([\w-]+)/)?.[1];
+      await callTool("create_creation", {
+        title: "Cat Game",
+        instructions: "a platformer starring this cat",
+        confirmed: true,
+        referencePictureIds: id ? [id] : [],
+      });
+      return "Building your cat game!";
+    };
+
+    await s.coordinator.send(s.profile.id, "make a game with this cat", {
+      mimeType: "image/png",
+      data,
+    });
+    await s.drain();
+
+    // Bit learns the picture's id the moment it's shared.
+    expect(sharedTurnText).toMatch(/reference id: [\w-]+/);
+
+    const attachments = await s.conversation.listAttachments(s.profile.id);
+    const refId = attachments[0]?.id;
+    const prompt = s.bot.prompts.at(-1);
+    // The bot run carries the reference as an absolute, factory-level path...
+    expect(prompt?.project.references).toEqual([
+      {
+        id: refId,
+        path: expect.stringContaining("/conversation/attachments/"),
+        mimeType: "image/png",
+      },
+    ]);
+    // ...and the bot is told to feed that id into generate_image.
+    expect(prompt?.text).toContain(refId as string);
+    expect(prompt?.text).toMatch(/reference_paths/);
+  });
+
+  it("recalls a picture shared in an earlier turn for a later build", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    const data = Buffer.from("pretend-cat").toString("base64");
+
+    // Turn 1: the builder just shows a picture, no build.
+    s.bit.handler = async () => "Cute cat!";
+    await s.coordinator.send(s.profile.id, "look at my cat", { mimeType: "image/png", data });
+    await s.drain();
+
+    // Turn 2: asks to use that earlier picture; Bit recalls it by id.
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      const listed = (await callTool("list_builder_pictures", {})) as {
+        content: Array<{ text: string }>;
+      };
+      const id = listed.content[0]?.text.match(/id: ([\w-]+)/)?.[1];
+      await callTool("delegate_build", {
+        creationId: game.id,
+        instructions: "use my cat",
+        referencePictureIds: id ? [id] : [],
+      });
+      return "Using your cat!";
+    };
+    await s.coordinator.send(s.profile.id, "put my cat from before in the jump game");
+    await s.drain();
+
+    const reference = s.bot.prompts.at(-1)?.project.references?.[0];
+    expect(reference?.mimeType).toBe("image/png");
+    expect(reference?.path).toContain("/conversation/attachments/");
+  });
+
   it("delegates an edit on an existing creation immediately and surfaces bot activity", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
