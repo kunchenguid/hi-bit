@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { VoiceControl } from "./VoiceControl";
+import { HOLD_THRESHOLD_MS, VoiceControl } from "./VoiceControl";
 import { transcribeAudio, warmUpWhisper } from "./whisperClient";
 
 vi.mock("./whisperClient", () => ({
@@ -85,9 +85,11 @@ describe("VoiceControl", () => {
     act(() => root.unmount());
     host.remove();
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
-  it("stops the microphone before awaiting transcription", async () => {
+  it("stops the microphone before awaiting transcription on a held recording", async () => {
+    vi.useFakeTimers();
     const transcription = deferred<string>();
     mockedTranscribeAudio.mockReturnValue(transcription.promise);
     act(() => root.render(<VoiceControl onVoiceText={vi.fn()} />));
@@ -97,6 +99,10 @@ describe("VoiceControl", () => {
     await act(async () => {
       mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     });
+    // Hold past the threshold so the gesture is push-to-talk, then release.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HOLD_THRESHOLD_MS + 50);
+    });
     await act(async () => {
       mic.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
     });
@@ -105,6 +111,37 @@ describe("VoiceControl", () => {
     expect(mockedTranscribeAudio).toHaveBeenCalled();
     transcription.resolve("make a game");
     await flush();
+  });
+
+  it("treats a quick click as hands-free, not push-to-talk, even when the mic opens fast", async () => {
+    // The bug: with a warm model and mic, recording starts within a few ms while
+    // the button is still held, so a normal click was read as push-to-talk and
+    // sent (then dropped) the instant the kid let go. A short press must instead
+    // start a hands-free recording the kid ends by tapping again.
+    vi.useFakeTimers();
+    const onVoiceText = vi.fn();
+    act(() => root.render(<VoiceControl onVoiceText={onVoiceText} />));
+
+    const mic = host.querySelector<HTMLButtonElement>("button[aria-label='Talk to Bit']");
+    if (!mic) throw new Error("mic button not found");
+    await act(async () => {
+      mic.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
+    // Recording is already running while the button is held...
+    expect(recorderInstances[0]?.beginCapture).toHaveBeenCalled();
+    // ...but the kid lets go well before the hold threshold: a click, not a hold.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HOLD_THRESHOLD_MS - 100);
+    });
+    await act(async () => {
+      mic.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    });
+
+    // It stays recording as a hands-free stop control; nothing was sent on release.
+    expect(host.querySelector("button[aria-label='Stop recording']")).not.toBeNull();
+    expect(host.querySelector(".hb-voice-callout")).not.toBeNull();
+    expect(mockedTranscribeAudio).not.toHaveBeenCalled();
+    expect(onVoiceText).not.toHaveBeenCalled();
   });
 
   it("starts recording without waiting for the model to warm up", async () => {
