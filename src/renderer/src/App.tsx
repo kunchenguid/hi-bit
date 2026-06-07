@@ -427,8 +427,8 @@ export function App() {
     }
   }, [activeProfile, activeTurn, attachedImage, draft]);
 
-  // Transcribed speech joins the draft (rather than auto-sending) so the kid
-  // reads it over and presses Send themselves.
+  // Transcribed speech joins the draft with a trailing space (rather than
+  // auto-sending) so the kid can keep typing, read it over, and press Send.
   const appendVoiceText = useCallback((text: string) => {
     setDraft((current) => appendVoiceTranscript(current, text));
   }, []);
