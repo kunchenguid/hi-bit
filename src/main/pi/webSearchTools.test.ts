@@ -475,6 +475,69 @@ describe("search_image tool", () => {
     expect(result.details?.sources).toContain(imageUrl);
   });
 
+  it("persists each found picture and surfaces its reusable id in the result text", async () => {
+    const imageUrl = "https://pics.test/pusheen.png";
+    const persisted: Array<{ cwd: string; source: string; query?: unknown }> = [];
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([
+            searchCallDone("pusheen cat"),
+            messageDone(`Here is a picture: ${imageUrl}`),
+            COMPLETED,
+          ]);
+        }
+        return imageResponse(PNG_BYTES, "image/png");
+      },
+      persistImage: async (cwd, input) => {
+        persisted.push({ cwd, source: input.source, query: input.meta?.query });
+        return { id: "img_persisted_1" };
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "pusheen cat" });
+
+    // The picture was saved with the running creation's cwd, tagged as searched.
+    expect(persisted).toEqual([{ cwd: "/tmp/creation", source: "searched", query: "pusheen cat" }]);
+    // The id rides in the text content (not stripped from the logbook like pixels),
+    // and in details for auditing.
+    const text = (result.content as Part[]).find((p) => p.type === "text")?.text ?? "";
+    expect(text).toContain("img_persisted_1");
+    expect(result.details?.referenceIds).toEqual(["img_persisted_1"]);
+    // The pixels still come back for the model to look at.
+    expect((result.content as Part[]).some((p) => p.type === "image")).toBe(true);
+  });
+
+  it("still returns the picture to look at when persistence fails", async () => {
+    const tools = createWebSearchTools({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      responsesUrl: RESPONSES_URL,
+      lookupHost: async () => ["93.184.216.34"],
+      fetchFn: async (url) => {
+        const u = String(url);
+        if (u === RESPONSES_URL) {
+          return sseResponse([
+            messageDone("Here is a picture: https://pics.test/cat.png"),
+            COMPLETED,
+          ]);
+        }
+        return imageResponse(PNG_BYTES, "image/png");
+      },
+      persistImage: async () => {
+        throw new Error("disk full");
+      },
+    });
+
+    const result = await run(findTool(tools, "search_image"), { query: "cat" });
+
+    expect((result.content as Part[]).some((p) => p.type === "image")).toBe(true);
+    expect(result.details?.referenceIds).toEqual([]);
+  });
+
   it("resolves a page link by reading its og:image when the search returns no direct image", async () => {
     const pageUrl = "https://wiki.test/pusheen";
     const ogImage = "https://cdn.test/pusheen-hero.jpg";

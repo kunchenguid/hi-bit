@@ -10,6 +10,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent, ImageReference } from "@shared/chat";
 import type { HeadlessBrowserHost } from "../control/headlessBrowser";
+import type { ImageStore } from "../conversation/conversationService";
 import type { RuntimeProject } from "../projects/projectService";
 import { createViewBitTool } from "./brandTool";
 import { createBrowserTools } from "./browserTools";
@@ -63,6 +64,12 @@ type PiRuntimeServiceOptions = {
    * tools). Omitted in tests, so bots have no browser there.
    */
   createBrowser?: () => HeadlessBrowserHost;
+  /**
+   * The profile's image store, so a bot's `search_image`/`generate_image` results
+   * are persisted with reusable ids and any stored id resolves as a reference.
+   * Omitted in tests, where pictures stay in-creation only.
+   */
+  imageStore?: ImageStore;
 };
 
 type RunningTurn = {
@@ -83,6 +90,12 @@ export class PiRuntimeService {
    * never leaks to a later, unrelated job.
    */
   private readonly jobReferences = new Map<string, ImageReference[]>();
+  /**
+   * The profile that owns the turn running in a given Workbench (keyed by cwd),
+   * so a picture-saving tool can route its bytes to the right profile's store and
+   * a store-backed reference can resolve. Set/cleared with `jobReferences`.
+   */
+  private readonly jobProfiles = new Map<string, string>();
   private readonly createSession: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   private readonly modelId: string;
   private readonly customTools: ToolDefinition[];
@@ -97,16 +110,25 @@ export class PiRuntimeService {
     // a bot look up current docs/examples: web_search runs on the same Codex backend
     // and token as generate_image, fetch_content reads a page locally - their names flow
     // into the allowlist through botToolNames().
+    const persistImage = options.imageStore
+      ? async (cwd: string, input: Parameters<ImageStore["saveImage"]>[1]) => {
+          const profileId = this.jobProfiles.get(cwd);
+          if (!profileId) return undefined;
+          return options.imageStore?.saveImage(profileId, input);
+        }
+      : undefined;
     this.customTools = [
       createGenerateImageTool({
         getFreshAccessToken: options.getFreshAccessToken,
         model: this.modelId,
         resolveReference: (cwd, ref) => this.resolveJobReference(cwd, ref),
+        persistImage,
       }),
       createProcessSpriteTool(),
       ...createWebSearchTools({
         getFreshAccessToken: options.getFreshAccessToken,
         model: this.modelId,
+        persistImage,
       }),
       // Lets a bot see Bit's actual mascot before drawing Bit or Bit-branded art,
       // so a "put Bit in my game" build stays on-model. Its name flows into the
@@ -145,6 +167,9 @@ export class PiRuntimeService {
     if (project.references?.length) {
       this.jobReferences.set(project.mainWorkbenchDir, project.references);
     }
+    // Route this Workbench's picture saves and store-backed reference lookups to
+    // the profile that owns the turn.
+    this.jobProfiles.set(project.mainWorkbenchDir, project.profileId);
     onEvent({ type: "turn_start", ...meta });
 
     const unsubscribe = session.subscribe((event) => {
@@ -169,6 +194,7 @@ export class PiRuntimeService {
       unsubscribe();
       this.running.delete(runtimeKey);
       this.jobReferences.delete(project.mainWorkbenchDir);
+      this.jobProfiles.delete(project.mainWorkbenchDir);
     }
 
     const result: SendPromptResult = { turnId, status, sessionFile: session.sessionFile, error };
@@ -206,6 +232,7 @@ export class PiRuntimeService {
     this.browsers.clear();
     this.running.clear();
     this.jobReferences.clear();
+    this.jobProfiles.clear();
   }
 
   isRunning(projectId: string): boolean {
@@ -213,13 +240,24 @@ export class PiRuntimeService {
   }
 
   /**
-   * Resolves a generate_image `reference_paths` entry that names one of the
-   * builder's shared pictures for the turn running in `cwd`. Returns undefined
-   * for anything not registered, so the tool reads it as a Workbench path.
+   * Resolves a generate_image `reference_paths` entry that names a stored picture
+   * id for the turn running in `cwd`. The builder's per-turn pictures take
+   * precedence (in-memory, set on the blueprint); otherwise it falls through to
+   * the profile's image store, so any stored id resolves - including art the bot
+   * just found/made, or made in another creation. Returns undefined for anything
+   * unknown, so the tool reads it as a Workbench path.
    */
-  resolveJobReference(cwd: string, ref: string): { path: string; mimeType: string } | undefined {
+  async resolveJobReference(
+    cwd: string,
+    ref: string,
+  ): Promise<{ path: string; mimeType: string } | undefined> {
     const match = this.jobReferences.get(cwd)?.find((reference) => reference.id === ref);
-    return match ? { path: match.path, mimeType: match.mimeType } : undefined;
+    if (match) return { path: match.path, mimeType: match.mimeType };
+    const profileId = this.jobProfiles.get(cwd);
+    if (profileId && this.options.imageStore) {
+      return this.options.imageStore.resolveImageFile(profileId, ref);
+    }
+    return undefined;
   }
 
   private async getOrCreateSession(

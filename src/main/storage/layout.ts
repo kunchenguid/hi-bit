@@ -139,6 +139,12 @@ export type ProfileConversationPaths = {
   conversationStatePath: string;
   /** Where builder-attached pictures are written, kept out of the transcript jsonl. */
   attachmentsDir: string;
+  /**
+   * Sidecar index for pictures that have no chat message of their own - those a
+   * bot or Bit found (`search_image`) or made (`generate_image`) - so they can be
+   * recalled by id alongside builder attachments (which stay transcript-derived).
+   */
+  attachmentsIndexPath: string;
 };
 
 export function profileConversationDir(layout: HiBitLayout, profileId: string): string {
@@ -157,6 +163,7 @@ export function profileConversationPaths(
     bitSessionsDir: join(dir, "sessions", "bit"),
     conversationStatePath: join(dir, "conversation.json"),
     attachmentsDir: join(dir, "attachments"),
+    attachmentsIndexPath: join(dir, "attachments", "index.jsonl"),
   };
 }
 

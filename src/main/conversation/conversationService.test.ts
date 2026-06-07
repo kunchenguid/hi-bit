@@ -140,6 +140,7 @@ describe("ConversationService", () => {
         path: second.path,
         sharedAt: "2026-01-02T03:05:10.000Z",
         messageText: "a dog",
+        source: "builder",
       },
       {
         id: first.id,
@@ -147,12 +148,13 @@ describe("ConversationService", () => {
         path: first.path,
         sharedAt: "2026-01-02T03:04:10.000Z",
         messageText: "a cat",
+        source: "builder",
       },
     ]);
 
-    const resolved = await service.resolveAttachment("ada", first.id as string);
+    const resolved = await service.resolveImage("ada", first.id as string);
     expect(resolved).toMatchObject({ id: first.id, path: first.path, mimeType: "image/png" });
-    expect(await service.resolveAttachment("ada", "no-such-id")).toBeUndefined();
+    expect(await service.resolveImage("ada", "no-such-id")).toBeUndefined();
   });
 
   it("lists attachment metadata without reading image bytes", async () => {
@@ -176,6 +178,7 @@ describe("ConversationService", () => {
         path: "attachments/pic-1.png",
         sharedAt: "2026-01-02T03:04:10.000Z",
         messageText: "use this purple cat",
+        source: "builder",
       },
     ]);
   });
@@ -199,9 +202,10 @@ describe("ConversationService", () => {
         path: "attachments/legacy-uuid.png",
         sharedAt: "2026-01-02T03:04:10.000Z",
         messageText: "old picture",
+        source: "builder",
       },
     ]);
-    expect(await service.resolveAttachment("ada", "legacy-uuid")).toBeTruthy();
+    expect(await service.resolveImage("ada", "legacy-uuid")).toBeTruthy();
   });
 
   it("rejects unsupported attachment mime types", async () => {
@@ -299,5 +303,117 @@ describe("ConversationService", () => {
     const [message] = await service.readTranscript("ada");
     expect(message.text).toBe("look");
     expect(message.image?.data).toBeUndefined();
+  });
+
+  it("persists a searched picture to disk and records it in the sidecar index", async () => {
+    const { service, layout } = await createService();
+    const data = Buffer.from("searched-pixels").toString("base64");
+
+    const saved = await service.saveImage("ada", {
+      data,
+      mimeType: "image/jpeg",
+      source: "searched",
+      meta: { query: "pusheen cat", sourceUrl: "https://example.com/p.jpg" },
+    });
+
+    expect(saved.id).toBeTruthy();
+    expect(saved.path).toMatch(/^attachments\/.+\.jpg$/);
+
+    // Bytes land in the same store as builder attachments.
+    const file = join(
+      profileConversationPaths(layout, "ada").attachmentsDir,
+      saved.path.split("/").pop() as string,
+    );
+    expect((await readFile(file)).toString("base64")).toBe(data);
+
+    // The index line carries the source + provenance, but never the base64.
+    const indexRaw = await readFile(
+      profileConversationPaths(layout, "ada").attachmentsIndexPath,
+      "utf8",
+    );
+    expect(indexRaw).not.toContain(data);
+    const entry = JSON.parse(indexRaw.trim());
+    expect(entry).toMatchObject({
+      id: saved.id,
+      source: "searched",
+      mimeType: "image/jpeg",
+      meta: { query: "pusheen cat" },
+    });
+  });
+
+  it("resolves builder, searched, and generated ids and excludes machine pictures from list_builder_pictures", async () => {
+    const { service } = await createService();
+    // A builder picture (transcript-derived).
+    const builder = await service.saveAttachment("ada", {
+      mimeType: "image/png",
+      data: Buffer.from("builder").toString("base64"),
+    });
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "my cat",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: builder,
+    });
+    // A searched and a generated picture (index-derived).
+    const searched = await service.saveImage("ada", {
+      data: Buffer.from("searched").toString("base64"),
+      mimeType: "image/jpeg",
+      source: "searched",
+      meta: { query: "dragon" },
+    });
+    const generated = await service.saveImage("ada", {
+      data: Buffer.from("generated").toString("base64"),
+      mimeType: "image/png",
+      source: "generated",
+      meta: { prompt: "a pixel knight" },
+    });
+
+    // Every source resolves by id...
+    expect(await service.resolveImage("ada", builder.id as string)).toMatchObject({
+      source: "builder",
+    });
+    expect(await service.resolveImage("ada", searched.id)).toMatchObject({
+      source: "searched",
+      messageText: "dragon",
+    });
+    expect(await service.resolveImage("ada", generated.id)).toMatchObject({
+      source: "generated",
+      messageText: "a pixel knight",
+    });
+
+    // ...and resolveImageFile returns an absolute path under the attachments dir.
+    const file = await service.resolveImageFile("ada", generated.id);
+    expect(file?.path.endsWith(generated.path)).toBe(true);
+
+    // list_builder_pictures (source: "builder") never surfaces machine pictures.
+    const builderOnly = await service.listImages("ada", { source: "builder" });
+    expect(builderOnly.map((s) => s.id)).toEqual([builder.id]);
+    // The unfiltered set has all three.
+    const all = await service.listImages("ada");
+    expect(all.map((s) => s.source).sort()).toEqual(["builder", "generated", "searched"]);
+  });
+
+  it("keeps listAttachments builder-only even when machine pictures exist", async () => {
+    const { service } = await createService();
+    await service.saveImage("ada", {
+      data: Buffer.from("searched").toString("base64"),
+      mimeType: "image/png",
+      source: "searched",
+      meta: { query: "robot" },
+    });
+
+    expect(await service.listAttachments("ada")).toEqual([]);
+  });
+
+  it("enforces the same size/mime guards on saveImage as on attachments", async () => {
+    const { service } = await createService();
+    await expect(
+      service.saveImage("ada", {
+        data: Buffer.from("x").toString("base64"),
+        mimeType: "image/svg+xml",
+        source: "searched",
+      }),
+    ).rejects.toThrow("Unsupported image type.");
   });
 });

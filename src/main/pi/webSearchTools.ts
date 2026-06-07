@@ -9,6 +9,7 @@ import { parseHTML } from "linkedom";
 import TurndownService from "turndown";
 import { Type } from "typebox";
 import { extractCodexAccountId } from "../auth/codexOAuth";
+import type { PersistImage } from "./persistImage";
 
 /**
  * Web-access tools shared by bots and Bit.
@@ -93,7 +94,16 @@ export type WebSearchToolDeps = {
   storeThreshold?: number;
   lookupHost?: (hostname: string) => Promise<string[]>;
   maxFetchBytes?: number;
+  /**
+   * Persists each `search_image` result into the profile's image store and
+   * returns a reusable id. Omitted in tests (and when no store is wired), so
+   * search still works but pictures are not durable.
+   */
+  persistImage?: PersistImage;
 };
+
+/** The execution context the Pi runtime hands every tool; `cwd` is the session's working dir. */
+type ToolCtx = { cwd?: string };
 
 type ToolResultPart =
   | { type: "text"; text: string }
@@ -817,8 +827,9 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
       ),
     }),
     executionMode: "parallel",
-    async execute(_callId, rawParams, signal): Promise<ToolResult> {
+    async execute(_callId, rawParams, signal, _onUpdate, ctx): Promise<ToolResult> {
       const params = rawParams as { query: string; count?: number };
+      const cwd = (ctx as ToolCtx | undefined)?.cwd;
       const query = params.query.trim();
       const count = Math.max(
         1,
@@ -851,6 +862,8 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
 
       const images: ToolResultPart[] = [];
       const sources: string[] = [];
+      // Reusable ids for the pictures we persisted, in step with `sources`.
+      const referenceIds: string[] = [];
       const deadline = AbortSignal.timeout(IMAGE_DOWNLOAD_BUDGET_MS);
       const downloadSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;
       for (const candidate of ordered) {
@@ -874,6 +887,19 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
         if (resolved) {
           images.push({ type: "image", data: resolved.data, mimeType: resolved.mimeType });
           sources.push(resolved.source);
+          // Persist the picture so the model can reuse it as a reference later.
+          // A failed save just means no id - the picture is still shown to look at.
+          if (deps.persistImage && cwd) {
+            const saved = await deps
+              .persistImage(cwd, {
+                data: resolved.data,
+                mimeType: resolved.mimeType,
+                source: "searched",
+                meta: { query, sourceUrl: resolved.source },
+              })
+              .catch(() => undefined);
+            if (saved) referenceIds.push(saved.id);
+          }
         }
       }
 
@@ -893,11 +919,19 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
         images.length > 1
           ? `Here are ${images.length} pictures of "${query}" - take a look.`
           : `Here is a picture of "${query}" - take a look.`;
-      const text = `${intro}\n\nFrom:\n${sources.map((u) => `- ${u}`).join("\n")}`;
+      // Surface the reusable ids in text (not stripped from the logbook like the
+      // pixels are), so the model can pass one to generate_image reference_paths
+      // (bots) or delegate_build/create_creation referencePictureIds (Bit).
+      const reuseNote = referenceIds.length
+        ? `\n\nSaved so you can reuse ${referenceIds.length > 1 ? "them" : "it"} later - reference id${
+            referenceIds.length > 1 ? "s" : ""
+          }: ${referenceIds.join(", ")}.`
+        : "";
+      const text = `${intro}\n\nFrom:\n${sources.map((u) => `- ${u}`).join("\n")}${reuseNote}`;
 
       return {
         content: [{ type: "text", text }, ...images],
-        details: { query, sources, shown: images.length },
+        details: { query, sources, shown: images.length, referenceIds },
       };
     },
   });

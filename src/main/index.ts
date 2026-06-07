@@ -151,6 +151,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     skillsDir: skillsDirFor(),
     mascotAssetPath: mascotAssetFor(),
     createBrowser: () => appControl.createHeadlessBrowser(),
+    imageStore: conversation,
   });
   const bitRuntime = new BitRuntimeService({
     agentDir: layout.piAgentDir,
@@ -159,6 +160,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     mascotAssetPath: mascotAssetFor(),
     appSurface: appControl.appSurface,
     browserHost: appControl.browserHost,
+    imageStore: conversation,
     onSessionFile: (profileId, sessionFile) =>
       conversation.setBitSessionFile(profileId, sessionFile),
   });
