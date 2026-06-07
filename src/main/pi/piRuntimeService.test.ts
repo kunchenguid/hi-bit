@@ -279,6 +279,35 @@ describe("PiRuntimeService", () => {
     expect(service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toBeUndefined();
   });
 
+  it("clears builder reference pictures when disposed during a running turn", async () => {
+    const session = new FakeSession();
+    session.blockPrompt = true;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async () => session,
+    });
+    const proj: RuntimeProject = {
+      ...project(),
+      runtimeKey: "bot_job_1",
+      references: [{ id: "pic_1", path: "/factory/ada/attachments/a.png", mimeType: "image/png" }],
+    };
+
+    const run = service.sendPrompt(proj, "draw a hero like the picture", () => {});
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toEqual({
+      path: "/factory/ada/attachments/a.png",
+      mimeType: "image/png",
+    });
+
+    service.disposeAll();
+
+    expect(service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toBeUndefined();
+    await session.abort();
+    await run;
+  });
+
   it("disposes a headless browser when bot session creation fails", async () => {
     let disposed = false;
     const service = new PiRuntimeService({

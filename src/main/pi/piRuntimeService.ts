@@ -205,6 +205,7 @@ export class PiRuntimeService {
     this.sessions.clear();
     this.browsers.clear();
     this.running.clear();
+    this.jobReferences.clear();
   }
 
   isRunning(projectId: string): boolean {
