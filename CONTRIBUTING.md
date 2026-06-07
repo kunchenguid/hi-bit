@@ -53,6 +53,8 @@ The generated Homebrew Cask quits Hi-Bit during upgrade and relaunches it after 
 Maintainers must keep `HOMEBREW_TAP_TOKEN` configured with write access to `kunchenguid/homebrew-tap` for that update step.
 Maintainers must keep `HIBIT_UMAMI_WEBSITE_ID` configured as a GitHub Actions repository variable for packaged-release telemetry.
 It is intentionally a variable rather than a secret because the id is baked into the app and sent in Umami payloads.
+The release workflow bakes `HIBIT_UMAMI_HOST` and `HIBIT_UMAMI_WEBSITE_ID` into the packaged main bundle; source, dev, and test builds stay no-op unless a website id is supplied.
+Set `HIBIT_TELEMETRY=0` (or `false` / `off`) to disable telemetry at runtime.
 Do not manually rewrite the tap from this repo outside that workflow unless you are repairing a failed release.
 
 ## Ownership
