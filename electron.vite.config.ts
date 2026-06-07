@@ -4,6 +4,15 @@ import { defineConfig } from "electron-vite";
 
 export default defineConfig({
   main: {
+    // Bake the self-hosted Umami telemetry target into the packaged main bundle.
+    // The CI release build sets HIBIT_UMAMI_HOST / HIBIT_UMAMI_WEBSITE_ID;
+    // when unset these resolve to "" so telemetry stays a no-op.
+    define: {
+      "process.env.HIBIT_BUILD_UMAMI_HOST": JSON.stringify(process.env.HIBIT_UMAMI_HOST || ""),
+      "process.env.HIBIT_BUILD_UMAMI_WEBSITE_ID": JSON.stringify(
+        process.env.HIBIT_UMAMI_WEBSITE_ID || "",
+      ),
+    },
     build: {
       outDir: "out/main",
       rollupOptions: {

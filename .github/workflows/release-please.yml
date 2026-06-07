@@ -1,0 +1,152 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      hi-bit-release-created: ${{ steps.release.outputs.release_created }}
+      hi-bit-tag-name: ${{ steps.release.outputs.tag_name }}
+      hi-bit-version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  macos:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.hi-bit-release-created == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      TAG_NAME: ${{ needs.release-please.outputs.hi-bit-tag-name }}
+      VERSION: ${{ needs.release-please.outputs.hi-bit-version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TAG_NAME }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting and lint
+        run: pnpm check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        env:
+          HIBIT_UMAMI_HOST: https://a.kunchenguid.com
+          HIBIT_UMAMI_WEBSITE_ID: ${{ vars.HIBIT_UMAMI_WEBSITE_ID }}
+        run: pnpm build
+
+      - name: Package macOS app
+        run: pnpm exec electron-builder --mac dir --universal
+
+      - name: Ad-hoc sign app
+        run: codesign --force --deep --sign - "dist/mac-universal/Hi-Bit.app"
+
+      - name: Create DMG
+        run: |
+          DMG_NAME="Hi-Bit-${VERSION}-universal.dmg"
+          hdiutil create -volname "Hi-Bit" \
+            -srcfolder "dist/mac-universal/Hi-Bit.app" \
+            -ov -format UDZO "dist/${DMG_NAME}"
+          echo "DMG_NAME=${DMG_NAME}" >> "$GITHUB_ENV"
+          echo "DMG_PATH=dist/${DMG_NAME}" >> "$GITHUB_ENV"
+
+      - name: Upload DMG to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG_NAME" "$DMG_PATH" --clobber
+
+      - name: Compute SHA256
+        run: |
+          SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
+          echo "SHA256=${SHA256}" >> "$GITHUB_ENV"
+
+      - name: Update Homebrew Cask
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/kunchenguid/homebrew-tap.git" "$RUNNER_TEMP/homebrew-tap"
+          mkdir -p "$RUNNER_TEMP/homebrew-tap/Casks"
+          cat > "$RUNNER_TEMP/homebrew-tap/Casks/hi-bit.rb" << CASK_EOF
+          cask "hi-bit" do
+            version "${VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/kunchenguid/hi-bit/releases/download/${TAG_NAME}/Hi-Bit-${VERSION}-universal.dmg"
+            name "Hi-Bit"
+            desc "Local-first app where kids build web projects with Bit"
+            homepage "https://github.com/kunchenguid/hi-bit"
+
+            depends_on macos: ">= :ventura"
+
+            app "Hi-Bit.app"
+            uninstall quit: "com.hibit.app"
+
+            uninstall_preflight do
+              next unless system("/usr/bin/pgrep", "-x", "Hi-Bit", out: File::NULL, err: File::NULL)
+
+              system_command "/usr/bin/nohup", args: ["/bin/sh", "-c", <<~RELAUNCH_SCRIPT], must_succeed: false
+                (
+                  while [ -e "#{appdir}/Hi-Bit.app" ]; do
+                    /bin/sleep 1
+                  done
+
+                  for _ in \$(/usr/bin/seq 1 60); do
+                    if [ -x "#{appdir}/Hi-Bit.app/Contents/MacOS/Hi-Bit" ]; then
+                      /usr/bin/open -a "#{appdir}/Hi-Bit.app"
+                      exit 0
+                    fi
+                    /bin/sleep 1
+                  done
+                ) >/dev/null 2>&1 &
+              RELAUNCH_SCRIPT
+            end
+
+            postflight do
+              system_command "/usr/bin/xattr",
+                             args: ["-cr", "#{appdir}/Hi-Bit.app"],
+                             must_succeed: false
+            end
+
+            zap trash: [
+              "~/Library/Application Support/hi-bit",
+              "~/Library/Preferences/com.hibit.app.plist",
+            ]
+          end
+          CASK_EOF
+          cd "$RUNNER_TEMP/homebrew-tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/hi-bit.rb
+          if ! git diff --cached --quiet; then
+            git commit -m "hi-bit ${VERSION}"
+            git push
+          fi
