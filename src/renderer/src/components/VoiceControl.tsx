@@ -27,11 +27,11 @@ export const HOLD_THRESHOLD_MS = 500;
 /**
  * The talk-to-Bit control: the composer mic button itself is push-to-talk. Press
  * and hold it to talk and release to send; a quick click instead starts a
- * hands-free recording the kid ends with Stop. One gesture - the button is the
- * thing you talk into, not a door to another button. While active it shows a
- * small overlay with a live waveform. The mic only opens on press (privacy), and
- * the model downloads once on first use. Accidental taps and silence are dropped
- * so Whisper can't hallucinate on them.
+ * hands-free recording the kid ends by tapping the mic again. One gesture - the
+ * button is the thing you talk into, not a door to another button. While active
+ * it shows a small overlay with a live waveform. The mic only opens on press
+ * (privacy), and the model downloads once on first use. Accidental taps and
+ * silence are dropped so Whisper can't hallucinate on them.
  */
 export function VoiceControl({ onVoiceText }: VoiceControlProps) {
   const [phase, setPhase] = useState<Phase>("idle");
