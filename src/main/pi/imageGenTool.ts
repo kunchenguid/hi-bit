@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
@@ -24,6 +24,7 @@ const ORIGINATOR = "codex_cli_rs";
 const DEFAULT_MODEL = "gpt-5.5";
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const MAX_RETRIES = 2;
+const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const OUTPUT_FORMATS = { png: "png", jpg: "jpeg", jpeg: "jpeg", webp: "webp" } as const;
 type OutputFormat = "png" | "jpeg" | "webp";
@@ -124,7 +125,11 @@ function resolveReferenceTarget(
     throw new Error("A reference image must be inside the creation, not outside it.");
   }
   const ext = ref.split(".").pop()?.toLowerCase() ?? "";
-  return { path: target, mimeType: MIME_BY_EXT[ext] ?? "image/png" };
+  const mimeType = MIME_BY_EXT[ext];
+  if (!mimeType) {
+    throw new Error("A reference file must be a supported image: png, jpg, jpeg, webp, or gif.");
+  }
+  return { path: target, mimeType };
 }
 
 /** Reads each reference picture and turns it into an `input_image` content block. */
@@ -137,6 +142,15 @@ async function buildReferenceBlocks(
   const blocks: ImageContentBlock[] = [];
   for (const ref of referencePaths) {
     const { path, mimeType } = resolveReferenceTarget(cwd, ref, resolveReference);
+    let size: number;
+    try {
+      size = (await stat(path)).size;
+    } catch {
+      throw new Error(`Could not read the reference image "${ref}".`);
+    }
+    if (size > MAX_REFERENCE_IMAGE_BYTES) {
+      throw new Error(`The reference image "${ref}" is too large. Use an image under 5 MB.`);
+    }
     let bytes: Buffer;
     try {
       bytes = await readFile(path);

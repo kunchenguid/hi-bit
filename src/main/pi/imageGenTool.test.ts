@@ -255,6 +255,56 @@ describe("generate_image tool", () => {
     expect(fetched).toBe(false);
   });
 
+  it("rejects a workbench reference file that is not a supported image", async () => {
+    const cwd = await makeCwd();
+    await mkdir(dirname(join(cwd, "docs/notes.txt")), { recursive: true });
+    await writeFile(join(cwd, "docs/notes.txt"), "not an image");
+    let fetched = false;
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => {
+        fetched = true;
+        return sseResponse([imageDoneEvent(Buffer.from("x").toString("base64"))]);
+      },
+    });
+
+    await expect(
+      tool.execute(
+        "call-ref5",
+        { prompt: "x", fileName: "x.png", reference_paths: ["docs/notes.txt"] },
+        undefined,
+        undefined,
+        { cwd } as unknown as Parameters<typeof tool.execute>[4],
+      ),
+    ).rejects.toThrow(/supported image/i);
+    expect(fetched).toBe(false);
+  });
+
+  it("rejects an oversized workbench reference image before reading it", async () => {
+    const cwd = await makeCwd();
+    await mkdir(dirname(join(cwd, "images/huge.png")), { recursive: true });
+    await writeFile(join(cwd, "images/huge.png"), Buffer.alloc(5 * 1024 * 1024 + 1));
+    let fetched = false;
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => {
+        fetched = true;
+        return sseResponse([imageDoneEvent(Buffer.from("x").toString("base64"))]);
+      },
+    });
+
+    await expect(
+      tool.execute(
+        "call-ref6",
+        { prompt: "x", fileName: "x.png", reference_paths: ["images/huge.png"] },
+        undefined,
+        undefined,
+        { cwd } as unknown as Parameters<typeof tool.execute>[4],
+      ),
+    ).rejects.toThrow(/too large/i);
+    expect(fetched).toBe(false);
+  });
+
   it("refuses to write outside the workbench", async () => {
     const cwd = await makeCwd();
     let fetched = false;
