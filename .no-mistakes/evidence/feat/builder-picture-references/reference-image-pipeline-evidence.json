@@ -1,0 +1,43 @@
+{
+  "intent": "Kid-uploaded chat images are durable art references that Bit can recall, pass to bot jobs by stable id, and bots can feed into generate_image as reference images without copying into the project workbench.",
+  "automated_check": {
+    "command": "pnpm exec vitest run src/main/conversation/conversationService.test.ts src/main/bit/bitCoordinatorService.test.ts src/main/pi/piRuntimeService.test.ts src/main/pi/imageGenTool.test.ts -t \"attached picture|stable id|recalls a picture|freshly shared picture|builder reference pictures|known job reference picture|workbench-relative reference\"",
+    "result": "passed"
+  },
+  "evidence": {
+    "durable_attachment_storage": {
+      "source_test": "ConversationService > stores an attached picture on disk and keeps its base64 out of the transcript",
+      "observed_behavior": "saveAttachment returns metadata with a stable id/path, writes the file under attachments/, and transcript JSON contains the path but not the base64 bytes."
+    },
+    "later_recall_by_bit": {
+      "source_test": "BitCoordinatorService > recalls a picture shared in an earlier turn for a later build",
+      "observed_behavior": "Bit calls list_builder_pictures on a later turn, extracts the prior picture id, and delegates a build using referencePictureIds."
+    },
+    "bot_job_reference_payload": {
+      "source_test": "BitCoordinatorService > hands a builder's freshly shared picture to the bot as an art-direction reference",
+      "observed_reference_shape": {
+        "id": "saved attachment id",
+        "path": ".../conversation/attachments/<attachment file>",
+        "mimeType": "image/png"
+      },
+      "observed_bot_instruction": "The bot prompt contains the reference id and tells the bot to pass it in generate_image reference_paths."
+    },
+    "bot_access_without_project_copy": {
+      "source_test": "PiRuntimeService > registers the builder's reference pictures for the bot's workbench while it runs, then clears them",
+      "observed_behavior": "resolveJobReference(cwd, id) returns the factory-level attachment only during the matching bot turn and only for the matching workbench cwd; it is cleared after the turn."
+    },
+    "codex_reference_image_input": {
+      "source_test": "createGenerateImageTool > attaches a known job reference picture as an input_image, by id",
+      "observed_request_content": [
+        {
+          "type": "input_text",
+          "text": "a hero like the picture"
+        },
+        {
+          "type": "input_image",
+          "image_url": "data:image/jpeg;base64,<builder reference bytes>"
+        }
+      ]
+    }
+  }
+}
