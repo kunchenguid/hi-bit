@@ -14,6 +14,8 @@ import { Composer } from "../components/Composer";
 import { FactoryView } from "../components/FactoryView";
 import { MessageList } from "../components/MessageList";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
+import { UpdateNotice } from "../components/UpdateNotice";
+import { useUpdateStatus } from "../components/useUpdateStatus";
 
 type ChatWorkspaceProps = {
   profile: ProfileSummary;
@@ -101,6 +103,11 @@ export function ChatWorkspace({
   // bot just built, anything else is Bit replying to the builder.
   const thinkingReason: TurnKind = activeTurn?.kind === "bot_result" ? "bot_result" : "reply";
 
+  // Whether a newer Hi-Bit is out. Updating is a grown-up task, so it lives in
+  // the Grown-up menu; the dot on the menu summary is the only hint the kid sees.
+  const updateStatus = useUpdateStatus();
+  const updateAvailable = updateStatus?.updateAvailable ?? false;
+
   // A creation is playable if it has a remembered preview (running or
   // restartable). Running previews are always playable too.
   const playable = new Set([...playableProjectIds, ...previews.map((p) => p.projectId)]);
@@ -121,7 +128,12 @@ export function ChatWorkspace({
       <header className="hb-workspace-header">
         <h1 className="hb-workspace-greeting">Hi {profile.name} - what should we build?</h1>
         <details className="hb-parent-menu hb-header-actions">
-          <summary className="hb-button hb-button-secondary">Grown-up menu</summary>
+          <summary className="hb-button hb-button-secondary">
+            Grown-up menu
+            {updateAvailable ? (
+              <span className="hb-update-dot" role="img" aria-label="update available" />
+            ) : null}
+          </summary>
           <div className="hb-card hb-parent-menu-popover">
             <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
             <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
@@ -134,6 +146,7 @@ export function ChatWorkspace({
             >
               Switch profile
             </button>
+            {updateStatus ? <UpdateNotice status={updateStatus} /> : null}
           </div>
         </details>
       </header>
