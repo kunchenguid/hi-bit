@@ -26,6 +26,7 @@ export type AttachmentSummary = {
   /** Relative to the profile's conversation dir. */
   path: string;
   sharedAt: string;
+  messageText: string;
 };
 
 /** Derives an attachment's id, falling back to the file-name stem for legacy lines. */
@@ -40,7 +41,13 @@ function attachmentSummary(message: ChatMessage): AttachmentSummary | undefined 
   if (!image?.path) return undefined;
   const id = attachmentId(image);
   if (!id) return undefined;
-  return { id, mimeType: image.mimeType, path: image.path, sharedAt: message.createdAt };
+  return {
+    id,
+    mimeType: image.mimeType,
+    path: image.path,
+    sharedAt: message.createdAt,
+    messageText: message.text,
+  };
 }
 
 type ConversationStateRecord = {
@@ -70,14 +77,18 @@ export class ConversationService {
   }
 
   async readTranscript(profileId: string): Promise<ChatMessage[]> {
-    const entries = await readJsonl<TranscriptEntry>(this.paths(profileId).transcriptPath);
-    const messages = entries.flatMap((entry) =>
-      entry.type === "chat_message" && entry.message ? [entry.message] : [],
-    );
+    const messages = await this.readStoredMessages(profileId);
     // The transcript line stores only the attachment's on-disk path (lean
     // jsonl); read the bytes back so the renderer can show the picture again
     // after a reload. A missing file just leaves the message text-only.
     return Promise.all(messages.map((message) => this.rehydrateImage(profileId, message)));
+  }
+
+  private async readStoredMessages(profileId: string): Promise<ChatMessage[]> {
+    const entries = await readJsonl<TranscriptEntry>(this.paths(profileId).transcriptPath);
+    return entries.flatMap((entry) =>
+      entry.type === "chat_message" && entry.message ? [entry.message] : [],
+    );
   }
 
   /**
@@ -115,7 +126,7 @@ export class ConversationService {
    * an art-direction reference for a build.
    */
   async listAttachments(profileId: string): Promise<AttachmentSummary[]> {
-    const messages = await this.readTranscript(profileId);
+    const messages = await this.readStoredMessages(profileId);
     const summaries: AttachmentSummary[] = [];
     for (const message of messages) {
       const summary = attachmentSummary(message);

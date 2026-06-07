@@ -465,7 +465,9 @@ export class BitCoordinatorService {
       async execute() {
         const pictures = await self.conversation.listAttachments(profileId);
         const text = pictures.length
-          ? pictures.map((p) => `- [id: ${p.id}] shared ${p.sharedAt}`).join("\n")
+          ? pictures
+              .map((p) => `- [id: ${p.id}] shared ${p.sharedAt}; message: ${p.messageText}`)
+              .join("\n")
           : "(the builder hasn't shared any pictures yet)";
         return { content: [{ type: "text", text }], details: { count: pictures.length } };
       },
@@ -510,12 +512,25 @@ export class BitCoordinatorService {
             details: { created: false, projectId: null, jobId: null } as CreateDetails,
           };
         }
-        const project = await self.projects.create(profileId, { title });
-        const job = await self.slingBot(profileId, project.id, instructions, referencePictureIds);
-        return {
-          content: [{ type: "text", text: `Started "${title}". A bot is building it now.` }],
-          details: { created: true, projectId: project.id, jobId: job.id } as CreateDetails,
-        };
+        try {
+          await self.resolveReferences(profileId, referencePictureIds);
+          const project = await self.projects.create(profileId, { title });
+          const job = await self.slingBot(profileId, project.id, instructions, referencePictureIds);
+          return {
+            content: [{ type: "text", text: `Started "${title}". A bot is building it now.` }],
+            details: { created: true, projectId: project.id, jobId: job.id } as CreateDetails,
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Not created: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            details: { created: false, projectId: null, jobId: null } as CreateDetails,
+          };
+        }
       },
     });
 
@@ -722,7 +737,7 @@ export class BitCoordinatorService {
     return job;
   }
 
-  /** Looks up the builder pictures Bit named for a build, skipping any unknown id. */
+  /** Looks up the builder pictures Bit named for a build. */
   private async resolveReferences(
     profileId: string,
     ids: string[] | undefined,
@@ -731,7 +746,8 @@ export class BitCoordinatorService {
     const resolved: AttachmentSummary[] = [];
     for (const id of ids) {
       const found = await this.conversation.resolveAttachment(profileId, id);
-      if (found) resolved.push(found);
+      if (!found) throw new Error(`Builder picture id not found: ${id}`);
+      resolved.push(found);
     }
     return resolved;
   }
