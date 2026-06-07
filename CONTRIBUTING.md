@@ -39,6 +39,7 @@ See the [no-mistakes quick start](https://kunchenguid.github.io/no-mistakes/star
 - Keep `@huggingface/transformers` in `devDependencies` because it is browser-bundled into the renderer worker and must not make electron-builder package native optional inference dependencies into the app.
 - Keep `pnpm-lock.yaml` changes with dependency changes.
 - Do not commit generated build output, release artifacts, runtime caches, scratch files, or `src/renderer/src/generated`.
+- Use the ignored `.tmp/` directory for short-lived in-repo scratch data, and remove anything that should not persist after the run.
 - Do not hand-edit release-please metadata such as `CHANGELOG.md` or `.release-please-manifest.json`.
 - See `AGENTS.md` for architecture notes, Electron E2E guidance, fantasy terminology, and agent-specific constraints.
 
