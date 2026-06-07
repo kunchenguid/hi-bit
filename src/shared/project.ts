@@ -20,6 +20,13 @@ export type ProjectSummary = {
    * server after the in-memory preview process is gone (e.g. after an app quit).
    */
   lastPreviewCommand?: string;
+  /**
+   * The loopback port this creation's preview server binds to. Remembered so the
+   * preview keeps the same `http://127.0.0.1:<port>/` origin across launches,
+   * which is what lets a game's `localStorage` save survive replays and restarts
+   * (storage is partitioned by origin, port included).
+   */
+  previewPort?: number;
 };
 
 export type ProjectRecord = ProjectSummary;

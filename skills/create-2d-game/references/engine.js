@@ -144,3 +144,52 @@ const HiBitGame = (() => {
 
   return { run, input, overlap };
 })();
+
+// GameSave - remember the builder's progress between visits.
+//
+// A game with no memory forgets the score, the level, and everything the builder
+// earned the moment they leave. Save it. GameSave uses the browser's localStorage,
+// so it works the same wherever the game is opened - inside Hi-Bit, or shared out
+// on a real website - with no server and no setup.
+//
+//   GameSave.namespace("maze");          // once, so two games never mix saves
+//   GameSave.save("progress", { level: 3, coins: 12 });
+//   const saved = GameSave.load("progress", { level: 1, coins: 0 }); // fallback if none yet
+//
+// Save whenever something worth keeping changes (level up, new high score), and
+// load once when the game starts. Values can be any JSON: numbers, strings,
+// arrays, objects. save() returns false if storage is blocked (it never throws).
+const GameSave = (() => {
+  let prefix = "game:"; // change with namespace() so each game gets its own keys
+  const keyFor = (name) => prefix + (name || "save");
+  return {
+    // Call once with your game's name so its saves stay separate from other games.
+    namespace(name) {
+      if (name) prefix = `${name}:`;
+    },
+    // Read the saved value for `name`, or `fallback` if nothing is saved yet.
+    load(name, fallback = null) {
+      try {
+        const raw = localStorage.getItem(keyFor(name));
+        return raw === null ? fallback : JSON.parse(raw);
+      } catch {
+        return fallback;
+      }
+    },
+    // Save any JSON-able value under `name`. Returns true if it was stored.
+    save(name, value) {
+      try {
+        localStorage.setItem(keyFor(name), JSON.stringify(value));
+        return true;
+      } catch {
+        return false; // storage full, blocked, or unavailable (e.g. some file:// modes)
+      }
+    },
+    // Forget a saved value.
+    clear(name) {
+      try {
+        localStorage.removeItem(keyFor(name));
+      } catch {}
+    },
+  };
+})();

@@ -152,6 +152,7 @@ export class ProjectService {
       updatedAt: this.now().toISOString(),
       activeSession,
       lastPreviewCommand: project.lastPreviewCommand,
+      previewPort: project.previewPort,
     };
     await writeJsonFile(project.projectJsonPath, next);
   }
@@ -171,6 +172,7 @@ export class ProjectService {
       updatedAt,
       activeSession: project.activeSession,
       lastPreviewCommand: project.lastPreviewCommand,
+      previewPort: project.previewPort,
     };
     await writeJsonFile(project.projectJsonPath, next);
   }
@@ -212,6 +214,27 @@ export class ProjectService {
       updatedAt: project.updatedAt,
       activeSession: project.activeSession,
       lastPreviewCommand: command,
+      previewPort: project.previewPort,
+    };
+    await writeJsonFile(project.projectJsonPath, next);
+  }
+
+  /**
+   * Persists the loopback port this creation's preview bound to, so later launches
+   * reuse the same origin and the game's saved progress (localStorage) survives.
+   */
+  async rememberPreviewPort(profileId: string, projectId: string, port: number): Promise<void> {
+    const project = await this.get(profileId, projectId);
+    const next: ProjectRecord = {
+      schemaVersion: 1,
+      id: project.id,
+      profileId: project.profileId,
+      title: project.title,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      activeSession: project.activeSession,
+      lastPreviewCommand: project.lastPreviewCommand,
+      previewPort: port,
     };
     await writeJsonFile(project.projectJsonPath, next);
   }

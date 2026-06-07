@@ -56,6 +56,83 @@ function loadEngine() {
   };
 }
 
+function loadSave(store = new Map<string, string>()) {
+  const sandbox = {
+    window: { addEventListener() {} },
+    document: { addEventListener() {} },
+    requestAnimationFrame() {
+      return 0;
+    },
+    cancelAnimationFrame() {},
+    localStorage: {
+      getItem: (k: string) => (store.has(k) ? store.get(k) : null),
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+    },
+  };
+  const source = readFileSync(resolve("skills/create-3d-game/references/engine3d.js"), "utf8");
+  const GameSave = vm.runInNewContext(`${source}\nGameSave;`, sandbox) as {
+    namespace(name: string): void;
+    load(name: string, fallback?: unknown): unknown;
+    save(name: string, value: unknown): boolean;
+    clear(name: string): void;
+  };
+  return { GameSave, store };
+}
+
+describe("create-3d-game GameSave", () => {
+  it("round-trips JSON values and returns the fallback when nothing is saved", () => {
+    const { GameSave } = loadSave();
+
+    expect(GameSave.load("world", { spawn: "start" })).toEqual({ spawn: "start" });
+    expect(GameSave.save("world", { spawn: "cave", blocks: 30 })).toBe(true);
+    expect(GameSave.load("world")).toEqual({ spawn: "cave", blocks: 30 });
+
+    GameSave.clear("world");
+    expect(GameSave.load("world", null)).toBeNull();
+  });
+
+  it("namespaces keys so two games never read each other's saves", () => {
+    const store = new Map<string, string>();
+    const a = loadSave(store).GameSave;
+    const b = loadSave(store).GameSave;
+    a.namespace("blocks");
+    b.namespace("racer");
+
+    a.save("best", 100);
+    b.save("best", 7);
+
+    expect(a.load("best")).toBe(100);
+    expect(b.load("best")).toBe(7);
+  });
+
+  it("returns false instead of throwing when storage is unavailable", () => {
+    const source = readFileSync(resolve("skills/create-3d-game/references/engine3d.js"), "utf8");
+    const GameSave = vm.runInNewContext(`${source}\nGameSave;`, {
+      window: { addEventListener() {} },
+      document: { addEventListener() {} },
+      requestAnimationFrame: () => 0,
+      cancelAnimationFrame() {},
+      localStorage: {
+        getItem() {
+          throw new Error("blocked");
+        },
+        setItem() {
+          throw new Error("blocked");
+        },
+        removeItem() {},
+      },
+    }) as { load(n: string, f?: unknown): unknown; save(n: string, v: unknown): boolean };
+
+    expect(GameSave.save("world", { spawn: "cave" })).toBe(false);
+    expect(GameSave.load("world", "fallback")).toBe("fallback");
+  });
+});
+
 describe("create-3d-game reference engine", () => {
   it("keeps fixed-step edge inputs until an update consumes them", () => {
     const { dispatchCanvas, dispatchWindow, engine, nextFrame, world } = loadEngine();

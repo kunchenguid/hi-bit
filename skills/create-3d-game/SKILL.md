@@ -63,6 +63,20 @@ Two rules:
   In 3D you use plain `generate_image` textures on primitives, not sprite sheets.
   Real 3D models (downloaded or generated meshes) are not part of this skill - stay with textured primitives.
 
+## Saving progress
+
+A world that forgets where the builder got to every time they leave feels broken to a kid.
+If the game has anything worth keeping - a level reached, blocks placed, coins, unlocked things - save it.
+
+`engine3d.js` gives you `GameSave` for exactly this. It uses the browser's `localStorage`, so the save works the same wherever the game is opened: inside Hi-Bit, or shared out on a real website later. No server, no setup.
+
+1. Once, near the top of your game, give the game a name so its save stays separate from other games: `GameSave.namespace("blocks")`.
+2. When the game starts, load what was saved (with a fallback for the very first visit): `const saved = GameSave.load("world", { level: 1, blocks: [] })`.
+3. Whenever something worth keeping changes - a level cleared, blocks placed - save it: `GameSave.save("world", { level, blocks })`.
+
+Save the small facts you need to restart where the builder left off, not the whole scene every frame.
+Values can be any JSON (numbers, strings, arrays, objects). `GameSave.save` never throws - it returns `false` if storage is blocked, which a game can simply ignore.
+
 ## Keep it kid-sized
 
 - Build the smallest playable thing first - a box you can drive around a ground plane - then add to it.
@@ -75,6 +89,6 @@ Two rules:
 ## Resources
 
 - `references/three.min.js`: the Three.js library (MIT). Copy it into the creation. See `references/THREE-LICENSE.txt`.
-- `references/engine3d.js`: the world setup, the loop, keyboard + mouse-look input, 3D box-overlap and move-and-collide, follow/first-person cameras, and click-picking. Copy it into the creation.
+- `references/engine3d.js`: the world setup, the loop, keyboard + mouse-look input, 3D box-overlap and move-and-collide, follow/first-person cameras, click-picking, and `GameSave` for saving progress. Copy it into the creation.
 - `references/world-loop.md`: the universal 3D skeleton every game starts from.
 - `references/explorer-3d.md`, `references/platformer-3d.md`, `references/collector-3d.md`, `references/blaster-3d.md`: one focused recipe per kind of game.
