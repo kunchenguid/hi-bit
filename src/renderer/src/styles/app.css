@@ -292,6 +292,50 @@ pre {
   color: var(--ink);
 }
 
+.hb-speed-control {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-1\.5);
+  border: 1px solid var(--ink-12);
+  border-radius: var(--r-lg);
+  background: var(--paper-3);
+}
+
+.hb-speed-control-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-1);
+}
+
+.hb-speed-control-head label {
+  font-weight: 700;
+}
+
+.hb-speed-control-value {
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.hb-speed-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.hb-speed-slider:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.hb-speed-control-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--t-small-size);
+  color: var(--ink-64);
+}
+
 .hb-profile-form textarea {
   min-height: 84px;
   padding-top: var(--s-1);

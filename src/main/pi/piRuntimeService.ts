@@ -9,6 +9,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent, ImageReference } from "@shared/chat";
+import { DEFAULT_THINKING_SPEED, type ThinkingSpeed } from "@shared/config";
 import type { HeadlessBrowserHost } from "../control/headlessBrowser";
 import type { ImageStore } from "../conversation/conversationService";
 import type { RuntimeProject } from "../projects/projectService";
@@ -36,6 +37,8 @@ export type CreateRuntimeSessionInput = {
   accessToken: string;
   agentDir: string;
   modelId: string;
+  /** How hard the bot thinks; passed straight through as the Pi `thinkingLevel`. */
+  thinkingLevel: ThinkingSpeed;
   customTools: ToolDefinition[];
   /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to the bot. */
   skillsDir?: string;
@@ -51,6 +54,8 @@ export type SendPromptResult = {
 type PiRuntimeServiceOptions = {
   agentDir: string;
   modelId?: string;
+  /** Initial bot thinking effort; the grown-up menu can change it live. Defaults to balanced. */
+  thinkingLevel?: ThinkingSpeed;
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   onSessionFile?: (projectId: string, sessionFile: string | undefined) => Promise<void> | void;
@@ -75,11 +80,17 @@ type PiRuntimeServiceOptions = {
 type RunningTurn = {
   turnId: string;
   session: RuntimePiSession;
+  thinkingLevel: ThinkingSpeed;
   cancelled: boolean;
 };
 
+type CachedRuntimeSession = {
+  session: RuntimePiSession;
+  thinkingLevel: ThinkingSpeed;
+};
+
 export class PiRuntimeService {
-  private readonly sessions = new Map<string, RuntimePiSession>();
+  private readonly sessions = new Map<string, CachedRuntimeSession>();
   private readonly running = new Map<string, RunningTurn>();
   /** One headless browser per bot session, torn down with the session. */
   private readonly browsers = new Map<string, HeadlessBrowserHost>();
@@ -98,10 +109,12 @@ export class PiRuntimeService {
   private readonly jobProfiles = new Map<string, string>();
   private readonly createSession: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   private readonly modelId: string;
+  private thinkingLevel: ThinkingSpeed;
   private readonly customTools: ToolDefinition[];
 
   constructor(private readonly options: PiRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
+    this.thinkingLevel = options.thinkingLevel ?? DEFAULT_THINKING_SPEED;
     this.createSession = options.createSession ?? createRealPiSession;
     // Bots can draw real assets straight into their Workbench. generate_image pulls
     // a fresh Codex token per call so long builds don't fail on an expired session key;
@@ -150,7 +163,8 @@ export class PiRuntimeService {
     }
 
     const accessToken = await this.options.getFreshAccessToken();
-    const session = await this.getOrCreateSession(project, accessToken);
+    const cached = await this.getOrCreateSession(project, accessToken);
+    const { session } = cached;
     session.setAccessToken?.(accessToken);
 
     const turnId = randomUUID();
@@ -160,7 +174,12 @@ export class PiRuntimeService {
       projectTitle: project.title,
       turnId,
     };
-    const running: RunningTurn = { turnId, session, cancelled: false };
+    const running: RunningTurn = {
+      turnId,
+      session,
+      thinkingLevel: cached.thinkingLevel,
+      cancelled: false,
+    };
     this.running.set(runtimeKey, running);
     // Make the builder's reference pictures resolvable for generate_image while
     // this turn runs, keyed by the Workbench cwd the tool sees.
@@ -195,6 +214,15 @@ export class PiRuntimeService {
       this.running.delete(runtimeKey);
       this.jobReferences.delete(project.mainWorkbenchDir);
       this.jobProfiles.delete(project.mainWorkbenchDir);
+      if (
+        running.thinkingLevel !== this.thinkingLevel &&
+        this.sessions.get(runtimeKey)?.session === session
+      ) {
+        session.dispose();
+        this.sessions.delete(runtimeKey);
+        this.browsers.get(runtimeKey)?.dispose();
+        this.browsers.delete(runtimeKey);
+      }
     }
 
     const result: SendPromptResult = { turnId, status, sessionFile: session.sessionFile, error };
@@ -211,19 +239,36 @@ export class PiRuntimeService {
   }
 
   getMessages(projectId: string): unknown[] {
-    return this.sessions.get(projectId)?.messages ?? [];
+    return this.sessions.get(projectId)?.session.messages ?? [];
   }
 
   disposeProject(projectId: string): void {
-    this.sessions.get(projectId)?.dispose();
+    this.sessions.get(projectId)?.session.dispose();
     this.sessions.delete(projectId);
     this.browsers.get(projectId)?.dispose();
     this.browsers.delete(projectId);
   }
 
+  /**
+   * Changes how hard future bot turns think. Idle warm sessions are torn down so
+   * the next turn rebuilds at the new effort; a session mid-turn keeps its level
+   * until it finishes, then gets recreated on its next turn.
+   */
+  setThinkingLevel(level: ThinkingSpeed): void {
+    if (this.thinkingLevel === level) return;
+    this.thinkingLevel = level;
+    for (const [key, cached] of this.sessions) {
+      if (this.running.has(key)) continue;
+      cached.session.dispose();
+      this.sessions.delete(key);
+      this.browsers.get(key)?.dispose();
+      this.browsers.delete(key);
+    }
+  }
+
   disposeAll(): void {
-    for (const session of this.sessions.values()) {
-      session.dispose();
+    for (const cached of this.sessions.values()) {
+      cached.session.dispose();
     }
     for (const browser of this.browsers.values()) {
       browser.dispose();
@@ -263,10 +308,11 @@ export class PiRuntimeService {
   private async getOrCreateSession(
     project: RuntimeProject,
     accessToken: string,
-  ): Promise<RuntimePiSession> {
+  ): Promise<CachedRuntimeSession> {
     const runtimeKey = runtimeKeyFor(project);
     const existing = this.sessions.get(runtimeKey);
     if (existing) return existing;
+    const thinkingLevel = this.thinkingLevel;
     // A bot gets its own headless browser (and the browser_* tools over it) for
     // this session; it never sees the kid's screen or the app_* tools.
     let customTools = this.customTools;
@@ -281,6 +327,7 @@ export class PiRuntimeService {
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
+      thinkingLevel,
       customTools,
       skillsDir: this.options.skillsDir,
     }).catch((error) => {
@@ -288,8 +335,9 @@ export class PiRuntimeService {
       this.browsers.delete(runtimeKey);
       throw error;
     });
-    this.sessions.set(runtimeKey, session);
-    return session;
+    const cached = { session, thinkingLevel };
+    this.sessions.set(runtimeKey, cached);
+    return cached;
   }
 }
 
@@ -364,7 +412,7 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     authStorage,
     modelRegistry,
     model,
-    thinkingLevel: "medium",
+    thinkingLevel: input.thinkingLevel,
     resourceLoader,
     sessionManager,
     settingsManager,

@@ -10,6 +10,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
+import { DEFAULT_THINKING_SPEED, type ThinkingSpeed } from "@shared/config";
 import type { BrowserHost } from "../control/browserHost";
 import type { ImageStore } from "../conversation/conversationService";
 import { type AppSurface, createAppTools } from "./appTools";
@@ -51,6 +52,8 @@ export type CreateBitSessionInput = BitPromptInput & {
   accessToken: string;
   agentDir: string;
   modelId: string;
+  /** How hard Bit thinks; passed straight through as the Pi `thinkingLevel`. */
+  thinkingLevel: ThinkingSpeed;
 };
 
 export type BitTurnResult = {
@@ -77,6 +80,8 @@ export type BitRuntime = {
 type BitRuntimeServiceOptions = {
   agentDir: string;
   modelId?: string;
+  /** Initial Bit thinking effort; the grown-up menu can change it live. Defaults to balanced. */
+  thinkingLevel?: ThinkingSpeed;
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateBitSessionInput) => Promise<BitSession>;
   onSessionFile?: (profileId: string, sessionFile: string | undefined) => Promise<void> | void;
@@ -103,7 +108,13 @@ type BitRuntimeServiceOptions = {
 type RunningTurn = {
   turnId: string;
   session: BitSession;
+  thinkingLevel: ThinkingSpeed;
   cancelled: boolean;
+};
+
+type CachedBitSession = {
+  session: BitSession;
+  thinkingLevel: ThinkingSpeed;
 };
 
 /**
@@ -114,10 +125,11 @@ type RunningTurn = {
  * activity.
  */
 export class BitRuntimeService implements BitRuntime {
-  private readonly sessions = new Map<string, BitSession>();
+  private readonly sessions = new Map<string, CachedBitSession>();
   private readonly running = new Map<string, RunningTurn>();
   private readonly createSession: (input: CreateBitSessionInput) => Promise<BitSession>;
   private readonly modelId: string;
+  private thinkingLevel: ThinkingSpeed;
   /**
    * Web lookup tools (web_search/fetch_content/get_search_content), the same set
    * bots get. Built once on Hi-Bit's Codex login so Bit can look things up while
@@ -150,6 +162,7 @@ export class BitRuntimeService implements BitRuntime {
 
   constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
+    this.thinkingLevel = options.thinkingLevel ?? DEFAULT_THINKING_SPEED;
     this.createSession = options.createSession ?? createRealBitSession;
     this.webTools = createWebSearchTools({
       getFreshAccessToken: options.getFreshAccessToken,
@@ -181,11 +194,17 @@ export class BitRuntimeService implements BitRuntime {
     }
 
     const accessToken = await this.options.getFreshAccessToken();
-    const session = await this.getOrCreateSession(input, accessToken);
+    const cached = await this.getOrCreateSession(input, accessToken);
+    const { session } = cached;
     session.setAccessToken?.(accessToken);
 
     const turnId = randomUUID();
-    const running: RunningTurn = { turnId, session, cancelled: false };
+    const running: RunningTurn = {
+      turnId,
+      session,
+      thinkingLevel: cached.thinkingLevel,
+      cancelled: false,
+    };
     this.running.set(profileId, running);
     // Route this turn's picture saves (search_image) to the running profile,
     // keyed by the conversation dir Bit's tools see as cwd.
@@ -220,6 +239,13 @@ export class BitRuntimeService implements BitRuntime {
       unsubscribe();
       this.running.delete(profileId);
       this.turnProfiles.delete(input.conversationDir);
+      if (
+        running.thinkingLevel !== this.thinkingLevel &&
+        this.sessions.get(profileId)?.session === session
+      ) {
+        session.dispose();
+        this.sessions.delete(profileId);
+      }
     }
 
     await this.options.onSessionFile?.(profileId, session.sessionFile);
@@ -239,13 +265,28 @@ export class BitRuntimeService implements BitRuntime {
   }
 
   dispose(profileId: string): void {
-    this.sessions.get(profileId)?.dispose();
+    this.sessions.get(profileId)?.session.dispose();
     this.sessions.delete(profileId);
   }
 
+  /**
+   * Changes how hard Bit thinks. Idle profile sessions are torn down so the next
+   * turn reopens from disk at the new effort (the conversation is preserved via
+   * the persisted session file); a session mid-turn keeps its level until done.
+   */
+  setThinkingLevel(level: ThinkingSpeed): void {
+    if (this.thinkingLevel === level) return;
+    this.thinkingLevel = level;
+    for (const [profileId, cached] of this.sessions) {
+      if (this.running.has(profileId)) continue;
+      cached.session.dispose();
+      this.sessions.delete(profileId);
+    }
+  }
+
   disposeAll(): void {
-    for (const session of this.sessions.values()) {
-      session.dispose();
+    for (const cached of this.sessions.values()) {
+      cached.session.dispose();
     }
     this.sessions.clear();
     this.running.clear();
@@ -254,9 +295,10 @@ export class BitRuntimeService implements BitRuntime {
   private async getOrCreateSession(
     input: BitPromptInput,
     accessToken: string,
-  ): Promise<BitSession> {
+  ): Promise<CachedBitSession> {
     const existing = this.sessions.get(input.profileId);
     if (existing) return existing;
+    const thinkingLevel = this.thinkingLevel;
     const session = await this.createSession({
       ...input,
       customTools: [
@@ -269,9 +311,11 @@ export class BitRuntimeService implements BitRuntime {
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
+      thinkingLevel,
     });
-    this.sessions.set(input.profileId, session);
-    return session;
+    const cached = { session, thinkingLevel };
+    this.sessions.set(input.profileId, cached);
+    return cached;
   }
 }
 
@@ -414,7 +458,7 @@ async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSe
     authStorage,
     modelRegistry,
     model,
-    thinkingLevel: "medium",
+    thinkingLevel: input.thinkingLevel,
     resourceLoader,
     sessionManager,
     settingsManager,

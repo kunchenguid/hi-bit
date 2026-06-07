@@ -1,3 +1,4 @@
+import { createAgentSession } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -46,7 +47,9 @@ class FakeBitSession implements BitSession {
   accessTokens: string[] = [];
   promptTexts: string[] = [];
   promptOptions: BitPromptOptions[] = [];
+  blockPrompt = false;
   private listeners: Array<(event: unknown) => void> = [];
+  private unblock: (() => void) | undefined;
 
   subscribe(listener: (event: unknown) => void): () => void {
     this.listeners.push(listener);
@@ -72,10 +75,21 @@ class FakeBitSession implements BitSession {
     });
     // Bit's own tool execution should not surface as chat activity.
     this.emit({ type: "tool_execution_start", toolCallId: "c1", toolName: "delegate_build" });
+    if (this.blockPrompt) {
+      await new Promise<void>((resolve) => {
+        this.unblock = resolve;
+      });
+    }
   }
 
   async abort(): Promise<void> {}
-  dispose(): void {}
+  dispose(): void {
+    this.unblock?.();
+  }
+
+  finishPrompt(): void {
+    this.unblock?.();
+  }
 
   private emit(event: unknown): void {
     for (const listener of this.listeners) listener(event);
@@ -251,6 +265,118 @@ describe("BitRuntimeService", () => {
     });
 
     expect(JSON.stringify(piRuntime.persistedMessages.at(-1))).not.toContain("AAABBB");
+  });
+
+  it("passes the configured thinking level to the production Pi session", async () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      thinkingLevel: "high",
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+
+    expect(createAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({ thinkingLevel: "high" }),
+    );
+  });
+
+  it("defaults to balanced thinking when no level is configured", async () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+
+    expect(createAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({ thinkingLevel: "medium" }),
+    );
+  });
+
+  it("rebuilds idle Bit sessions at the new effort after setThinkingLevel", async () => {
+    const levels: string[] = [];
+    const disposed: string[] = [];
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        levels.push(input.thinkingLevel);
+        const session = new FakeBitSession();
+        session.dispose = () => disposed.push(input.thinkingLevel);
+        return session;
+      },
+    });
+
+    await service.prompt(baseInput(), "first", () => {});
+    service.setThinkingLevel("xhigh");
+    await service.prompt(baseInput(), "second", () => {});
+
+    expect(levels).toEqual(["medium", "xhigh"]);
+    expect(disposed).toEqual(["medium"]);
+  });
+
+  it("rebuilds a running Bit session after setThinkingLevel once the turn finishes", async () => {
+    const levels: string[] = [];
+    const disposed: string[] = [];
+    const sessions: FakeBitSession[] = [];
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        levels.push(input.thinkingLevel);
+        const session = new FakeBitSession();
+        session.blockPrompt = sessions.length === 0;
+        session.dispose = () => disposed.push(input.thinkingLevel);
+        sessions.push(session);
+        return session;
+      },
+    });
+
+    const firstPrompt = service.prompt(baseInput(), "first", () => {});
+    await vi.waitFor(() => expect(service.isRunning("ada")).toBe(true));
+    service.setThinkingLevel("xhigh");
+    sessions[0].finishPrompt();
+    await firstPrompt;
+    sessions[0].blockPrompt = false;
+    await service.prompt(baseInput(), "second", () => {});
+
+    expect(levels).toEqual(["medium", "xhigh"]);
+    expect(disposed).toEqual(["medium"]);
+  });
+
+  it("rebuilds a Bit session when thinking changes while the session is being created", async () => {
+    const levels: string[] = [];
+    const disposed: string[] = [];
+    const sessions: FakeBitSession[] = [];
+    let resolveCreate: (() => void) | undefined;
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        levels.push(input.thinkingLevel);
+        if (sessions.length === 0) {
+          await new Promise<void>((resume) => {
+            resolveCreate = resume;
+          });
+        }
+        const session = new FakeBitSession();
+        session.dispose = () => disposed.push(input.thinkingLevel);
+        sessions.push(session);
+        return session;
+      },
+    });
+
+    const firstPrompt = service.prompt(baseInput(), "first", () => {});
+    await vi.waitFor(() => expect(levels).toEqual(["medium"]));
+    service.setThinkingLevel("xhigh");
+    resolveCreate?.();
+    await firstPrompt;
+    await service.prompt(baseInput(), "second", () => {});
+
+    expect(sessions).toHaveLength(2);
+    expect(levels).toEqual(["medium", "xhigh"]);
+    expect(disposed).toEqual(["medium"]);
   });
 
   it("gives Bit the app and browser tools when their surfaces are configured", async () => {

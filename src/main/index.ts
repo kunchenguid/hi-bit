@@ -1,8 +1,13 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { ChatEvent, OutgoingImage } from "@shared/chat";
-import { DEFAULT_CODEX_MODEL, type HiBitConfig, normalizeHiBitConfig } from "@shared/config";
-import type { AppInfo, Platform } from "@shared/ipc";
+import {
+  DEFAULT_CODEX_MODEL,
+  type HiBitConfig,
+  normalizeHiBitConfig,
+  type ThinkingSpeed,
+} from "@shared/config";
+import type { AppConfigView, AppInfo, Platform } from "@shared/ipc";
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
 import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
@@ -16,7 +21,7 @@ import { PiRuntimeService } from "./pi/piRuntimeService";
 import { PreviewService } from "./preview/previewService";
 import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
-import { readJsonFile } from "./storage/json";
+import { readJsonFile, writeJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
 import { seedCodexAuthIfMissing } from "./storage/seedAuth";
 import { startAppTelemetry } from "./telemetry";
@@ -150,6 +155,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   const runtime = new PiRuntimeService({
     agentDir: layout.piAgentDir,
     modelId,
+    thinkingLevel: config.thinkingSpeed,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
     skillsDir: skillsDirFor(),
     mascotAssetPath: mascotAssetFor(),
@@ -159,6 +165,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
   const bitRuntime = new BitRuntimeService({
     agentDir: layout.piAgentDir,
     modelId,
+    thinkingLevel: config.thinkingSpeed,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
     mascotAssetPath: mascotAssetFor(),
     appSurface: appControl.appSurface,
@@ -211,6 +218,28 @@ export function registerIpc(services: Services): void {
   );
   ipcMain.handle("hibit:app:get-update-status", () => services.updateChecker.getStatus());
   ipcMain.handle("hibit:app:open-release-page", () => services.updateChecker.openReleasePage());
+
+  // App-wide grown-up settings. We read config.json fresh per call (it changes
+  // rarely) so there is no in-memory copy to keep in sync; a write persists and
+  // applies the new effort to Bit and the bots live.
+  const readConfig = async (): Promise<HiBitConfig> =>
+    normalizeHiBitConfig(await readJsonFile<HiBitConfig>(services.layout.configPath));
+
+  ipcMain.handle("hibit:config:get", async (): Promise<AppConfigView> => {
+    const config = await readConfig();
+    return { thinkingSpeed: config.thinkingSpeed };
+  });
+  ipcMain.handle(
+    "hibit:config:set-thinking-speed",
+    async (_event, speed: ThinkingSpeed): Promise<AppConfigView> => {
+      const config = await readConfig();
+      const next = normalizeHiBitConfig({ ...config, thinkingSpeed: speed });
+      await writeJsonFile(services.layout.configPath, next);
+      services.runtime.setThinkingLevel(next.thinkingSpeed);
+      services.bitRuntime.setThinkingLevel(next.thinkingSpeed);
+      return { thinkingSpeed: next.thinkingSpeed };
+    },
+  );
 
   ipcMain.handle("hibit:auth:status", () => services.auth.status());
   ipcMain.handle("hibit:auth:login", () => services.auth.login());

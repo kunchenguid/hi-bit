@@ -8,6 +8,7 @@ import type {
   PreviewInfo,
   TurnKind,
 } from "@shared/chat";
+import { DEFAULT_THINKING_SPEED, type ThinkingSpeed } from "@shared/config";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import {
@@ -42,6 +43,7 @@ export function App() {
   // Whether this device can run local voice input (WebGPU + mic). Detected once;
   // when false the composer never shows the mic, hiding the feature entirely.
   const [voiceSupported, setVoiceSupported] = useState(false);
+  const [thinkingSpeed, setThinkingSpeed] = useState<ThinkingSpeed>(DEFAULT_THINKING_SPEED);
   const [busy, setBusy] = useState(false);
   // The Codex token died mid-session: overlay the blocking reconnect modal over
   // the live chat (which stays mounted) until Codex is reconnected.
@@ -68,10 +70,19 @@ export function App() {
     signal: number;
   } | null>(null);
   const activeProfileIdRef = useRef(activeProfileId);
+  const thinkingSpeedRef = useRef(thinkingSpeed);
+  const confirmedThinkingSpeedRef = useRef(thinkingSpeed);
+  const userChangedThinkingSpeedRef = useRef(false);
+  const queuedThinkingSpeedRef = useRef<ThinkingSpeed | null>(null);
+  const thinkingSpeedWriteRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     activeProfileIdRef.current = activeProfileId;
   }, [activeProfileId]);
+
+  useEffect(() => {
+    thinkingSpeedRef.current = thinkingSpeed;
+  }, [thinkingSpeed]);
 
   const activeProfile = useMemo(
     () => profiles.find((profile) => profile.id === activeProfileId) ?? null,
@@ -167,6 +178,56 @@ export function App() {
       cancelled = true;
     };
   }, []);
+
+  // Load the grown-up's saved thinking speed once so the slider opens on the
+  // current value. A failure leaves the balanced default in place.
+  useEffect(() => {
+    let cancelled = false;
+    void window.hibit.config
+      .get()
+      .then((config) => {
+        if (!cancelled && !userChangedThinkingSpeedRef.current) {
+          confirmedThinkingSpeedRef.current = config.thinkingSpeed;
+          setThinkingSpeed(config.thinkingSpeed);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const flushThinkingSpeedWrite = useCallback(() => {
+    if (thinkingSpeedWriteRef.current || !queuedThinkingSpeedRef.current) return;
+    const requestedSpeed = queuedThinkingSpeedRef.current;
+    queuedThinkingSpeedRef.current = null;
+    const write = window.hibit.config
+      .setThinkingSpeed(requestedSpeed)
+      .then((config) => {
+        confirmedThinkingSpeedRef.current = config.thinkingSpeed;
+        if (thinkingSpeedRef.current === requestedSpeed) setThinkingSpeed(config.thinkingSpeed);
+      })
+      .catch((caught) => {
+        if (queuedThinkingSpeedRef.current || thinkingSpeedRef.current !== requestedSpeed) return;
+        setThinkingSpeed(confirmedThinkingSpeedRef.current);
+        setError(caught instanceof Error ? caught.message : String(caught));
+      })
+      .finally(() => {
+        if (thinkingSpeedWriteRef.current === write) thinkingSpeedWriteRef.current = null;
+        flushThinkingSpeedWrite();
+      });
+    thinkingSpeedWriteRef.current = write;
+  }, []);
+
+  const changeThinkingSpeed = useCallback(
+    (speed: ThinkingSpeed) => {
+      userChangedThinkingSpeedRef.current = true;
+      setThinkingSpeed(speed); // Optimistic: the slider should feel instant.
+      queuedThinkingSpeedRef.current = speed;
+      flushThinkingSpeedWrite();
+    },
+    [flushThinkingSpeedWrite],
+  );
 
   useEffect(() => {
     return window.hibit.auth.onReconnectRequired(() => setNeedsReauth(true));
@@ -483,6 +544,8 @@ export function App() {
         onOpenFolder={openFolder}
         onSwitchProfile={switchProfile}
         onUpdateProfile={updateProfile}
+        thinkingSpeed={thinkingSpeed}
+        onChangeThinkingSpeed={changeThinkingSpeed}
         onShowActivity={showActivityView}
         onHideActivity={() => setShowActivity(false)}
         onPlayPreview={playPreview}

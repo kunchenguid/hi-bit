@@ -78,6 +78,8 @@ function renderWorkspace(
         onOpenFolder={vi.fn()}
         onSwitchProfile={vi.fn()}
         onUpdateProfile={vi.fn(async () => {})}
+        thinkingSpeed="medium"
+        onChangeThinkingSpeed={vi.fn()}
         onShowActivity={overrides.onShowActivity ?? vi.fn()}
         onHideActivity={vi.fn()}
         onPlayPreview={overrides.onPlayPreview ?? vi.fn()}
