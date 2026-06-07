@@ -753,6 +753,27 @@ describe("App", () => {
     expect(host.querySelector(".hb-speed-control-value")?.textContent).toBe("Smartest");
     expect(host.textContent).not.toContain("Could not save low");
   });
+
+  it("keeps a changed thinking speed when the initial config load finishes late", async () => {
+    const initialConfig = deferred<{ thinkingSpeed: "low" }>();
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      accountId: "acct-1",
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.config.get = vi.fn(() => initialConfig.promise);
+
+    await renderApp(root);
+    await setThinkingSpeedSlider(host, 4);
+
+    initialConfig.resolve({ thinkingSpeed: "low" });
+    await flushAsyncWork();
+
+    expect(host.querySelector(".hb-speed-control-value")?.textContent).toBe("Smartest");
+    expect(api.config.setThinkingSpeed).toHaveBeenCalledWith("xhigh");
+  });
 });
 
 async function renderApp(root: Root): Promise<void> {

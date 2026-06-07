@@ -72,6 +72,7 @@ export function App() {
   const activeProfileIdRef = useRef(activeProfileId);
   const thinkingSpeedRef = useRef(thinkingSpeed);
   const confirmedThinkingSpeedRef = useRef(thinkingSpeed);
+  const userChangedThinkingSpeedRef = useRef(false);
   const queuedThinkingSpeedRef = useRef<ThinkingSpeed | null>(null);
   const thinkingSpeedWriteRef = useRef<Promise<void> | null>(null);
 
@@ -185,7 +186,7 @@ export function App() {
     void window.hibit.config
       .get()
       .then((config) => {
-        if (!cancelled) {
+        if (!cancelled && !userChangedThinkingSpeedRef.current) {
           confirmedThinkingSpeedRef.current = config.thinkingSpeed;
           setThinkingSpeed(config.thinkingSpeed);
         }
@@ -220,6 +221,7 @@ export function App() {
 
   const changeThinkingSpeed = useCallback(
     (speed: ThinkingSpeed) => {
+      userChangedThinkingSpeedRef.current = true;
       setThinkingSpeed(speed); // Optimistic: the slider should feel instant.
       queuedThinkingSpeedRef.current = speed;
       flushThinkingSpeedWrite();
