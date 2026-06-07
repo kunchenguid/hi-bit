@@ -151,7 +151,8 @@ Draw titles and scores with a plain HTML overlay (a `<div>` on top of the canvas
 
 While building, use flat colors.
 When a surface needs real art, make it with `generate_image` and load it as a texture.
-If your job lists reference picture ids from the builder, pass them in `reference_paths` so the texture matches that character, colors, or style:
+If your job lists reference picture ids, pass them in `reference_paths` so the texture matches that character, colors, or style.
+Those ids may name pictures the builder shared, pictures found with `search_image`, or art made by `generate_image` in this or another creation:
 
 ```js
 const grass = world.texture("assets/textures/grass.png");

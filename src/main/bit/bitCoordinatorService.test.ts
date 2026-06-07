@@ -513,6 +513,42 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(reference?.path).toContain("/conversation/attachments/");
   });
 
+  it("hands a picture Bit found with search_image to the bot as a reference, and hides it from list_builder_pictures", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Dragon Run" });
+    // Bit searched the web earlier; the runtime persisted the picture as searched.
+    const saved = await s.conversation.saveImage(s.profile.id, {
+      data: Buffer.from("searched-dragon").toString("base64"),
+      mimeType: "image/png",
+      source: "searched",
+      meta: { query: "fire dragon" },
+    });
+
+    let listedText = "";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      // The searched picture is not a builder picture, so it must not show here.
+      const listed = (await callTool("list_builder_pictures", {})) as {
+        content: Array<{ text: string }>;
+      };
+      listedText = listed.content.map((item) => item.text).join("\n");
+      // ...but Bit can still reference it by the id the search gave back.
+      await callTool("delegate_build", {
+        creationId: game.id,
+        instructions: "make it look like this dragon",
+        referencePictureIds: [saved.id],
+      });
+      return "On it!";
+    };
+    await s.coordinator.send(s.profile.id, "use that dragon you found");
+    await s.drain();
+
+    expect(listedText).not.toContain(saved.id);
+    const reference = s.bot.prompts.at(-1)?.project.references?.[0];
+    expect(reference?.id).toBe(saved.id);
+    expect(reference?.path).toContain("/conversation/attachments/");
+  });
+
   it("shows builder message text when listing builder pictures", async () => {
     const s = await createCoordinator();
     const data = Buffer.from("pretend-cat").toString("base64");

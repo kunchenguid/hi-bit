@@ -19,7 +19,9 @@ import { createWebSearchTools } from "./webSearchTools";
  * reviewer can literally open the picture the model "sees".
  */
 
-const EVIDENCE_DIR = join(tmpdir(), "no-mistakes-evidence", "search-image");
+const EVIDENCE_DIR = process.env.HIBIT_SEARCH_IMAGE_EVIDENCE_DIR
+  ? process.env.HIBIT_SEARCH_IMAGE_EVIDENCE_DIR
+  : join(tmpdir(), "no-mistakes-evidence", "search-image");
 
 const RESPONSES_URL = "https://codex.test/responses";
 
@@ -138,11 +140,16 @@ describe("search_image end-to-end evidence", () => {
   it("returns the real downloaded picture pixels for the model to see (direct image URL)", async () => {
     const imageUrl = "https://pics.example.com/pusheen.png";
     let codexBody: { tools: Array<{ type: string; external_web_access: boolean }> } | undefined;
+    const persisted: unknown[] = [];
 
     const tools = createWebSearchTools({
       getFreshAccessToken: async () => fakeCodexToken(),
       model: "gpt-5.5",
       responsesUrl: RESPONSES_URL,
+      persistImage: async (cwd, image) => {
+        persisted.push({ cwd, ...image, data: `[base64:${image.data.length} chars]` });
+        return { id: "searched-pusheen-1", path: "attachments/searched-pusheen-1.png" };
+      },
       lookupHost: async () => ["93.184.216.34"], // public IP -> passes SSRF guard
       fetchFn: async (url, init) => {
         const u = String(url);
@@ -183,7 +190,31 @@ describe("search_image end-to-end evidence", () => {
 
     const introText = (result.content[0] as { text: string }).text;
     expect(introText).toMatch(/picture of "pusheen the cartoon cat"/);
+    expect(introText).toContain("reference id: searched-pusheen-1");
     expect(result.details?.sources).toContain(imageUrl);
+    expect(result.details?.referenceIds).toEqual(["searched-pusheen-1"]);
+    expect(persisted).toEqual([
+      {
+        cwd: "/tmp/creation",
+        data: `[base64:${image.data.length} chars]`,
+        mimeType: "image/png",
+        source: "searched",
+        meta: { query: "pusheen the cartoon cat", sourceUrl: imageUrl },
+      },
+    ]);
+    writeFileSync(
+      join(EVIDENCE_DIR, "search_image-persisted-reference.json"),
+      `${JSON.stringify(
+        {
+          toolText: introText,
+          details: result.details,
+          persisted,
+          logbookSafeContent: stripImageData(result.content),
+        },
+        null,
+        2,
+      )}\n`,
+    );
 
     // Render a small HTML card so a reviewer can see the kid-facing flow at a glance.
     const html = `<!doctype html><meta charset="utf-8">

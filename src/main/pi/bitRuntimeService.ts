@@ -11,6 +11,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import type { BrowserHost } from "../control/browserHost";
+import type { ImageStore } from "../conversation/conversationService";
 import { type AppSurface, createAppTools } from "./appTools";
 import { createViewBitTool } from "./brandTool";
 import { createBrowserTools } from "./browserTools";
@@ -91,6 +92,12 @@ type BitRuntimeServiceOptions = {
    * tools are absent.
    */
   browserHost?: BrowserHost;
+  /**
+   * The profile's image store, so a picture Bit finds with `search_image` is
+   * persisted with a reusable id Bit can pass to delegate_build/create_creation
+   * as a referencePictureId. Omitted in tests.
+   */
+  imageStore?: ImageStore;
 };
 
 type RunningTurn = {
@@ -134,6 +141,12 @@ export class BitRuntimeService implements BitRuntime {
    * Empty when no browser host is configured (e.g. tests).
    */
   private readonly browserTools: ToolDefinition[];
+  /**
+   * The profile that owns the turn running in a given conversation dir (Bit's
+   * cwd), so `search_image` can route its saved pictures to the right profile's
+   * store. Set/cleared per turn.
+   */
+  private readonly turnProfiles = new Map<string, string>();
 
   constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
@@ -141,6 +154,13 @@ export class BitRuntimeService implements BitRuntime {
     this.webTools = createWebSearchTools({
       getFreshAccessToken: options.getFreshAccessToken,
       model: this.modelId,
+      persistImage: options.imageStore
+        ? async (cwd, input) => {
+            const profileId = this.turnProfiles.get(cwd);
+            if (!profileId) return undefined;
+            return options.imageStore?.saveImage(profileId, input);
+          }
+        : undefined,
     });
     this.brandTools = options.mascotAssetPath
       ? [createViewBitTool({ mascotSvgPath: options.mascotAssetPath })]
@@ -167,6 +187,9 @@ export class BitRuntimeService implements BitRuntime {
     const turnId = randomUUID();
     const running: RunningTurn = { turnId, session, cancelled: false };
     this.running.set(profileId, running);
+    // Route this turn's picture saves (search_image) to the running profile,
+    // keyed by the conversation dir Bit's tools see as cwd.
+    this.turnProfiles.set(input.conversationDir, profileId);
     onEvent({ type: "turn_start", profileId, turnId });
 
     let assistantText = "";
@@ -196,6 +219,7 @@ export class BitRuntimeService implements BitRuntime {
     } finally {
       unsubscribe();
       this.running.delete(profileId);
+      this.turnProfiles.delete(input.conversationDir);
     }
 
     await this.options.onSessionFile?.(profileId, session.sessionFile);

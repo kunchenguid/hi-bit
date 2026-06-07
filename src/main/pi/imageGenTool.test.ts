@@ -92,6 +92,104 @@ describe("generate_image tool", () => {
     expect(text.toLowerCase()).toContain("dragon");
   });
 
+  it("mirrors the generated image into the store and surfaces its reusable id", async () => {
+    const cwd = await makeCwd();
+    const imageBytes = Buffer.from("generated-bytes");
+    const persisted: Array<{ cwd: string; source: string; mimeType: string; prompt?: unknown }> =
+      [];
+
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => sseResponse([imageDoneEvent(imageBytes.toString("base64"), "a knight")]),
+      persistImage: async (toolCwd, input) => {
+        persisted.push({
+          cwd: toolCwd,
+          source: input.source,
+          mimeType: input.mimeType,
+          prompt: input.meta?.prompt,
+        });
+        return { id: "img_gen_1" };
+      },
+    });
+
+    const result = await tool.execute(
+      "call-persist",
+      { prompt: "a pixel knight", fileName: "images/knight.png" },
+      undefined,
+      undefined,
+      { cwd } as unknown as Parameters<typeof tool.execute>[4],
+    );
+
+    // Saved into the creation AND mirrored to the store as a generated picture.
+    expect(await readFile(join(cwd, "images/knight.png"))).toEqual(imageBytes);
+    expect(persisted).toEqual([
+      { cwd, source: "generated", mimeType: "image/png", prompt: "a pixel knight" },
+    ]);
+    // The reusable id rides in the text and details.
+    const text = result.content.map((part) => (part.type === "text" ? part.text : "")).join(" ");
+    expect(text).toContain("img_gen_1");
+    expect((result.details as { referenceId?: string }).referenceId).toBe("img_gen_1");
+  });
+
+  it("fails explicitly when a configured image store cannot persist generated art", async () => {
+    const cwd = await makeCwd();
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => sseResponse([imageDoneEvent(Buffer.from("ok").toString("base64"))]),
+      persistImage: async () => {
+        throw new Error("disk full");
+      },
+    });
+
+    const result = tool.execute(
+      "call-persist-fail",
+      { prompt: "a cat", fileName: "cat.png" },
+      undefined,
+      undefined,
+      { cwd } as unknown as Parameters<typeof tool.execute>[4],
+    );
+
+    await expect(result).rejects.toThrow("disk full");
+    expect(await readFile(join(cwd, "cat.png"), "utf8")).toBe("ok");
+  });
+
+  it("resolves a reference id through an async store lookup (e.g. art from another creation)", async () => {
+    const cwd = await makeCwd();
+    const refDir = await makeCwd();
+    const refBytes = Buffer.from("other-creation-art");
+    await writeFile(join(refDir, "stored.png"), refBytes);
+    let capturedBody: { input: Array<{ content: Array<Record<string, unknown>> }> } | undefined;
+
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      // Async resolver, like the runtime's store-backed resolveJobReference.
+      resolveReference: async (_toolCwd, ref) =>
+        ref === "img_from_elsewhere"
+          ? { path: join(refDir, "stored.png"), mimeType: "image/png" }
+          : undefined,
+      fetchFn: async (_url, init) => {
+        capturedBody = JSON.parse(String(init?.body));
+        return sseResponse([imageDoneEvent(Buffer.from("png").toString("base64"))]);
+      },
+    });
+
+    await tool.execute(
+      "call-async-ref",
+      { prompt: "match this", fileName: "next.png", reference_paths: ["img_from_elsewhere"] },
+      undefined,
+      undefined,
+      { cwd } as unknown as Parameters<typeof tool.execute>[4],
+    );
+
+    const image = (capturedBody?.input[0].content ?? []).find(
+      (part) => part.type === "input_image",
+    );
+    expect(image).toEqual({
+      type: "input_image",
+      image_url: `data:image/png;base64,${refBytes.toString("base64")}`,
+    });
+  });
+
   it("retries on a transient backend error then succeeds", async () => {
     const cwd = await makeCwd();
     let calls = 0;

@@ -737,7 +737,12 @@ export class BitCoordinatorService {
     return job;
   }
 
-  /** Looks up the builder pictures Bit named for a build. */
+  /**
+   * Looks up the pictures Bit named for a build. These are usually builder
+   * attachments, but Bit can also pass an id for a picture it found with
+   * `search_image`, so this resolves across every stored source, not just
+   * builder pictures.
+   */
   private async resolveReferences(
     profileId: string,
     ids: string[] | undefined,
@@ -745,8 +750,8 @@ export class BitCoordinatorService {
     if (!ids?.length) return [];
     const resolved: AttachmentSummary[] = [];
     for (const id of ids) {
-      const found = await this.conversation.resolveAttachment(profileId, id);
-      if (!found) throw new Error(`Builder picture id not found: ${id}`);
+      const found = await this.conversation.resolveImage(profileId, id);
+      if (!found) throw new Error(`Picture id not found: ${id}`);
       resolved.push(found);
     }
     return resolved;

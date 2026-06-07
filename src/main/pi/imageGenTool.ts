@@ -3,6 +3,7 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { extractCodexAccountId } from "../auth/codexOAuth";
+import type { PersistImage } from "./persistImage";
 
 /**
  * Clean-room `generate_image` bot tool.
@@ -29,6 +30,12 @@ const MAX_TOTAL_REFERENCE_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const OUTPUT_FORMATS = { png: "png", jpg: "jpeg", jpeg: "jpeg", webp: "webp" } as const;
 type OutputFormat = "png" | "jpeg" | "webp";
+/** Image mime for each output format, for the stored picture's index entry. */
+const OUTPUT_MIME: Record<OutputFormat, string> = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+};
 
 /** Image mime type for a reference file's extension, for the input_image data URL. */
 const MIME_BY_EXT: Record<string, string> = {
@@ -51,7 +58,7 @@ const TOOL_PARAMS = Type.Object({
   reference_paths: Type.Optional(
     Type.Array(Type.String(), {
       description:
-        "Optional pictures to steer the art direction (style, colors, character look). Each entry is either the id of a picture the builder shared (given to you in the job) or a relative path to an image already in this creation. The generator looks at them and matches their look.",
+        "Optional pictures to steer the art direction (style, colors, character look). Each entry is either a stored picture id (from the builder, search_image, or generate_image) or a relative path to an image already in this creation. The generator looks at them and matches their look.",
     }),
   ),
 });
@@ -70,13 +77,24 @@ export type GenerateImageToolDeps = {
   /** Codex routing model that invokes image generation. Defaults to gpt-5.5. */
   model?: string;
   /**
-   * Resolves a `reference_paths` entry that names a job reference (a picture the
-   * builder shared, stored at factory level) to its on-disk file. `cwd` is the
-   * bot's Workbench, so the resolver can scope references to the running job.
-   * Returns undefined for anything it doesn't own, and the entry is then read as
-   * a Workbench-relative path instead.
+   * Resolves a `reference_paths` entry that names a stored picture id (one the
+   * builder shared, or one found/made earlier - possibly in another creation) to
+   * its on-disk file. `cwd` is the bot's Workbench, so the resolver can scope to
+   * the running job's profile. Returns undefined for anything it doesn't own, and
+   * the entry is then read as a Workbench-relative path instead. Async so it can
+   * consult the profile's image store, not just the in-memory per-turn set.
    */
-  resolveReference?: (cwd: string, ref: string) => ReferenceTarget | undefined;
+  resolveReference?: (
+    cwd: string,
+    ref: string,
+  ) => ReferenceTarget | undefined | Promise<ReferenceTarget | undefined>;
+  /**
+   * Persists the generated picture into the profile's image store and returns a
+   * reusable id, so the art can be referenced later from any creation. Omitted in
+   * tests (and when no store is wired), so generation still saves into the
+   * creation but yields no shared id.
+   */
+  persistImage?: PersistImage;
   /** Injectable for tests. */
   fetchFn?: typeof fetch;
   /** Injectable backoff for tests. */
@@ -107,17 +125,17 @@ function resolveTarget(cwd: string, fileName: string): string {
 }
 
 /**
- * Resolves a `reference_paths` entry to a readable file: first as a named job
- * reference (the builder's picture, factory-level), otherwise as a Workbench
- * file. Workbench paths use the same escape guard as the save target so a bot
- * can't read outside the creation.
+ * Resolves a `reference_paths` entry to a readable file: first as a stored
+ * picture id for the running profile, otherwise as a Workbench file. Workbench
+ * paths use the same escape guard as the save target so a bot can't read outside
+ * the creation.
  */
-function resolveReferenceTarget(
+async function resolveReferenceTarget(
   cwd: string,
   ref: string,
   resolveReference?: GenerateImageToolDeps["resolveReference"],
-): ReferenceTarget {
-  const known = resolveReference?.(cwd, ref);
+): Promise<ReferenceTarget> {
+  const known = await resolveReference?.(cwd, ref);
   if (known) return known;
 
   const target = resolve(cwd, ref);
@@ -143,7 +161,7 @@ async function buildReferenceBlocks(
   const targets: Array<ReferenceTarget & { ref: string }> = [];
   let totalSize = 0;
   for (const ref of referencePaths) {
-    const { path, mimeType } = resolveReferenceTarget(cwd, ref, resolveReference);
+    const { path, mimeType } = await resolveReferenceTarget(cwd, ref, resolveReference);
     let size: number;
     try {
       size = (await stat(path)).size;
@@ -271,7 +289,7 @@ export function createGenerateImageTool(deps: GenerateImageToolDeps): ToolDefini
     name: "generate_image",
     label: "Generate image",
     description:
-      "Draw a picture (sprite, icon, background, illustration) and save it into the creation. Use it when the builder wants real art in their app. Pass reference_paths to steer the look from pictures the builder shared or art already in the creation. It uses the connected Codex account and costs image quota, so only call it for a clear picture request.",
+      "Draw a picture (sprite, icon, background, illustration) and save it into the creation. Use it when the builder wants real art in their app. Pass reference_paths to steer the look from stored picture ids (builder, searched, or generated) or art already in the creation. It uses the connected Codex account and costs image quota, so only call it for a clear picture request.",
     parameters: TOOL_PARAMS,
     executionMode: "parallel",
     async execute(_callId, rawParams, signal, _onUpdate, ctx) {
@@ -339,13 +357,33 @@ export function createGenerateImageTool(deps: GenerateImageToolDeps): ToolDefini
       await writeFile(target, Buffer.from(parsed.imageBase64, "base64"));
 
       const relPath = relative(cwd, target);
-      const summary = parsed.revisedPrompt
-        ? `Saved a new image to ${relPath}. (Drawn from: ${parsed.revisedPrompt})`
-        : `Saved a new image to ${relPath}.`;
+
+      let referenceId: string | undefined;
+      if (deps.persistImage) {
+        const saved = await deps.persistImage(cwd, {
+          data: parsed.imageBase64,
+          mimeType: OUTPUT_MIME[outputFormat],
+          source: "generated",
+          meta: { prompt: params.prompt, savedPath: relPath },
+        });
+        referenceId = saved?.id;
+      }
+
+      const drawnFrom = parsed.revisedPrompt ? ` (Drawn from: ${parsed.revisedPrompt})` : "";
+      const reuseNote = referenceId
+        ? ` Reuse it in any creation with reference id: ${referenceId}.`
+        : "";
+      const summary = `Saved a new image to ${relPath}.${drawnFrom}${reuseNote}`;
 
       return {
         content: [{ type: "text", text: summary }],
-        details: { savedPath: relPath, outputFormat, model, backendImageModel: "gpt-image-2" },
+        details: {
+          savedPath: relPath,
+          outputFormat,
+          model,
+          backendImageModel: "gpt-image-2",
+          referenceId,
+        },
       };
     },
   });

@@ -37,7 +37,7 @@ class FakeSession implements RuntimePiSession {
   messages: unknown[] = [];
   accessTokens: string[] = [];
   blockPrompt = false;
-  onPrompt: (() => void) | undefined;
+  onPrompt: (() => void | Promise<void>) | undefined;
   private listeners: Array<(event: unknown) => void> = [];
   private aborted = false;
   private unblock: (() => void) | undefined;
@@ -54,7 +54,7 @@ class FakeSession implements RuntimePiSession {
   }
 
   async prompt(text: string): Promise<void> {
-    this.onPrompt?.();
+    await this.onPrompt?.();
     this.messages.push({ role: "user", content: text, timestamp: 1 });
     this.emit({
       type: "message_update",
@@ -252,11 +252,14 @@ describe("PiRuntimeService", () => {
       getFreshAccessToken: async () => "token",
       createSession: async () => {
         const session = new FakeSession();
-        session.onPrompt = () => {
+        session.onPrompt = async () => {
           // generate_image resolves a reference id against the running job's
           // workbench cwd (here, the project's main-workbench).
-          resolvedDuringTurn = service.resolveJobReference("/tmp/project/main-workbench", "pic_1");
-          wrongCwdDuringTurn = service.resolveJobReference("/somewhere/else", "pic_1");
+          resolvedDuringTurn = await service.resolveJobReference(
+            "/tmp/project/main-workbench",
+            "pic_1",
+          );
+          wrongCwdDuringTurn = await service.resolveJobReference("/somewhere/else", "pic_1");
         };
         return session;
       },
@@ -276,7 +279,52 @@ describe("PiRuntimeService", () => {
     });
     expect(wrongCwdDuringTurn).toBeUndefined();
     // ...and gone once the turn ends, so a later job can't read it.
-    expect(service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toBeUndefined();
+    expect(
+      await service.resolveJobReference("/tmp/project/main-workbench", "pic_1"),
+    ).toBeUndefined();
+  });
+
+  it("routes picture saves to the turn's profile and resolves stored ids as references", async () => {
+    const saved: Array<{ profileId: string; source: string }> = [];
+    let storeResolvedDuringTurn: { path: string; mimeType: string } | undefined;
+    const imageStore = {
+      saveImage: async (profileId: string, input: { source: string }) => {
+        saved.push({ profileId, source: input.source });
+        return { id: "img_1", path: "attachments/img_1.png", mimeType: "image/png" };
+      },
+      resolveImageFile: async (profileId: string, id: string) =>
+        profileId === "ada" && id === "stored_77"
+          ? { path: "/factory/ada/conversation/attachments/stored_77.png", mimeType: "image/png" }
+          : undefined,
+    };
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      imageStore,
+      createSession: async () => {
+        const session = new FakeSession();
+        session.onPrompt = async () => {
+          // A stored id (no per-turn blueprint ref) resolves via the store.
+          storeResolvedDuringTurn = await service.resolveJobReference(
+            "/tmp/project/main-workbench",
+            "stored_77",
+          );
+        };
+        return session;
+      },
+    });
+
+    // No blueprint references on this project: resolution must come from the store.
+    await service.sendPrompt({ ...project(), runtimeKey: "bot_job_1" }, "draw something", () => {});
+
+    expect(storeResolvedDuringTurn).toEqual({
+      path: "/factory/ada/conversation/attachments/stored_77.png",
+      mimeType: "image/png",
+    });
+    // Once the turn ends the cwd→profile mapping is gone, so saves/lookups no-op.
+    expect(
+      await service.resolveJobReference("/tmp/project/main-workbench", "stored_77"),
+    ).toBeUndefined();
   });
 
   it("clears builder reference pictures when disposed during a running turn", async () => {
@@ -296,14 +344,16 @@ describe("PiRuntimeService", () => {
     const run = service.sendPrompt(proj, "draw a hero like the picture", () => {});
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toEqual({
+    expect(await service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toEqual({
       path: "/factory/ada/attachments/a.png",
       mimeType: "image/png",
     });
 
     service.disposeAll();
 
-    expect(service.resolveJobReference("/tmp/project/main-workbench", "pic_1")).toBeUndefined();
+    expect(
+      await service.resolveJobReference("/tmp/project/main-workbench", "pic_1"),
+    ).toBeUndefined();
     await session.abort();
     await run;
   });

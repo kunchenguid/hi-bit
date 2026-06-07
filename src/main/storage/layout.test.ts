@@ -59,6 +59,7 @@ describe("profileConversationPaths", () => {
       bitSessionsDir: join(dir, "sessions", "bit"),
       conversationStatePath: join(dir, "conversation.json"),
       attachmentsDir: join(dir, "attachments"),
+      attachmentsIndexPath: join(dir, "attachments", "index.jsonl"),
     });
   });
 

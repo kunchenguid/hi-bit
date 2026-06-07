@@ -47,7 +47,8 @@ This skill builds worlds out of **boxes, spheres, and planes** - bright, blocky,
 That is the whole look for now, and it is a good one: it reads clearly and a kid can change a color in one line.
 
 When a surface needs a real picture - grass, brick, wood, a face on a block, a sky - use `generate_image` to draw a flat square image, save it under the creation (for example `assets/textures/grass.png`), and put it on a primitive with `world.texture()`.
-If your job lists reference picture ids from the builder, pass them in `reference_paths` so the texture matches that character, colors, or style:
+If your job lists reference picture ids, pass them in `reference_paths` so the texture matches that character, colors, or style.
+Those ids may name pictures the builder shared, pictures found with `search_image`, or art made by `generate_image` in this or another creation:
 
 ```js
 const grass = world.texture("assets/textures/grass.png");
