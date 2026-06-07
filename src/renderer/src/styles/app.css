@@ -1556,33 +1556,21 @@ pre {
   line-height: 1.25;
 }
 
-.hb-factory-footrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-1);
+/* Centered: live bots on the bench above, the Logbook pill below. No status
+   light - the ticker and the bobbing bot already say working vs done. */
+.hb-factory-foot {
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+  align-content: center;
   min-height: 30px;
-}
-
-.hb-factory-light {
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px var(--paper-3);
-}
-
-.hb-factory-light.is-done {
-  background: var(--success);
-}
-
-.hb-factory-light.is-working {
-  background: var(--info);
-  animation: hb-pulse 1.1s ease-in-out infinite;
 }
 
 .hb-factory-bots {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 4px;
 }
 
 .hb-factory-bot {
@@ -1628,24 +1616,57 @@ pre {
   justify-content: center;
 }
 
-/* The opened bot's Logbook, a drawer beneath the floor. */
-.hb-factory-logbook {
-  border: var(--border-pixel);
-  border-radius: var(--r-lg);
-  background: var(--paper-2);
-  padding: var(--s-2);
-  display: grid;
-  gap: var(--s-1);
-}
-
-.hb-factory-logbook-head {
-  display: flex;
+/* The Logbook pill: every finished bot collapsed into one tap target. */
+.hb-factory-logbook-pill {
+  display: inline-flex;
   align-items: center;
-  gap: var(--s-1);
+  gap: 5px;
+  padding: 4px 10px;
+  border: var(--border-pixel);
+  border-radius: var(--r-pill);
+  background: var(--paper-2);
+  box-shadow: var(--shadow-pixel-sm);
+  font-weight: 700;
+  font-size: var(--t-small-size);
+  cursor: pointer;
+  transition: transform var(--dur-quick) var(--ease-bounce);
 }
 
-.hb-factory-logbook-head strong {
-  font-size: var(--t-small-size);
+.hb-factory-logbook-pill:hover {
+  transform: translateY(-2px);
+}
+
+.hb-factory-logbook-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--paper-2);
+  font-size: 11px;
+}
+
+/* Floor + Logbook live side by side; the panel docks right when one is open. */
+.hb-factory-body {
+  display: grid;
+  gap: var(--s-2);
+  min-height: 0;
+}
+
+.hb-factory-body.is-open {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: start;
+}
+
+.hb-factory-floorcol {
+  min-width: 0;
+}
+
+/* The modal widens to give the docked Logbook room. */
+.hb-factory:has(.hb-factory-body.is-open) {
+  width: min(1080px, 100%);
 }
 
 .hb-factory-swatch {
@@ -1656,8 +1677,130 @@ pre {
   border: 2px solid var(--ink);
 }
 
-.hb-factory-steps {
+/* The docked Logbook: a master rail of bot chapters + a scrolling detail. */
+.hb-factory-logpanel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-height: clamp(240px, 60vh, 560px);
+  border: var(--border-pixel);
+  border-radius: var(--r-lg);
+  background: var(--paper-2);
+  box-shadow: var(--shadow-pixel);
+  overflow: hidden;
+}
+
+.hb-factory-logpanel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1\.5) var(--s-2);
+  border-bottom: var(--border-pixel);
+  background: var(--paper-3);
+}
+
+.hb-factory-logpanel-head strong {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--t-small-size);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hb-factory-logpanel-close {
+  flex: none;
+  width: 26px;
+  height: 26px;
   display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  box-shadow: var(--shadow-pixel-sm);
+  cursor: pointer;
+}
+
+.hb-factory-logpanel-body {
+  display: grid;
+  grid-template-columns: minmax(116px, 0.7fr) minmax(0, 1.3fr);
+  min-height: 0;
+  flex: 1;
+}
+
+.hb-factory-chapters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  align-content: start;
+  padding: var(--s-1\.5);
+  border-right: var(--border-pixel);
+  background: var(--paper-3);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.hb-factory-chapter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 2px solid var(--ink);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  box-shadow: var(--shadow-pixel-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.hb-factory-chapter.is-selected {
+  background: var(--ink);
+  color: var(--paper-2);
+}
+
+.hb-factory-chapter-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--t-small-size);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hb-factory-chapter-count {
+  flex: none;
+  font-size: 11px;
+  color: var(--ink-64);
+}
+
+.hb-factory-chapter.is-selected .hb-factory-chapter-count {
+  color: var(--paper-2);
+}
+
+.hb-factory-detail {
+  display: grid;
+  gap: var(--s-1);
+  align-content: start;
+  padding: var(--s-1\.5);
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.hb-factory-detail-head {
+  font-weight: 700;
+  font-size: var(--t-small-size);
+  position: sticky;
+  top: 0;
+  background: var(--paper-2);
+  padding-bottom: 4px;
+}
+
+.hb-factory-logsteps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
 }
 

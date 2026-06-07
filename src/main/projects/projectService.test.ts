@@ -136,6 +136,28 @@ describe("ProjectService", () => {
     expect(() => service.pathsFor(adaId, "../secret")).toThrow(/Invalid project id/);
   });
 
+  it("keeps the bot's task summary from the start row through readActivity", async () => {
+    const project = await service.create(adaId, { title: "Rocket" });
+    await service.appendActivity(adaId, project.id, {
+      type: "tool_step",
+      callId: "c1",
+      turnId: "job1",
+      toolName: "write",
+      status: "running",
+      summary: "add a star background",
+    });
+    await service.appendActivity(adaId, project.id, {
+      type: "tool_step",
+      callId: "c1",
+      turnId: "job1",
+      status: "completed",
+      content: [],
+    });
+
+    const steps = await service.readActivity(adaId, project.id);
+    expect(steps[0].summary).toBe("add a star background");
+  });
+
   it("reads persisted tool steps from the logbook, reduced by callId", async () => {
     const project = await service.create(adaId, { title: "Cat Jump" });
     await service.appendActivity(adaId, project.id, {

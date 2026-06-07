@@ -17,6 +17,18 @@ describe("applyEventToActivity", () => {
     ]);
   });
 
+  it("carries the bot's task summary onto its steps", () => {
+    const next = applyEventToActivity([], {
+      type: "tool_start",
+      ...meta({ projectId: "a", projectTitle: "Cat Jump" }),
+      callId: "c1",
+      toolName: "write",
+      args: {},
+      summary: "add a star background",
+    });
+    expect(next[0].steps[0].summary).toBe("add a star background");
+  });
+
   it("adds a running step on tool_start and completes it on tool_end", () => {
     let activity: CreationActivity[] = [];
     const events: ChatEvent[] = [

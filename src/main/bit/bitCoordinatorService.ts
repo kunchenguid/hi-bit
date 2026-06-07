@@ -710,7 +710,10 @@ export class BitCoordinatorService {
           // Surface ambient build activity (tool rows), tagged with the creation,
           // and persist start/end to the creation's logbook so it survives reloads.
           if (event.type === "tool_start") {
-            this.emit({ ...event, turnId: job.id });
+            // Carry the bot's task so the Logbook can name it by what it was
+            // asked to build, not its latest tool call. Persisted on the start
+            // row so it survives a reload (readActivity rebuilds from these).
+            this.emit({ ...event, turnId: job.id, summary: instructions });
             this.persistToolStep(profileId, project.id, {
               type: "tool_step",
               callId: event.callId,
@@ -718,6 +721,7 @@ export class BitCoordinatorService {
               toolName: event.toolName,
               status: "running",
               args: event.args,
+              summary: instructions,
             });
           } else if (event.type === "tool_update") {
             this.emit({ ...event, turnId: job.id });

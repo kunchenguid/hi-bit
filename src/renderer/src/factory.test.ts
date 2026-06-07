@@ -167,6 +167,20 @@ describe("buildFactoryFloor", () => {
     expect(floor[0].bots[0].steps).toHaveLength(1);
   });
 
+  it("exposes the bot's task summary from its steps, naming the bot", () => {
+    const withTask: ToolActivity = {
+      ...step("job1", "write", "completed"),
+      summary: "add a star background",
+    };
+    const floor = buildFactoryFloor(
+      [project("rocket", "Rocket", "2026-01-01T00:00:00.000Z")],
+      [creation("rocket", "Rocket", "done", [withTask, step("job1", "read", "completed")])],
+      new Set(),
+    );
+
+    expect(floor[0].bots[0].summary).toBe("add a star background");
+  });
+
   it("uses a running bot action before a later completed step", () => {
     const floor = buildFactoryFloor(
       [project("p", "P", "2026-01-01T00:00:00.000Z")],

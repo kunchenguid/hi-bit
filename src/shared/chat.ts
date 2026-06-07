@@ -41,6 +41,12 @@ export type ToolActivity = {
   /** Which creation a bot is building, for kid-facing labels. */
   projectId?: string;
   projectTitle?: string;
+  /**
+   * The task this step's bot was sent to do - the instructions Bit handed it.
+   * Shared by every step of the same `turnId`, so the Logbook can name a bot by
+   * what it was asked to build rather than its latest tool call.
+   */
+  summary?: string;
 };
 
 /**
@@ -121,6 +127,8 @@ export type ChatEvent =
       callId: string;
       toolName: string;
       args: unknown;
+      /** The bot's task (Bit's instructions), so the Logbook can label the bot. */
+      summary?: string;
     } & ChatEventMeta)
   | ({
       type: "tool_update";

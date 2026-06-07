@@ -51,6 +51,7 @@ export function applyEventToActivity(
         turnId: event.turnId,
         projectId: event.projectId,
         projectTitle: event.projectTitle,
+        summary: event.summary,
       };
       return upsertStep(activity, event, step, (steps) => [
         ...steps.filter((existing) => !isSameStep(existing, event)),

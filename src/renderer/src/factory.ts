@@ -17,6 +17,8 @@ export type BotLane = {
   working: boolean;
   /** What the bot is doing now (its running step) or last did, in kid words. */
   latestAction: string;
+  /** The bot's task - what Bit asked it to build. Names the bot in the Logbook. */
+  summary?: string;
   /** This bot's steps, in the order they happened - its Logbook. */
   steps: ToolActivity[];
 };
@@ -67,6 +69,7 @@ function lanesFor(activity: CreationActivity | undefined): BotLane[] {
       hue: botHue(botId),
       working,
       latestAction: headline ? friendlyStep(headline.toolName) : "getting started",
+      summary: steps.find((step) => step.summary)?.summary,
       steps,
     } satisfies BotLane;
   });
@@ -83,6 +86,7 @@ function lanesFor(activity: CreationActivity | undefined): BotLane[] {
       hue: botHue(activity.projectId),
       working: true,
       latestAction: "getting started",
+      summary: undefined,
       steps: [],
     });
   }
