@@ -47,7 +47,9 @@ class FakeBitSession implements BitSession {
   accessTokens: string[] = [];
   promptTexts: string[] = [];
   promptOptions: BitPromptOptions[] = [];
+  blockPrompt = false;
   private listeners: Array<(event: unknown) => void> = [];
+  private unblock: (() => void) | undefined;
 
   subscribe(listener: (event: unknown) => void): () => void {
     this.listeners.push(listener);
@@ -73,10 +75,21 @@ class FakeBitSession implements BitSession {
     });
     // Bit's own tool execution should not surface as chat activity.
     this.emit({ type: "tool_execution_start", toolCallId: "c1", toolName: "delegate_build" });
+    if (this.blockPrompt) {
+      await new Promise<void>((resolve) => {
+        this.unblock = resolve;
+      });
+    }
   }
 
   async abort(): Promise<void> {}
-  dispose(): void {}
+  dispose(): void {
+    this.unblock?.();
+  }
+
+  finishPrompt(): void {
+    this.unblock?.();
+  }
 
   private emit(event: unknown): void {
     for (const listener of this.listeners) listener(event);
@@ -297,6 +310,35 @@ describe("BitRuntimeService", () => {
 
     await service.prompt(baseInput(), "first", () => {});
     service.setThinkingLevel("xhigh");
+    await service.prompt(baseInput(), "second", () => {});
+
+    expect(levels).toEqual(["medium", "xhigh"]);
+    expect(disposed).toEqual(["medium"]);
+  });
+
+  it("rebuilds a running Bit session after setThinkingLevel once the turn finishes", async () => {
+    const levels: string[] = [];
+    const disposed: string[] = [];
+    const sessions: FakeBitSession[] = [];
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        levels.push(input.thinkingLevel);
+        const session = new FakeBitSession();
+        session.blockPrompt = sessions.length === 0;
+        session.dispose = () => disposed.push(input.thinkingLevel);
+        sessions.push(session);
+        return session;
+      },
+    });
+
+    const firstPrompt = service.prompt(baseInput(), "first", () => {});
+    await vi.waitFor(() => expect(service.isRunning("ada")).toBe(true));
+    service.setThinkingLevel("xhigh");
+    sessions[0].finishPrompt();
+    await firstPrompt;
+    sessions[0].blockPrompt = false;
     await service.prompt(baseInput(), "second", () => {});
 
     expect(levels).toEqual(["medium", "xhigh"]);

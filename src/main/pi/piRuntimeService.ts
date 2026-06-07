@@ -80,6 +80,7 @@ type PiRuntimeServiceOptions = {
 type RunningTurn = {
   turnId: string;
   session: RuntimePiSession;
+  thinkingLevel: ThinkingSpeed;
   cancelled: boolean;
 };
 
@@ -167,7 +168,12 @@ export class PiRuntimeService {
       projectTitle: project.title,
       turnId,
     };
-    const running: RunningTurn = { turnId, session, cancelled: false };
+    const running: RunningTurn = {
+      turnId,
+      session,
+      thinkingLevel: this.thinkingLevel,
+      cancelled: false,
+    };
     this.running.set(runtimeKey, running);
     // Make the builder's reference pictures resolvable for generate_image while
     // this turn runs, keyed by the Workbench cwd the tool sees.
@@ -202,6 +208,15 @@ export class PiRuntimeService {
       this.running.delete(runtimeKey);
       this.jobReferences.delete(project.mainWorkbenchDir);
       this.jobProfiles.delete(project.mainWorkbenchDir);
+      if (
+        running.thinkingLevel !== this.thinkingLevel &&
+        this.sessions.get(runtimeKey) === session
+      ) {
+        session.dispose();
+        this.sessions.delete(runtimeKey);
+        this.browsers.get(runtimeKey)?.dispose();
+        this.browsers.delete(runtimeKey);
+      }
     }
 
     const result: SendPromptResult = { turnId, status, sessionFile: session.sessionFile, error };

@@ -108,6 +108,7 @@ type BitRuntimeServiceOptions = {
 type RunningTurn = {
   turnId: string;
   session: BitSession;
+  thinkingLevel: ThinkingSpeed;
   cancelled: boolean;
 };
 
@@ -192,7 +193,12 @@ export class BitRuntimeService implements BitRuntime {
     session.setAccessToken?.(accessToken);
 
     const turnId = randomUUID();
-    const running: RunningTurn = { turnId, session, cancelled: false };
+    const running: RunningTurn = {
+      turnId,
+      session,
+      thinkingLevel: this.thinkingLevel,
+      cancelled: false,
+    };
     this.running.set(profileId, running);
     // Route this turn's picture saves (search_image) to the running profile,
     // keyed by the conversation dir Bit's tools see as cwd.
@@ -227,6 +233,13 @@ export class BitRuntimeService implements BitRuntime {
       unsubscribe();
       this.running.delete(profileId);
       this.turnProfiles.delete(input.conversationDir);
+      if (
+        running.thinkingLevel !== this.thinkingLevel &&
+        this.sessions.get(profileId) === session
+      ) {
+        session.dispose();
+        this.sessions.delete(profileId);
+      }
     }
 
     await this.options.onSessionFile?.(profileId, session.sessionFile);
