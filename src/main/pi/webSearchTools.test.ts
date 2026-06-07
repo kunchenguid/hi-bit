@@ -512,7 +512,7 @@ describe("search_image tool", () => {
     expect((result.content as Part[]).some((p) => p.type === "image")).toBe(true);
   });
 
-  it("still returns the picture to look at when persistence fails", async () => {
+  it("fails explicitly when a configured image store cannot persist a found picture", async () => {
     const tools = createWebSearchTools({
       getFreshAccessToken: async () => fakeCodexToken(),
       responsesUrl: RESPONSES_URL,
@@ -532,10 +532,9 @@ describe("search_image tool", () => {
       },
     });
 
-    const result = await run(findTool(tools, "search_image"), { query: "cat" });
-
-    expect((result.content as Part[]).some((p) => p.type === "image")).toBe(true);
-    expect(result.details?.referenceIds).toEqual([]);
+    await expect(run(findTool(tools, "search_image"), { query: "cat" })).rejects.toThrow(
+      "disk full",
+    );
   });
 
   it("resolves a page link by reading its og:image when the search returns no direct image", async () => {

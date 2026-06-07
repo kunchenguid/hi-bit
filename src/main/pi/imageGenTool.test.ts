@@ -131,7 +131,7 @@ describe("generate_image tool", () => {
     expect((result.details as { referenceId?: string }).referenceId).toBe("img_gen_1");
   });
 
-  it("still saves the image when mirroring to the store fails", async () => {
+  it("fails explicitly when a configured image store cannot persist generated art", async () => {
     const cwd = await makeCwd();
     const tool = createGenerateImageTool({
       getFreshAccessToken: async () => fakeCodexToken(),
@@ -141,7 +141,7 @@ describe("generate_image tool", () => {
       },
     });
 
-    const result = await tool.execute(
+    const result = tool.execute(
       "call-persist-fail",
       { prompt: "a cat", fileName: "cat.png" },
       undefined,
@@ -149,8 +149,8 @@ describe("generate_image tool", () => {
       { cwd } as unknown as Parameters<typeof tool.execute>[4],
     );
 
+    await expect(result).rejects.toThrow("disk full");
     expect(await readFile(join(cwd, "cat.png"), "utf8")).toBe("ok");
-    expect((result.details as { referenceId?: string }).referenceId).toBeUndefined();
   });
 
   it("resolves a reference id through an async store lookup (e.g. art from another creation)", async () => {

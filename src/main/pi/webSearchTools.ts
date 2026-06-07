@@ -53,8 +53,8 @@ const IMAGE_ACCEPT = "image/*,text/html;q=0.9,*/*;q=0.8";
  */
 const BROWSER_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-/** Cap a single downloaded picture; gpt-5.5 vision tops out around 2.5MP at high detail. */
-const MAX_IMAGE_BYTES = 6_000_000;
+/** Cap a single downloaded picture to the shared profile image-store limit. */
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 /**
  * Downscale a picture so its longest edge is at most this many pixels before the
  * model sees it. gpt-5.5 vision already downsamples to ~2.5MP / 2048px and tiles
@@ -887,17 +887,13 @@ export function createWebSearchTools(deps: WebSearchToolDeps): ToolDefinition[] 
         if (resolved) {
           images.push({ type: "image", data: resolved.data, mimeType: resolved.mimeType });
           sources.push(resolved.source);
-          // Persist the picture so the model can reuse it as a reference later.
-          // A failed save just means no id - the picture is still shown to look at.
           if (deps.persistImage && cwd) {
-            const saved = await deps
-              .persistImage(cwd, {
-                data: resolved.data,
-                mimeType: resolved.mimeType,
-                source: "searched",
-                meta: { query, sourceUrl: resolved.source },
-              })
-              .catch(() => undefined);
+            const saved = await deps.persistImage(cwd, {
+              data: resolved.data,
+              mimeType: resolved.mimeType,
+              source: "searched",
+              meta: { query, sourceUrl: resolved.source },
+            });
             if (saved) referenceIds.push(saved.id);
           }
         }

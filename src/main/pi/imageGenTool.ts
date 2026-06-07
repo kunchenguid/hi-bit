@@ -358,19 +358,14 @@ export function createGenerateImageTool(deps: GenerateImageToolDeps): ToolDefini
 
       const relPath = relative(cwd, target);
 
-      // Mirror the art into the profile's image store so it can be reused as a
-      // reference later - including from another creation. A failed save just
-      // means no shared id; the picture is already saved in this creation.
       let referenceId: string | undefined;
       if (deps.persistImage) {
-        const saved = await deps
-          .persistImage(cwd, {
-            data: parsed.imageBase64,
-            mimeType: OUTPUT_MIME[outputFormat],
-            source: "generated",
-            meta: { prompt: params.prompt, savedPath: relPath },
-          })
-          .catch(() => undefined);
+        const saved = await deps.persistImage(cwd, {
+          data: parsed.imageBase64,
+          mimeType: OUTPUT_MIME[outputFormat],
+          source: "generated",
+          meta: { prompt: params.prompt, savedPath: relPath },
+        });
         referenceId = saved?.id;
       }
 
