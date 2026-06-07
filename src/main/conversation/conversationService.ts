@@ -39,6 +39,7 @@ function attachmentId(image: ChatImage): string | undefined {
 function attachmentSummary(message: ChatMessage): AttachmentSummary | undefined {
   const image = message.image;
   if (!image?.path) return undefined;
+  if (!isStoredAttachmentPath(image.path)) return undefined;
   const id = attachmentId(image);
   if (!id) return undefined;
   return {
@@ -48,6 +49,11 @@ function attachmentSummary(message: ChatMessage): AttachmentSummary | undefined 
     sharedAt: message.createdAt,
     messageText: message.text,
   };
+}
+
+function isStoredAttachmentPath(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/");
+  return normalized === `attachments/${basename(normalized)}`;
 }
 
 type ConversationStateRecord = {

@@ -518,7 +518,10 @@ describe("BitCoordinatorService (Bit)", () => {
     const data = Buffer.from("pretend-cat").toString("base64");
 
     s.bit.handler = async () => "Cute cat!";
-    await s.coordinator.send(s.profile.id, "look at my purple cat", { mimeType: "image/png", data });
+    await s.coordinator.send(s.profile.id, "look at my purple cat", {
+      mimeType: "image/png",
+      data,
+    });
     await s.drain();
 
     s.bit.handler = async ({ callTool }) => {
@@ -550,6 +553,37 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.drain();
 
     expect(toolText).toContain("missing-picture");
+    expect(s.bot.prompts).toHaveLength(0);
+    expect(s.pipeline.prepared).toHaveLength(0);
+  });
+
+  it("does not start a build when a requested builder picture path escapes attachments", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let toolText = "";
+
+    await s.conversation.appendMessage(s.profile.id, {
+      id: "u1",
+      role: "user",
+      text: "old cat",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: { id: "escaped-picture", mimeType: "image/png", path: "../outside.png" },
+    });
+
+    s.bit.handler = async ({ callTool }) => {
+      const result = (await callTool("delegate_build", {
+        creationId: game.id,
+        instructions: "use the old cat",
+        referencePictureIds: ["escaped-picture"],
+      })) as { content: Array<{ text: string }> };
+      toolText = result.content.map((item) => item.text).join("\n");
+      return "I'll ask again.";
+    };
+
+    await s.coordinator.send(s.profile.id, "use my old cat picture");
+    await s.drain();
+
+    expect(toolText).toContain("escaped-picture");
     expect(s.bot.prompts).toHaveLength(0);
     expect(s.pipeline.prepared).toHaveLength(0);
   });
