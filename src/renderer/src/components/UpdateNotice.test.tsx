@@ -79,6 +79,17 @@ describe("UpdateNotice", () => {
     expect(copyButton?.textContent).toBe("Copied");
   });
 
+  it("does not show copied when clipboard writing is unavailable", async () => {
+    Object.assign(navigator, { clipboard: undefined });
+
+    act(() => root.render(<UpdateNotice status={updateAvailable} />));
+    const copyButton = host.querySelector<HTMLButtonElement>('[aria-label="copy update command"]');
+    act(() => copyButton?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await flush();
+
+    expect(copyButton?.textContent).toBe("Copy");
+  });
+
   it("opens the release notes page through the bridge", () => {
     const openReleasePage = vi.fn(async () => {});
     (window as unknown as { hibit: unknown }).hibit = { app: { openReleasePage } };

@@ -30,8 +30,10 @@ export function UpdateNotice({ status }: UpdateNoticeProps) {
   if (!status.updateAvailable) return null;
 
   async function copyCommand() {
+    if (!navigator.clipboard?.writeText) return;
+
     try {
-      await navigator.clipboard?.writeText(UPGRADE_COMMAND);
+      await navigator.clipboard.writeText(UPGRADE_COMMAND);
       setCopied(true);
       if (copyResetRef.current) clearTimeout(copyResetRef.current);
       copyResetRef.current = setTimeout(() => setCopied(false), 2000);
