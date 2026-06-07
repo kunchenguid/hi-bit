@@ -25,6 +25,7 @@ const DEFAULT_MODEL = "gpt-5.5";
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const MAX_RETRIES = 2;
 const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_TOTAL_REFERENCE_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const OUTPUT_FORMATS = { png: "png", jpg: "jpeg", jpeg: "jpeg", webp: "webp" } as const;
 type OutputFormat = "png" | "jpeg" | "webp";
@@ -139,7 +140,8 @@ async function buildReferenceBlocks(
   resolveReference?: GenerateImageToolDeps["resolveReference"],
 ): Promise<ImageContentBlock[]> {
   if (!referencePaths?.length) return [];
-  const blocks: ImageContentBlock[] = [];
+  const targets: Array<ReferenceTarget & { ref: string }> = [];
+  let totalSize = 0;
   for (const ref of referencePaths) {
     const { path, mimeType } = resolveReferenceTarget(cwd, ref, resolveReference);
     let size: number;
@@ -151,6 +153,15 @@ async function buildReferenceBlocks(
     if (size > MAX_REFERENCE_IMAGE_BYTES) {
       throw new Error(`The reference image "${ref}" is too large. Use an image under 5 MB.`);
     }
+    totalSize += size;
+    if (totalSize > MAX_TOTAL_REFERENCE_IMAGE_BYTES) {
+      throw new Error("The reference images are too large. Use 10 MB or less total.");
+    }
+    targets.push({ ref, path, mimeType });
+  }
+
+  const blocks: ImageContentBlock[] = [];
+  for (const { ref, path, mimeType } of targets) {
     let bytes: Buffer;
     try {
       bytes = await readFile(path);

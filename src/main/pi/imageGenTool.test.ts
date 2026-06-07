@@ -305,6 +305,37 @@ describe("generate_image tool", () => {
     expect(fetched).toBe(false);
   });
 
+  it("rejects reference images whose total bytes are too large before calling Codex", async () => {
+    const cwd = await makeCwd();
+    await mkdir(dirname(join(cwd, "images/ref-1.png")), { recursive: true });
+    await writeFile(join(cwd, "images/ref-1.png"), Buffer.alloc(4 * 1024 * 1024));
+    await writeFile(join(cwd, "images/ref-2.png"), Buffer.alloc(4 * 1024 * 1024));
+    await writeFile(join(cwd, "images/ref-3.png"), Buffer.alloc(4 * 1024 * 1024));
+    let fetched = false;
+    const tool = createGenerateImageTool({
+      getFreshAccessToken: async () => fakeCodexToken(),
+      fetchFn: async () => {
+        fetched = true;
+        return sseResponse([imageDoneEvent(Buffer.from("x").toString("base64"))]);
+      },
+    });
+
+    await expect(
+      tool.execute(
+        "call-ref7",
+        {
+          prompt: "x",
+          fileName: "x.png",
+          reference_paths: ["images/ref-1.png", "images/ref-2.png", "images/ref-3.png"],
+        },
+        undefined,
+        undefined,
+        { cwd } as unknown as Parameters<typeof tool.execute>[4],
+      ),
+    ).rejects.toThrow(/reference images.*too large/i);
+    expect(fetched).toBe(false);
+  });
+
   it("refuses to write outside the workbench", async () => {
     const cwd = await makeCwd();
     let fetched = false;
