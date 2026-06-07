@@ -25,6 +25,8 @@ const player = { x: 300, y: 320, w: 36, h: 24 };
 const bullets = []; // pool: each { active, x, y, w, h }
 const enemies = []; // each { alive, x, y, w, h }
 let fireTimer = 0;
+GameSave.namespace("shooter");
+let best = GameSave.load("best", 0);
 let score = 0;
 
 // reuse an inactive bullet, or grow the pool by one
@@ -72,6 +74,7 @@ function update(dt) {
         b.active = false;
         e.alive = false;
         score += 1;
+        if (score > best) { best = score; GameSave.save("best", best); }
       }
     }
   }
@@ -97,7 +100,7 @@ function draw(ctx) {
 
   ctx.fillStyle = "#fff";
   ctx.font = "20px sans-serif";
-  ctx.fillText("Score: " + score, 12, 28);
+  ctx.fillText("Score: " + score + "  Best: " + best, 12, 28);
 }
 ```
 
@@ -106,6 +109,7 @@ function draw(ctx) {
 - **Enemies that move**: slide the whole wave side to side, or drift it downward each wave.
 - **Enemies shoot back**: give enemies their own bullet pool moving downward; if one overlaps the player, lose a life.
 - **Lives and game over**: track `lives`; at zero switch to an "over" scene (see `game-loop.md`).
+- **Saving**: save the best score, unlocked weapons, or highest wave with `GameSave.save(...)` when they change.
 - **Real art**: the game-assets skill makes the ship, the enemy, and a glowing projectile (use `fit` for the projectile). Draw the sprite at each object's `x, y`; the box stays the hitbox.
 
 ## Why the pool

@@ -27,6 +27,8 @@ const player = world.addBox({ x: 0, y: 1, z: 14, w: 1.5, h: 1, d: 2, color: "#ff
 const shots = [];   // pool: each is a body with an `active` flag
 const targets = []; // each is a body with an `alive` flag
 let fireTimer = 0;
+GameSave.namespace("blaster-3d");
+let best = GameSave.load("best", 0);
 let score = 0;
 
 function getShot() {
@@ -81,6 +83,7 @@ function update(dt) {
         s.active = false; s.mesh.visible = false;
         t.alive = false; t.mesh.visible = false;
         score += 1;
+        if (score > best) { best = score; GameSave.save("best", best); }
       }
     }
   }
@@ -93,7 +96,7 @@ function update(dt) {
   }
 
   HiBit3D.followCamera(world, player, { distance: 8, height: 5 });
-  if (hud) hud.textContent = "Score: " + score;
+  if (hud) hud.textContent = "Score: " + score + "  Best: " + best;
 }
 ```
 
@@ -103,6 +106,7 @@ function update(dt) {
 - **Targets shoot back**: give targets their own shot pool moving toward the player; if one overlaps the player, lose a life.
 - **Lives and game over**: track `lives`; at zero switch to an "over" scene and let `input.wasPressed("action")` restart.
 - **Aim with the mouse**: use first-person look (see `world-loop.md`) and fire shots in the direction the camera faces.
+- **Saving**: save the best score, unlocked weapons, or highest wave with `GameSave.save(...)` when they change.
 - **Real look**: texture the ship and the targets with `generate_image` pictures via `world.texture(...)`.
 
 ## Why the pool

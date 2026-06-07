@@ -68,7 +68,7 @@ You only have to zero out `vy` when `hit.y` is not 0.
 
 ## Add-ons, one at a time
 
-- **Coins / pickups**: an array of small boxes or spheres; in `update`, if `HiBit3D.overlap(player, coin)` then hide its mesh (`coin.mesh.visible = false`), remove it from the array, and `score++`.
+- **Coins / pickups**: an array of small boxes or spheres; in `update`, if `HiBit3D.overlap(player, coin)` then hide its mesh (`coin.mesh.visible = false`), remove it from the array, `score++`, and save the coin total or cleared level with `GameSave.save(...)`.
 - **Moving platforms**: change a platform's `x` or `y` each frame; the player riding it is handled because collide pushes them out each tick.
 - **Double jump**: count jumps since the last landing; allow a second one in the air.
 - **Real look**: texture the platforms and the player's box with `generate_image` pictures via `world.texture(...)`.

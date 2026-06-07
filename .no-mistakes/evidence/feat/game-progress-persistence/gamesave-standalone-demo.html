@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GameSave Persistence Evidence</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f7f3e8;
+        color: #1e293b;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+      }
+      main {
+        width: min(920px, 100%);
+        border: 6px solid #1e293b;
+        border-radius: 28px;
+        background: #fffdf7;
+        box-shadow: 0 24px 0 #d4a373, 0 30px 45px rgb(30 41 59 / 0.18);
+        overflow: hidden;
+      }
+      header {
+        background: linear-gradient(135deg, #5b8def, #8b5cf6);
+        color: white;
+        padding: 28px 32px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(30px, 5vw, 54px);
+        line-height: 0.95;
+        letter-spacing: -0.05em;
+      }
+      .subtitle {
+        margin: 12px 0 0;
+        max-width: 720px;
+        font-size: 18px;
+        line-height: 1.45;
+      }
+      section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 0.65fr);
+        gap: 24px;
+        padding: 28px 32px 34px;
+      }
+      .game-card,
+      .proof-card {
+        border: 3px solid #1e293b;
+        border-radius: 22px;
+        background: #fff7d6;
+        padding: 22px;
+      }
+      .proof-card {
+        background: #ecfeff;
+      }
+      .level {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        margin: 22px 0;
+      }
+      .level strong {
+        font-size: 88px;
+        line-height: 1;
+        color: #f97316;
+        text-shadow: 4px 4px 0 #1e293b;
+      }
+      button {
+        border: 3px solid #1e293b;
+        border-radius: 16px;
+        background: #22c55e;
+        color: #052e16;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 900;
+        padding: 14px 18px;
+        box-shadow: 0 6px 0 #1e293b;
+      }
+      button + button {
+        margin-left: 10px;
+      }
+      button.secondary {
+        background: #f8fafc;
+        color: #1e293b;
+      }
+      dl {
+        margin: 0;
+        display: grid;
+        gap: 14px;
+      }
+      dt {
+        font-weight: 900;
+      }
+      dd {
+        margin: 4px 0 0;
+        overflow-wrap: anywhere;
+      }
+      .status {
+        display: inline-flex;
+        margin-top: 18px;
+        border: 3px solid #1e293b;
+        border-radius: 999px;
+        background: #bbf7d0;
+        padding: 8px 14px;
+        font-weight: 900;
+      }
+      @media (max-width: 760px) {
+        body {
+          padding: 18px;
+        }
+        section {
+          grid-template-columns: 1fr;
+          padding: 22px;
+        }
+        header {
+          padding: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Saved Game Progress Survives Replay</h1>
+        <p class="subtitle">
+          This standalone game page uses the same GameSave API added to Hi-Bit's 2D and 3D game templates.
+          It stores progress in browser localStorage, so the save works outside Hi-Bit on a normal website origin too.
+        </p>
+      </header>
+      <section>
+        <div class="game-card" aria-label="demo game">
+          <h2>Crystal Cave</h2>
+          <p>Press Level Up, reload the page, and the game restores the saved level from localStorage.</p>
+          <div class="level">
+            <span>Level</span>
+            <strong id="level">1</strong>
+          </div>
+          <button id="level-up" type="button">Level Up and Save</button>
+          <button id="reset" type="button" class="secondary">Reset Save</button>
+          <div id="status" class="status" role="status">Waiting for play.</div>
+        </div>
+        <aside class="proof-card" aria-label="persistence proof">
+          <h2>Evidence</h2>
+          <dl>
+            <div>
+              <dt>Origin</dt>
+              <dd id="origin"></dd>
+            </div>
+            <div>
+              <dt>Storage key</dt>
+              <dd><code>crystal-cave:progress</code></dd>
+            </div>
+            <div>
+              <dt>Loaded save</dt>
+              <dd id="loaded-save"></dd>
+            </div>
+            <div>
+              <dt>Current localStorage value</dt>
+              <dd id="stored-value"></dd>
+            </div>
+          </dl>
+        </aside>
+      </section>
+    </main>
+    <script>
+      const GameSave = (() => {
+        let prefix = "game:";
+        const keyFor = (name) => prefix + (name || "save");
+        return {
+          namespace(name) {
+            if (name) prefix = `${name}:`;
+          },
+          load(name, fallback = null) {
+            try {
+              const raw = localStorage.getItem(keyFor(name));
+              return raw === null ? fallback : JSON.parse(raw);
+            } catch {
+              return fallback;
+            }
+          },
+          save(name, value) {
+            try {
+              localStorage.setItem(keyFor(name), JSON.stringify(value));
+              return true;
+            } catch {
+              return false;
+            }
+          },
+          clear(name) {
+            try {
+              localStorage.removeItem(keyFor(name));
+            } catch {}
+          },
+        };
+      })();
+
+      GameSave.namespace("crystal-cave");
+      const fallback = { level: 1, visits: 0 };
+      const loaded = GameSave.load("progress", fallback);
+      let progress = { level: loaded.level, visits: loaded.visits + 1 };
+      GameSave.save("progress", progress);
+
+      const level = document.querySelector("#level");
+      const status = document.querySelector("#status");
+      const loadedSave = document.querySelector("#loaded-save");
+      const storedValue = document.querySelector("#stored-value");
+      const origin = document.querySelector("#origin");
+
+      function render(message) {
+        level.textContent = String(progress.level);
+        status.textContent = message;
+        loadedSave.textContent = JSON.stringify(loaded);
+        storedValue.textContent = localStorage.getItem("crystal-cave:progress");
+        origin.textContent = window.location.origin;
+      }
+
+      document.querySelector("#level-up").addEventListener("click", () => {
+        progress = { ...progress, level: progress.level + 1 };
+        const saved = GameSave.save("progress", progress);
+        render(saved ? "Progress saved. Reload to prove it comes back." : "Save failed; storage was unavailable.");
+      });
+
+      document.querySelector("#reset").addEventListener("click", () => {
+        GameSave.clear("progress");
+        progress = { ...fallback };
+        render("Save reset.");
+      });
+
+      render(loaded.level > 1 ? "Progress restored from localStorage after replay." : "Fresh game started and saved.");
+    </script>
+  </body>
+</html>

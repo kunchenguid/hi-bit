@@ -70,6 +70,9 @@ That is a complete, playable game: a square you move with the arrow keys or WASD
 
 **Collision.** `HiBitGame.overlap(a, b)` is true when two boxes touch. A box is `{ x, y, w, h }`. This one check powers landing on platforms, getting hit, picking things up, and clicking targets.
 
+**Saving progress.** `GameSave` stores small JSON values in `localStorage`, so progress works inside Hi-Bit and when the game is opened somewhere else.
+Call `GameSave.namespace("my-game")` once, `GameSave.load(...)` when the game starts, and `GameSave.save(...)` when a high score, level, coin total, or unlock changes.
+
 **Stopping the loop.** `run` returns a `stop` function. Use it to clean up before a restart, or when leaving the game:
 
 ```js
@@ -95,6 +98,8 @@ Hold the current scene in a variable and branch on it. This keeps a start screen
 
 ```js
 let scene = "title"; // "title" | "playing" | "over"
+GameSave.namespace("starter");
+let best = GameSave.load("best", 0);
 let score = 0;
 
 function update(dt) {
@@ -102,6 +107,8 @@ function update(dt) {
     if (input.wasPressed("action")) { scene = "playing"; score = 0; }
     return;
   }
+  // When your real game ends, update best once before switching scenes.
+  // if (playerLost) { best = Math.max(best, score); GameSave.save("best", best); scene = "over"; }
   if (scene === "over") {
     if (input.wasPressed("action")) scene = "title";
     return;
@@ -111,8 +118,8 @@ function update(dt) {
 
 function draw(ctx) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (scene === "title") { drawCenteredText("Press Space to start"); return; }
-  if (scene === "over") { drawCenteredText("Game over - score " + score); return; }
+  if (scene === "title") { drawCenteredText("Press Space to start - best " + best); return; }
+  if (scene === "over") { drawCenteredText("Game over - score " + score + " best " + best); return; }
   // draw the playing scene
 }
 
