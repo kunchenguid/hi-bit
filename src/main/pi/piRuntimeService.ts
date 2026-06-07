@@ -84,8 +84,13 @@ type RunningTurn = {
   cancelled: boolean;
 };
 
+type CachedRuntimeSession = {
+  session: RuntimePiSession;
+  thinkingLevel: ThinkingSpeed;
+};
+
 export class PiRuntimeService {
-  private readonly sessions = new Map<string, RuntimePiSession>();
+  private readonly sessions = new Map<string, CachedRuntimeSession>();
   private readonly running = new Map<string, RunningTurn>();
   /** One headless browser per bot session, torn down with the session. */
   private readonly browsers = new Map<string, HeadlessBrowserHost>();
@@ -158,7 +163,8 @@ export class PiRuntimeService {
     }
 
     const accessToken = await this.options.getFreshAccessToken();
-    const session = await this.getOrCreateSession(project, accessToken);
+    const cached = await this.getOrCreateSession(project, accessToken);
+    const { session } = cached;
     session.setAccessToken?.(accessToken);
 
     const turnId = randomUUID();
@@ -171,7 +177,7 @@ export class PiRuntimeService {
     const running: RunningTurn = {
       turnId,
       session,
-      thinkingLevel: this.thinkingLevel,
+      thinkingLevel: cached.thinkingLevel,
       cancelled: false,
     };
     this.running.set(runtimeKey, running);
@@ -210,7 +216,7 @@ export class PiRuntimeService {
       this.jobProfiles.delete(project.mainWorkbenchDir);
       if (
         running.thinkingLevel !== this.thinkingLevel &&
-        this.sessions.get(runtimeKey) === session
+        this.sessions.get(runtimeKey)?.session === session
       ) {
         session.dispose();
         this.sessions.delete(runtimeKey);
@@ -233,11 +239,11 @@ export class PiRuntimeService {
   }
 
   getMessages(projectId: string): unknown[] {
-    return this.sessions.get(projectId)?.messages ?? [];
+    return this.sessions.get(projectId)?.session.messages ?? [];
   }
 
   disposeProject(projectId: string): void {
-    this.sessions.get(projectId)?.dispose();
+    this.sessions.get(projectId)?.session.dispose();
     this.sessions.delete(projectId);
     this.browsers.get(projectId)?.dispose();
     this.browsers.delete(projectId);
@@ -251,9 +257,9 @@ export class PiRuntimeService {
   setThinkingLevel(level: ThinkingSpeed): void {
     if (this.thinkingLevel === level) return;
     this.thinkingLevel = level;
-    for (const [key, session] of this.sessions) {
+    for (const [key, cached] of this.sessions) {
       if (this.running.has(key)) continue;
-      session.dispose();
+      cached.session.dispose();
       this.sessions.delete(key);
       this.browsers.get(key)?.dispose();
       this.browsers.delete(key);
@@ -261,8 +267,8 @@ export class PiRuntimeService {
   }
 
   disposeAll(): void {
-    for (const session of this.sessions.values()) {
-      session.dispose();
+    for (const cached of this.sessions.values()) {
+      cached.session.dispose();
     }
     for (const browser of this.browsers.values()) {
       browser.dispose();
@@ -302,10 +308,11 @@ export class PiRuntimeService {
   private async getOrCreateSession(
     project: RuntimeProject,
     accessToken: string,
-  ): Promise<RuntimePiSession> {
+  ): Promise<CachedRuntimeSession> {
     const runtimeKey = runtimeKeyFor(project);
     const existing = this.sessions.get(runtimeKey);
     if (existing) return existing;
+    const thinkingLevel = this.thinkingLevel;
     // A bot gets its own headless browser (and the browser_* tools over it) for
     // this session; it never sees the kid's screen or the app_* tools.
     let customTools = this.customTools;
@@ -320,7 +327,7 @@ export class PiRuntimeService {
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
-      thinkingLevel: this.thinkingLevel,
+      thinkingLevel,
       customTools,
       skillsDir: this.options.skillsDir,
     }).catch((error) => {
@@ -328,8 +335,9 @@ export class PiRuntimeService {
       this.browsers.delete(runtimeKey);
       throw error;
     });
-    this.sessions.set(runtimeKey, session);
-    return session;
+    const cached = { session, thinkingLevel };
+    this.sessions.set(runtimeKey, cached);
+    return cached;
   }
 }
 

@@ -469,4 +469,38 @@ describe("PiRuntimeService thinking level", () => {
     expect(levels).toEqual(["medium", "minimal"]);
     expect(disposed).toEqual(["medium"]);
   });
+
+  it("rebuilds a bot session when thinking changes while the session is being created", async () => {
+    const levels: string[] = [];
+    const disposed: string[] = [];
+    const sessions: FakeSession[] = [];
+    let resolveCreate: (() => void) | undefined;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async (input) => {
+        levels.push(input.thinkingLevel);
+        if (sessions.length === 0) {
+          await new Promise<void>((resume) => {
+            resolveCreate = resume;
+          });
+        }
+        const session = new FakeSession();
+        session.dispose = () => disposed.push(input.thinkingLevel);
+        sessions.push(session);
+        return session;
+      },
+    });
+
+    const firstPrompt = service.sendPrompt(project(), "first", () => {});
+    await vi.waitFor(() => expect(levels).toEqual(["medium"]));
+    service.setThinkingLevel("minimal");
+    resolveCreate?.();
+    await firstPrompt;
+    await service.sendPrompt(project(), "second", () => {});
+
+    expect(sessions).toHaveLength(2);
+    expect(levels).toEqual(["medium", "minimal"]);
+    expect(disposed).toEqual(["medium"]);
+  });
 });

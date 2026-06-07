@@ -112,6 +112,11 @@ type RunningTurn = {
   cancelled: boolean;
 };
 
+type CachedBitSession = {
+  session: BitSession;
+  thinkingLevel: ThinkingSpeed;
+};
+
 /**
  * Runs the per-profile Bit Pi session. One persistent session per profile,
  * created with custom delegation tools, jailed profile tools, and no built-in
@@ -120,7 +125,7 @@ type RunningTurn = {
  * activity.
  */
 export class BitRuntimeService implements BitRuntime {
-  private readonly sessions = new Map<string, BitSession>();
+  private readonly sessions = new Map<string, CachedBitSession>();
   private readonly running = new Map<string, RunningTurn>();
   private readonly createSession: (input: CreateBitSessionInput) => Promise<BitSession>;
   private readonly modelId: string;
@@ -189,14 +194,15 @@ export class BitRuntimeService implements BitRuntime {
     }
 
     const accessToken = await this.options.getFreshAccessToken();
-    const session = await this.getOrCreateSession(input, accessToken);
+    const cached = await this.getOrCreateSession(input, accessToken);
+    const { session } = cached;
     session.setAccessToken?.(accessToken);
 
     const turnId = randomUUID();
     const running: RunningTurn = {
       turnId,
       session,
-      thinkingLevel: this.thinkingLevel,
+      thinkingLevel: cached.thinkingLevel,
       cancelled: false,
     };
     this.running.set(profileId, running);
@@ -235,7 +241,7 @@ export class BitRuntimeService implements BitRuntime {
       this.turnProfiles.delete(input.conversationDir);
       if (
         running.thinkingLevel !== this.thinkingLevel &&
-        this.sessions.get(profileId) === session
+        this.sessions.get(profileId)?.session === session
       ) {
         session.dispose();
         this.sessions.delete(profileId);
@@ -259,7 +265,7 @@ export class BitRuntimeService implements BitRuntime {
   }
 
   dispose(profileId: string): void {
-    this.sessions.get(profileId)?.dispose();
+    this.sessions.get(profileId)?.session.dispose();
     this.sessions.delete(profileId);
   }
 
@@ -271,16 +277,16 @@ export class BitRuntimeService implements BitRuntime {
   setThinkingLevel(level: ThinkingSpeed): void {
     if (this.thinkingLevel === level) return;
     this.thinkingLevel = level;
-    for (const [profileId, session] of this.sessions) {
+    for (const [profileId, cached] of this.sessions) {
       if (this.running.has(profileId)) continue;
-      session.dispose();
+      cached.session.dispose();
       this.sessions.delete(profileId);
     }
   }
 
   disposeAll(): void {
-    for (const session of this.sessions.values()) {
-      session.dispose();
+    for (const cached of this.sessions.values()) {
+      cached.session.dispose();
     }
     this.sessions.clear();
     this.running.clear();
@@ -289,9 +295,10 @@ export class BitRuntimeService implements BitRuntime {
   private async getOrCreateSession(
     input: BitPromptInput,
     accessToken: string,
-  ): Promise<BitSession> {
+  ): Promise<CachedBitSession> {
     const existing = this.sessions.get(input.profileId);
     if (existing) return existing;
+    const thinkingLevel = this.thinkingLevel;
     const session = await this.createSession({
       ...input,
       customTools: [
@@ -304,10 +311,11 @@ export class BitRuntimeService implements BitRuntime {
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
-      thinkingLevel: this.thinkingLevel,
+      thinkingLevel,
     });
-    this.sessions.set(input.profileId, session);
-    return session;
+    const cached = { session, thinkingLevel };
+    this.sessions.set(input.profileId, cached);
+    return cached;
   }
 }
 
