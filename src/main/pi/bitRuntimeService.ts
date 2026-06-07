@@ -10,6 +10,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
+import { DEFAULT_THINKING_SPEED, type ThinkingSpeed } from "@shared/config";
 import type { BrowserHost } from "../control/browserHost";
 import type { ImageStore } from "../conversation/conversationService";
 import { type AppSurface, createAppTools } from "./appTools";
@@ -51,6 +52,8 @@ export type CreateBitSessionInput = BitPromptInput & {
   accessToken: string;
   agentDir: string;
   modelId: string;
+  /** How hard Bit thinks; passed straight through as the Pi `thinkingLevel`. */
+  thinkingLevel: ThinkingSpeed;
 };
 
 export type BitTurnResult = {
@@ -77,6 +80,8 @@ export type BitRuntime = {
 type BitRuntimeServiceOptions = {
   agentDir: string;
   modelId?: string;
+  /** Initial Bit thinking effort; the grown-up menu can change it live. Defaults to balanced. */
+  thinkingLevel?: ThinkingSpeed;
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateBitSessionInput) => Promise<BitSession>;
   onSessionFile?: (profileId: string, sessionFile: string | undefined) => Promise<void> | void;
@@ -118,6 +123,7 @@ export class BitRuntimeService implements BitRuntime {
   private readonly running = new Map<string, RunningTurn>();
   private readonly createSession: (input: CreateBitSessionInput) => Promise<BitSession>;
   private readonly modelId: string;
+  private thinkingLevel: ThinkingSpeed;
   /**
    * Web lookup tools (web_search/fetch_content/get_search_content), the same set
    * bots get. Built once on Hi-Bit's Codex login so Bit can look things up while
@@ -150,6 +156,7 @@ export class BitRuntimeService implements BitRuntime {
 
   constructor(private readonly options: BitRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
+    this.thinkingLevel = options.thinkingLevel ?? DEFAULT_THINKING_SPEED;
     this.createSession = options.createSession ?? createRealBitSession;
     this.webTools = createWebSearchTools({
       getFreshAccessToken: options.getFreshAccessToken,
@@ -243,6 +250,21 @@ export class BitRuntimeService implements BitRuntime {
     this.sessions.delete(profileId);
   }
 
+  /**
+   * Changes how hard Bit thinks. Idle profile sessions are torn down so the next
+   * turn reopens from disk at the new effort (the conversation is preserved via
+   * the persisted session file); a session mid-turn keeps its level until done.
+   */
+  setThinkingLevel(level: ThinkingSpeed): void {
+    if (this.thinkingLevel === level) return;
+    this.thinkingLevel = level;
+    for (const [profileId, session] of this.sessions) {
+      if (this.running.has(profileId)) continue;
+      session.dispose();
+      this.sessions.delete(profileId);
+    }
+  }
+
   disposeAll(): void {
     for (const session of this.sessions.values()) {
       session.dispose();
@@ -269,6 +291,7 @@ export class BitRuntimeService implements BitRuntime {
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
+      thinkingLevel: this.thinkingLevel,
     });
     this.sessions.set(input.profileId, session);
     return session;
@@ -414,7 +437,7 @@ async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSe
     authStorage,
     modelRegistry,
     model,
-    thinkingLevel: "medium",
+    thinkingLevel: input.thinkingLevel,
     resourceLoader,
     sessionManager,
     settingsManager,

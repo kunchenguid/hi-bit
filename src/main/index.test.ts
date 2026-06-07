@@ -114,6 +114,46 @@ describe("registerIpc", () => {
 
     expect(electronMock.shell.openExternal).toHaveBeenCalledWith("http://127.0.0.1:4310/game.html");
   }, 10_000);
+
+  it("persists a new thinking speed and applies it to Bit and the bots", async () => {
+    const { randomUUID } = await import("node:crypto");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { readJsonFile, writeJsonFile } = await import("./storage/json");
+    const { registerIpc } = await import("./index");
+
+    const configPath = join(tmpdir(), `hibit-config-${randomUUID()}.json`);
+    await writeJsonFile(configPath, {
+      version: 1,
+      defaultModel: "openai-codex/gpt-5.5",
+      thinkingSpeed: "medium",
+    });
+
+    const services = {
+      runtime: { setThinkingLevel: vi.fn() },
+      bitRuntime: { setThinkingLevel: vi.fn() },
+      layout: { configPath },
+    };
+    registerIpc(services as never);
+
+    const get = electronMock.handlers.get("hibit:config:get");
+    const set = electronMock.handlers.get("hibit:config:set-thinking-speed");
+
+    expect(await get?.({})).toEqual({ thinkingSpeed: "medium" });
+
+    const result = await set?.({}, "high");
+    expect(result).toEqual({ thinkingSpeed: "high" });
+    expect(services.runtime.setThinkingLevel).toHaveBeenCalledWith("high");
+    expect(services.bitRuntime.setThinkingLevel).toHaveBeenCalledWith("high");
+
+    // The change is durable on disk, and the model field is left intact.
+    const onDisk = await readJsonFile<{ defaultModel: string; thinkingSpeed: string }>(configPath);
+    expect(onDisk?.thinkingSpeed).toBe("high");
+    expect(onDisk?.defaultModel).toBe("openai-codex/gpt-5.5");
+
+    // A bogus value from the renderer is sanitized back to the balanced default.
+    expect(await set?.({}, "turbo")).toEqual({ thinkingSpeed: "medium" });
+  }, 10_000);
 });
 
 describe("isAppRendererSource", () => {

@@ -8,6 +8,7 @@ import type {
   PreviewInfo,
   TurnKind,
 } from "@shared/chat";
+import { DEFAULT_THINKING_SPEED, type ThinkingSpeed } from "@shared/config";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import {
@@ -42,6 +43,7 @@ export function App() {
   // Whether this device can run local voice input (WebGPU + mic). Detected once;
   // when false the composer never shows the mic, hiding the feature entirely.
   const [voiceSupported, setVoiceSupported] = useState(false);
+  const [thinkingSpeed, setThinkingSpeed] = useState<ThinkingSpeed>(DEFAULT_THINKING_SPEED);
   const [busy, setBusy] = useState(false);
   // The Codex token died mid-session: overlay the blocking reconnect modal over
   // the live chat (which stays mounted) until Codex is reconnected.
@@ -167,6 +169,33 @@ export function App() {
       cancelled = true;
     };
   }, []);
+
+  // Load the grown-up's saved thinking speed once so the slider opens on the
+  // current value. A failure leaves the balanced default in place.
+  useEffect(() => {
+    let cancelled = false;
+    void window.hibit.config
+      .get()
+      .then((config) => {
+        if (!cancelled) setThinkingSpeed(config.thinkingSpeed);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const changeThinkingSpeed = useCallback(
+    (speed: ThinkingSpeed) => {
+      const previous = thinkingSpeed;
+      setThinkingSpeed(speed); // Optimistic: the slider should feel instant.
+      void window.hibit.config.setThinkingSpeed(speed).catch((caught) => {
+        setThinkingSpeed(previous); // Roll back if the write failed.
+        setError(caught instanceof Error ? caught.message : String(caught));
+      });
+    },
+    [thinkingSpeed],
+  );
 
   useEffect(() => {
     return window.hibit.auth.onReconnectRequired(() => setNeedsReauth(true));
@@ -483,6 +512,8 @@ export function App() {
         onOpenFolder={openFolder}
         onSwitchProfile={switchProfile}
         onUpdateProfile={updateProfile}
+        thinkingSpeed={thinkingSpeed}
+        onChangeThinkingSpeed={changeThinkingSpeed}
         onShowActivity={showActivityView}
         onHideActivity={() => setShowActivity(false)}
         onPlayPreview={playPreview}

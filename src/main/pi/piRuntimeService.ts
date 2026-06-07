@@ -9,6 +9,7 @@ import {
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent, ImageReference } from "@shared/chat";
+import { DEFAULT_THINKING_SPEED, type ThinkingSpeed } from "@shared/config";
 import type { HeadlessBrowserHost } from "../control/headlessBrowser";
 import type { ImageStore } from "../conversation/conversationService";
 import type { RuntimeProject } from "../projects/projectService";
@@ -36,6 +37,8 @@ export type CreateRuntimeSessionInput = {
   accessToken: string;
   agentDir: string;
   modelId: string;
+  /** How hard the bot thinks; passed straight through as the Pi `thinkingLevel`. */
+  thinkingLevel: ThinkingSpeed;
   customTools: ToolDefinition[];
   /** Directory of bundled skills (e.g. create-2d-game, create-3d-game, game-assets) exposed to the bot. */
   skillsDir?: string;
@@ -51,6 +54,8 @@ export type SendPromptResult = {
 type PiRuntimeServiceOptions = {
   agentDir: string;
   modelId?: string;
+  /** Initial bot thinking effort; the grown-up menu can change it live. Defaults to balanced. */
+  thinkingLevel?: ThinkingSpeed;
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   onSessionFile?: (projectId: string, sessionFile: string | undefined) => Promise<void> | void;
@@ -98,10 +103,12 @@ export class PiRuntimeService {
   private readonly jobProfiles = new Map<string, string>();
   private readonly createSession: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   private readonly modelId: string;
+  private thinkingLevel: ThinkingSpeed;
   private readonly customTools: ToolDefinition[];
 
   constructor(private readonly options: PiRuntimeServiceOptions) {
     this.modelId = options.modelId ?? "gpt-5.5";
+    this.thinkingLevel = options.thinkingLevel ?? DEFAULT_THINKING_SPEED;
     this.createSession = options.createSession ?? createRealPiSession;
     // Bots can draw real assets straight into their Workbench. generate_image pulls
     // a fresh Codex token per call so long builds don't fail on an expired session key;
@@ -221,6 +228,23 @@ export class PiRuntimeService {
     this.browsers.delete(projectId);
   }
 
+  /**
+   * Changes how hard future bot turns think. Idle warm sessions are torn down so
+   * the next turn rebuilds at the new effort; a session mid-turn keeps its level
+   * until it finishes, then gets recreated on its next turn.
+   */
+  setThinkingLevel(level: ThinkingSpeed): void {
+    if (this.thinkingLevel === level) return;
+    this.thinkingLevel = level;
+    for (const [key, session] of this.sessions) {
+      if (this.running.has(key)) continue;
+      session.dispose();
+      this.sessions.delete(key);
+      this.browsers.get(key)?.dispose();
+      this.browsers.delete(key);
+    }
+  }
+
   disposeAll(): void {
     for (const session of this.sessions.values()) {
       session.dispose();
@@ -281,6 +305,7 @@ export class PiRuntimeService {
       accessToken,
       agentDir: this.options.agentDir,
       modelId: this.modelId,
+      thinkingLevel: this.thinkingLevel,
       customTools,
       skillsDir: this.options.skillsDir,
     }).catch((error) => {
@@ -364,7 +389,7 @@ async function createRealPiSession(input: CreateRuntimeSessionInput): Promise<Ru
     authStorage,
     modelRegistry,
     model,
-    thinkingLevel: "medium",
+    thinkingLevel: input.thinkingLevel,
     resourceLoader,
     sessionManager,
     settingsManager,

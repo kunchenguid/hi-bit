@@ -7,7 +7,8 @@ import type {
   PreviewInfo,
   SendMessageResult,
 } from "@shared/chat";
-import type { AppInfo, HiBitApi, UpdateStatus } from "@shared/ipc";
+import type { ThinkingSpeed } from "@shared/config";
+import type { AppConfigView, AppInfo, HiBitApi, UpdateStatus } from "@shared/ipc";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { CreateProjectInput, ProjectSummary } from "@shared/project";
 import type { VoiceDownloadProgress, VoiceStatus } from "@shared/voice";
@@ -18,6 +19,11 @@ const api: HiBitApi = {
     info: (): Promise<AppInfo> => ipcRenderer.invoke("hibit:app:info"),
     getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke("hibit:app:get-update-status"),
     openReleasePage: (): Promise<void> => ipcRenderer.invoke("hibit:app:open-release-page"),
+  },
+  config: {
+    get: (): Promise<AppConfigView> => ipcRenderer.invoke("hibit:config:get"),
+    setThinkingSpeed: (speed: ThinkingSpeed): Promise<AppConfigView> =>
+      ipcRenderer.invoke("hibit:config:set-thinking-speed", speed),
   },
   auth: {
     status: (): Promise<AuthStatus> => ipcRenderer.invoke("hibit:auth:status"),

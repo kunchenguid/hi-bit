@@ -380,3 +380,60 @@ describe("PiRuntimeService", () => {
     expect(disposed).toBe(true);
   });
 });
+
+describe("PiRuntimeService thinking level", () => {
+  it("passes the configured thinking level into each bot session", async () => {
+    let captured: CreateRuntimeSessionInput | undefined;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      thinkingLevel: "high",
+      createSession: async (input) => {
+        captured = input;
+        return new FakeSession();
+      },
+    });
+
+    await service.sendPrompt(project(), "Build", () => {});
+
+    expect(captured?.thinkingLevel).toBe("high");
+  });
+
+  it("defaults to balanced thinking when none is configured", async () => {
+    let captured: CreateRuntimeSessionInput | undefined;
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async (input) => {
+        captured = input;
+        return new FakeSession();
+      },
+    });
+
+    await service.sendPrompt(project(), "Build", () => {});
+
+    expect(captured?.thinkingLevel).toBe("medium");
+  });
+
+  it("rebuilds idle bot sessions at the new effort after setThinkingLevel", async () => {
+    const levels: string[] = [];
+    const disposed: string[] = [];
+    const service = new PiRuntimeService({
+      agentDir: "/tmp/hibit/pi-agent",
+      getFreshAccessToken: async () => "token",
+      createSession: async (input) => {
+        levels.push(input.thinkingLevel);
+        const session = new FakeSession();
+        session.dispose = () => disposed.push(input.thinkingLevel);
+        return session;
+      },
+    });
+
+    await service.sendPrompt(project(), "first", () => {});
+    service.setThinkingLevel("minimal");
+    await service.sendPrompt(project(), "second", () => {});
+
+    expect(levels).toEqual(["medium", "minimal"]);
+    expect(disposed).toEqual(["medium"]);
+  });
+});

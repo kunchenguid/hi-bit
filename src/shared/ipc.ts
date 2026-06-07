@@ -7,6 +7,7 @@ import type {
   PreviewInfo,
   SendMessageResult,
 } from "./chat";
+import type { ThinkingSpeed } from "./config";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "./profile";
 import type { CreateProjectInput, ProjectSummary } from "./project";
 import type { VoiceDownloadProgress, VoiceStatus } from "./voice";
@@ -47,6 +48,15 @@ export type UpdateStatus = {
 
 export type Unsubscribe = () => void;
 
+/**
+ * The kid-data-free slice of app config the renderer's grown-up menu reads and
+ * writes. Deliberately narrow: only the grown-up-tunable settings, never the
+ * Codex provider plumbing.
+ */
+export type AppConfigView = {
+  thinkingSpeed: ThinkingSpeed;
+};
+
 export type HiBitApi = {
   app: {
     info: () => Promise<AppInfo>;
@@ -54,6 +64,12 @@ export type HiBitApi = {
     getUpdateStatus: () => Promise<UpdateStatus>;
     /** Opens the newest release page (or the generic releases page) externally. */
     openReleasePage: () => Promise<void>;
+  };
+  /** App-wide grown-up settings backed by config.json. */
+  config: {
+    get: () => Promise<AppConfigView>;
+    /** Persists the new speed and applies it to Bit and the bots live. */
+    setThinkingSpeed: (speed: ThinkingSpeed) => Promise<AppConfigView>;
   };
   auth: {
     status: () => Promise<AuthStatus>;

@@ -845,6 +845,10 @@ function createApiMock(): HiBitApi {
       })),
       openReleasePage: vi.fn(async () => {}),
     },
+    config: {
+      get: vi.fn(async () => ({ thinkingSpeed: "medium" as const })),
+      setThinkingSpeed: vi.fn(async (speed) => ({ thinkingSpeed: speed })),
+    },
     auth: {
       status: vi.fn(async () => ({
         authenticated: false,

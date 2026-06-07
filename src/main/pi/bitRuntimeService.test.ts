@@ -1,3 +1,4 @@
+import { createAgentSession } from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -251,6 +252,55 @@ describe("BitRuntimeService", () => {
     });
 
     expect(JSON.stringify(piRuntime.persistedMessages.at(-1))).not.toContain("AAABBB");
+  });
+
+  it("passes the configured thinking level to the production Pi session", async () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      thinkingLevel: "high",
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+
+    expect(createAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({ thinkingLevel: "high" }),
+    );
+  });
+
+  it("defaults to balanced thinking when no level is configured", async () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+
+    expect(createAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({ thinkingLevel: "medium" }),
+    );
+  });
+
+  it("rebuilds idle Bit sessions at the new effort after setThinkingLevel", async () => {
+    const levels: string[] = [];
+    const disposed: string[] = [];
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        levels.push(input.thinkingLevel);
+        const session = new FakeBitSession();
+        session.dispose = () => disposed.push(input.thinkingLevel);
+        return session;
+      },
+    });
+
+    await service.prompt(baseInput(), "first", () => {});
+    service.setThinkingLevel("xhigh");
+    await service.prompt(baseInput(), "second", () => {});
+
+    expect(levels).toEqual(["medium", "xhigh"]);
+    expect(disposed).toEqual(["medium"]);
   });
 
   it("gives Bit the app and browser tools when their surfaces are configured", async () => {

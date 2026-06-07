@@ -6,6 +6,7 @@ import type {
   PreviewInfo,
   TurnKind,
 } from "@shared/chat";
+import type { ThinkingSpeed } from "@shared/config";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { ActivityChip } from "../components/ActivityChip";
@@ -14,6 +15,7 @@ import { Composer } from "../components/Composer";
 import { FactoryView } from "../components/FactoryView";
 import { MessageList } from "../components/MessageList";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
+import { ThinkingSpeedControl } from "../components/ThinkingSpeedControl";
 import { UpdateNotice } from "../components/UpdateNotice";
 import { useUpdateStatus } from "../components/useUpdateStatus";
 
@@ -44,6 +46,8 @@ type ChatWorkspaceProps = {
   onOpenFolder: () => void;
   onSwitchProfile: () => void;
   onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
+  thinkingSpeed: ThinkingSpeed;
+  onChangeThinkingSpeed: (speed: ThinkingSpeed) => void;
   onShowActivity: () => void;
   onHideActivity: () => void;
   onPlayPreview: (projectId: string) => void;
@@ -81,6 +85,8 @@ export function ChatWorkspace({
   onOpenFolder,
   onSwitchProfile,
   onUpdateProfile,
+  thinkingSpeed,
+  onChangeThinkingSpeed,
   onShowActivity,
   onHideActivity,
   onPlayPreview,
@@ -136,6 +142,11 @@ export function ChatWorkspace({
           </summary>
           <div className="hb-card hb-parent-menu-popover">
             <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
+            <ThinkingSpeedControl
+              value={thinkingSpeed}
+              busy={busy}
+              onChange={onChangeThinkingSpeed}
+            />
             <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
               Open creations folder
             </button>
