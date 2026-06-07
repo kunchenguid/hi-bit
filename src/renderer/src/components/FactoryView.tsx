@@ -27,10 +27,12 @@ const SCREEN_WASHES = [
 
 /**
  * The factory floor: every creation is a machine on a conveyor belt, the bots
- * working it standing at its bench (no names - each is a stable color + face), a
- * speech-bubble ticker calling out the latest action, and a tap on any bot
- * opening its step-by-step Logbook below. One surface that is both the kid's
- * shelf of creations and their Logbook.
+ * building it right now standing at its bench (no names - each is a stable color
+ * + face), a speech-bubble ticker calling out the latest action. Finished bots
+ * collapse into a Logbook pill; tapping it - or a working bot - docks the
+ * creation's Logbook panel to the right (a master rail of bot chapters and a
+ * scrolling step list). One surface that is both the kid's shelf of creations
+ * and their Logbook.
  */
 export function FactoryView({
   creations,
@@ -90,32 +92,50 @@ export function FactoryView({
           </button>
         </header>
 
-        {floor.length === 0 ? (
-          <p className="t-small">No creations yet. Ask Bit to build something!</p>
-        ) : (
-          <div className="hb-factory-floor">
-            {floor.map((machine) => (
-              <Machine
-                key={machine.projectId}
-                machine={machine}
-                selectedBotId={selected?.projectId === machine.projectId ? selected.botId : null}
-                onSelectBot={(botId) =>
-                  setSelected((current) =>
-                    current?.projectId === machine.projectId && current.botId === botId
-                      ? null
-                      : { projectId: machine.projectId, botId },
-                  )
-                }
-                onPlay={() => {
-                  onPlay(machine.projectId);
-                  close();
-                }}
-              />
-            ))}
+        <div className={`hb-factory-body ${openMachine && openBot ? "is-open" : ""}`}>
+          <div className="hb-factory-floorcol">
+            {floor.length === 0 ? (
+              <p className="t-small">No creations yet. Ask Bit to build something!</p>
+            ) : (
+              <div className="hb-factory-floor">
+                {floor.map((machine) => (
+                  <Machine
+                    key={machine.projectId}
+                    machine={machine}
+                    selectedBotId={
+                      selected?.projectId === machine.projectId ? selected.botId : null
+                    }
+                    onSelectBot={(botId) =>
+                      setSelected((current) =>
+                        current?.projectId === machine.projectId && current.botId === botId
+                          ? null
+                          : { projectId: machine.projectId, botId },
+                      )
+                    }
+                    onOpenLogbook={() => {
+                      const newest = machine.bots.at(-1);
+                      if (newest)
+                        setSelected({ projectId: machine.projectId, botId: newest.botId });
+                    }}
+                    onPlay={() => {
+                      onPlay(machine.projectId);
+                      close();
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        )}
 
-        {openMachine && openBot ? <BotLogbook title={openMachine.title} bot={openBot} /> : null}
+          {openMachine && openBot ? (
+            <LogbookPanel
+              machine={openMachine}
+              selectedBotId={openBot.botId}
+              onSelectBot={(botId) => setSelected({ projectId: openMachine.projectId, botId })}
+              onClose={() => setSelected(null)}
+            />
+          ) : null}
+        </div>
       </section>
     </div>
   );
@@ -125,14 +145,20 @@ function Machine({
   machine,
   selectedBotId,
   onSelectBot,
+  onOpenLogbook,
   onPlay,
 }: {
   machine: CreationFloor;
   selectedBotId: string | null;
   onSelectBot: (botId: string) => void;
+  onOpenLogbook: () => void;
   onPlay: () => void;
 }) {
   const ticker = tickerFor(machine);
+  // The floor reads as live: only bots building right now stand at the bench;
+  // every finished bot collapses into one Logbook pill (their count is its badge).
+  const workingBots = machine.bots.filter((bot) => bot.working);
+  const doneCount = machine.bots.length - workingBots.length;
   return (
     <div className="hb-factory-station" data-status={machine.status}>
       <p className={`hb-factory-ticker ${ticker.ready ? "is-ready" : ""}`}>{ticker.text}</p>
@@ -143,10 +169,10 @@ function Machine({
           </span>
         </div>
         <p className="hb-factory-name">{machine.title}</p>
-        <div className="hb-factory-footrow">
-          {machine.bots.length > 0 ? (
+        <div className="hb-factory-foot">
+          {workingBots.length > 0 ? (
             <span className="hb-factory-bots">
-              {machine.bots.map((bot) => (
+              {workingBots.map((bot) => (
                 <BotAvatar
                   key={bot.botId}
                   bot={bot}
@@ -155,13 +181,20 @@ function Machine({
                 />
               ))}
             </span>
-          ) : (
-            <span />
-          )}
-          <span
-            className={`hb-factory-light ${machine.status === "working" ? "is-working" : "is-done"}`}
-            aria-hidden="true"
-          />
+          ) : null}
+          {doneCount > 0 ? (
+            <button
+              type="button"
+              className="hb-factory-logbook-pill"
+              onClick={onOpenLogbook}
+              aria-label={`Open the Logbook - ${doneCount} finished ${
+                doneCount === 1 ? "build" : "builds"
+              }`}
+            >
+              <span aria-hidden="true">📖</span> Logbook
+              <span className="hb-factory-logbook-count">{doneCount}</span>
+            </button>
+          ) : null}
         </div>
         {machine.playable ? (
           <button type="button" className="hb-play-button hb-play-button-chip" onClick={onPlay}>
@@ -195,34 +228,85 @@ function BotAvatar({ bot, open, onClick }: { bot: BotLane; open: boolean; onClic
   );
 }
 
-function BotLogbook({ title, bot }: { title: string; bot: BotLane }) {
+/**
+ * The creation's Logbook, docked to the right of the floor. Master/detail: every
+ * bot that worked the creation is a chapter in the left rail (newest first); the
+ * selected chapter fills the right side with that one bot's whole step list in
+ * its own scroll, since a single bot can rack up dozens of steps.
+ */
+function LogbookPanel({
+  machine,
+  selectedBotId,
+  onSelectBot,
+  onClose,
+}: {
+  machine: CreationFloor;
+  selectedBotId: string;
+  onSelectBot: (botId: string) => void;
+  onClose: () => void;
+}) {
+  const chapters = [...machine.bots].reverse();
+  const bot = machine.bots.find((lane) => lane.botId === selectedBotId) ?? chapters[0];
   return (
-    <div className="hb-factory-logbook">
-      <div className="hb-factory-logbook-head">
-        <span
-          className="hb-factory-swatch"
-          aria-hidden="true"
-          style={{ background: swatch(bot.hue) }}
-        />
+    <aside className="hb-factory-logpanel" aria-label={`${machine.title} Logbook`}>
+      <div className="hb-factory-logpanel-head">
         <strong>
-          A bot on {title} - {bot.working ? "building now" : "all done"}
+          <span aria-hidden="true">📖</span> {machine.title} - Logbook
         </strong>
+        <button
+          type="button"
+          className="hb-factory-logpanel-close"
+          onClick={onClose}
+          aria-label="Close the Logbook"
+        >
+          ✕
+        </button>
       </div>
-      {bot.steps.length === 0 ? (
-        <p className="t-small">Getting started...</p>
-      ) : (
-        <div className="hb-factory-steps">
-          {bot.steps.map((step) => (
-            <div className="hb-step" key={`${step.turnId ?? ""}:${step.callId}`}>
-              <span className="hb-step-grow">{friendlyStep(step.toolName)}</span>
-              <span className={`hb-tool-status hb-tool-status-${step.status}`}>
-                {stepStatusLabel(step.status)}
+      <div className="hb-factory-logpanel-body">
+        <div className="hb-factory-chapters" role="tablist" aria-label="Bots on this creation">
+          {chapters.map((lane) => (
+            <button
+              type="button"
+              key={lane.botId}
+              role="tab"
+              aria-selected={lane.botId === selectedBotId}
+              className={`hb-factory-chapter ${lane.botId === selectedBotId ? "is-selected" : ""}`}
+              onClick={() => onSelectBot(lane.botId)}
+            >
+              <span
+                className="hb-factory-swatch"
+                aria-hidden="true"
+                style={{ background: swatch(lane.hue) }}
+              />
+              <span className="hb-factory-chapter-name" title={lane.summary ?? lane.latestAction}>
+                {lane.summary ?? lane.latestAction}
               </span>
-            </div>
+              <span className="hb-factory-chapter-count">{lane.steps.length}</span>
+            </button>
           ))}
         </div>
-      )}
-    </div>
+        <div className="hb-factory-detail">
+          <p className="hb-factory-detail-head">
+            {bot.summary ?? bot.latestAction} - {bot.working ? "building now" : "all done"} -{" "}
+            {bot.steps.length} {bot.steps.length === 1 ? "step" : "steps"}
+          </p>
+          {bot.steps.length === 0 ? (
+            <p className="t-small">Getting started...</p>
+          ) : (
+            <div className="hb-factory-logsteps">
+              {bot.steps.map((step) => (
+                <div className="hb-step" key={`${step.turnId ?? ""}:${step.callId}`}>
+                  <span className="hb-step-grow">{friendlyStep(step.toolName)}</span>
+                  <span className={`hb-tool-status hb-tool-status-${step.status}`}>
+                    {stepStatusLabel(step.status)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </aside>
   );
 }
 

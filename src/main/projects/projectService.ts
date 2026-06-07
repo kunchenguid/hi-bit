@@ -15,6 +15,8 @@ type ToolStepRow = {
   status?: ToolActivity["status"];
   args?: unknown;
   content?: ToolContent[];
+  /** The bot's task, written on the start row so the Logbook can name the bot. */
+  summary?: string;
   createdAt?: string;
 };
 
@@ -268,6 +270,7 @@ export class ProjectService {
           status: row.status ?? "running",
           args: row.args,
           content: row.content ?? [],
+          summary: row.summary,
         });
         continue;
       }
@@ -278,6 +281,7 @@ export class ProjectService {
         status: row.status ?? existing.status,
         args: row.args ?? existing.args,
         content: row.content ?? existing.content,
+        summary: row.summary ?? existing.summary,
       });
     }
     return order.map((key) => byCallId.get(key) as ToolActivity);
