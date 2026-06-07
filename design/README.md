@@ -113,6 +113,14 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Voice input transcribing:** Working out what you said...
 >
+> **Grown-up menu:** Grown-up menu.
+>
+> **Thinking speed label:** How hard Bit thinks.
+>
+> **Thinking speed value:** Balanced.
+>
+> **Thinking speed ends:** Faster replies. Smarter builds.
+>
 > **Bit:** Hey - ready to keep going? Yesterday you made a button say "hi." Today we'll teach it to count.
 >
 > **Activity chip:** Bit is thinking.
