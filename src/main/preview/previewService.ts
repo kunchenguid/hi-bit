@@ -22,7 +22,7 @@ export type PreviewServiceOptions = {
    * Allocate a free loopback port, trying `preferred` first. The default scans a
    * quiet band so a creation keeps a stable origin (see {@link allocatePort}).
    */
-  findFreePort?: (preferred: number) => Promise<number>;
+  findFreePort?: (preferred: number, unavailable?: ReadonlySet<number>) => Promise<number>;
   waitForPort?: (port: number) => Promise<void>;
   terminate?: (child: PreviewChild) => void;
   onStopped?: (preview: PreviewInfo & { profileId: string }) => void;
@@ -31,6 +31,7 @@ export type PreviewServiceOptions = {
     profileId: string,
     projectId: string,
   ) => Promise<number | undefined> | number | undefined;
+  loadReservedPorts?: (profileId: string, projectId: string) => Promise<number[]> | number[];
   /** Remember a newly allocated port so the next launch reuses the same origin. */
   saveStablePort?: (profileId: string, projectId: string, port: number) => Promise<void> | void;
   now?: () => Date;
@@ -54,11 +55,15 @@ export class PreviewService {
   private readonly starting = new Map<string, Promise<PreviewInfo>>();
   private readonly resolveWorkbenchDir: (profileId: string, projectId: string) => string;
   private readonly spawn: SpawnLike;
-  private readonly findFreePort: (preferred: number) => Promise<number>;
+  private readonly findFreePort: (
+    preferred: number,
+    unavailable?: ReadonlySet<number>,
+  ) => Promise<number>;
   private readonly waitForPort: (port: number) => Promise<void>;
   private readonly terminate: (child: PreviewChild) => void;
   private readonly onStopped?: (preview: PreviewInfo & { profileId: string }) => void;
   private readonly loadStablePort?: PreviewServiceOptions["loadStablePort"];
+  private readonly loadReservedPorts?: PreviewServiceOptions["loadReservedPorts"];
   private readonly saveStablePort?: PreviewServiceOptions["saveStablePort"];
   private readonly now: () => Date;
 
@@ -70,6 +75,7 @@ export class PreviewService {
     this.terminate = options.terminate ?? terminateTree;
     this.onStopped = options.onStopped;
     this.loadStablePort = options.loadStablePort;
+    this.loadReservedPorts = options.loadReservedPorts;
     this.saveStablePort = options.saveStablePort;
     this.now = options.now ?? (() => new Date());
   }
@@ -105,15 +111,9 @@ export class PreviewService {
     // same loopback origin, so a game's localStorage save survives across plays.
     const remembered = await this.loadStablePort?.(profileId, projectId);
     const preferred = remembered ?? preferredPreviewPort(projectId);
-    const port = await this.findFreePort(preferred);
-    if (port !== remembered) {
-      try {
-        await this.saveStablePort?.(profileId, projectId, port);
-      } catch {
-        // Persistence is best-effort; a missed save just means we may re-derive
-        // the preferred port next launch, not a broken preview.
-      }
-    }
+    const unavailable = new Set(await this.loadReservedPorts?.(profileId, projectId));
+    if (remembered !== undefined) unavailable.delete(remembered);
+    const port = await this.findFreePort(preferred, unavailable);
     const cwd = this.resolveWorkbenchDir(profileId, projectId);
     const child = this.spawn(command, {
       cwd,
@@ -165,6 +165,14 @@ export class PreviewService {
     }
     startupSettled = true;
     started = true;
+    if (remembered === undefined) {
+      try {
+        await this.saveStablePort?.(profileId, projectId, port);
+      } catch {
+        // Persistence is best-effort; a missed save just means we may re-derive
+        // the preferred port next launch, not a broken preview.
+      }
+    }
     return toInfo(entry);
   }
 
@@ -251,13 +259,16 @@ export function preferredPreviewPort(projectId: string): number {
  * Bind `preferred` if it is free, otherwise scan forward through the band (and
  * only as a last resort, when the whole band is busy, let the OS pick any port).
  */
-async function allocatePort(preferred: number): Promise<number> {
-  if (await isPortFree(preferred)) return preferred;
+async function allocatePort(
+  preferred: number,
+  unavailable: ReadonlySet<number> = new Set<number>(),
+): Promise<number> {
+  if (!unavailable.has(preferred) && (await isPortFree(preferred))) return preferred;
   const span = PREVIEW_PORT_MAX - PREVIEW_PORT_MIN;
   const seed = (((preferred - PREVIEW_PORT_MIN) % span) + span) % span;
   for (let i = 1; i < span; i++) {
     const port = PREVIEW_PORT_MIN + ((seed + i) % span);
-    if (await isPortFree(port)) return port;
+    if (!unavailable.has(port) && (await isPortFree(port))) return port;
   }
   return osAssignedPort();
 }

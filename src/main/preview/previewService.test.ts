@@ -116,6 +116,7 @@ describe("PreviewService", () => {
     const first = service.start("ada", "project_1", "cmd");
     const second = service.start("ada", "project_1", "cmd-again");
     await Promise.resolve();
+    await Promise.resolve();
     expect(portResolvers).toHaveLength(1);
 
     portResolvers[0]?.(4310);
@@ -282,6 +283,47 @@ describe("PreviewService", () => {
 
     expect(seenPreferred).toBe(41234);
     expect(info.url).toBe("http://127.0.0.1:41234/");
+    expect(saved).toEqual([]);
+  });
+
+  it("passes other persisted preview ports to the allocator as unavailable", async () => {
+    const preferred = preferredPreviewPort("project_1");
+    let seenUnavailable: ReadonlySet<number> | undefined;
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => fakeChild(),
+      findFreePort: async (_preferred: number, unavailable?: ReadonlySet<number>) => {
+        seenUnavailable = unavailable;
+        return preferred + 1;
+      },
+      waitForPort: async () => {},
+      loadStablePort: async () => undefined,
+      loadReservedPorts: async () => [preferred, 41234],
+    });
+
+    await service.start("ada", "project_1", "cmd");
+
+    expect(seenUnavailable?.has(preferred)).toBe(true);
+    expect(seenUnavailable?.has(41234)).toBe(true);
+  });
+
+  it("does not replace a remembered port when a fallback preview fails to start", async () => {
+    const saved: number[] = [];
+    const service = new PreviewService({
+      resolveWorkbenchDir: () => "/work",
+      spawn: () => fakeChild(),
+      findFreePort: async () => 41235,
+      waitForPort: async () => {
+        throw new Error("port never answered");
+      },
+      loadStablePort: async () => 41234,
+      saveStablePort: async (_profileId, _projectId, port) => {
+        saved.push(port);
+      },
+    });
+
+    await expect(service.start("ada", "project_1", "cmd")).rejects.toThrow("port never answered");
+
     expect(saved).toEqual([]);
   });
 

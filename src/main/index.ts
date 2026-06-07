@@ -152,6 +152,20 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
         return undefined;
       }
     },
+    loadReservedPorts: async (profileId, projectId) => {
+      try {
+        const reserved: number[] = [];
+        for (const profile of await profiles.list()) {
+          for (const project of await projects.list(profile.id)) {
+            if (profile.id === profileId && project.id === projectId) continue;
+            if (typeof project.previewPort === "number") reserved.push(project.previewPort);
+          }
+        }
+        return reserved;
+      } catch {
+        return [];
+      }
+    },
     saveStablePort: (profileId, projectId, port) =>
       projects.rememberPreviewPort(profileId, projectId, port),
   });
