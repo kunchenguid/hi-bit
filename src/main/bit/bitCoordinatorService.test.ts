@@ -439,6 +439,178 @@ describe("BitCoordinatorService (Bit)", () => {
     }
   });
 
+  it("hands a builder's freshly shared picture to the bot as an art-direction reference", async () => {
+    const s = await createCoordinator();
+    const data = Buffer.from("pretend-cat-png").toString("base64");
+    let sharedTurnText = "";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      sharedTurnText = text;
+      const id = text.match(/reference id: ([\w-]+)/)?.[1];
+      await callTool("create_creation", {
+        title: "Cat Game",
+        instructions: "a platformer starring this cat",
+        confirmed: true,
+        referencePictureIds: id ? [id] : [],
+      });
+      return "Building your cat game!";
+    };
+
+    await s.coordinator.send(s.profile.id, "make a game with this cat", {
+      mimeType: "image/png",
+      data,
+    });
+    await s.drain();
+
+    // Bit learns the picture's id the moment it's shared.
+    expect(sharedTurnText).toMatch(/reference id: [\w-]+/);
+
+    const attachments = await s.conversation.listAttachments(s.profile.id);
+    const refId = attachments[0]?.id;
+    const prompt = s.bot.prompts.at(-1);
+    // The bot run carries the reference as an absolute, factory-level path...
+    expect(prompt?.project.references).toEqual([
+      {
+        id: refId,
+        path: expect.stringContaining("/conversation/attachments/"),
+        mimeType: "image/png",
+      },
+    ]);
+    // ...and the bot is told to feed that id into generate_image.
+    expect(prompt?.text).toContain(refId as string);
+    expect(prompt?.text).toMatch(/reference_paths/);
+  });
+
+  it("recalls a picture shared in an earlier turn for a later build", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    const data = Buffer.from("pretend-cat").toString("base64");
+
+    // Turn 1: the builder just shows a picture, no build.
+    s.bit.handler = async () => "Cute cat!";
+    await s.coordinator.send(s.profile.id, "look at my cat", { mimeType: "image/png", data });
+    await s.drain();
+
+    // Turn 2: asks to use that earlier picture; Bit recalls it by id.
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done!";
+      const listed = (await callTool("list_builder_pictures", {})) as {
+        content: Array<{ text: string }>;
+      };
+      const id = listed.content[0]?.text.match(/id: ([\w-]+)/)?.[1];
+      await callTool("delegate_build", {
+        creationId: game.id,
+        instructions: "use my cat",
+        referencePictureIds: id ? [id] : [],
+      });
+      return "Using your cat!";
+    };
+    await s.coordinator.send(s.profile.id, "put my cat from before in the jump game");
+    await s.drain();
+
+    const reference = s.bot.prompts.at(-1)?.project.references?.[0];
+    expect(reference?.mimeType).toBe("image/png");
+    expect(reference?.path).toContain("/conversation/attachments/");
+  });
+
+  it("shows builder message text when listing builder pictures", async () => {
+    const s = await createCoordinator();
+    const data = Buffer.from("pretend-cat").toString("base64");
+
+    s.bit.handler = async () => "Cute cat!";
+    await s.coordinator.send(s.profile.id, "look at my purple cat", {
+      mimeType: "image/png",
+      data,
+    });
+    await s.drain();
+
+    s.bit.handler = async ({ callTool }) => {
+      const listed = (await callTool("list_builder_pictures", {})) as {
+        content: Array<{ text: string }>;
+      };
+      expect(listed.content[0]?.text).toContain("message: look at my purple cat");
+      return "I found it.";
+    };
+    await s.coordinator.send(s.profile.id, "which picture did I share?");
+  });
+
+  it("does not start a build when a requested builder picture id is unknown", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let toolText = "";
+
+    s.bit.handler = async ({ callTool }) => {
+      const result = (await callTool("delegate_build", {
+        creationId: game.id,
+        instructions: "use the missing cat",
+        referencePictureIds: ["missing-picture"],
+      })) as { content: Array<{ text: string }> };
+      toolText = result.content.map((item) => item.text).join("\n");
+      return "I'll ask again.";
+    };
+
+    await s.coordinator.send(s.profile.id, "use my old cat picture");
+    await s.drain();
+
+    expect(toolText).toContain("missing-picture");
+    expect(s.bot.prompts).toHaveLength(0);
+    expect(s.pipeline.prepared).toHaveLength(0);
+  });
+
+  it("does not start a build when a requested builder picture path escapes attachments", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let toolText = "";
+
+    await s.conversation.appendMessage(s.profile.id, {
+      id: "u1",
+      role: "user",
+      text: "old cat",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: { id: "escaped-picture", mimeType: "image/png", path: "../outside.png" },
+    });
+
+    s.bit.handler = async ({ callTool }) => {
+      const result = (await callTool("delegate_build", {
+        creationId: game.id,
+        instructions: "use the old cat",
+        referencePictureIds: ["escaped-picture"],
+      })) as { content: Array<{ text: string }> };
+      toolText = result.content.map((item) => item.text).join("\n");
+      return "I'll ask again.";
+    };
+
+    await s.coordinator.send(s.profile.id, "use my old cat picture");
+    await s.drain();
+
+    expect(toolText).toContain("escaped-picture");
+    expect(s.bot.prompts).toHaveLength(0);
+    expect(s.pipeline.prepared).toHaveLength(0);
+  });
+
+  it("does not create a new creation when its builder picture id is unknown", async () => {
+    const s = await createCoordinator();
+    let toolText = "";
+
+    s.bit.handler = async ({ callTool }) => {
+      const result = (await callTool("create_creation", {
+        title: "Missing Cat Game",
+        instructions: "build from the missing cat",
+        confirmed: true,
+        referencePictureIds: ["missing-picture"],
+      })) as { content: Array<{ text: string }> };
+      toolText = result.content.map((item) => item.text).join("\n");
+      return "I'll ask again.";
+    };
+
+    await s.coordinator.send(s.profile.id, "make a game from my missing picture");
+    await s.drain();
+
+    expect(toolText).toContain("missing-picture");
+    await expect(s.projects.list(s.profile.id)).resolves.toEqual([]);
+    expect(s.bot.prompts).toHaveLength(0);
+  });
+
   it("delegates an edit on an existing creation immediately and surfaces bot activity", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });

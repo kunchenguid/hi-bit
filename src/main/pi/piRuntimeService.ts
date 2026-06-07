@@ -8,7 +8,7 @@ import {
   SettingsManager,
   type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import type { ChatEvent } from "@shared/chat";
+import type { ChatEvent, ImageReference } from "@shared/chat";
 import type { HeadlessBrowserHost } from "../control/headlessBrowser";
 import type { RuntimeProject } from "../projects/projectService";
 import { createViewBitTool } from "./brandTool";
@@ -76,6 +76,13 @@ export class PiRuntimeService {
   private readonly running = new Map<string, RunningTurn>();
   /** One headless browser per bot session, torn down with the session. */
   private readonly browsers = new Map<string, HeadlessBrowserHost>();
+  /**
+   * The builder's reference pictures for the turn currently running in a given
+   * Workbench (keyed by cwd), so generate_image can resolve a reference id to the
+   * factory-level file. Set per turn and cleared when it ends, so a reference
+   * never leaks to a later, unrelated job.
+   */
+  private readonly jobReferences = new Map<string, ImageReference[]>();
   private readonly createSession: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;
   private readonly modelId: string;
   private readonly customTools: ToolDefinition[];
@@ -94,6 +101,7 @@ export class PiRuntimeService {
       createGenerateImageTool({
         getFreshAccessToken: options.getFreshAccessToken,
         model: this.modelId,
+        resolveReference: (cwd, ref) => this.resolveJobReference(cwd, ref),
       }),
       createProcessSpriteTool(),
       ...createWebSearchTools({
@@ -132,6 +140,11 @@ export class PiRuntimeService {
     };
     const running: RunningTurn = { turnId, session, cancelled: false };
     this.running.set(runtimeKey, running);
+    // Make the builder's reference pictures resolvable for generate_image while
+    // this turn runs, keyed by the Workbench cwd the tool sees.
+    if (project.references?.length) {
+      this.jobReferences.set(project.mainWorkbenchDir, project.references);
+    }
     onEvent({ type: "turn_start", ...meta });
 
     const unsubscribe = session.subscribe((event) => {
@@ -155,6 +168,7 @@ export class PiRuntimeService {
     } finally {
       unsubscribe();
       this.running.delete(runtimeKey);
+      this.jobReferences.delete(project.mainWorkbenchDir);
     }
 
     const result: SendPromptResult = { turnId, status, sessionFile: session.sessionFile, error };
@@ -191,10 +205,21 @@ export class PiRuntimeService {
     this.sessions.clear();
     this.browsers.clear();
     this.running.clear();
+    this.jobReferences.clear();
   }
 
   isRunning(projectId: string): boolean {
     return this.running.has(projectId);
+  }
+
+  /**
+   * Resolves a generate_image `reference_paths` entry that names one of the
+   * builder's shared pictures for the turn running in `cwd`. Returns undefined
+   * for anything not registered, so the tool reads it as a Workbench path.
+   */
+  resolveJobReference(cwd: string, ref: string): { path: string; mimeType: string } | undefined {
+    const match = this.jobReferences.get(cwd)?.find((reference) => reference.id === ref);
+    return match ? { path: match.path, mimeType: match.mimeType } : undefined;
   }
 
   private async getOrCreateSession(

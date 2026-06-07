@@ -103,6 +103,107 @@ describe("ConversationService", () => {
     expect(raw).toContain(saved.path);
   });
 
+  it("gives each saved picture a stable id and recalls it later", async () => {
+    const { service } = await createService();
+    const first = await service.saveAttachment("ada", {
+      mimeType: "image/png",
+      data: Buffer.from("first").toString("base64"),
+    });
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "a cat",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: first,
+    });
+    const second = await service.saveAttachment("ada", {
+      mimeType: "image/jpeg",
+      data: Buffer.from("second").toString("base64"),
+    });
+    await service.appendMessage("ada", {
+      id: "u2",
+      role: "user",
+      text: "a dog",
+      createdAt: "2026-01-02T03:05:10.000Z",
+      image: second,
+    });
+
+    expect(first.id).toBeTruthy();
+    expect(second.id).not.toBe(first.id);
+
+    // Newest first, with mime + path + when shared, so Bit can pick the right one.
+    const listed = await service.listAttachments("ada");
+    expect(listed).toEqual([
+      {
+        id: second.id,
+        mimeType: "image/jpeg",
+        path: second.path,
+        sharedAt: "2026-01-02T03:05:10.000Z",
+        messageText: "a dog",
+      },
+      {
+        id: first.id,
+        mimeType: "image/png",
+        path: first.path,
+        sharedAt: "2026-01-02T03:04:10.000Z",
+        messageText: "a cat",
+      },
+    ]);
+
+    const resolved = await service.resolveAttachment("ada", first.id as string);
+    expect(resolved).toMatchObject({ id: first.id, path: first.path, mimeType: "image/png" });
+    expect(await service.resolveAttachment("ada", "no-such-id")).toBeUndefined();
+  });
+
+  it("lists attachment metadata without reading image bytes", async () => {
+    const { service } = await createService();
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "use this purple cat",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: { id: "pic-1", mimeType: "image/png", path: "attachments/pic-1.png" },
+    });
+    const readAttachmentData = vi.spyOn(service, "readAttachmentData");
+
+    const listed = await service.listAttachments("ada");
+
+    expect(readAttachmentData).not.toHaveBeenCalled();
+    expect(listed).toEqual([
+      {
+        id: "pic-1",
+        mimeType: "image/png",
+        path: "attachments/pic-1.png",
+        sharedAt: "2026-01-02T03:04:10.000Z",
+        messageText: "use this purple cat",
+      },
+    ]);
+  });
+
+  it("recalls a legacy attachment with no stored id by its file name", async () => {
+    const { service } = await createService();
+    // A transcript line written before ids existed: image has a path but no id.
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "old picture",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: { mimeType: "image/png", path: "attachments/legacy-uuid.png" },
+    });
+
+    const listed = await service.listAttachments("ada");
+    expect(listed).toEqual([
+      {
+        id: "legacy-uuid",
+        mimeType: "image/png",
+        path: "attachments/legacy-uuid.png",
+        sharedAt: "2026-01-02T03:04:10.000Z",
+        messageText: "old picture",
+      },
+    ]);
+    expect(await service.resolveAttachment("ada", "legacy-uuid")).toBeTruthy();
+  });
+
   it("rejects unsupported attachment mime types", async () => {
     const { service } = await createService();
     const data = Buffer.from("pretend-svg-bytes").toString("base64");
@@ -182,7 +283,7 @@ describe("ConversationService", () => {
     });
 
     const [message] = await service.readTranscript("ada");
-    expect(message.image).toEqual({ mimeType: "image/png", data, path: saved.path });
+    expect(message.image).toEqual({ id: saved.id, mimeType: "image/png", data, path: saved.path });
   });
 
   it("survives a missing attachment file without dropping the message", async () => {
