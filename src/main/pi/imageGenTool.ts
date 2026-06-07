@@ -58,7 +58,7 @@ const TOOL_PARAMS = Type.Object({
   reference_paths: Type.Optional(
     Type.Array(Type.String(), {
       description:
-        "Optional pictures to steer the art direction (style, colors, character look). Each entry is either the id of a picture the builder shared (given to you in the job) or a relative path to an image already in this creation. The generator looks at them and matches their look.",
+        "Optional pictures to steer the art direction (style, colors, character look). Each entry is either a stored picture id (from the builder, search_image, or generate_image) or a relative path to an image already in this creation. The generator looks at them and matches their look.",
     }),
   ),
 });
@@ -125,10 +125,10 @@ function resolveTarget(cwd: string, fileName: string): string {
 }
 
 /**
- * Resolves a `reference_paths` entry to a readable file: first as a named job
- * reference (the builder's picture, factory-level), otherwise as a Workbench
- * file. Workbench paths use the same escape guard as the save target so a bot
- * can't read outside the creation.
+ * Resolves a `reference_paths` entry to a readable file: first as a stored
+ * picture id for the running profile, otherwise as a Workbench file. Workbench
+ * paths use the same escape guard as the save target so a bot can't read outside
+ * the creation.
  */
 async function resolveReferenceTarget(
   cwd: string,
@@ -289,7 +289,7 @@ export function createGenerateImageTool(deps: GenerateImageToolDeps): ToolDefini
     name: "generate_image",
     label: "Generate image",
     description:
-      "Draw a picture (sprite, icon, background, illustration) and save it into the creation. Use it when the builder wants real art in their app. Pass reference_paths to steer the look from pictures the builder shared or art already in the creation. It uses the connected Codex account and costs image quota, so only call it for a clear picture request.",
+      "Draw a picture (sprite, icon, background, illustration) and save it into the creation. Use it when the builder wants real art in their app. Pass reference_paths to steer the look from stored picture ids (builder, searched, or generated) or art already in the creation. It uses the connected Codex account and costs image quota, so only call it for a clear picture request.",
     parameters: TOOL_PARAMS,
     executionMode: "parallel",
     async execute(_callId, rawParams, signal, _onUpdate, ctx) {

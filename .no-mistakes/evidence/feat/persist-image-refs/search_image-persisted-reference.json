@@ -1,0 +1,35 @@
+{
+  "toolText": "Here is a picture of \"pusheen the cartoon cat\" - take a look.\n\nFrom:\n- https://pics.example.com/pusheen.png\n\nSaved so you can reuse it later - reference id: searched-pusheen-1.",
+  "details": {
+    "query": "pusheen the cartoon cat",
+    "sources": [
+      "https://pics.example.com/pusheen.png"
+    ],
+    "shown": 1,
+    "referenceIds": [
+      "searched-pusheen-1"
+    ]
+  },
+  "persisted": [
+    {
+      "cwd": "/tmp/creation",
+      "data": "[base64:2676 chars]",
+      "mimeType": "image/png",
+      "source": "searched",
+      "meta": {
+        "query": "pusheen the cartoon cat",
+        "sourceUrl": "https://pics.example.com/pusheen.png"
+      }
+    }
+  ],
+  "logbookSafeContent": [
+    {
+      "type": "text",
+      "text": "Here is a picture of \"pusheen the cartoon cat\" - take a look.\n\nFrom:\n- https://pics.example.com/pusheen.png\n\nSaved so you can reuse it later - reference id: searched-pusheen-1."
+    },
+    {
+      "type": "text",
+      "text": "[looked at a picture]"
+    }
+  ]
+}

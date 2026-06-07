@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8">
+<title>search_image evidence</title>
+<style>
+  body{font:15px/1.5 -apple-system,Segoe UI,sans-serif;background:#14101c;color:#eee;margin:0;padding:32px}
+  .card{max-width:680px;margin:auto;background:#1f1830;border:1px solid #3a2f55;border-radius:16px;padding:24px}
+  h1{font-size:20px;margin:0 0 4px}.sub{color:#a99bd0;margin:0 0 20px}
+  .bubble{background:#2a2140;border-radius:12px;padding:14px 16px;margin:10px 0}
+  .you{background:#3a2f55}
+  img{max-width:280px;border-radius:12px;display:block;margin:10px 0;border:1px solid #4a3d6b}
+  code{background:#000;padding:2px 6px;border-radius:6px;color:#c9b8ff}
+  .src{color:#8f80b8;font-size:13px}
+</style>
+<div class="card">
+  <h1>search_image · end-to-end</h1>
+  <p class="sub">The tool browses the web via the Codex account, downloads the real picture, and hands the pixels to the model.</p>
+  <div class="bubble you"><b>builder:</b> can you make a game with a pusheen cat?</div>
+  <div class="bubble"><b>Bit calls</b> <code>search_image("pusheen the cartoon cat")</code></div>
+  <div class="bubble">
+    <div>Here is a picture of "pusheen the cartoon cat" - take a look.<br><br>From:<br>- https://pics.example.com/pusheen.png<br><br>Saved so you can reuse it later - reference id: searched-pusheen-1.</div>
+    <img src="data:image/png;base64,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" alt="picture the model sees">
+    <div class="src">image content part · image/png · 2,006 bytes of real pixels delivered to the model</div>
+  </div>
+</div>

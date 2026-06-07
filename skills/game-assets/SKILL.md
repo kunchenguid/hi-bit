@@ -25,7 +25,8 @@ Image models are great at drawing but bad at making clean transparent grids.
 So we split the work in two:
 
 1. Ask `generate_image` to draw the frames on a solid flat magenta `#FF00FF` background, laid out in an even grid.
-   If your job lists reference picture ids from the builder, pass them in `reference_paths` so the sprite matches that character, colors, or style.
+   If your job lists reference picture ids, pass them in `reference_paths` so the sprite matches that character, colors, or style.
+   Those ids may name pictures the builder shared, pictures found with `search_image`, or art made by `generate_image` in this or another creation.
 2. Run the `process_sprite_sheet` tool, which keys out the magenta, slices the frames, lines them up, checks quality, and writes a transparent sheet, an animated GIF, and a `sprite-meta.json`.
 
 Then wire the result into the creation with the tiny renderer in `references/sprite-renderer.js` so the art actually animates in the live preview.
@@ -55,7 +56,7 @@ A `4x4` is fine when it is a four-direction walk (row 1 down, row 2 left, row 3 
 Keep the art friendly and age-appropriate for kids 7-12 by default: bright, rounded, cheerful, simple, readable shapes.
 Avoid gore, blood, realistic weapons, scary or violent imagery unless the kid clearly asked for something spooky-but-still-kid-safe (like a cartoon ghost).
 Match the kid's theme and any art already in their creation.
-If the builder shared a picture as art direction, pass its id to `generate_image.reference_paths` instead of only describing it in words.
+If you have a reference picture id as art direction, pass it to `generate_image.reference_paths` instead of only describing it in words.
 
 Every sprite-sheet prompt must say all of these:
 
