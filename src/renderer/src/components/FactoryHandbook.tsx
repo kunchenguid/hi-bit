@@ -12,7 +12,6 @@ type FactoryHandbookProps = {
 /** Kid-facing words for each mastery state - warm and encouraging, never a grade. */
 const MASTERY_WORDS: Record<MasteryState, string> = {
   unseen: "Not yet",
-  met: "Trying it",
   grasped: "Got it",
   fluent: "Mastered",
 };

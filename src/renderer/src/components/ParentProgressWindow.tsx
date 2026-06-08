@@ -9,7 +9,6 @@ type ParentProgressWindowProps = {
 /** Parent-facing words for mastery - plain about what is genuinely learned. */
 const MASTERY_WORDS: Record<MasteryState, string> = {
   unseen: "not started",
-  met: "encountered",
   grasped: "done with help",
   fluent: "fluent",
 };

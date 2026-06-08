@@ -42,7 +42,7 @@ const PROGRESS: LearningProgressView = {
       updatedAt: "2026-01-01T00:00:00.000Z",
     },
   ],
-  counts: { fluent: 1, grasped: 1, met: 0, total: 2 },
+  counts: { fluent: 1, grasped: 1, total: 2 },
 };
 
 describe("ParentProgressWindow", () => {

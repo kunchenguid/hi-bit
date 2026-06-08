@@ -19,7 +19,7 @@ describe("buildLearningProgress", () => {
     expect(view.tierLabel).toMatch(/ask/i);
     expect(view.skills).toHaveLength(13);
     expect(view.arcs).toHaveLength(4);
-    expect(view.counts).toEqual({ fluent: 0, grasped: 0, met: 0, total: 13 });
+    expect(view.counts).toEqual({ fluent: 0, grasped: 0, total: 13 });
     expect(view.roadmap).toEqual([]);
   });
 
@@ -30,12 +30,11 @@ describe("buildLearningProgress", () => {
         "iterate-feedback": "fluent",
         "specific-feedback": "fluent",
         "give-picture": "grasped",
-        "show-screen": "met",
       },
       ROADMAP,
     );
     expect(view.reachableTier).toBe(2);
-    expect(view.counts).toMatchObject({ fluent: 3, grasped: 1, met: 1 });
+    expect(view.counts).toMatchObject({ fluent: 3, grasped: 1 });
     expect(view.skills.find((skill) => skill.id === "ask-creation")?.mastery).toBe("fluent");
     expect(view.roadmap).toEqual(ROADMAP);
   });

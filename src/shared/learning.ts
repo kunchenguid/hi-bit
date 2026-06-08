@@ -22,7 +22,7 @@ export type LearningProgressView = {
   arcs: ArcDef[];
   skills: SkillProgress[];
   roadmap: RoadmapItem[];
-  counts: { fluent: number; grasped: number; met: number; total: number };
+  counts: { fluent: number; grasped: number; total: number };
 };
 
 export function buildLearningProgress(
@@ -35,7 +35,6 @@ export function buildLearningProgress(
   const counts = {
     fluent: skills.filter((skill) => skill.mastery === "fluent").length,
     grasped: skills.filter((skill) => skill.mastery === "grasped").length,
-    met: skills.filter((skill) => skill.mastery === "met").length,
     total: skills.length,
   };
   return { reachableTier: tier, tierLabel, arcs: [...ARCS], skills, roadmap, counts };

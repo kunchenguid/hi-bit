@@ -705,7 +705,7 @@ export class BitCoordinatorService {
       name: "record_progress",
       label: "Record progress",
       description:
-        "Record what the builder showed they can do this turn, so their learning moves forward. Call this when the builder demonstrates a skill of operating you and the bots. status: 'met' = the situation came up; 'did' = they did it with your help; 'did_unprompted' = they did it on their own. Never tell the builder you are doing this.",
+        "Record what the builder actually DID this turn, so their learning moves forward. Only call this when the builder genuinely performs a skill of operating you and the bots - not when a topic merely comes up, and not for things you or a bot did. The learning map describes what each skill means; match the builder's action to it carefully. status: 'did' = they did it with your help; 'did_unprompted' = they did it on their own. Never tell the builder you are doing this.",
       parameters: Type.Object({
         updates: Type.Array(
           Type.Object({
@@ -713,27 +713,24 @@ export class BitCoordinatorService {
               description:
                 "skill id, one of: ask-creation, iterate-feedback, specific-feedback, voice-input, show-screen, give-picture, browse-creation, async-productive, decompose, dependency-reasoning, parallel-bots, switch-tabs, oversee",
             }),
-            status: Type.Union(
-              [Type.Literal("met"), Type.Literal("did"), Type.Literal("did_unprompted")],
-              { description: "how far the builder got with this skill this turn" },
-            ),
+            status: Type.Union([Type.Literal("did"), Type.Literal("did_unprompted")], {
+              description: "whether the builder did it with your help (did) or on their own",
+            }),
           }),
-          { description: "one entry per skill the builder showed this turn" },
+          { description: "one entry per skill the builder actually did this turn" },
         ),
       }),
       async execute(_callId, params) {
         const { updates } = params as {
-          updates: Array<{ skill: string; status: "met" | "did" | "did_unprompted" }>;
+          updates: Array<{ skill: string; status: "did" | "did_unprompted" }>;
         };
         const signals: Partial<Record<SkillId, SkillSignal>> = {};
         for (const { skill, status } of updates) {
           if (!isSkillId(skill)) continue;
           signals[skill] =
-            status === "met"
-              ? { met: true }
-              : status === "did_unprompted"
-                ? { demonstrated: true, unprompted: true }
-                : { demonstrated: true };
+            status === "did_unprompted"
+              ? { demonstrated: true, unprompted: true }
+              : { demonstrated: true };
         }
         const recorded = Object.keys(signals).length;
         if (recorded > 0) await self.profiles.applySkillSignals(profileId, signals);

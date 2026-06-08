@@ -41,8 +41,12 @@ export type SkillId =
 
 export type ArcId = "direct" | "context" | "orchestrate" | "oversee";
 
-/** A skill's mastery gradient. Only `fluent` advances the kid up the ramp. */
-export type MasteryState = "unseen" | "met" | "grasped" | "fluent";
+/**
+ * A skill's mastery gradient. We only ever record what the builder actually
+ * *did* (not "the situation came up"), so a skill goes unseen -> grasped (did it
+ * with help) -> fluent (did it unprompted). Only `fluent` advances the ramp.
+ */
+export type MasteryState = "unseen" | "grasped" | "fluent";
 
 export type ArcDef = {
   id: ArcId;
@@ -59,6 +63,13 @@ export type SkillDef = {
   order: number;
   /** What the kid actually does, in their world's words (used in the Handbook). */
   kidLabel: string;
+  /**
+   * The descriptor used in Bit's per-turn learning map. Defaults to `kidLabel`,
+   * which is concrete enough for Bit to judge progress correctly. Only set where
+   * the kidLabel names a gated inside-word (bot, factory, Logbook) that must not
+   * leak into the prompt - then this is an inside-word-free rephrase.
+   */
+  coachLabel?: string;
   /** The agentic-engineering skill underneath (used in the grown-up window). */
   realSkill: string;
   /**
@@ -162,6 +173,7 @@ export const SKILLS: readonly SkillDef[] = [
     arc: "orchestrate",
     order: 8,
     kidLabel: "Keep going while a bot works in the background",
+    coachLabel: "Keep going - chat or plan - while a build runs in the background",
     realSkill: "Async delegation - staying productive",
     requires: [],
     nudge:
@@ -192,6 +204,7 @@ export const SKILLS: readonly SkillDef[] = [
     arc: "orchestrate",
     order: 11,
     kidLabel: "Have bots build a few things at once",
+    coachLabel: "Have a few things built at the same time",
     realSkill: "Parallel orchestration",
     requires: ["ask-creation", "iterate-feedback"],
     nudge:
@@ -212,6 +225,7 @@ export const SKILLS: readonly SkillDef[] = [
     arc: "oversee",
     order: 13,
     kidLabel: "Check the Factory and the Logbook",
+    coachLabel: "Look back over every step taken on a creation",
     realSkill: "Observability / tracing agent work",
     requires: [],
     nudge:
@@ -230,7 +244,7 @@ export function isSkillId(id: string): id is SkillId {
 }
 
 /** Mastery states from least to most learned. */
-export const MASTERY_ORDER: readonly MasteryState[] = ["unseen", "met", "grasped", "fluent"];
+export const MASTERY_ORDER: readonly MasteryState[] = ["unseen", "grasped", "fluent"];
 
 export function masteryRank(state: MasteryState): number {
   return MASTERY_ORDER.indexOf(state);
@@ -266,27 +280,25 @@ export function masteryOf(map: MasteryMap, id: SkillId): MasteryState {
 }
 
 /**
- * What Bit observed about a skill this turn. `met` is the situation arising;
- * `demonstrated` is the kid actually doing it; `unprompted` is doing it without
- * Bit asking - the signal that it has become a habit.
+ * What Bit observed the builder actually do with a skill this turn.
+ * `demonstrated` is the kid doing it; `unprompted` is doing it without Bit
+ * asking - the signal that it has become a habit. We deliberately do not track
+ * "the situation came up": it is the noisiest signal and invites false records.
  */
 export type SkillSignal = {
-  met?: boolean;
   demonstrated?: boolean;
   unprompted?: boolean;
 };
 
 /**
  * The mastery transition. Monotonic - mastery never regresses.
- * unseen -> met (situation arises) -> grasped (did it once) -> fluent (did it
- * unprompted, after having grasped it). A first demonstration jumps straight to
- * grasped even from unseen, but fluency is only earned once the kid does it
- * unprompted *after* already grasping it - a single first-ever unprompted try
- * lands at grasped, never straight to fluent.
+ * unseen -> grasped (did it, with help) -> fluent (did it unprompted, after
+ * already grasping it). A first demonstration jumps straight to grasped; fluency
+ * is only earned once the kid does it unprompted *after* grasping it, so a single
+ * first-ever unprompted try lands at grasped, never straight to fluent.
  */
 export function advanceMastery(current: MasteryState, signal: SkillSignal): MasteryState {
   let next = current;
-  if (signal.met && next === "unseen") next = "met";
   if (signal.demonstrated) {
     const alreadyGrasped = masteryRank(current) >= masteryRank("grasped");
     if (masteryRank(next) < masteryRank("grasped")) next = "grasped";
@@ -369,16 +381,18 @@ export function buildCoachingNote(map: MasteryMap): string {
     "Builder's learning map - where they are in learning to direct you and the bots, and an example of how each skill could be introduced. You teach only by building: when something the builder just did opens the door, you MAY warmly weave in ONE skill they have not mastered yet (tie the everyday thing to the real idea), or none at all. You decide which and when - never force it, at most one new idea per message, never a lesson.",
     `Reach right now: build tier ${reach} of ${BUILD_TIERS.length} (${reachLabel}).`,
   ];
-  // Skills are named by their engineering meaning (realSkill), not the kid-facing
-  // label, so this internal map never sprays the gated inside words (bot, factory,
-  // Logbook) into the per-turn prompt - Bit's own output stays gated by the
+  // Each skill is named by the concrete thing the builder does (coachLabel, which
+  // falls back to the kid label) plus its engineering meaning, so Bit can judge
+  // record_progress accurately. coachLabel keeps the gated inside words (bot,
+  // factory, Logbook) out of the prompt; Bit's own output stays gated by the
   // "Words you may use" note.
   for (const arc of ARCS) {
     lines.push(`${arc.title}:`);
     for (const skill of SKILLS.filter((candidate) => candidate.arc === arc.id)) {
       const mastery = masteryOf(map, skill.id);
+      const label = skill.coachLabel ?? skill.kidLabel;
       const example = mastery !== "fluent" && skill.nudge ? ` · to introduce: ${skill.nudge}` : "";
-      lines.push(`  - [${mastery}] ${skill.realSkill}${example}`);
+      lines.push(`  - [${mastery}] ${label} (${skill.realSkill})${example}`);
     }
   }
   if (canRunParallel(map)) {

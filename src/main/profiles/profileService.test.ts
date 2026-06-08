@@ -200,17 +200,23 @@ describe("ProfileService", () => {
 
     const first = await service.applySkillSignals(ada.id, {
       "ask-creation": { demonstrated: true },
-      "iterate-feedback": { met: true },
+      "iterate-feedback": { demonstrated: true },
     });
-    expect(first.skillMastery).toEqual({ "ask-creation": "grasped", "iterate-feedback": "met" });
+    expect(first.skillMastery).toEqual({
+      "ask-creation": "grasped",
+      "iterate-feedback": "grasped",
+    });
 
     // An unprompted demonstration of a grasped skill promotes it to fluent; a
-    // bare `met` can never pull a grasped skill backwards.
+    // plain demonstration can never pull a grasped skill backwards.
     const second = await service.applySkillSignals(ada.id, {
       "ask-creation": { demonstrated: true, unprompted: true },
-      "iterate-feedback": { met: true },
+      "iterate-feedback": { demonstrated: true },
     });
-    expect(second.skillMastery).toEqual({ "ask-creation": "fluent", "iterate-feedback": "met" });
+    expect(second.skillMastery).toEqual({
+      "ask-creation": "fluent",
+      "iterate-feedback": "grasped",
+    });
   });
 
   it("does not rewrite the profile when no signal changes mastery", async () => {
@@ -218,7 +224,10 @@ describe("ProfileService", () => {
     await service.applySkillSignals(ada.id, { "ask-creation": { demonstrated: true } });
     const before = await readFile(join(profileDir(layout, ada.id), "profile.json"), "utf8");
 
-    const same = await service.applySkillSignals(ada.id, { "ask-creation": { met: true } });
+    // A plain demonstration of an already-grasped skill does not change it.
+    const same = await service.applySkillSignals(ada.id, {
+      "ask-creation": { demonstrated: true },
+    });
     expect(same.skillMastery).toEqual({ "ask-creation": "grasped" });
     const after = await readFile(join(profileDir(layout, ada.id), "profile.json"), "utf8");
     expect(after).toBe(before);

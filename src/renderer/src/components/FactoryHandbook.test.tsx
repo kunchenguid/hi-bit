@@ -33,11 +33,11 @@ const PROGRESS: LearningProgressView = {
       kidLabel: "Give Bit a picture to work from",
       realSkill: "Multimodal context",
       requires: [],
-      mastery: "met",
+      mastery: "grasped",
     },
   ],
   roadmap: [],
-  counts: { fluent: 1, grasped: 0, met: 1, total: 2 },
+  counts: { fluent: 1, grasped: 1, total: 2 },
 };
 
 describe("FactoryHandbook", () => {
@@ -67,7 +67,7 @@ describe("FactoryHandbook", () => {
     expect(host.textContent).toContain("1/2");
     expect(host.textContent).toContain("Ask Bit for a new creation");
     expect(host.textContent).toContain("Mastered");
-    expect(host.textContent).toContain("Trying it");
+    expect(host.textContent).toContain("Got it");
 
     const mastered = host.querySelector('[data-mastery="fluent"]');
     expect(mastered?.getAttribute("data-done")).toBe("true");

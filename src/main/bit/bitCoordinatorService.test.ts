@@ -1772,8 +1772,10 @@ describe("BitCoordinatorService (Bit)", () => {
     const prompt = s.bit.prompts.at(-1);
     expect(prompt).toMatch(/learning map/i);
     expect(prompt).toContain("Reach right now: build tier 1 of 4");
-    // The full map is surfaced (every skill, by engineering name), decision to Bit.
-    expect(prompt).toContain("[unseen] Kicking off work / stating intent");
+    // The full map is surfaced (every skill, concrete action + meaning), decision to Bit.
+    expect(prompt).toContain(
+      "[unseen] Ask Bit for a new creation (Kicking off work / stating intent)",
+    );
     expect(prompt).toMatch(/you decide/i);
     expect(prompt).toContain("record_progress");
   });
@@ -1784,7 +1786,7 @@ describe("BitCoordinatorService (Bit)", () => {
       await callTool("record_progress", {
         updates: [
           { skill: "ask-creation", status: "did_unprompted" },
-          { skill: "give-picture", status: "met" },
+          { skill: "give-picture", status: "did" },
           { skill: "not-a-real-skill", status: "did" },
         ],
       });
@@ -1796,10 +1798,10 @@ describe("BitCoordinatorService (Bit)", () => {
 
     const profile = await s.profiles.get(s.profile.id);
     // A first-ever unprompted demonstration lands at grasped (not straight to
-    // fluent); fluency is earned by doing it unprompted after grasping it.
+    // fluent); a plain "did" also lands at grasped. Unknown skills are ignored.
     expect(profile.skillMastery).toEqual({
       "ask-creation": "grasped",
-      "give-picture": "met",
+      "give-picture": "grasped",
     });
   });
 

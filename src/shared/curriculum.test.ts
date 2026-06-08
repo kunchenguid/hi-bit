@@ -49,11 +49,10 @@ describe("the spine shape", () => {
 });
 
 describe("mastery ordering", () => {
-  it("ranks the four states", () => {
+  it("ranks the three states", () => {
     expect(masteryRank("unseen")).toBe(0);
-    expect(masteryRank("met")).toBe(1);
-    expect(masteryRank("grasped")).toBe(2);
-    expect(masteryRank("fluent")).toBe(3);
+    expect(masteryRank("grasped")).toBe(1);
+    expect(masteryRank("fluent")).toBe(2);
   });
 
   it("treats an absent skill as unseen", () => {
@@ -62,20 +61,15 @@ describe("mastery ordering", () => {
   });
 
   it("compares against a minimum", () => {
-    expect(atLeast("grasped", "met")).toBe(true);
-    expect(atLeast("met", "grasped")).toBe(false);
+    expect(atLeast("grasped", "unseen")).toBe(true);
+    expect(atLeast("unseen", "grasped")).toBe(false);
     expect(atLeast("fluent", "fluent")).toBe(true);
   });
 });
 
 describe("advanceMastery", () => {
-  it("moves unseen to met when the situation first arises", () => {
-    expect(advanceMastery("unseen", { met: true })).toBe("met");
-  });
-
   it("jumps to grasped the first time the kid does it, even from unseen", () => {
     expect(advanceMastery("unseen", { demonstrated: true })).toBe("grasped");
-    expect(advanceMastery("met", { demonstrated: true })).toBe("grasped");
   });
 
   it("promotes grasped to fluent only on an unprompted demonstration", () => {
@@ -85,14 +79,13 @@ describe("advanceMastery", () => {
 
   it("does not skip grasped: a first-ever unprompted try lands at grasped, not fluent", () => {
     expect(advanceMastery("unseen", { demonstrated: true, unprompted: true })).toBe("grasped");
-    expect(advanceMastery("met", { demonstrated: true, unprompted: true })).toBe("grasped");
   });
 
-  it("never regresses", () => {
+  it("never regresses and ignores empty signals", () => {
     expect(advanceMastery("fluent", {})).toBe("fluent");
-    expect(advanceMastery("fluent", { met: true })).toBe("fluent");
-    expect(advanceMastery("grasped", { met: true })).toBe("grasped");
-    expect(advanceMastery("met", {})).toBe("met");
+    expect(advanceMastery("grasped", {})).toBe("grasped");
+    expect(advanceMastery("unseen", {})).toBe("unseen");
+    expect(advanceMastery("fluent", { demonstrated: true })).toBe("fluent");
   });
 });
 
@@ -174,7 +167,7 @@ describe("sanitization helpers", () => {
 
 describe("buildCoachingNote", () => {
   it("surfaces the whole map and hands the teaching decision to Bit", () => {
-    const note = buildCoachingNote({ "ask-creation": "grasped", "give-picture": "met" });
+    const note = buildCoachingNote({ "ask-creation": "grasped", "give-picture": "fluent" });
     // The framing: Bit decides, at most one, never forced - not a prescribed skill.
     expect(note).toMatch(/learning map/i);
     expect(note).toMatch(/you decide/i);
@@ -185,12 +178,15 @@ describe("buildCoachingNote", () => {
     expect(note).toContain("record_progress");
   });
 
-  it("lists every skill grouped by arc (by engineering name), with the builder's mastery", () => {
+  it("names each skill by its concrete action plus engineering meaning, with mastery", () => {
     const note = buildCoachingNote({ "ask-creation": "grasped" });
     for (const arc of ARCS) expect(note).toContain(`${arc.title}:`);
-    for (const skill of SKILLS) expect(note).toContain(skill.realSkill);
-    expect(note).toContain("[grasped] Kicking off work / stating intent");
-    expect(note).toContain("[unseen] Decomposition");
+    for (const skill of SKILLS) expect(note).toContain(skill.coachLabel ?? skill.kidLabel);
+    expect(note).toContain(
+      "[grasped] Ask Bit for a new creation (Kicking off work / stating intent)",
+    );
+    // voice is unambiguous (the action, not just "natural-language input").
+    expect(note).toContain("[unseen] Talk to Bit with your voice");
     // The internal map never leaks the gated kid inside-words.
     expect(note).not.toMatch(/\bbot\b/i);
     expect(note).not.toMatch(/\bfactory\b|\blogbook\b/i);
@@ -200,7 +196,7 @@ describe("buildCoachingNote", () => {
     const askNudge = skillById("ask-creation").nudge ?? "###";
     expect(buildCoachingNote({})).toContain(askNudge); // unseen -> example shown
     const note = buildCoachingNote({ "ask-creation": "fluent" });
-    expect(note).toContain("[fluent] Kicking off work / stating intent");
+    expect(note).toContain("[fluent] Ask Bit for a new creation");
     expect(note).not.toContain(askNudge); // fluent -> no "to introduce" example
   });
 
