@@ -30,9 +30,15 @@ extraResources:
 mac:
   category: public.app-category.education
   icon: build/icon.icns
-  # Lets a kid snap a photo of a drawing or build to show Bit. macOS requires this
-  # string before the webcam can open, even for unsigned builds.
   extendInfo:
+    # The visible app name (Finder, Dock, menu bar) reads "Hi Bit", with a space.
+    # CFBundleName stays "Hi-Bit" (from productName) on purpose: macOS derives the
+    # Electron userData path from CFBundleName, and our DMG/zip artifact names and
+    # the Homebrew cask URLs are all hyphenated - overriding only the display name
+    # keeps every existing install's data, downloads, and cask in place.
+    CFBundleDisplayName: Hi Bit
+    # Lets a kid snap a photo of a drawing or build to show Bit. macOS requires this
+    # string before the webcam can open, even for unsigned builds.
     NSCameraUsageDescription: Hi-Bit uses the camera so you can take a picture to show Bit.
   target:
     - target: dmg

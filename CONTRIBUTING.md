@@ -33,6 +33,7 @@ See the [no-mistakes quick start](https://kunchenguid.github.io/no-mistakes/star
 - Run `pnpm package:mac` when changing packaging, runtime paths, native dependencies, release behavior, or anything that affects the packaged app layout.
 - Local `pnpm package:mac` builds intentionally produce `Hi-Bit Dev.app` with bundle id `com.hibit.app.dev`.
 - Release automation uses `electron-builder.yml` directly for the production `Hi-Bit.app` identity.
+- The production macOS app displays as `Hi Bit` in Finder, the Dock, and the menu bar, while `Hi-Bit.app`, `CFBundleName`, artifact names, and Homebrew cask paths stay hyphenated so existing user data and downloads keep working.
 - Keep universal macOS packaging compatible with both Intel and Apple Silicon Macs.
 - Native prebuilt packages must be installed for `x64` and `arm64` and preserved in `electron-builder.yml` `x64ArchFiles` when electron-builder merges the app.
 - Keep `electron-builder` at `26.8.2` or newer so pnpm-deduped dependencies are included correctly in packaged builds.
