@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Transcript Trailing Space Evidence</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f7f2e8;
+        color: #261f19;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+      }
+
+      main {
+        width: min(860px, 100%);
+        background: #fffaf0;
+        border: 2px solid #2f261f;
+        border-radius: 28px;
+        box-shadow: 0 18px 0 #2f261f1f;
+        padding: 28px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(28px, 5vw, 44px);
+        line-height: 0.95;
+      }
+
+      .lede {
+        margin: 0 0 24px;
+        color: #5d5046;
+        font-size: 17px;
+      }
+
+      .composer {
+        background: white;
+        border: 2px solid #2f261f;
+        border-radius: 22px;
+        padding: 18px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 800;
+      }
+
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 112px;
+        border: 2px solid #2f261f;
+        border-radius: 18px;
+        padding: 16px;
+        font: 22px/1.35 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        resize: vertical;
+      }
+
+      .rows {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .card {
+        border: 1px solid #dfd1bc;
+        border-radius: 16px;
+        background: #fff4d8;
+        padding: 14px;
+        min-width: 0;
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #6b5541;
+      }
+
+      code {
+        display: block;
+        overflow-wrap: anywhere;
+        font-size: 16px;
+        background: #2f261f;
+        color: #fffaf0;
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .space {
+        display: inline-block;
+        margin-left: 2px;
+        color: #d14b2f;
+        font-weight: 900;
+      }
+
+      .note {
+        margin: 16px 0 0;
+        color: #5d5046;
+        font-size: 14px;
+      }
+
+      @media (max-width: 720px) {
+        body {
+          padding: 16px;
+        }
+
+        main {
+          padding: 20px;
+        }
+
+        .rows {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Voice transcript lands with a trailing space</h1>
+      <p class="lede">
+        Evidence for the kid-facing composer behavior: after local voice transcription inserts text,
+        the draft remains editable and already has the separating whitespace needed to continue typing.
+      </p>
+
+      <section class="composer" aria-label="Composer evidence">
+        <label for="draft">Chat draft after voice input</label>
+        <textarea id="draft" readonly>hello world </textarea>
+
+        <div class="rows">
+          <div class="card">
+            <strong>Existing draft</strong>
+            <code>hello</code>
+          </div>
+          <div class="card">
+            <strong>Voice transcript</strong>
+            <code>world</code>
+          </div>
+          <div class="card">
+            <strong>Inserted draft</strong>
+            <code>hello world<span class="space">&middot;</span></code>
+          </div>
+        </div>
+
+        <p class="note">
+          The red dot marks the otherwise invisible final space in the textarea value.
+          This corresponds to <code>appendVoiceTranscript("hello", "world") === "hello world "</code>.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

@@ -127,6 +127,16 @@ const STOCK_HALLUCINATIONS = new Set([
   "blankaudio",
 ]);
 
+/**
+ * Joins a fresh voice transcript onto the current composer draft. Trails a
+ * space so the kid can keep typing (or dictate again) without first nudging the
+ * caret. Space-separates from any existing draft and collapses its trailing
+ * whitespace so repeated dictation doesn't pile up gaps.
+ */
+export function appendVoiceTranscript(current: string, transcript: string): string {
+  return current.trim() ? `${current.trimEnd()} ${transcript} ` : `${transcript} `;
+}
+
 export function isLikelyHallucination(text: string): boolean {
   const normalized = text
     .toLowerCase()
