@@ -30,27 +30,9 @@ describe("eligibleConceptIds", () => {
     expect(eligibleConceptIds({ ...FRESH, openedActivities: true })).toContain("logbook");
   });
 
-  it("unlocks blueprint and machines together after a few builds", () => {
-    const ids = eligibleConceptIds({ ...FRESH, buildsDelegated: 3, creationCount: 1 });
-    expect(ids).toContain("blueprint");
-    expect(ids).toContain("machines");
-    // factory rides on a second creation, not build count.
-    expect(ids).not.toContain("factory");
-  });
-
-  it("unlocks the deep mechanism words only after many builds", () => {
-    const ids = eligibleConceptIds({ ...FRESH, buildsDelegated: 6, creationCount: 3 });
-    expect(ids).toEqual(
-      expect.arrayContaining([
-        "bot",
-        "factory",
-        "blueprint",
-        "machines",
-        "assembly-line",
-        "save-points",
-        "workbench",
-      ]),
-    );
+  it("only ever reveals the three early canon words - deeper words are taught, not revealed", () => {
+    const ids = eligibleConceptIds({ buildsDelegated: 99, creationCount: 99, openedActivities: true });
+    expect(ids).toEqual(["bot", "factory", "logbook"]);
   });
 });
 
@@ -61,13 +43,12 @@ describe("nextConceptToUnlock", () => {
 
   it("reveals at most one new word per turn, lowest tier first", () => {
     const facts: UnlockFacts = { buildsDelegated: 3, creationCount: 2, openedActivities: true };
-    // bot, factory, logbook, blueprint, machines are all eligible at once, but
-    // only one may surface this turn.
+    // bot, factory, logbook are all eligible at once, but only one may surface
+    // this turn.
     expect(nextConceptToUnlock(facts, [])).toBe("bot");
     expect(nextConceptToUnlock(facts, ["bot"])).toBe("factory");
     expect(nextConceptToUnlock(facts, ["bot", "factory"])).toBe("logbook");
-    expect(nextConceptToUnlock(facts, ["bot", "factory", "logbook"])).toBe("blueprint");
-    expect(nextConceptToUnlock(facts, ["bot", "factory", "logbook", "blueprint"])).toBe("machines");
+    expect(nextConceptToUnlock(facts, ["bot", "factory", "logbook"])).toBeNull();
   });
 
   it("returns null once every eligible concept is unlocked", () => {
