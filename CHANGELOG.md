@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.3](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.2...hi-bit-v0.0.3) (2026-06-08)
+
+
+### Features
+
+* add grown-up thinking speed control ([#78](https://github.com/kunchenguid/hi-bit/issues/78)) ([dacc3d0](https://github.com/kunchenguid/hi-bit/commit/dacc3d01b1fedbbf9a0787d98f3bd2e3c6c12dbd))
+* **main:** add grown-up update notices ([#77](https://github.com/kunchenguid/hi-bit/issues/77)) ([8fb0dfa](https://github.com/kunchenguid/hi-bit/commit/8fb0dfacd0b8fcdc63d4c3dbbdc429719532f90d))
+* **preview:** persist game progress across plays ([#79](https://github.com/kunchenguid/hi-bit/issues/79)) ([931042b](https://github.com/kunchenguid/hi-bit/commit/931042ba04f9044d5e12b9680ad341be94a233eb))
+
+
+### Bug Fixes
+
+* **renderer:** keep mic clicks hands-free ([#75](https://github.com/kunchenguid/hi-bit/issues/75)) ([5c59a30](https://github.com/kunchenguid/hi-bit/commit/5c59a3015ba84a08dd3482606e5653c40736c091))
+* **renderer:** preserve spacing after voice transcripts ([#80](https://github.com/kunchenguid/hi-bit/issues/80)) ([486a8d7](https://github.com/kunchenguid/hi-bit/commit/486a8d7a36a3af2cf65314237c26d0a0b91e8e2e))
+
 ## [0.0.2](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.1...hi-bit-v0.0.2) (2026-06-07)
 
 
