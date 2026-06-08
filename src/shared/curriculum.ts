@@ -67,11 +67,12 @@ export type SkillDef = {
    */
   requires: SkillId[];
   /**
-   * A concrete, kid-facing next step Bit can proactively offer to draw the
-   * builder toward exercising this skill - the "ambition pulls toward a bigger
-   * build" arrow of the flywheel. Phrased as guidance to Bit; Bit reworks it in
-   * its own warm words, tied to the actual creation. Optional: some skills
-   * (e.g. voice) depend on device support and are surfaced reactively instead.
+   * An example of how this skill could be introduced to the builder - a concrete
+   * next step Bit can draw on if it judges the moment is right. Surfaced in the
+   * learning map as a suggestion menu, never as a system-chosen instruction; Bit
+   * decides whether and when to use it and reworks it in its own warm words.
+   * Optional: some skills (e.g. voice) depend on device support and are left to
+   * Bit to surface only when it fits.
    */
   nudge?: string;
 };
@@ -106,7 +107,7 @@ export const SKILLS: readonly SkillDef[] = [
     realSkill: "The iteration loop",
     requires: [],
     nudge:
-      "Once a creation is ready, invite the builder to play it and tell you one thing to change or add.",
+      "Once a creation is built, invite the builder to play it and tell you one thing to change or add.",
   },
   {
     id: "specific-feedback",
@@ -154,7 +155,7 @@ export const SKILLS: readonly SkillDef[] = [
     realSkill: "Observing the artifact to steer it",
     requires: [],
     nudge:
-      "When a build is ready, invite the builder to press Play and try it out, then react to what happens together.",
+      "When a creation is finished, invite the builder to press Play and try it out, then react to what happens together.",
   },
   {
     id: "async-productive",
@@ -214,7 +215,7 @@ export const SKILLS: readonly SkillDef[] = [
     realSkill: "Observability / tracing agent work",
     requires: [],
     nudge:
-      "Offer to show the builder the Logbook of every step you took, so they can see how it all came together.",
+      "Offer to walk the builder through every step you took, so they can see how it all came together.",
   },
 ];
 
@@ -351,77 +352,48 @@ export function reachableTier(map: MasteryMap): BuildTier {
 }
 
 /**
- * The single skill Bit should coach right now: the lowest-order skill that is
- * relevant to what is happening, whose prerequisites are met, and which is not
- * already fluent. `relevant` is the set of skills the current situation touches.
- */
-export function nextSkillToCoach(map: MasteryMap, relevant: SkillId[]): SkillId | null {
-  const relevantSet = new Set(relevant);
-  const candidate = SKILLS.filter((skill) => relevantSet.has(skill.id))
-    .filter((skill) => masteryOf(map, skill.id) !== "fluent")
-    .filter((skill) => prerequisitesMet(map, skill.id))
-    .sort((a, b) => a.order - b.order)[0];
-  return candidate?.id ?? null;
-}
-
-/**
- * The frontier of skills worth coaching next: skills not yet fluent whose
- * prerequisites are met, lowest order first. Bit picks at most one of these to
- * coach in any turn, and only when a build actually calls for it.
- */
-export function coachableSkills(map: MasteryMap): SkillDef[] {
-  return SKILLS.filter((skill) => masteryOf(map, skill.id) !== "fluent")
-    .filter((skill) => prerequisitesMet(map, skill.id))
-    .sort((a, b) => a.order - b.order);
-}
-
-/**
- * The per-turn coaching note appended to Bit's prompt. It tells Bit where the
- * builder is on the ramp and which skills are next, and asks Bit to record the
- * builder's progress so mastery advances. It deliberately does not prescribe a
- * single skill - Bit judges, from the conversation, what the moment calls for.
+ * The per-turn learning map appended to Bit's prompt. We deliberately do NOT
+ * pick a skill to teach - we surface the whole curriculum, where the builder is
+ * on each skill, and an example of how each could be introduced, then let Bit
+ * judge (from what the builder just did) whether and which one knowledge point
+ * to weave in. The mastery ledger stays in code; the teaching decision is Bit's.
+ *
+ * Two derived facts are stated plainly because they are guardrails, not nudges:
+ * the builder's current reach (the complexity ramp) and whether they are ready
+ * to run builds in parallel yet.
  */
 export function buildCoachingNote(map: MasteryMap): string {
-  const coachable = coachableSkills(map);
-  const frontier = coachable.slice(0, 3);
   const reach = reachableTier(map);
-  const lines = [`Builder's reach: build tier ${reach} of ${BUILD_TIERS.length}.`];
-  if (frontier.length > 0) {
-    const list = frontier.map((skill) => `${skill.id} (${skill.realSkill})`).join("; ");
-    lines.push(`Skills to grow next - coach at most one, in the flow of a real build: ${list}.`);
-  } else {
-    lines.push("This builder is fluent across the whole spine - follow their lead.");
-  }
-  // The "ambition pulls toward a bigger build" arrow: surface the lowest-order
-  // coachable skill that carries a concrete next step, so Bit can proactively
-  // draw the builder forward instead of only reacting.
-  const nudge = nextNudge(map);
-  if (nudge) {
-    lines.push(
-      `Guide them forward - don't wait passively: at a natural moment (a build just started or finished, or the builder is between things), warmly offer ONE next step in your own words and let them choose. For example: ${nudge} Keep it to one idea tied to what they're making; never nag.`,
-    );
+  const reachLabel = BUILD_TIERS.find((tier) => tier.tier === reach)?.label ?? "";
+  const lines = [
+    "Builder's learning map - where they are in learning to direct you and the bots, and an example of how each skill could be introduced. You teach only by building: when something the builder just did opens the door, you MAY warmly weave in ONE skill they have not mastered yet (tie the everyday thing to the real idea), or none at all. You decide which and when - never force it, at most one new idea per message, never a lesson.",
+    `Reach right now: build tier ${reach} of ${BUILD_TIERS.length} (${reachLabel}).`,
+  ];
+  // Skills are named by their engineering meaning (realSkill), not the kid-facing
+  // label, so this internal map never sprays the gated inside words (bot, factory,
+  // Logbook) into the per-turn prompt - Bit's own output stays gated by the
+  // "Words you may use" note.
+  for (const arc of ARCS) {
+    lines.push(`${arc.title}:`);
+    for (const skill of SKILLS.filter((candidate) => candidate.arc === arc.id)) {
+      const mastery = masteryOf(map, skill.id);
+      const example = mastery !== "fluent" && skill.nudge ? ` · to introduce: ${skill.nudge}` : "";
+      lines.push(`  - [${mastery}] ${skill.realSkill}${example}`);
+    }
   }
   if (canRunParallel(map)) {
     lines.push(
-      "Parallel work is fine: when the builder asks for several things, start the independent ones together and say plainly when one must wait for another.",
+      "Parallel building is open: when they ask for several things, start the independent ones together and say plainly when one must wait for another.",
     );
   } else {
     lines.push(
-      "Readiness gate: this builder is still learning to steer one build at a time, so do NOT start several builds at once. If they ask for a lot, start the most exciting one, do it well, and park the rest with park_ambition.",
+      "Parallel building is not open yet: do NOT start several builds at once. If they ask for a lot, start the most exciting one, do it well, and park the rest with park_ambition.",
     );
   }
   lines.push(
-    "When the builder shows a skill, call record_progress with that skill and whether they did it unprompted. The first time they do something without being asked, name it warmly - tie the play-word to the real engineering idea once.",
+    "Whenever the builder shows a skill, call record_progress for it (mark unprompted when they did it without you asking); the first unprompted time, name it warmly. Never tell them you are tracking anything.",
   );
   return lines.join("\n");
-}
-
-/**
- * The concrete next step to proactively offer the builder: the lowest-order
- * coachable skill that carries a nudge. Null when nothing is left to suggest.
- */
-export function nextNudge(map: MasteryMap): string | null {
-  return coachableSkills(map).find((skill) => skill.nudge)?.nudge ?? null;
 }
 
 export type SkillProgress = SkillDef & { mastery: MasteryState };

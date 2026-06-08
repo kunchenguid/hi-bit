@@ -6,14 +6,11 @@ import {
   BUILD_TIERS,
   buildCoachingNote,
   canRunParallel,
-  coachableSkills,
   isMasteryState,
   isSkillId,
   type MasteryMap,
   masteryOf,
   masteryRank,
-  nextNudge,
-  nextSkillToCoach,
   prerequisitesMet,
   reachableTier,
   SKILLS,
@@ -153,30 +150,6 @@ describe("reachableTier", () => {
   });
 });
 
-describe("nextSkillToCoach", () => {
-  it("returns null when nothing relevant is in play", () => {
-    expect(nextSkillToCoach({}, [])).toBeNull();
-  });
-
-  it("coaches the lowest-order relevant skill that is not yet fluent", () => {
-    expect(nextSkillToCoach({}, ["iterate-feedback", "ask-creation"])).toBe("ask-creation");
-    expect(
-      nextSkillToCoach({ "ask-creation": "fluent" }, ["iterate-feedback", "ask-creation"]),
-    ).toBe("iterate-feedback");
-  });
-
-  it("skips a relevant skill whose prerequisites are not met", () => {
-    // parallel-bots is relevant but the kid cannot direct one agent yet
-    expect(nextSkillToCoach({}, ["parallel-bots"])).toBeNull();
-    const ready: MasteryMap = { "ask-creation": "grasped", "iterate-feedback": "grasped" };
-    expect(nextSkillToCoach(ready, ["parallel-bots"])).toBe("parallel-bots");
-  });
-
-  it("never re-coaches a fluent skill", () => {
-    expect(nextSkillToCoach({ "ask-creation": "fluent" }, ["ask-creation"])).toBeNull();
-  });
-});
-
 describe("sanitization helpers", () => {
   it("recognizes real skill ids and mastery states", () => {
     expect(isSkillId("decompose")).toBe(true);
@@ -199,66 +172,44 @@ describe("sanitization helpers", () => {
   });
 });
 
-describe("coachableSkills", () => {
-  it("lists not-yet-fluent skills whose prereqs are met, lowest order first", () => {
-    const ids = coachableSkills({ "ask-creation": "fluent" }).map((s) => s.id);
-    expect(ids[0]).toBe("iterate-feedback");
-    expect(ids).not.toContain("ask-creation"); // already fluent
-    expect(ids).not.toContain("parallel-bots"); // prereqs not met
-  });
-});
-
-describe("nextNudge", () => {
-  it("returns the lowest-order coachable skill's proactive next step", () => {
-    // Fresh kid: ask-creation is the frontier and carries a nudge.
-    expect(nextNudge({})).toBe(skillById("ask-creation").nudge);
-    // Once Arc 1 is grasped, the frontier moves to a context skill's nudge.
-    const arc1 = {
-      "ask-creation": "fluent" as const,
-      "iterate-feedback": "fluent" as const,
-      "specific-feedback": "fluent" as const,
-    };
-    expect(nextNudge(arc1)).toBe(skillById("show-screen").nudge);
-  });
-
-  it("returns null when every skill is fluent", () => {
-    const allFluent = Object.fromEntries(SKILLS.map((s) => [s.id, "fluent" as const]));
-    expect(nextNudge(allFluent)).toBeNull();
-  });
-});
-
 describe("buildCoachingNote", () => {
-  it("reports reach, the next skills, and asks Bit to record progress", () => {
-    const note = buildCoachingNote({});
+  it("surfaces the whole map and hands the teaching decision to Bit", () => {
+    const note = buildCoachingNote({ "ask-creation": "grasped", "give-picture": "met" });
+    // The framing: Bit decides, at most one, never forced - not a prescribed skill.
+    expect(note).toMatch(/learning map/i);
+    expect(note).toMatch(/you decide/i);
+    expect(note).toMatch(/at most one new idea/i);
+    expect(note).not.toMatch(/skills to grow next|guide them forward/i);
+    // Reach and record_progress are present.
     expect(note).toContain("build tier 1 of 4");
-    expect(note).toContain("ask-creation");
     expect(note).toContain("record_progress");
   });
 
-  it("tells Bit to proactively guide the builder forward with a concrete next step", () => {
-    const note = buildCoachingNote({
-      "ask-creation": "fluent",
-      "iterate-feedback": "grasped",
-    });
-    expect(note).toMatch(/Guide them forward/i);
-    expect(note).toMatch(/never nag/i);
-    // The surfaced nudge is the lowest-order coachable skill's suggestion
-    // (iterate-feedback here, since ask-creation is already fluent).
-    expect(note).toContain(skillById("iterate-feedback").nudge ?? "###");
+  it("lists every skill grouped by arc (by engineering name), with the builder's mastery", () => {
+    const note = buildCoachingNote({ "ask-creation": "grasped" });
+    for (const arc of ARCS) expect(note).toContain(`${arc.title}:`);
+    for (const skill of SKILLS) expect(note).toContain(skill.realSkill);
+    expect(note).toContain("[grasped] Kicking off work / stating intent");
+    expect(note).toContain("[unseen] Decomposition");
+    // The internal map never leaks the gated kid inside-words.
+    expect(note).not.toMatch(/\bbot\b/i);
+    expect(note).not.toMatch(/\bfactory\b|\blogbook\b/i);
   });
 
-  it("holds the readiness gate closed until the builder can direct one bot", () => {
-    expect(buildCoachingNote({})).toMatch(/Readiness gate/i);
+  it("offers an example only for skills not yet mastered, never for fluent ones", () => {
+    const askNudge = skillById("ask-creation").nudge ?? "###";
+    expect(buildCoachingNote({})).toContain(askNudge); // unseen -> example shown
+    const note = buildCoachingNote({ "ask-creation": "fluent" });
+    expect(note).toContain("[fluent] Kicking off work / stating intent");
+    expect(note).not.toContain(askNudge); // fluent -> no "to introduce" example
+  });
+
+  it("states the parallel-readiness guardrail derived from mastery", () => {
+    expect(buildCoachingNote({})).toMatch(/Parallel building is not open yet/i);
     expect(buildCoachingNote({})).toContain("park_ambition");
     const ready = buildCoachingNote({ "ask-creation": "grasped", "iterate-feedback": "grasped" });
-    expect(ready).toMatch(/Parallel work is fine/i);
-    expect(ready).not.toMatch(/Readiness gate/i);
-  });
-
-  it("acknowledges a fully fluent builder", () => {
-    const map = Object.fromEntries(SKILLS.map((s) => [s.id, "fluent" as const]));
-    const note = buildCoachingNote(map);
-    expect(note).toMatch(/fluent across the whole spine/i);
+    expect(ready).toMatch(/Parallel building is open/i);
+    expect(ready).not.toMatch(/not open yet/i);
   });
 });
 

@@ -1762,7 +1762,7 @@ describe("BitCoordinatorService (Bit)", () => {
     expect(profile.unlockedConcepts.map((concept) => concept.id)).toContain("logbook");
   });
 
-  it("appends a curriculum coaching note to every turn prompt", async () => {
+  it("appends the curriculum learning map to every turn prompt", async () => {
     const s = await createCoordinator();
     s.bit.handler = async () => "Let's build something!";
 
@@ -1770,8 +1770,11 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.drain();
 
     const prompt = s.bit.prompts.at(-1);
-    expect(prompt).toContain("Builder's reach: build tier 1 of 4");
-    expect(prompt).toContain("Skills to grow next");
+    expect(prompt).toMatch(/learning map/i);
+    expect(prompt).toContain("Reach right now: build tier 1 of 4");
+    // The full map is surfaced (every skill, by engineering name), decision to Bit.
+    expect(prompt).toContain("[unseen] Kicking off work / stating intent");
+    expect(prompt).toMatch(/you decide/i);
     expect(prompt).toContain("record_progress");
   });
 
@@ -1806,7 +1809,7 @@ describe("BitCoordinatorService (Bit)", () => {
 
     await s.coordinator.send(s.profile.id, "build four games at once");
     await s.drain();
-    expect(s.bit.prompts.at(-1)).toMatch(/Readiness gate/i);
+    expect(s.bit.prompts.at(-1)).toMatch(/Parallel building is not open yet/i);
 
     await s.profiles.applySkillSignals(s.profile.id, {
       "ask-creation": { demonstrated: true },
@@ -1814,7 +1817,7 @@ describe("BitCoordinatorService (Bit)", () => {
     });
     await s.coordinator.send(s.profile.id, "build four games at once");
     await s.drain();
-    expect(s.bit.prompts.at(-1)).toMatch(/Parallel work is fine/i);
+    expect(s.bit.prompts.at(-1)).toMatch(/Parallel building is open/i);
   });
 
   it("parks an oversized ask on the roadmap and can list it back", async () => {
