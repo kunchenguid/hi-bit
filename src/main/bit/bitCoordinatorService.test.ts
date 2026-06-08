@@ -166,11 +166,21 @@ class FakeBitRuntime implements BitRuntime {
     };
   }
 
+  builderContextUpdates: Array<{ profileId: string; context: string | null }> = [];
+  disposedProfiles: string[] = [];
+  failBuilderContextUpdates = false;
+
   async abort(): Promise<void> {}
   isRunning(profileId: string): boolean {
     return this.runningSet.has(profileId);
   }
-  dispose(): void {}
+  updateBuilderContext(profileId: string, context: string | null): void {
+    if (this.failBuilderContextUpdates) throw new Error("session refresh failed");
+    this.builderContextUpdates.push({ profileId, context });
+  }
+  dispose(profileId: string): void {
+    this.disposedProfiles.push(profileId);
+  }
   disposeAll(): void {}
 }
 
@@ -260,6 +270,49 @@ describe("BitCoordinatorService (Bit)", () => {
       { role: "user", text: "hello" },
       { role: "assistant", text: "Hi Ada! What should we build?" },
     ]);
+  });
+
+  it("sends the builder identity via session context, not duplicated in each turn's prompt", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "Hi!";
+
+    await s.coordinator.send(s.profile.id, "hello");
+    await s.drain();
+
+    // Stable identity rides the session-level builder context, set once...
+    expect(s.bit.inputs[0]?.builderContext).toBe(
+      "Builder: Ada, age 9. Interests: space, cats. Parent notes: Gets frustrated fast.",
+    );
+    // ...and is NOT re-stuffed into the per-turn prompt text.
+    expect(s.bit.prompts[0]).not.toContain("Builder: Ada");
+    expect(s.bit.prompts[0]).not.toContain("Parent notes");
+    // Volatile context (which changes without a profile edit) still rides each turn.
+    expect(s.bit.prompts[0]).toContain("Portfolio:");
+    expect(s.bit.prompts[0]).toContain("Currently building:");
+    expect(s.bit.prompts[0]).toContain("Builder says: hello");
+  });
+
+  it("refreshes a live session's builder context after a profile edit", async () => {
+    const s = await createCoordinator();
+    await s.profiles.update(s.profile.id, { notes: "Bit can use emojis." });
+
+    await s.coordinator.refreshBuilderContext(s.profile.id);
+
+    expect(s.bit.builderContextUpdates).toEqual([
+      {
+        profileId: s.profile.id,
+        context: "Builder: Ada, age 9. Interests: space, cats. Parent notes: Bit can use emojis.",
+      },
+    ]);
+  });
+
+  it("keeps profile refresh best-effort when live session refresh fails", async () => {
+    const s = await createCoordinator();
+    await s.profiles.update(s.profile.id, { notes: "Bit can use emojis." });
+    s.bit.failBuilderContextUpdates = true;
+
+    await expect(s.coordinator.refreshBuilderContext(s.profile.id)).resolves.toBeUndefined();
+    expect(s.bit.disposedProfiles).toEqual([s.profile.id]);
   });
 
   it("attaches a builder's picture to the user message and hands it to Bit's turn", async () => {

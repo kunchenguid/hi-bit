@@ -35,6 +35,11 @@ export type BitSession = {
   abort: () => Promise<void>;
   dispose: () => void;
   setAccessToken?: (accessToken: string) => void;
+  /**
+   * Swap the builder context block in the session's system prompt in place,
+   * keeping conversation history. Used when a parent edits the profile mid-session.
+   */
+  setBuilderContext?: (context: string | null) => void;
 };
 
 export type BitPromptInput = {
@@ -46,6 +51,13 @@ export type BitPromptInput = {
   sessionFile?: string;
   customTools: ToolDefinition[];
   onProfileMutation?: (mutation: ProfileDirectMutation) => Promise<void> | void;
+  /**
+   * The builder's stable identity (name, age, interests, parent notes), baked
+   * into the session's system prompt once at creation instead of prepended to
+   * every turn. Volatile context (portfolio, in-flight builds, vocabulary) still
+   * rides each turn's prompt text.
+   */
+  builderContext?: string;
 };
 
 export type CreateBitSessionInput = BitPromptInput & {
@@ -73,6 +85,12 @@ export type BitRuntime = {
   ): Promise<BitTurnResult>;
   abort(profileId: string): Promise<void>;
   isRunning(profileId: string): boolean;
+  /**
+   * Update the builder context on a live session in place (e.g. after a profile
+   * edit). No-op if the profile has no cached session yet; the next prompt will
+   * create one with the fresh context.
+   */
+  updateBuilderContext(profileId: string, context: string | null): void;
   dispose(profileId: string): void;
   disposeAll(): void;
 };
@@ -264,6 +282,10 @@ export class BitRuntimeService implements BitRuntime {
     return this.running.has(profileId);
   }
 
+  updateBuilderContext(profileId: string, context: string | null): void {
+    this.sessions.get(profileId)?.session.setBuilderContext?.(context);
+  }
+
   dispose(profileId: string): void {
     this.sessions.get(profileId)?.session.dispose();
     this.sessions.delete(profileId);
@@ -339,8 +361,19 @@ class RealBitSessionAdapter implements BitSession {
   constructor(
     private readonly session: AgentSession,
     private readonly authStorage: AuthStorage,
+    private readonly setLoaderBuilderContext: (context: string | null) => void,
   ) {
     scrubInlineImagesFromSessionPersistence(session);
+  }
+
+  setBuilderContext(context: string | null): void {
+    this.setLoaderBuilderContext(context);
+    // Force the agent to re-read the resource loader and rebuild its system
+    // prompt in place, keeping conversation history. setActiveToolsByName's
+    // documented side effect is rebuilding the system prompt; passing the
+    // current tool set leaves tools unchanged. This busts the prompt cache for
+    // the next turn (expected) but avoids tearing the session down.
+    this.session.setActiveToolsByName(this.session.getActiveToolNames());
   }
 
   get sessionId(): string {
@@ -441,7 +474,8 @@ async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSe
     enableInstallTelemetry: false,
   });
 
-  const resourceLoader = createBitResourceLoader();
+  const { loader: resourceLoader, setBuilderContext } = createBitResourceLoader();
+  setBuilderContext(input.builderContext ?? null);
   await resourceLoader.reload();
 
   // Bit gets the delegation tools plus read/write/edit/explorer tools confined
@@ -466,5 +500,5 @@ async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSe
     customTools: [...input.customTools, ...jailedTools],
   });
 
-  return new RealBitSessionAdapter(session, authStorage);
+  return new RealBitSessionAdapter(session, authStorage, setBuilderContext);
 }

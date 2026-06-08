@@ -37,6 +37,10 @@ This file is the canonical architecture and workflow guide for the current app. 
 - `prompts/bit.md` and `prompts/bot.md` - Bit and bot system prompts. Product content, not code; edit them like you'd edit docs.
 - `design/` - design tokens and the shared stylesheet the renderer consumes.
 
+Bit's chat style is intentionally emoji-free by default.
+A grown-up can opt a specific builder back into emojis through that profile's parent notes; those notes, along with the builder's stable name, age, and interests, live in Bit's session-level system prompt and are refreshed in place after profile edits without discarding conversation history.
+The per-turn Bit prompt carries only volatile context such as the portfolio, current builds, and the "Words you may use" vocabulary note.
+
 ## Fantasy terminology canon (do not drift)
 
 Hi-Bit leans into a "futuristic factory" fantasy, but every word is deliberate.

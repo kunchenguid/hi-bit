@@ -254,13 +254,14 @@ export class BitCoordinatorService {
       const pictureNote = storedImage?.id
         ? `\n(The builder attached a picture - reference id: ${storedImage.id}. To build something whose look matches it, pass this id to create_creation or delegate_build as referencePictureIds.)`
         : "";
-      const requestText = `${this.buildRequestContext(profile, portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}${pictureNote}`;
+      const requestText = `${this.buildVolatileContext(portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}${pictureNote}`;
       const paths = this.conversation.paths(profileId);
       const imageData = storedImage
         ? await this.conversation.readAttachmentData(profileId, storedImage)
         : undefined;
       const result = await this.runBitTurn(profileId, requestText, {
         kind: "reply",
+        builderContext: this.buildBuilderProfileContext(profile),
         images: storedImage?.path
           ? [
               {
@@ -331,7 +332,17 @@ export class BitCoordinatorService {
   private async runBitTurn(
     profileId: string,
     text: string,
-    { kind, projectId, images }: { kind: TurnKind; projectId?: string; images?: BitPromptImage[] },
+    {
+      kind,
+      projectId,
+      images,
+      builderContext,
+    }: {
+      kind: TurnKind;
+      projectId?: string;
+      images?: BitPromptImage[];
+      builderContext?: string;
+    },
   ) {
     return this.withBitLock(profileId, async () => {
       // Fresh attribution per turn: start_preview sets it mid-turn (below).
@@ -369,6 +380,7 @@ export class BitCoordinatorService {
           bitSessionsDir: paths.bitSessionsDir,
           sessionFile,
           customTools: this.toolsFor(profileId),
+          builderContext,
           onProfileMutation: async (mutation) => {
             await this.projects.touch(profileId, mutation.projectId);
             await this.projects.appendActivity(profileId, mutation.projectId, {
@@ -915,7 +927,12 @@ export class BitCoordinatorService {
       summary: kidSafeCompletionSummary(summary),
       readyToPlay,
     });
-    await this.runBitTurn(profileId, text, { kind: "bot_result", projectId: project.id });
+    const profile = await this.profiles.get(profileId).catch(() => undefined);
+    await this.runBitTurn(profileId, text, {
+      kind: "bot_result",
+      projectId: project.id,
+      builderContext: profile ? this.buildBuilderProfileContext(profile) : undefined,
+    });
   }
 
   private async appendCompletionFallback(
@@ -1044,23 +1061,45 @@ export class BitCoordinatorService {
     }
   }
 
-  private buildRequestContext(
-    profile: ProfileSummary,
-    portfolio: ProjectSummary[],
-    inflight: InflightBot[],
-  ): string {
+  /**
+   * The builder's stable identity - name, age, interests, parent notes. Baked
+   * into Bit's session system prompt once at creation (and refreshed in place on
+   * a profile edit) rather than prepended to every turn. Parent notes are how a
+   * grown-up steers Bit (e.g. opting back into emojis).
+   */
+  private buildBuilderProfileContext(profile: ProfileSummary): string {
     const interests = profile.interests.length ? profile.interests.join(", ") : "not set";
+    return `Builder: ${profile.name}, age ${profile.age}. Interests: ${interests}.${profile.notes ? ` Parent notes: ${profile.notes}` : ""}`;
+  }
+
+  /**
+   * The volatile context that genuinely changes turn to turn without any profile
+   * edit - the portfolio and what is building right now - so it rides each turn's
+   * prompt text instead of the session system prompt.
+   */
+  private buildVolatileContext(portfolio: ProjectSummary[], inflight: InflightBot[]): string {
     const portfolioText = portfolio.length
       ? portfolio.map((p) => `- ${p.title} [id: ${p.id}] (updated ${p.updatedAt})`).join("\n")
       : "(no creations yet)";
     const inflightText = inflight.length
       ? inflight.map((w) => `- "${w.title}" [id: ${w.projectId}]: ${w.instructions}`).join("\n")
       : "(nothing building right now)";
-    return [
-      `Builder: ${profile.name}, age ${profile.age}. Interests: ${interests}.${profile.notes ? ` Parent notes: ${profile.notes}` : ""}`,
-      `Portfolio:\n${portfolioText}`,
-      `Currently building:\n${inflightText}`,
-    ].join("\n\n");
+    return [`Portfolio:\n${portfolioText}`, `Currently building:\n${inflightText}`].join("\n\n");
+  }
+
+  /**
+   * Refresh the builder identity on a live Bit session after a profile edit, so
+   * a parent's change to name/age/interests/notes takes effect on the next turn
+   * without tearing the session down. No-op if no session is cached yet.
+   */
+  async refreshBuilderContext(profileId: string): Promise<void> {
+    const profile = await this.profiles.get(profileId).catch(() => undefined);
+    if (!profile) return;
+    try {
+      this.bit.updateBuilderContext(profileId, this.buildBuilderProfileContext(profile));
+    } catch {
+      this.bit.dispose(profileId);
+    }
   }
 }
 

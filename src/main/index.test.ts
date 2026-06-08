@@ -154,6 +154,27 @@ describe("registerIpc", () => {
     // A bogus value from the renderer is sanitized back to the balanced default.
     expect(await set?.({}, "turbo")).toEqual({ thinkingSpeed: "medium" });
   }, 10_000);
+
+  it("refreshes Bit's live builder context after a profile update", async () => {
+    const { registerIpc } = await import("./index");
+    const updatedProfile = { id: "profile-ada", name: "Ada" };
+    const services = {
+      profiles: { update: vi.fn(async () => updatedProfile) },
+      bit: { refreshBuilderContext: vi.fn(async () => {}) },
+      layout: { root: "/tmp/hi-bit" },
+    };
+
+    registerIpc(services as never);
+    const update = electronMock.handlers.get("hibit:profiles:update");
+
+    await expect(update?.({}, "profile-ada", { notes: "Bit can use emojis." })).resolves.toBe(
+      updatedProfile,
+    );
+    expect(services.profiles.update).toHaveBeenCalledWith("profile-ada", {
+      notes: "Bit can use emojis.",
+    });
+    expect(services.bit.refreshBuilderContext).toHaveBeenCalledWith("profile-ada");
+  }, 10_000);
 });
 
 describe("isAppRendererSource", () => {

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildBitSystemPrompt,
   buildBotSystemPrompt,
+  createBitResourceLoader,
   createBotResourceLoader,
   createResourceLoader,
 } from "./piResources";
@@ -51,6 +52,35 @@ describe("createBotResourceLoader skills", () => {
 
   it("exposes no skills when no skillsDir is given", () => {
     expect(createBotResourceLoader().getSkills()).toEqual({ skills: [], diagnostics: [] });
+  });
+});
+
+describe("createBitResourceLoader builder context", () => {
+  it("keeps the static prompt as the base and carries the builder block in appendSystemPrompt", () => {
+    const { loader, setBuilderContext } = createBitResourceLoader();
+
+    // No builder context yet: just the static, cacheable base prompt.
+    expect(loader.getSystemPrompt()).toBe(buildBitSystemPrompt());
+    expect(loader.getAppendSystemPrompt()).toEqual([]);
+
+    setBuilderContext("Builder: Ada, age 9. Interests: space, cats. Parent notes: No emojis.");
+    expect(loader.getSystemPrompt()).toBe(buildBitSystemPrompt());
+    expect(loader.getAppendSystemPrompt()).toEqual([
+      "Builder: Ada, age 9. Interests: space, cats. Parent notes: No emojis.",
+    ]);
+  });
+
+  it("clears the builder block on null or blank so it never appends empty context", () => {
+    const { loader, setBuilderContext } = createBitResourceLoader();
+
+    setBuilderContext("Builder: Ada, age 9.");
+    expect(loader.getAppendSystemPrompt()).toHaveLength(1);
+
+    setBuilderContext(null);
+    expect(loader.getAppendSystemPrompt()).toEqual([]);
+
+    setBuilderContext("   ");
+    expect(loader.getAppendSystemPrompt()).toEqual([]);
   });
 });
 
@@ -216,6 +246,16 @@ describe("buildBitSystemPrompt", () => {
       expect(prompt).toContain("app_highlight");
       expect(prompt).toMatch(/external websites are refused/i);
       expect(prompt).toMatch(/never tap|NEVER tap|You point/i);
+    }
+  });
+
+  it("tells Bit to skip emojis unless the builder's parent notes ask for them", () => {
+    const runtimePrompt = buildBitSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      expect(prompt).toMatch(/emoji/i);
+      expect(prompt).toMatch(/parent notes/i);
     }
   });
 
