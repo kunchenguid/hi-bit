@@ -167,15 +167,20 @@ class FakeBitRuntime implements BitRuntime {
   }
 
   builderContextUpdates: Array<{ profileId: string; context: string | null }> = [];
+  disposedProfiles: string[] = [];
+  failBuilderContextUpdates = false;
 
   async abort(): Promise<void> {}
   isRunning(profileId: string): boolean {
     return this.runningSet.has(profileId);
   }
   updateBuilderContext(profileId: string, context: string | null): void {
+    if (this.failBuilderContextUpdates) throw new Error("session refresh failed");
     this.builderContextUpdates.push({ profileId, context });
   }
-  dispose(): void {}
+  dispose(profileId: string): void {
+    this.disposedProfiles.push(profileId);
+  }
   disposeAll(): void {}
 }
 
@@ -299,6 +304,15 @@ describe("BitCoordinatorService (Bit)", () => {
         context: "Builder: Ada, age 9. Interests: space, cats. Parent notes: Bit can use emojis.",
       },
     ]);
+  });
+
+  it("keeps profile refresh best-effort when live session refresh fails", async () => {
+    const s = await createCoordinator();
+    await s.profiles.update(s.profile.id, { notes: "Bit can use emojis." });
+    s.bit.failBuilderContextUpdates = true;
+
+    await expect(s.coordinator.refreshBuilderContext(s.profile.id)).resolves.toBeUndefined();
+    expect(s.bit.disposedProfiles).toEqual([s.profile.id]);
   });
 
   it("attaches a builder's picture to the user message and hands it to Bit's turn", async () => {

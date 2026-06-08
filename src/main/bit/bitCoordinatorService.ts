@@ -1095,7 +1095,11 @@ export class BitCoordinatorService {
   async refreshBuilderContext(profileId: string): Promise<void> {
     const profile = await this.profiles.get(profileId).catch(() => undefined);
     if (!profile) return;
-    this.bit.updateBuilderContext(profileId, this.buildBuilderProfileContext(profile));
+    try {
+      this.bit.updateBuilderContext(profileId, this.buildBuilderProfileContext(profile));
+    } catch {
+      this.bit.dispose(profileId);
+    }
   }
 }
 
