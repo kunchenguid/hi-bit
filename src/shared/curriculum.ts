@@ -378,7 +378,7 @@ export function buildCoachingNote(map: MasteryMap): string {
   const reach = reachableTier(map);
   const reachLabel = BUILD_TIERS.find((tier) => tier.tier === reach)?.label ?? "";
   const lines = [
-    "Builder's learning map - where they are in learning to direct you and the bots, and an example of how each skill could be introduced. You teach only by building: when something the builder just did opens the door, you MAY warmly weave in ONE skill they have not mastered yet (tie the everyday thing to the real idea), or none at all. You decide which and when - never force it, at most one new idea per message, never a lesson.",
+    "Builder's learning map - where they are in learning to direct you and background builds, and an example of how each skill could be introduced. You teach only by building: when something the builder just did opens the door, you MAY warmly weave in ONE skill they have not mastered yet (tie the everyday thing to the real idea), or none at all. You decide which and when - never force it, at most one new idea per message, never a lesson.",
     `Reach right now: build tier ${reach} of ${BUILD_TIERS.length} (${reachLabel}).`,
   ];
   // Each skill is named by the concrete thing the builder does (coachLabel, which

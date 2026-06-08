@@ -188,7 +188,7 @@ describe("buildCoachingNote", () => {
     // voice is unambiguous (the action, not just "natural-language input").
     expect(note).toContain("[unseen] Talk to Bit with your voice");
     // The internal map never leaks the gated kid inside-words.
-    expect(note).not.toMatch(/\bbot\b/i);
+    expect(note).not.toMatch(/\bbots?\b/i);
     expect(note).not.toMatch(/\bfactory\b|\blogbook\b/i);
   });
 
