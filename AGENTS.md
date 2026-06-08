@@ -155,7 +155,7 @@ HIBIT_USER_DATA_DIR=/tmp/hibit-e2e pnpm dev -- --remote-debugging-port=9222
 
 On first launch with an isolated dir that has no auth yet, the app copies `codex.json` from your real userData (`~/Library/Application Support/hi-bit/.hi-bit/auth/codex.json` on macOS) into the isolated dir, so you land straight in the profile gate instead of the sign-in gate.
 The copy only fills a missing file: if you sign a different account into the isolated dir, that wins and is never overwritten.
-Codex tokens are encrypted with Electron's keychain-bound `safeStorage`, not anything tied to the dir path, so the copied file stays valid on the same machine and OS user.
+Codex tokens are stored in a plain local file (`0o600`) rather than the macOS keychain, so launching the app never triggers a keychain password prompt; the file is not tied to the dir path, so the copied file stays valid.
 The main process logs `[hi-bit] isolated userData at <dir> (codex auth: seeded|already-present|no-source)` so you can confirm what happened.
 
 Use a fresh dir name (or `rm -rf` the old one) per run when you want a clean slate; reuse the same dir across runs when you want state to persist between them.

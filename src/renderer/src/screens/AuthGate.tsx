@@ -26,7 +26,7 @@ export function AuthGate({ status, busy, error, onLogin }: AuthGateProps) {
           <code>{status?.storage.path ?? ".hi-bit/auth"}</code>.
           {status?.storage.encrypted
             ? " Secure storage is on."
-            : " Secure storage is not available on this computer."}
+            : " It stays in a local file on this computer."}
         </p>
         {status?.storage.warning ? <p className="hb-warning">{status.storage.warning}</p> : null}
         {error || status?.error ? <p className="hb-error">{error ?? status?.error}</p> : null}

@@ -58,7 +58,6 @@ type CodexAuthServiceOptions = {
 
 export const plainCodexTokenCodec: CodexTokenCodec = {
   encrypted: false,
-  warning: "Codex tokens are stored in a local file because secure storage is unavailable.",
   encrypt: (value) => value,
   decrypt: (value) => value,
 };
@@ -203,6 +202,15 @@ export class CodexAuthService {
       throw new Error("Codex auth file is missing tokens.");
     }
 
+    if (stored.encrypted && !this.codec.encrypted) {
+      // Written by an older build that encrypted tokens with Electron
+      // safeStorage (the macOS keychain). This build no longer touches the
+      // keychain, so it can't decrypt them - treat it as signed out instead of
+      // handing the ciphertext back as a token. The kid reconnects once and the
+      // credential is rewritten in plaintext, which never prompts again.
+      return null;
+    }
+
     const accessToken = stored.encrypted
       ? this.codec.decrypt(stored.accessToken)
       : stored.accessToken;
@@ -246,19 +254,4 @@ export class CodexAuthService {
       warning: this.codec.encrypted ? undefined : this.codec.warning,
     };
   }
-}
-
-export function createSafeStorageTokenCodec(options: {
-  isEncryptionAvailable: () => boolean;
-  encryptString: (value: string) => Buffer;
-  decryptString: (value: Buffer) => string;
-}): CodexTokenCodec {
-  if (!options.isEncryptionAvailable()) {
-    return plainCodexTokenCodec;
-  }
-  return {
-    encrypted: true,
-    encrypt: (value) => options.encryptString(value).toString("base64"),
-    decrypt: (value) => options.decryptString(Buffer.from(value, "base64")),
-  };
 }

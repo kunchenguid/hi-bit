@@ -11,9 +11,8 @@ export type SeedCodexAuthResult = "seeded" | "already-present" | "no-source" | "
  *
  * It never overwrites an existing target (so a separately signed-in isolated
  * dir is left alone), and is a no-op when the two paths are the same (the
- * normal, non-isolated run). Codex tokens are encrypted with Electron's
- * keychain-bound safeStorage, not anything path-bound, so the copied file stays
- * decryptable on the same machine and OS user.
+ * normal, non-isolated run). Codex tokens live in a plain local file (0o600),
+ * not the keychain and not bound to any path, so the copied file stays valid.
  */
 export async function seedCodexAuthIfMissing(options: {
   sourcePath: string;
