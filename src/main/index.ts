@@ -8,8 +8,8 @@ import {
   type ThinkingSpeed,
 } from "@shared/config";
 import type { AppConfigView, AppInfo, Platform } from "@shared/ipc";
-import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from "electron";
-import { CodexAuthService, createSafeStorageTokenCodec } from "./auth/codexAuth";
+import { app, BrowserWindow, ipcMain, session, shell } from "electron";
+import { CodexAuthService } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
 import { AppControlService, type AppDebugger } from "./control/appControlService";
 import type { HeadlessWindow } from "./control/headlessBrowser";
@@ -129,8 +129,10 @@ function createMainWindow(): BrowserWindow {
 async function createServices(layout: HiBitLayout): Promise<Services> {
   const config = normalizeHiBitConfig(await readJsonFile<HiBitConfig>(layout.configPath));
   const auth = new CodexAuthService({
+    // No codec: Codex tokens are stored in a local file (0o600) rather than the
+    // macOS keychain, so launching the app never triggers a keychain password
+    // prompt. The file lives under the app-owned userData dir.
     authPath: layout.codexAuthPath,
-    codec: createSafeStorageTokenCodec(safeStorage),
     openExternal: (url) => shell.openExternal(url),
     onReconnectRequired: () => broadcastReconnectRequired(),
   });

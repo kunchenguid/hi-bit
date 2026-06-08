@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "encrypted": false,
+  "accessToken": "eyJhbGciOiJub25lIn0.eyJleHAiOjIwMDAsImNoYXRncHRfYWNjb3VudF9pZCI6ImFjY3QtZXZpZGVuY2UifQ.signature",
+  "refreshToken": "plain-refresh-token-evidence",
+  "accountId": "acct-evidence",
+  "expiresAt": "1970-01-01T00:33:20.000Z",
+  "updatedAt": "2026-06-08T09:50:00.000Z"
+}

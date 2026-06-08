@@ -1,6 +1,6 @@
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { CodexAuthService, type CodexTokenCodec } from "./codexAuth";
 
@@ -184,6 +184,31 @@ describe("CodexAuthService", () => {
     const stored = JSON.parse(raw) as { refreshToken: string };
     expect(stored.refreshToken).not.toBe("refresh");
     await expect(service.getFreshAccessToken()).resolves.toBe(jwtWithPayload({ exp: 2_000 }));
+  });
+
+  it("treats keychain-encrypted credentials from older builds as signed out", async () => {
+    // Older builds encrypted tokens with Electron safeStorage (the macOS
+    // keychain). This build no longer touches the keychain, so it can't decrypt
+    // them - it must not pass the ciphertext along as if it were a token. The
+    // kid reconnects once and the credential is rewritten in plaintext.
+    const authPath = await tempAuthPath();
+    await mkdir(dirname(authPath), { recursive: true });
+    await writeFile(
+      authPath,
+      JSON.stringify({
+        version: 1,
+        encrypted: true,
+        accessToken: "keychain-ciphertext",
+        refreshToken: "keychain-ciphertext",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    const service = new CodexAuthService({ authPath });
+
+    await expect(service.status()).resolves.toMatchObject({ authenticated: false });
+    await expect(service.getFreshAccessToken()).rejects.toThrow(
+      "Connect Codex before starting Bit.",
+    );
   });
 
   it("logs out by removing the app-owned auth file", async () => {
