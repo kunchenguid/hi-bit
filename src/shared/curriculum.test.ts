@@ -12,6 +12,7 @@ import {
   type MasteryMap,
   masteryOf,
   masteryRank,
+  nextNudge,
   nextSkillToCoach,
   prerequisitesMet,
   reachableTier,
@@ -207,12 +208,43 @@ describe("coachableSkills", () => {
   });
 });
 
+describe("nextNudge", () => {
+  it("returns the lowest-order coachable skill's proactive next step", () => {
+    // Fresh kid: ask-creation is the frontier and carries a nudge.
+    expect(nextNudge({})).toBe(skillById("ask-creation").nudge);
+    // Once Arc 1 is grasped, the frontier moves to a context skill's nudge.
+    const arc1 = {
+      "ask-creation": "fluent" as const,
+      "iterate-feedback": "fluent" as const,
+      "specific-feedback": "fluent" as const,
+    };
+    expect(nextNudge(arc1)).toBe(skillById("show-screen").nudge);
+  });
+
+  it("returns null when every skill is fluent", () => {
+    const allFluent = Object.fromEntries(SKILLS.map((s) => [s.id, "fluent" as const]));
+    expect(nextNudge(allFluent)).toBeNull();
+  });
+});
+
 describe("buildCoachingNote", () => {
   it("reports reach, the next skills, and asks Bit to record progress", () => {
     const note = buildCoachingNote({});
     expect(note).toContain("build tier 1 of 4");
     expect(note).toContain("ask-creation");
     expect(note).toContain("record_progress");
+  });
+
+  it("tells Bit to proactively guide the builder forward with a concrete next step", () => {
+    const note = buildCoachingNote({
+      "ask-creation": "fluent",
+      "iterate-feedback": "grasped",
+    });
+    expect(note).toMatch(/Guide them forward/i);
+    expect(note).toMatch(/never nag/i);
+    // The surfaced nudge is the lowest-order coachable skill's suggestion
+    // (iterate-feedback here, since ask-creation is already fluent).
+    expect(note).toContain(skillById("iterate-feedback").nudge ?? "###");
   });
 
   it("holds the readiness gate closed until the builder can direct one bot", () => {

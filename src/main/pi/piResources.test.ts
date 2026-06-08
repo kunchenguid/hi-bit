@@ -287,6 +287,11 @@ describe("buildBitSystemPrompt", () => {
       // The "Yes, and here's the first step" pattern for oversized asks.
       expect(prompt).toMatch(/never say no/i);
       expect(prompt).toMatch(/first slice|one exciting/i);
+      // Proactively guide the builder forward, not just react.
+      expect(prompt).toMatch(/Guide them forward/i);
+      expect(prompt).toMatch(/do not just wait|never nag/i);
+      // Bit speaks of itself in the first person.
+      expect(prompt).toMatch(/first person/i);
     }
   });
 });

@@ -66,6 +66,14 @@ export type SkillDef = {
    * started. The minimal DAG: empty for all but `parallel-bots`.
    */
   requires: SkillId[];
+  /**
+   * A concrete, kid-facing next step Bit can proactively offer to draw the
+   * builder toward exercising this skill - the "ambition pulls toward a bigger
+   * build" arrow of the flywheel. Phrased as guidance to Bit; Bit reworks it in
+   * its own warm words, tied to the actual creation. Optional: some skills
+   * (e.g. voice) depend on device support and are surfaced reactively instead.
+   */
+  nudge?: string;
 };
 
 export const ARCS: readonly ArcDef[] = [
@@ -87,6 +95,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Ask Bit for a new creation",
     realSkill: "Kicking off work / stating intent",
     requires: [],
+    nudge:
+      "If the builder is unsure what to make, offer two or three fun creation ideas to pick from.",
   },
   {
     id: "iterate-feedback",
@@ -95,6 +105,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Give feedback to make a creation better",
     realSkill: "The iteration loop",
     requires: [],
+    nudge:
+      "Once a creation is ready, invite the builder to play it and tell you one thing to change or add.",
   },
   {
     id: "specific-feedback",
@@ -103,6 +115,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Say exactly what you want changed, not just “it’s bad”",
     realSkill: "Precise specification - the core skill",
     requires: [],
+    nudge:
+      "Help the builder name the exact change - the color, the spot, the size, the speed - instead of just “make it better”.",
   },
   {
     id: "voice-input",
@@ -119,6 +133,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Ask Bit to look at the screen",
     realSkill: "Grounding the agent in the current state",
     requires: [],
+    nudge:
+      "If the builder talks about how something looks, offer to take a look at their screen so you can help.",
   },
   {
     id: "give-picture",
@@ -127,6 +143,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Give Bit a picture to work from",
     realSkill: "Multimodal context & references",
     requires: [],
+    nudge:
+      "If the builder wants a certain look, offer to match a picture they can show you (drawn, a photo, or one they find).",
   },
   {
     id: "browse-creation",
@@ -135,6 +153,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Open a creation and play with it",
     realSkill: "Observing the artifact to steer it",
     requires: [],
+    nudge:
+      "When a build is ready, invite the builder to press Play and try it out, then react to what happens together.",
   },
   {
     id: "async-productive",
@@ -143,6 +163,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Keep going while a bot works in the background",
     realSkill: "Async delegation - staying productive",
     requires: [],
+    nudge:
+      "While a build is running, suggest planning or starting the next piece so the wait is never just waiting.",
   },
   {
     id: "decompose",
@@ -151,6 +173,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Break a big idea into smaller steps",
     realSkill: "Decomposition",
     requires: [],
+    nudge:
+      "Suggest one concrete next piece for this creation - a title screen, a score, a second level, a power-up - to grow it one step at a time.",
   },
   {
     id: "dependency-reasoning",
@@ -159,6 +183,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Know what can happen now and what has to wait",
     realSkill: "Dependency reasoning / scheduling",
     requires: [],
+    nudge:
+      "When two pieces depend on each other, explain plainly which one has to come first and why.",
   },
   {
     id: "parallel-bots",
@@ -167,6 +193,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Have bots build a few things at once",
     realSkill: "Parallel orchestration",
     requires: ["ask-creation", "iterate-feedback"],
+    nudge:
+      "Once the builder can steer one creation well, suggest building two different things at the same time.",
   },
   {
     id: "switch-tabs",
@@ -175,6 +203,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Switch between creations with tabs",
     realSkill: "Context-switching across parallel work",
     requires: [],
+    nudge:
+      "When the builder has a few creations going, mention they can flip between them with the tabs.",
   },
   {
     id: "oversee",
@@ -183,6 +213,8 @@ export const SKILLS: readonly SkillDef[] = [
     kidLabel: "Check the Factory and the Logbook",
     realSkill: "Observability / tracing agent work",
     requires: [],
+    nudge:
+      "Offer to show the builder the Logbook of every step you took, so they can see how it all came together.",
   },
 ];
 
@@ -350,14 +382,24 @@ export function coachableSkills(map: MasteryMap): SkillDef[] {
  * single skill - Bit judges, from the conversation, what the moment calls for.
  */
 export function buildCoachingNote(map: MasteryMap): string {
-  const frontier = coachableSkills(map).slice(0, 3);
+  const coachable = coachableSkills(map);
+  const frontier = coachable.slice(0, 3);
   const reach = reachableTier(map);
   const lines = [`Builder's reach: build tier ${reach} of ${BUILD_TIERS.length}.`];
   if (frontier.length > 0) {
     const list = frontier.map((skill) => `${skill.id} (${skill.realSkill})`).join("; ");
-    lines.push(`Skills to grow next - coach at most one, only when a build calls for it: ${list}.`);
+    lines.push(`Skills to grow next - coach at most one, in the flow of a real build: ${list}.`);
   } else {
     lines.push("This builder is fluent across the whole spine - follow their lead.");
+  }
+  // The "ambition pulls toward a bigger build" arrow: surface the lowest-order
+  // coachable skill that carries a concrete next step, so Bit can proactively
+  // draw the builder forward instead of only reacting.
+  const nudge = nextNudge(map);
+  if (nudge) {
+    lines.push(
+      `Guide them forward - don't wait passively: at a natural moment (a build just started or finished, or the builder is between things), warmly offer ONE next step in your own words and let them choose. For example: ${nudge} Keep it to one idea tied to what they're making; never nag.`,
+    );
   }
   if (canRunParallel(map)) {
     lines.push(
@@ -372,6 +414,14 @@ export function buildCoachingNote(map: MasteryMap): string {
     "When the builder shows a skill, call record_progress with that skill and whether they did it unprompted. The first time they do something without being asked, name it warmly - tie the play-word to the real engineering idea once.",
   );
   return lines.join("\n");
+}
+
+/**
+ * The concrete next step to proactively offer the builder: the lowest-order
+ * coachable skill that carries a nudge. Null when nothing is left to suggest.
+ */
+export function nextNudge(map: MasteryMap): string | null {
+  return coachableSkills(map).find((skill) => skill.nudge)?.nudge ?? null;
 }
 
 export type SkillProgress = SkillDef & { mastery: MasteryState };
