@@ -106,6 +106,7 @@ type TurnVocabulary = {
 };
 
 type CreateDetails = { created: boolean; projectId: string | null; jobId: string | null };
+type ParkDetails = { id: string | null; title: string | null };
 type BuildDetails = { jobId: string | null; projectId: string };
 type PreviewToolDetails = { projectId: string; url: string | null };
 
@@ -748,6 +749,60 @@ export class BitCoordinatorService {
       },
     });
 
+    const parkAmbition = defineTool({
+      name: "park_ambition",
+      label: "Park an idea",
+      description:
+        "Save an idea the builder wants but that is too big to start right now, so it is not lost. Use it when you slice a giant ask down to one first step, or when the builder is not ready to run several builds at once - park the extras here and come back to them later.",
+      parameters: Type.Object({
+        title: Type.String({ description: "short name for the idea, in the builder's words" }),
+        note: Type.Optional(
+          Type.String({ description: "optional detail to remember about the idea" }),
+        ),
+      }),
+      async execute(_callId, params) {
+        const { title, note } = params as { title: string; note?: string };
+        try {
+          const { item } = await self.profiles.addRoadmapItem(profileId, { title, note });
+          return {
+            content: [{ type: "text", text: `Parked "${item.title}" to come back to.` }],
+            details: { id: item.id, title: item.title } as ParkDetails,
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Could not park that: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            details: { id: null, title: null } as ParkDetails,
+          };
+        }
+      },
+    });
+
+    const listRoadmap = defineTool({
+      name: "list_roadmap",
+      label: "List parked ideas",
+      description:
+        "List the ideas parked for this builder (their wishlist), so you can suggest what to build next or pick one back up.",
+      parameters: Type.Object({}),
+      async execute() {
+        const profile = await self.profiles.get(profileId);
+        const parked = profile.roadmap.filter((item) => item.status !== "done");
+        const text = parked.length
+          ? parked
+              .map(
+                (item) =>
+                  `- [id: ${item.id}] ${item.title}${item.note ? ` (${item.note})` : ""} - ${item.status}`,
+              )
+              .join("\n")
+          : "(nothing parked yet)";
+        return { content: [{ type: "text", text }], details: { count: parked.length } };
+      },
+    });
+
     const tools = [
       listCreations,
       listBuilderPictures,
@@ -757,6 +812,8 @@ export class BitCoordinatorService {
       listPreviews,
       stopPreview,
       recordProgress,
+      parkAmbition,
+      listRoadmap,
     ];
     this.toolCache.set(profileId, tools);
     return tools;

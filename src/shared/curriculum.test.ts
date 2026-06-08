@@ -210,6 +210,14 @@ describe("buildCoachingNote", () => {
     expect(note).toContain("record_progress");
   });
 
+  it("holds the readiness gate closed until the builder can direct one bot", () => {
+    expect(buildCoachingNote({})).toMatch(/Readiness gate/i);
+    expect(buildCoachingNote({})).toContain("park_ambition");
+    const ready = buildCoachingNote({ "ask-creation": "grasped", "iterate-feedback": "grasped" });
+    expect(ready).toMatch(/Parallel work is fine/i);
+    expect(ready).not.toMatch(/Readiness gate/i);
+  });
+
   it("acknowledges a fully fluent builder", () => {
     const map = Object.fromEntries(SKILLS.map((s) => [s.id, "fluent" as const]));
     const note = buildCoachingNote(map);

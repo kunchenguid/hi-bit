@@ -1797,6 +1797,45 @@ describe("BitCoordinatorService (Bit)", () => {
       "give-picture": "met",
     });
   });
+
+  it("closes the parallel readiness gate for a beginner and opens it once they can direct one bot", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "ok";
+
+    await s.coordinator.send(s.profile.id, "build four games at once");
+    await s.drain();
+    expect(s.bit.prompts.at(-1)).toMatch(/Readiness gate/i);
+
+    await s.profiles.applySkillSignals(s.profile.id, {
+      "ask-creation": { demonstrated: true },
+      "iterate-feedback": { demonstrated: true },
+    });
+    await s.coordinator.send(s.profile.id, "build four games at once");
+    await s.drain();
+    expect(s.bit.prompts.at(-1)).toMatch(/Parallel work is fine/i);
+  });
+
+  it("parks an oversized ask on the roadmap and can list it back", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async ({ text, callTool }) => {
+      if (text.includes("Minecraft")) {
+        await callTool("park_ambition", { title: "Minecraft world", note: "place blocks" });
+        return "Let's start with a world you can walk around in!";
+      }
+      const listed = (await callTool("list_roadmap", {})) as { content: Array<{ text: string }> };
+      return listed.content[0]?.text ?? "";
+    };
+
+    await s.coordinator.send(s.profile.id, "build me Minecraft");
+    await s.drain();
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.roadmap).toHaveLength(1);
+    expect(profile.roadmap[0]).toMatchObject({ title: "Minecraft world", status: "parked" });
+
+    await s.coordinator.send(s.profile.id, "what did we save?");
+    await s.drain();
+    expect(s.bit.prompts.length).toBeGreaterThan(0);
+  });
 });
 
 describe("extractReadyToPlay", () => {

@@ -355,6 +355,15 @@ export function buildCoachingNote(map: MasteryMap): string {
   } else {
     lines.push("This builder is fluent across the whole spine - follow their lead.");
   }
+  if (canRunParallel(map)) {
+    lines.push(
+      "Parallel work is fine: when the builder asks for several things, start the independent ones together and say plainly when one must wait for another.",
+    );
+  } else {
+    lines.push(
+      "Readiness gate: this builder is still learning to steer one build at a time, so do NOT start several builds at once. If they ask for a lot, start the most exciting one, do it well, and park the rest with park_ambition.",
+    );
+  }
   lines.push(
     "When the builder shows a skill, call record_progress with that skill and whether they did it unprompted. The first time they do something without being asked, name it warmly - tie the play-word to the real engineering idea once.",
   );
