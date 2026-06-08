@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.5](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.4...hi-bit-v0.0.5) (2026-06-08)
+
+
+### Features
+
+* **bit:** default Bit chat to no emojis ([#83](https://github.com/kunchenguid/hi-bit/issues/83)) ([3882a2b](https://github.com/kunchenguid/hi-bit/commit/3882a2bb8a53f1c9caac7fb0c30bb6c53bfe4f29))
+
+
+### Bug Fixes
+
+* **auth:** stop using macOS keychain for Codex tokens ([#85](https://github.com/kunchenguid/hi-bit/issues/85)) ([e4946c7](https://github.com/kunchenguid/hi-bit/commit/e4946c7a320d199e31e8b490a4c4809b96cc9d49))
+
 ## [0.0.4](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.3...hi-bit-v0.0.4) (2026-06-08)
 
 
