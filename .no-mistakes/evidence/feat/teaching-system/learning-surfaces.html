@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Teaching System Evidence</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1b2141;
+        --muted: #68708f;
+        --line: #d8def0;
+        --paper: #fffaf0;
+        --panel: #ffffff;
+        --blue: #4b68ff;
+        --cyan: #34c8e8;
+        --gold: #ffbe3d;
+        --green: #40bd7f;
+        --rose: #ff6f91;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 14% 10%, rgba(52, 200, 232, 0.3), transparent 26rem),
+          radial-gradient(circle at 86% 18%, rgba(255, 190, 61, 0.25), transparent 24rem),
+          linear-gradient(135deg, #eef4ff, #fff7e6 58%, #ffeef3);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 34px 0 48px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 4rem);
+        letter-spacing: -0.055em;
+        line-height: 0.95;
+      }
+
+      .hero p {
+        max-width: 760px;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.55;
+      }
+
+      .badge {
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: var(--gold);
+        box-shadow: 4px 4px 0 var(--ink);
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .surface {
+        min-width: 0;
+        border: 2px solid var(--ink);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: 8px 8px 0 rgba(27, 33, 65, 0.16);
+        overflow: hidden;
+      }
+
+      .surface-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 14px 18px;
+        border-bottom: 2px solid var(--ink);
+        background: #dff7ff;
+        font-weight: 900;
+      }
+
+      .surface-label span:last-child {
+        color: var(--muted);
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
+      .hb-card,
+      .hb-progress-window {
+        background: var(--panel);
+      }
+
+      .hb-handbook {
+        padding: 22px;
+      }
+
+      .hb-handbook-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .hb-handbook-title h2,
+      .hb-progress-heading {
+        font-size: clamp(1.45rem, 2.4vw, 2.15rem);
+        letter-spacing: -0.04em;
+      }
+
+      .hb-handbook-reach,
+      .hb-progress-summary,
+      .hb-progress-empty {
+        margin-top: 8px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .hb-handbook-count {
+        display: grid;
+        place-items: center;
+        min-width: 72px;
+        min-height: 72px;
+        border: 2px solid var(--ink);
+        border-radius: 22px;
+        background: var(--gold);
+        box-shadow: 4px 4px 0 var(--ink);
+        font-size: 1.45rem;
+        font-weight: 950;
+      }
+
+      .hb-button {
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: #f4f6ff;
+        box-shadow: 3px 3px 0 var(--ink);
+        color: var(--ink);
+        font-weight: 850;
+      }
+
+      .hb-handbook-arcs,
+      .hb-progress-arcs {
+        display: grid;
+        gap: 14px;
+        margin-top: 20px;
+      }
+
+      .hb-handbook-arc,
+      .hb-progress-arc,
+      .hb-progress-roadmap {
+        border: 2px solid var(--line);
+        border-radius: 20px;
+        padding: 16px;
+        background: linear-gradient(180deg, #ffffff, #f8fbff);
+      }
+
+      .hb-handbook-arc h3,
+      .hb-progress-arc h4,
+      .hb-progress-roadmap h4 {
+        font-size: 1rem;
+        letter-spacing: -0.02em;
+      }
+
+      .hb-handbook-skills,
+      .hb-progress-arc ul,
+      .hb-progress-roadmap ul {
+        display: grid;
+        gap: 10px;
+        padding: 0;
+        margin: 12px 0 0;
+        list-style: none;
+      }
+
+      .hb-handbook-skill,
+      .hb-progress-skill,
+      .roadmap-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border: 2px solid var(--line);
+        border-radius: 16px;
+        padding: 11px 12px;
+        background: var(--paper);
+      }
+
+      .hb-handbook-skill[data-mastery="fluent"],
+      .hb-progress-skill[data-mastery="fluent"] {
+        border-color: rgba(64, 189, 127, 0.75);
+        background: #ecfff5;
+      }
+
+      .hb-handbook-skill[data-mastery="grasped"],
+      .hb-progress-skill[data-mastery="grasped"] {
+        border-color: rgba(75, 104, 255, 0.55);
+        background: #eef2ff;
+      }
+
+      .hb-handbook-skill-label,
+      .hb-progress-skill-name {
+        min-width: 0;
+        font-weight: 760;
+      }
+
+      .hb-handbook-skill-state,
+      .hb-progress-skill-state {
+        border: 2px solid currentColor;
+        border-radius: 999px;
+        padding: 5px 9px;
+        color: var(--blue);
+        background: #fff;
+        font-size: 0.82rem;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      [data-mastery="fluent"] .hb-handbook-skill-state,
+      [data-mastery="fluent"] .hb-progress-skill-state {
+        color: #178451;
+      }
+
+      [data-mastery="unseen"] .hb-handbook-skill-state,
+      [data-mastery="unseen"] .hb-progress-skill-state {
+        color: #7a829e;
+      }
+
+      .hb-progress-window {
+        padding: 22px;
+      }
+
+      .hb-progress-summary strong {
+        color: var(--ink);
+      }
+
+      .roadmap-item {
+        grid-template-columns: auto minmax(0, 1fr);
+        background: #fff6df;
+      }
+
+      .roadmap-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--rose);
+        box-shadow: 0 0 0 4px rgba(255, 111, 145, 0.18);
+      }
+
+      .evidence-note {
+        margin-top: 20px;
+        border: 2px dashed rgba(27, 33, 65, 0.35);
+        border-radius: 20px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.74);
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      @media (max-width: 880px) {
+        .hero,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .badge {
+          justify-self: start;
+        }
+
+        .hb-handbook-head {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .hb-handbook-count {
+          width: 72px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero" aria-labelledby="title">
+        <div>
+          <h1 id="title">Teaching system evidence</h1>
+          <p>
+            Representative rendering of the shared learning progress view feeding both reflection surfaces.
+            The same progress data shows kid-facing mastery in the Factory Handbook and grown-up-facing agentic engineering skills in the progress window.
+          </p>
+        </div>
+        <div class="badge">Tier 2 reach</div>
+      </section>
+
+      <section class="grid" aria-label="Learning surfaces">
+        <article class="surface">
+          <div class="surface-label">
+            <span>Kid surface: Factory Handbook</span>
+            <span>opened by the builder</span>
+          </div>
+          <section class="hb-card hb-handbook" aria-label="What Ada can do" role="dialog" aria-modal="true">
+            <header class="hb-handbook-head">
+              <div class="hb-handbook-title">
+                <h2>What you can do, Ada</h2>
+                <p class="hb-handbook-reach">
+                  You can build: <strong>A richer creation shaped by specific feedback</strong>
+                </p>
+              </div>
+              <span class="hb-handbook-count" role="img" aria-label="3 of 13 mastered">3/13</span>
+              <button class="hb-button" type="button">Close</button>
+            </header>
+
+            <div class="hb-handbook-arcs">
+              <section class="hb-handbook-arc">
+                <h3>Direct one agent</h3>
+                <ul class="hb-handbook-skills">
+                  <li class="hb-handbook-skill" data-mastery="fluent" data-done="true">
+                    <span class="hb-handbook-skill-label">Ask Bit for a new creation</span>
+                    <span class="hb-handbook-skill-state">Mastered</span>
+                  </li>
+                  <li class="hb-handbook-skill" data-mastery="fluent" data-done="true">
+                    <span class="hb-handbook-skill-label">Try it, then tell Bit what to change</span>
+                    <span class="hb-handbook-skill-state">Mastered</span>
+                  </li>
+                  <li class="hb-handbook-skill" data-mastery="fluent" data-done="true">
+                    <span class="hb-handbook-skill-label">Say exactly what you want changed</span>
+                    <span class="hb-handbook-skill-state">Mastered</span>
+                  </li>
+                </ul>
+              </section>
+
+              <section class="hb-handbook-arc">
+                <h3>Give Bit context</h3>
+                <ul class="hb-handbook-skills">
+                  <li class="hb-handbook-skill" data-mastery="grasped" data-done="false">
+                    <span class="hb-handbook-skill-label">Give Bit a picture to work from</span>
+                    <span class="hb-handbook-skill-state">Got it</span>
+                  </li>
+                  <li class="hb-handbook-skill" data-mastery="unseen" data-done="false">
+                    <span class="hb-handbook-skill-label">Talk to Bit with your voice</span>
+                    <span class="hb-handbook-skill-state">Not yet</span>
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </section>
+        </article>
+
+        <article class="surface">
+          <div class="surface-label">
+            <span>Grown-up surface: progress window</span>
+            <span>same IPC view</span>
+          </div>
+          <section class="hb-progress-window" aria-label="Learning progress">
+            <h3 class="hb-progress-heading">What Ada is learning</h3>
+            <p class="hb-progress-summary">
+              Agentic engineering: directing AI to build real things. Ada is
+              <strong>3</strong> skills fluent (4 of 13 underway), and can now take on
+              <strong>a richer creation shaped by specific feedback</strong>.
+            </p>
+
+            <div class="hb-progress-arcs">
+              <div class="hb-progress-arc">
+                <h4>Direct one agent</h4>
+                <ul>
+                  <li class="hb-progress-skill" data-mastery="fluent">
+                    <span class="hb-progress-skill-name">Kicking off work / stating intent</span>
+                    <span class="hb-progress-skill-state">fluent</span>
+                  </li>
+                  <li class="hb-progress-skill" data-mastery="fluent">
+                    <span class="hb-progress-skill-name">Iteration loop</span>
+                    <span class="hb-progress-skill-state">fluent</span>
+                  </li>
+                  <li class="hb-progress-skill" data-mastery="fluent">
+                    <span class="hb-progress-skill-name">Precise specification</span>
+                    <span class="hb-progress-skill-state">fluent</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="hb-progress-arc">
+                <h4>Give Bit context</h4>
+                <ul>
+                  <li class="hb-progress-skill" data-mastery="grasped">
+                    <span class="hb-progress-skill-name">Multimodal context</span>
+                    <span class="hb-progress-skill-state">done with help</span>
+                  </li>
+                  <li class="hb-progress-skill" data-mastery="unseen">
+                    <span class="hb-progress-skill-name">Natural language input by voice</span>
+                    <span class="hb-progress-skill-state">not started</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="hb-progress-roadmap">
+              <h4>Ideas parked for later</h4>
+              <ul>
+                <li class="roadmap-item"><span class="roadmap-dot"></span><span>Minecraft world</span></li>
+              </ul>
+            </div>
+          </section>
+        </article>
+      </section>
+
+      <p class="evidence-note">
+        Evidence data mirrors the product test fixture for a growing builder: ask-creation, iterate-feedback, and specific-feedback are fluent; give-picture is grasped; one oversized idea is parked on the roadmap.
+      </p>
+    </main>
+  </body>
+</html>

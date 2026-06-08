@@ -15,7 +15,7 @@
  * `concepts.ts`.
  *
  * Design decisions baked in here (from the reviewed design):
- * - Mastery is a four-state gradient, not a boolean: coverage is not learning.
+ * - Mastery is a three-state gradient, not a boolean: coverage is not learning.
  * - The spine is a *minimal* DAG: skills are learnable in any order and we encode
  *   a hard prerequisite only where one skill is genuinely impossible without
  *   another. There is exactly one: running bots in parallel needs the kid to be

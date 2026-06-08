@@ -6,7 +6,7 @@
 
 ## What is Hi-Bit?
 
-**Hi-Bit** is a desktop Electron app that acts as an AI tutor, teaching kids ages 7-12 how to code. Current curriculum focus is **JavaScript, HTML, and CSS** - the web stack, because it's the fastest path from "I typed some words" to "my computer drew a thing."
+**Hi-Bit** is a desktop Electron app that acts as an AI tutor, teaching kids ages 7-12 how to build real web apps and direct AI helpers productively. Current curriculum focus is **agentic engineering through JavaScript, HTML, and CSS** - the web stack, because it's the fastest path from "I typed some words" to "my computer drew a thing."
 
 The product's emotional promise is a contradiction we lean into on purpose:
 
@@ -115,6 +115,16 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Grown-up menu:** Grown-up menu.
 >
+> **Factory Handbook button:** What I can do.
+>
+> **Factory Handbook title:** What you can do, Maya.
+>
+> **Factory Handbook reach:** You can build: A richer creation shaped by specific feedback.
+>
+> **Grown-up progress heading:** What Maya is learning.
+>
+> **Grown-up progress summary:** Agentic engineering: directing AI to build real things.
+>
 > **Thinking speed label:** How hard Bit thinks.
 >
 > **Thinking speed value:** Balanced.
@@ -151,6 +161,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 - "Oops!" "Uh oh!" - infantilizing
 - "Let's learn about…" style textbook openings
 - "Unlock" for anything that isn't literally gated
+- "Tracking" or scoring language in kid-facing learning progress
 - Pseudo-gamer slang ("grind," "sweat," "GG"). The arcade feel is visual, not verbal.
 
 ---
