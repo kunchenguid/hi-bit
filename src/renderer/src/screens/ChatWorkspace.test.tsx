@@ -24,6 +24,8 @@ const profile: ProfileSummary = {
   unlockedConcepts: [],
   pendingConceptReveals: [],
   unlockStats: { buildsDelegated: 0, openedActivities: false },
+  skillMastery: {},
+  roadmap: [],
 };
 
 function makeCreation(id: string, title: string): ProjectSummary {

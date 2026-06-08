@@ -1,11 +1,19 @@
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { type ConceptId, isKnownConceptId } from "@shared/concepts";
 import {
+  advanceMastery,
+  masteryOf,
+  sanitizeMastery,
+  type SkillId,
+  type SkillSignal,
+} from "@shared/curriculum";
+import {
   EMPTY_UNLOCK_STATS,
   type ProfileInput,
   type ProfileRecord,
   type ProfileSettingsInput,
   type ProfileSummary,
+  type RoadmapItem,
 } from "@shared/profile";
 import { readJsonFile, writeJsonFile } from "../storage/json";
 import {
@@ -70,6 +78,8 @@ export class ProfileService {
       unlockedConcepts: [],
       pendingConceptReveals: [],
       unlockStats: { ...EMPTY_UNLOCK_STATS },
+      skillMastery: {},
+      roadmap: [],
     };
     const notes = input.notes?.trim();
     if (notes) profile.notes = notes;
@@ -206,6 +216,87 @@ export class ProfileService {
     });
   }
 
+  /**
+   * Applies Bit's per-turn mastery judgments. Each skill's state advances
+   * monotonically (see `advanceMastery`); writes once, only if something
+   * actually changed.
+   */
+  async applySkillSignals(
+    profileId: string,
+    signals: Partial<Record<SkillId, SkillSignal>>,
+  ): Promise<ProfileSummary> {
+    return this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      const skillMastery = { ...current.skillMastery };
+      let changed = false;
+      for (const [skill, signal] of Object.entries(signals) as [SkillId, SkillSignal][]) {
+        if (!signal) continue;
+        const before = masteryOf(skillMastery, skill);
+        const after = advanceMastery(before, signal);
+        if (after !== before) {
+          skillMastery[skill] = after;
+          changed = true;
+        }
+      }
+      if (!changed) return current;
+      const next: ProfileRecord = { ...current, skillMastery };
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
+      return next;
+    });
+  }
+
+  /** Parks a deferred ambition on the kid's roadmap and returns the new item. */
+  async addRoadmapItem(
+    profileId: string,
+    input: { title: string; note?: string },
+  ): Promise<{ profile: ProfileSummary; item: RoadmapItem }> {
+    return this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      const title = input.title.trim();
+      if (!title) throw new Error("Roadmap item needs a title.");
+      const timestamp = this.now().toISOString();
+      const item: RoadmapItem = {
+        id: `roadmap-${this.now().getTime().toString(36)}-${current.roadmap.length}`,
+        title,
+        status: "parked",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      const note = input.note?.trim();
+      if (note) item.note = note;
+      const next: ProfileRecord = { ...current, roadmap: [...current.roadmap, item] };
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
+      return { profile: next, item };
+    });
+  }
+
+  /** Updates a parked ambition's status or title (e.g. parked -> started -> done). */
+  async updateRoadmapItem(
+    profileId: string,
+    itemId: string,
+    patch: { status?: RoadmapItem["status"]; title?: string },
+  ): Promise<ProfileSummary> {
+    return this.withProfileWrite(profileId, async () => {
+      const current = await this.get(profileId);
+      let found = false;
+      const roadmap = current.roadmap.map((item) => {
+        if (item.id !== itemId) return item;
+        found = true;
+        const updated: RoadmapItem = { ...item, updatedAt: this.now().toISOString() };
+        if (patch.status) updated.status = patch.status;
+        if (patch.title !== undefined) {
+          const title = patch.title.trim();
+          if (title) updated.title = title;
+        }
+        return updated;
+      });
+      if (!found) throw new Error("Roadmap item not found.");
+      const next: ProfileRecord = { ...current, roadmap };
+      await writeJsonFile(profileJsonPath(this.layout, profileId), next);
+      return next;
+    });
+  }
+
   async getActiveId(): Promise<string | null> {
     const home = await readJsonFile<HiBitHomeRecord>(this.layout.homePath);
     return home?.activeProfileId ?? null;
@@ -269,7 +360,20 @@ function normalizeProfile(record: ProfileRecord): ProfileRecord {
       isKnownConceptId(concept.id),
     ),
     unlockStats: record.unlockStats ?? { ...EMPTY_UNLOCK_STATS },
+    skillMastery: sanitizeMastery(record.skillMastery),
+    roadmap: normalizeRoadmap(record.roadmap),
   };
+}
+
+function normalizeRoadmap(roadmap: unknown): RoadmapItem[] {
+  if (!Array.isArray(roadmap)) return [];
+  return roadmap.filter(
+    (item): item is RoadmapItem =>
+      !!item &&
+      typeof item === "object" &&
+      typeof (item as RoadmapItem).id === "string" &&
+      typeof (item as RoadmapItem).title === "string",
+  );
 }
 
 function validateProfileFields(input: ProfileInput): void {

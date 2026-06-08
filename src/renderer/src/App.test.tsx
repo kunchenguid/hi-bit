@@ -871,6 +871,8 @@ function adaProfile() {
     unlockedConcepts: [],
     pendingConceptReveals: [],
     unlockStats: { buildsDelegated: 0, openedActivities: false },
+    skillMastery: {},
+    roadmap: [],
   };
 }
 
@@ -886,6 +888,8 @@ function samProfile() {
     unlockedConcepts: [],
     pendingConceptReveals: [],
     unlockStats: { buildsDelegated: 0, openedActivities: false },
+    skillMastery: {},
+    roadmap: [],
   };
 }
 
@@ -935,6 +939,8 @@ function createApiMock(): HiBitApi {
         unlockedConcepts: [],
         pendingConceptReveals: [],
         unlockStats: { buildsDelegated: 0, openedActivities: false },
+        skillMastery: {},
+        roadmap: [],
       })),
       update: vi.fn(async (profileId, settings) => ({
         schemaVersion: 1 as const,
@@ -948,6 +954,8 @@ function createApiMock(): HiBitApi {
         unlockedConcepts: [],
         pendingConceptReveals: [],
         unlockStats: { buildsDelegated: 0, openedActivities: false },
+        skillMastery: {},
+        roadmap: [],
       })),
       getActiveId: vi.fn(async () => null),
       setActiveId: vi.fn(async () => {}),

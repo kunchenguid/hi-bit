@@ -192,11 +192,32 @@ export function skillById(id: SkillId): SkillDef {
   return def;
 }
 
+export function isSkillId(id: string): id is SkillId {
+  return SKILLS.some((skill) => skill.id === id);
+}
+
 /** Mastery states from least to most learned. */
 export const MASTERY_ORDER: readonly MasteryState[] = ["unseen", "met", "grasped", "fluent"];
 
 export function masteryRank(state: MasteryState): number {
   return MASTERY_ORDER.indexOf(state);
+}
+
+export function isMasteryState(value: unknown): value is MasteryState {
+  return typeof value === "string" && (MASTERY_ORDER as readonly string[]).includes(value);
+}
+
+/**
+ * Keeps only well-formed `{skill: state}` pairs - used when loading a profile
+ * from disk so a stale or hand-edited file can never poison the curriculum.
+ */
+export function sanitizeMastery(value: unknown): MasteryMap {
+  if (!value || typeof value !== "object") return {};
+  const map: MasteryMap = {};
+  for (const [key, state] of Object.entries(value as Record<string, unknown>)) {
+    if (isSkillId(key) && isMasteryState(state)) map[key] = state;
+  }
+  return map;
 }
 
 /** Whether `state` is at least as learned as `min`. */

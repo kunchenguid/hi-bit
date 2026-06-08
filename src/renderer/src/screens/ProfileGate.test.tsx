@@ -70,5 +70,7 @@ function adaProfile() {
     unlockedConcepts: [],
     pendingConceptReveals: [],
     unlockStats: { buildsDelegated: 0, openedActivities: false },
+    skillMastery: {},
+    roadmap: [],
   };
 }

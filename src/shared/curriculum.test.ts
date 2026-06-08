@@ -5,12 +5,15 @@ import {
   atLeast,
   BUILD_TIERS,
   canRunParallel,
+  isMasteryState,
+  isSkillId,
   type MasteryMap,
   masteryOf,
   masteryRank,
   nextSkillToCoach,
   prerequisitesMet,
   reachableTier,
+  sanitizeMastery,
   skillById,
   skillProgress,
   SKILLS,
@@ -163,6 +166,28 @@ describe("nextSkillToCoach", () => {
 
   it("never re-coaches a fluent skill", () => {
     expect(nextSkillToCoach({ "ask-creation": "fluent" }, ["ask-creation"])).toBeNull();
+  });
+});
+
+describe("sanitization helpers", () => {
+  it("recognizes real skill ids and mastery states", () => {
+    expect(isSkillId("decompose")).toBe(true);
+    expect(isSkillId("blueprint")).toBe(false);
+    expect(isMasteryState("fluent")).toBe(true);
+    expect(isMasteryState("expert")).toBe(false);
+    expect(isMasteryState(3)).toBe(false);
+  });
+
+  it("drops unknown skills and invalid states from a stored mastery map", () => {
+    const raw = {
+      decompose: "grasped",
+      "ask-creation": "fluent",
+      blueprint: "fluent", // retired skill id
+      "show-screen": "wizard", // invalid state
+    };
+    expect(sanitizeMastery(raw)).toEqual({ decompose: "grasped", "ask-creation": "fluent" });
+    expect(sanitizeMastery(null)).toEqual({});
+    expect(sanitizeMastery("nope")).toEqual({});
   });
 });
 
