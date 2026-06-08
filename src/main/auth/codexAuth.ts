@@ -16,6 +16,10 @@ import {
 } from "./codexOAuth";
 
 export type CodexTokenCodec = {
+  /**
+   * False by default. Encrypted codecs are kept only for tests and for reading
+   * old file metadata; production no longer touches Electron safeStorage.
+   */
   encrypted: boolean;
   warning?: string;
   encrypt: (value: string) => string;
