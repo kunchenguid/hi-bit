@@ -1792,8 +1792,10 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.drain();
 
     const profile = await s.profiles.get(s.profile.id);
+    // A first-ever unprompted demonstration lands at grasped (not straight to
+    // fluent); fluency is earned by doing it unprompted after grasping it.
     expect(profile.skillMastery).toEqual({
-      "ask-creation": "fluent",
+      "ask-creation": "grasped",
       "give-picture": "met",
     });
   });

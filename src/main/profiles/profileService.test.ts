@@ -176,6 +176,11 @@ describe("ProfileService", () => {
     delete raw.skillMastery;
     delete raw.roadmap;
     raw.skillMastery = { decompose: "grasped", blueprint: "fluent" };
+    raw.roadmap = [
+      { id: "r1", title: "Good item", status: "started" },
+      { id: "r2", title: "Bad status item" }, // missing status -> repaired to parked
+      { title: "no id" }, // dropped
+    ];
     await writeFile(path, JSON.stringify(raw), "utf8");
 
     await expect(service.get(ada.id)).resolves.toMatchObject({
@@ -183,7 +188,10 @@ describe("ProfileService", () => {
       pendingConceptReveals: [],
       unlockStats: { buildsDelegated: 0, openedActivities: false },
       skillMastery: { decompose: "grasped" },
-      roadmap: [],
+      roadmap: [
+        { id: "r1", title: "Good item", status: "started" },
+        { id: "r2", title: "Bad status item", status: "parked" },
+      ],
     });
   });
 

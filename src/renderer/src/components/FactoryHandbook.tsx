@@ -1,6 +1,7 @@
 import type { ArcId, MasteryState } from "@shared/curriculum";
 import type { LearningProgressView } from "@shared/learning";
 import { useEffect, useRef } from "react";
+import { keepFocusInside } from "./focusTrap";
 
 type FactoryHandbookProps = {
   builderName: string;
@@ -51,9 +52,7 @@ export function FactoryHandbook({ builderName, progress, onClose }: FactoryHandb
         role="dialog"
         tabIndex={-1}
         ref={dialogRef}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") close();
-        }}
+        onKeyDown={(event) => keepFocusInside(event, dialogRef.current, close)}
       >
         <header className="hb-handbook-head">
           <div className="hb-handbook-title">

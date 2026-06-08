@@ -85,6 +85,11 @@ describe("advanceMastery", () => {
     expect(advanceMastery("grasped", { demonstrated: true, unprompted: false })).toBe("grasped");
   });
 
+  it("does not skip grasped: a first-ever unprompted try lands at grasped, not fluent", () => {
+    expect(advanceMastery("unseen", { demonstrated: true, unprompted: true })).toBe("grasped");
+    expect(advanceMastery("met", { demonstrated: true, unprompted: true })).toBe("grasped");
+  });
+
   it("never regresses", () => {
     expect(advanceMastery("fluent", {})).toBe("fluent");
     expect(advanceMastery("fluent", { met: true })).toBe("fluent");

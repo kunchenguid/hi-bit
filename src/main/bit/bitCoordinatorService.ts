@@ -1174,7 +1174,13 @@ export class BitCoordinatorService {
       };
     } catch (error) {
       console.error(`Failed to resolve unlock vocabulary for profile ${profileId}:`, error);
-      return { note: buildVocabularyNote([], null), pendingReveal: null };
+      // Degrade to base words but keep a coaching note with the readiness gate
+      // closed (empty mastery), so a transient read hiccup never strips the
+      // gate and lets Bit fan out parallel builds for a beginner.
+      return {
+        note: `${buildVocabularyNote([], null)}\n\n${buildCoachingNote({})}`,
+        pendingReveal: null,
+      };
     }
   }
 

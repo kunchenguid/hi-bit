@@ -246,14 +246,18 @@ export type SkillSignal = {
 /**
  * The mastery transition. Monotonic - mastery never regresses.
  * unseen -> met (situation arises) -> grasped (did it once) -> fluent (did it
- * unprompted). A first demonstration jumps straight to grasped even from unseen.
+ * unprompted, after having grasped it). A first demonstration jumps straight to
+ * grasped even from unseen, but fluency is only earned once the kid does it
+ * unprompted *after* already grasping it - a single first-ever unprompted try
+ * lands at grasped, never straight to fluent.
  */
 export function advanceMastery(current: MasteryState, signal: SkillSignal): MasteryState {
   let next = current;
   if (signal.met && next === "unseen") next = "met";
   if (signal.demonstrated) {
+    const alreadyGrasped = masteryRank(current) >= masteryRank("grasped");
     if (masteryRank(next) < masteryRank("grasped")) next = "grasped";
-    if (next === "grasped" && signal.unprompted) next = "fluent";
+    if (alreadyGrasped && signal.unprompted) next = "fluent";
   }
   return next;
 }

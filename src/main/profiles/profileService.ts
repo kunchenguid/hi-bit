@@ -2,6 +2,7 @@ import { mkdir, readdir, stat } from "node:fs/promises";
 import { type ConceptId, isKnownConceptId } from "@shared/concepts";
 import {
   advanceMastery,
+  isSkillId,
   masteryOf,
   type SkillId,
   type SkillSignal,
@@ -230,7 +231,7 @@ export class ProfileService {
       const skillMastery = { ...current.skillMastery };
       let changed = false;
       for (const [skill, signal] of Object.entries(signals) as [SkillId, SkillSignal][]) {
-        if (!signal) continue;
+        if (!signal || !isSkillId(skill)) continue;
         const before = masteryOf(skillMastery, skill);
         const after = advanceMastery(before, signal);
         if (after !== before) {
@@ -365,15 +366,20 @@ function normalizeProfile(record: ProfileRecord): ProfileRecord {
   };
 }
 
+const ROADMAP_STATUSES: ReadonlySet<RoadmapItem["status"]> = new Set(["parked", "started", "done"]);
+
 function normalizeRoadmap(roadmap: unknown): RoadmapItem[] {
   if (!Array.isArray(roadmap)) return [];
-  return roadmap.filter(
-    (item): item is RoadmapItem =>
-      !!item &&
-      typeof item === "object" &&
-      typeof (item as RoadmapItem).id === "string" &&
-      typeof (item as RoadmapItem).title === "string",
-  );
+  const items: RoadmapItem[] = [];
+  for (const raw of roadmap) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as RoadmapItem;
+    if (typeof item.id !== "string" || typeof item.title !== "string") continue;
+    // A missing or unknown status is repaired to "parked" so it never leaks
+    // into status filters or the UI as "- undefined".
+    items.push(ROADMAP_STATUSES.has(item.status) ? item : { ...item, status: "parked" });
+  }
+  return items;
 }
 
 function validateProfileFields(input: ProfileInput): void {
