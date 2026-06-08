@@ -53,6 +53,8 @@ describe("ProfileService", () => {
       unlockedConcepts: [],
       pendingConceptReveals: [],
       unlockStats: { buildsDelegated: 0, openedActivities: false },
+      skillMastery: {},
+      roadmap: [],
     });
     await expect(service.list()).resolves.toEqual([profile]);
 
@@ -163,19 +165,94 @@ describe("ProfileService", () => {
     });
   });
 
-  it("backfills unlock fields for profiles written before the ladder existed", async () => {
+  it("backfills unlock and curriculum fields for profiles written before they existed", async () => {
     const ada = await service.create({ name: "Ada", age: 9 });
-    // Simulate an old on-disk record with no unlock fields.
+    // Simulate an old on-disk record with no unlock or curriculum fields, plus a
+    // stale mastery entry for a retired skill that must not survive the load.
     const path = join(profileDir(layout, ada.id), "profile.json");
     const raw = JSON.parse(await readFile(path, "utf8"));
     delete raw.unlockedConcepts;
     delete raw.unlockStats;
+    delete raw.skillMastery;
+    delete raw.roadmap;
+    raw.skillMastery = { decompose: "grasped", blueprint: "fluent" };
+    raw.roadmap = [
+      { id: "r1", title: "Good item", status: "started" },
+      { id: "r2", title: "Bad status item" }, // missing status -> repaired to parked
+      { title: "no id" }, // dropped
+    ];
     await writeFile(path, JSON.stringify(raw), "utf8");
 
     await expect(service.get(ada.id)).resolves.toMatchObject({
       unlockedConcepts: [],
       pendingConceptReveals: [],
       unlockStats: { buildsDelegated: 0, openedActivities: false },
+      skillMastery: { decompose: "grasped" },
+      roadmap: [
+        { id: "r1", title: "Good item", status: "started" },
+        { id: "r2", title: "Bad status item", status: "parked" },
+      ],
     });
+  });
+
+  it("advances skill mastery monotonically from Bit's per-turn signals", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+
+    const first = await service.applySkillSignals(ada.id, {
+      "ask-creation": { demonstrated: true },
+      "iterate-feedback": { demonstrated: true },
+    });
+    expect(first.skillMastery).toEqual({
+      "ask-creation": "grasped",
+      "iterate-feedback": "grasped",
+    });
+
+    // An unprompted demonstration of a grasped skill promotes it to fluent; a
+    // plain demonstration can never pull a grasped skill backwards.
+    const second = await service.applySkillSignals(ada.id, {
+      "ask-creation": { demonstrated: true, unprompted: true },
+      "iterate-feedback": { demonstrated: true },
+    });
+    expect(second.skillMastery).toEqual({
+      "ask-creation": "fluent",
+      "iterate-feedback": "grasped",
+    });
+  });
+
+  it("does not rewrite the profile when no signal changes mastery", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+    await service.applySkillSignals(ada.id, { "ask-creation": { demonstrated: true } });
+    const before = await readFile(join(profileDir(layout, ada.id), "profile.json"), "utf8");
+
+    // A plain demonstration of an already-grasped skill does not change it.
+    const same = await service.applySkillSignals(ada.id, {
+      "ask-creation": { demonstrated: true },
+    });
+    expect(same.skillMastery).toEqual({ "ask-creation": "grasped" });
+    const after = await readFile(join(profileDir(layout, ada.id), "profile.json"), "utf8");
+    expect(after).toBe(before);
+  });
+
+  it("parks ambitions on the roadmap and moves them along", async () => {
+    const ada = await service.create({ name: "Ada", age: 9 });
+
+    const { item } = await service.addRoadmapItem(ada.id, {
+      title: "  Minecraft world  ",
+      note: "blocks you can place",
+    });
+    expect(item).toMatchObject({
+      title: "Minecraft world",
+      note: "blocks you can place",
+      status: "parked",
+    });
+
+    const started = await service.updateRoadmapItem(ada.id, item.id, { status: "started" });
+    expect(started.roadmap).toEqual([
+      { ...item, status: "started", updatedAt: expect.any(String) },
+    ]);
+
+    await expect(service.updateRoadmapItem(ada.id, "nope", { status: "done" })).rejects.toThrow(
+      /not found/i,
+    );
   });
 });

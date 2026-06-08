@@ -9,14 +9,18 @@ import type {
 import type { ThinkingSpeed } from "@shared/config";
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
+import { useState } from "react";
 import { ActivityChip } from "../components/ActivityChip";
 import { BrowserPane } from "../components/BrowserPane";
 import { Composer } from "../components/Composer";
+import { FactoryHandbook } from "../components/FactoryHandbook";
 import { FactoryView } from "../components/FactoryView";
 import { MessageList } from "../components/MessageList";
+import { ParentProgressWindow } from "../components/ParentProgressWindow";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
 import { ThinkingSpeedControl } from "../components/ThinkingSpeedControl";
 import { UpdateNotice } from "../components/UpdateNotice";
+import { useLearningProgress } from "../components/useLearningProgress";
 import { useUpdateStatus } from "../components/useUpdateStatus";
 
 type ChatWorkspaceProps = {
@@ -114,6 +118,15 @@ export function ChatWorkspace({
   const updateStatus = useUpdateStatus();
   const updateAvailable = updateStatus?.updateAvailable ?? false;
 
+  // The builder's place in the curriculum, fetched fresh each time they open
+  // their Handbook (a kid-chosen action) or a grown-up opens their menu.
+  const { progress, refresh: refreshProgress } = useLearningProgress(profile.id);
+  const [showHandbook, setShowHandbook] = useState(false);
+  const openHandbook = () => {
+    refreshProgress();
+    setShowHandbook(true);
+  };
+
   // A creation is playable if it has a remembered preview (running or
   // restartable). Running previews are always playable too.
   const playable = new Set([...playableProjectIds, ...previews.map((p) => p.projectId)]);
@@ -133,33 +146,52 @@ export function ChatWorkspace({
     <main className="hb-workspace">
       <header className="hb-workspace-header">
         <h1 className="hb-workspace-greeting">Hi {profile.name} - what should we build?</h1>
-        <details className="hb-parent-menu hb-header-actions">
-          <summary className="hb-button hb-button-secondary">
-            Grown-up menu
-            {updateAvailable ? (
-              <span className="hb-update-dot" role="img" aria-label="update available" />
-            ) : null}
-          </summary>
-          <div className="hb-card hb-parent-menu-popover">
-            <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
-            <ThinkingSpeedControl
-              value={thinkingSpeed}
-              busy={busy}
-              onChange={onChangeThinkingSpeed}
-            />
-            <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
-              Open creations folder
-            </button>
-            <button
-              className="hb-button hb-button-secondary"
-              type="button"
-              onClick={onSwitchProfile}
-            >
-              Switch profile
-            </button>
-            {updateStatus ? <UpdateNotice status={updateStatus} /> : null}
-          </div>
-        </details>
+        <div className="hb-header-actions">
+          <button className="hb-button hb-button-secondary" type="button" onClick={openHandbook}>
+            What I can do
+          </button>
+          <details
+            className="hb-parent-menu"
+            onToggle={(event) => {
+              if (event.currentTarget.open) refreshProgress();
+            }}
+          >
+            <summary className="hb-button hb-button-secondary">
+              Grown-up menu
+              {updateAvailable ? (
+                <span className="hb-update-dot" role="img" aria-label="update available" />
+              ) : null}
+            </summary>
+            <div className="hb-card hb-parent-menu-popover">
+              <ProfileSettingsMenu
+                profile={profile}
+                busy={busy}
+                onUpdateProfile={onUpdateProfile}
+              />
+              <ThinkingSpeedControl
+                value={thinkingSpeed}
+                busy={busy}
+                onChange={onChangeThinkingSpeed}
+              />
+              <ParentProgressWindow builderName={profile.name} progress={progress} />
+              <button
+                className="hb-button hb-button-secondary"
+                type="button"
+                onClick={onOpenFolder}
+              >
+                Open creations folder
+              </button>
+              <button
+                className="hb-button hb-button-secondary"
+                type="button"
+                onClick={onSwitchProfile}
+              >
+                Switch profile
+              </button>
+              {updateStatus ? <UpdateNotice status={updateStatus} /> : null}
+            </div>
+          </details>
+        </div>
       </header>
 
       <section
@@ -224,6 +256,14 @@ export function ChatWorkspace({
           playableProjectIds={playable}
           onPlay={onPlayPreview}
           onClose={onHideActivity}
+        />
+      ) : null}
+
+      {showHandbook ? (
+        <FactoryHandbook
+          builderName={profile.name}
+          progress={progress}
+          onClose={() => setShowHandbook(false)}
         />
       ) : null}
     </main>

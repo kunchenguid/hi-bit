@@ -20,7 +20,8 @@ import {
   nextConceptToUnlock,
   type UnlockFacts,
 } from "@shared/concepts";
-import type { ProfileSummary } from "@shared/profile";
+import { buildCoachingNote, isSkillId, type SkillId, type SkillSignal } from "@shared/curriculum";
+import type { ProfileSummary, RoadmapItem } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { Type } from "typebox";
 import { type BlueprintReference, type BotJobRecord, BotJobService } from "../bots/botJobService";
@@ -59,6 +60,19 @@ export type ProfileReader = {
   markConceptRevealed: (profileId: string, conceptId: ConceptId) => Promise<ProfileSummary>;
   bumpBuildsDelegated: (profileId: string) => Promise<void>;
   markActivitiesOpened: (profileId: string) => Promise<ProfileSummary>;
+  applySkillSignals: (
+    profileId: string,
+    signals: Partial<Record<SkillId, SkillSignal>>,
+  ) => Promise<ProfileSummary>;
+  addRoadmapItem: (
+    profileId: string,
+    input: { title: string; note?: string },
+  ) => Promise<{ profile: ProfileSummary; item: RoadmapItem }>;
+  updateRoadmapItem: (
+    profileId: string,
+    itemId: string,
+    patch: { status?: RoadmapItem["status"]; title?: string },
+  ) => Promise<ProfileSummary>;
 };
 
 type BitCoordinatorServiceOptions = {
@@ -87,6 +101,8 @@ type TurnVocabulary = {
 };
 
 type CreateDetails = { created: boolean; projectId: string | null; jobId: string | null };
+type ParkDetails = { id: string | null; title: string | null };
+type RoadmapUpdateDetails = { id: string; status: "started" | "done"; updated: boolean };
 type BuildDetails = { jobId: string | null; projectId: string };
 type PreviewToolDetails = { projectId: string; url: string | null };
 
@@ -686,6 +702,133 @@ export class BitCoordinatorService {
       },
     });
 
+    const recordProgress = defineTool({
+      name: "record_progress",
+      label: "Record progress",
+      description:
+        "Record what the builder actually DID this turn, so their learning moves forward. Only call this when the builder genuinely performs a skill of operating you and the bots - not when a topic merely comes up, and not for things you or a bot did. The learning map describes what each skill means; match the builder's action to it carefully. status: 'did' = they did it with your help; 'did_unprompted' = they did it on their own. Never tell the builder you are doing this.",
+      parameters: Type.Object({
+        updates: Type.Array(
+          Type.Object({
+            skill: Type.String({
+              description:
+                "skill id, one of: ask-creation, iterate-feedback, specific-feedback, voice-input, show-screen, give-picture, browse-creation, async-productive, decompose, dependency-reasoning, parallel-bots, switch-tabs, oversee",
+            }),
+            status: Type.Union([Type.Literal("did"), Type.Literal("did_unprompted")], {
+              description: "whether the builder did it with your help (did) or on their own",
+            }),
+          }),
+          { description: "one entry per skill the builder actually did this turn" },
+        ),
+      }),
+      async execute(_callId, params) {
+        const { updates } = params as {
+          updates: Array<{ skill: string; status: "did" | "did_unprompted" }>;
+        };
+        const signals: Partial<Record<SkillId, SkillSignal>> = {};
+        for (const { skill, status } of updates) {
+          if (!isSkillId(skill)) continue;
+          signals[skill] =
+            status === "did_unprompted"
+              ? { demonstrated: true, unprompted: true }
+              : { demonstrated: true };
+        }
+        const recorded = Object.keys(signals).length;
+        if (recorded > 0) await self.profiles.applySkillSignals(profileId, signals);
+        return {
+          content: [{ type: "text", text: `Noted progress on ${recorded} skill(s).` }],
+          details: { recorded },
+        };
+      },
+    });
+
+    const parkAmbition = defineTool({
+      name: "park_ambition",
+      label: "Park an idea",
+      description:
+        "Save an idea the builder wants but that is too big to start right now, so it is not lost. Use it when you slice a giant ask down to one first step, or when the builder is not ready to run several builds at once - park the extras here and come back to them later.",
+      parameters: Type.Object({
+        title: Type.String({ description: "short name for the idea, in the builder's words" }),
+        note: Type.Optional(
+          Type.String({ description: "optional detail to remember about the idea" }),
+        ),
+      }),
+      async execute(_callId, params) {
+        const { title, note } = params as { title: string; note?: string };
+        try {
+          const { item } = await self.profiles.addRoadmapItem(profileId, { title, note });
+          return {
+            content: [{ type: "text", text: `Parked "${item.title}" to come back to.` }],
+            details: { id: item.id, title: item.title } as ParkDetails,
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Could not park that: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            details: { id: null, title: null } as ParkDetails,
+          };
+        }
+      },
+    });
+
+    const listRoadmap = defineTool({
+      name: "list_roadmap",
+      label: "List parked ideas",
+      description:
+        "List the ideas parked for this builder (their wishlist), so you can suggest what to build next or pick one back up.",
+      parameters: Type.Object({}),
+      async execute() {
+        const profile = await self.profiles.get(profileId);
+        const parked = profile.roadmap.filter((item) => item.status !== "done");
+        const text = parked.length
+          ? parked
+              .map(
+                (item) =>
+                  `- [id: ${item.id}] ${item.title}${item.note ? ` (${item.note})` : ""} - ${item.status}`,
+              )
+              .join("\n")
+          : "(nothing parked yet)";
+        return { content: [{ type: "text", text }], details: { count: parked.length } };
+      },
+    });
+
+    const updateRoadmap = defineTool({
+      name: "update_roadmap",
+      label: "Update parked idea",
+      description:
+        "Mark a parked idea as started when you begin building it, or done when it is finished, so grown-ups see current progress.",
+      parameters: Type.Object({
+        id: Type.String({ description: "roadmap item id from list_roadmap" }),
+        status: Type.Union([Type.Literal("started"), Type.Literal("done")], {
+          description: "new status for the roadmap item",
+        }),
+      }),
+      async execute(_callId, params) {
+        const { id, status } = params as { id: string; status: "started" | "done" };
+        try {
+          await self.profiles.updateRoadmapItem(profileId, id, { status });
+          return {
+            content: [{ type: "text", text: `Marked roadmap idea ${status}.` }],
+            details: { id, status, updated: true } as RoadmapUpdateDetails,
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Could not update that roadmap idea: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            details: { id, status, updated: false } as RoadmapUpdateDetails,
+          };
+        }
+      },
+    });
+
     const tools = [
       listCreations,
       listBuilderPictures,
@@ -694,6 +837,10 @@ export class BitCoordinatorService {
       startPreview,
       listPreviews,
       stopPreview,
+      recordProgress,
+      parkAmbition,
+      listRoadmap,
+      updateRoadmap,
     ];
     this.toolCache.set(profileId, tools);
     return tools;
@@ -1051,13 +1198,21 @@ export class BitCoordinatorService {
         await this.profiles.markConceptPendingReveal(profileId, pendingReveal);
       }
       const newlyUnlocked = pending.includes(pendingReveal as ConceptId) ? null : pendingReveal;
+      const vocabularyNote = buildVocabularyNote(unlocked, pendingReveal, newlyUnlocked);
+      const coachingNote = buildCoachingNote(profile.skillMastery);
       return {
-        note: buildVocabularyNote(unlocked, pendingReveal, newlyUnlocked),
+        note: `${vocabularyNote}\n\n${coachingNote}`,
         pendingReveal,
       };
     } catch (error) {
       console.error(`Failed to resolve unlock vocabulary for profile ${profileId}:`, error);
-      return { note: buildVocabularyNote([], null), pendingReveal: null };
+      // Degrade to base words but keep a coaching note with the readiness gate
+      // closed (empty mastery), so a transient read hiccup never strips the
+      // gate and lets Bit fan out parallel builds for a beginner.
+      return {
+        note: `${buildVocabularyNote([], null)}\n\n${buildCoachingNote({})}`,
+        pendingReveal: null,
+      };
     }
   }
 

@@ -271,4 +271,29 @@ describe("buildBitSystemPrompt", () => {
     expect(mirroredPrompt).toMatch(/\bbot\b/i);
     expect(mirroredPrompt).toMatch(/Words you may use/);
   });
+
+  it("teaches the curriculum by building: learning map, record_progress, slice-and-park", () => {
+    const runtimePrompt = buildBitSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      expect(prompt).toContain("record_progress");
+      expect(prompt).toContain("park_ambition");
+      expect(prompt).toContain("list_roadmap");
+      // The per-turn learning map, with the teaching decision delegated to Bit.
+      expect(prompt).toMatch(/learning map/i);
+      expect(prompt).toMatch(/you decide what/i);
+      expect(prompt).toMatch(/never with lessons or quizzes/i);
+      expect(prompt).toMatch(/at most one new idea/i);
+      // The "Yes, and here's the first step" pattern for oversized asks.
+      expect(prompt).toMatch(/never say no/i);
+      expect(prompt).toMatch(/first slice|one exciting/i);
+      // Keep the conversation moving: end with an easy, concrete next step.
+      expect(prompt).toMatch(/keep the building moving/i);
+      expect(prompt).toMatch(/dead-end|next step/i);
+      expect(prompt).toMatch(/concrete choices/i);
+      // Bit speaks of itself in the first person.
+      expect(prompt).toMatch(/first person/i);
+    }
+  });
 });

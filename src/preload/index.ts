@@ -9,6 +9,7 @@ import type {
 } from "@shared/chat";
 import type { ThinkingSpeed } from "@shared/config";
 import type { AppConfigView, AppInfo, HiBitApi, UpdateStatus } from "@shared/ipc";
+import type { LearningProgressView } from "@shared/learning";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { CreateProjectInput, ProjectSummary } from "@shared/project";
 import type { VoiceDownloadProgress, VoiceStatus } from "@shared/voice";
@@ -66,6 +67,10 @@ const api: HiBitApi = {
       ipcRenderer.on("hibit:chat:event", handler);
       return () => ipcRenderer.off("hibit:chat:event", handler);
     },
+  },
+  progress: {
+    get: (profileId: string): Promise<LearningProgressView> =>
+      ipcRenderer.invoke("hibit:progress:get", profileId),
   },
   preview: {
     play: (profileId: string, projectId: string): Promise<PreviewInfo> =>

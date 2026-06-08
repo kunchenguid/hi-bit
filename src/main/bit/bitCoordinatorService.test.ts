@@ -1761,6 +1761,106 @@ describe("BitCoordinatorService (Bit)", () => {
     const profile = await s.profiles.get(s.profile.id);
     expect(profile.unlockedConcepts.map((concept) => concept.id)).toContain("logbook");
   });
+
+  it("appends the curriculum learning map to every turn prompt", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "Let's build something!";
+
+    await s.coordinator.send(s.profile.id, "hi");
+    await s.drain();
+
+    const prompt = s.bit.prompts.at(-1);
+    expect(prompt).toMatch(/learning map/i);
+    expect(prompt).toContain("Reach right now: build tier 1 of 4");
+    // The full map is surfaced (every skill, concrete action + meaning), decision to Bit.
+    expect(prompt).toContain(
+      "[unseen] Ask Bit for a new creation (Kicking off work / stating intent)",
+    );
+    expect(prompt).toMatch(/you decide/i);
+    expect(prompt).toContain("record_progress");
+  });
+
+  it("advances skill mastery when Bit records the builder's progress", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async ({ callTool }) => {
+      await callTool("record_progress", {
+        updates: [
+          { skill: "ask-creation", status: "did_unprompted" },
+          { skill: "give-picture", status: "did" },
+          { skill: "not-a-real-skill", status: "did" },
+        ],
+      });
+      return "Nice work!";
+    };
+
+    await s.coordinator.send(s.profile.id, "make me a maze");
+    await s.drain();
+
+    const profile = await s.profiles.get(s.profile.id);
+    // A first-ever unprompted demonstration lands at grasped (not straight to
+    // fluent); a plain "did" also lands at grasped. Unknown skills are ignored.
+    expect(profile.skillMastery).toEqual({
+      "ask-creation": "grasped",
+      "give-picture": "grasped",
+    });
+  });
+
+  it("closes the parallel readiness gate for a beginner and opens it once they can direct one bot", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "ok";
+
+    await s.coordinator.send(s.profile.id, "build four games at once");
+    await s.drain();
+    expect(s.bit.prompts.at(-1)).toMatch(/Parallel building is not open yet/i);
+
+    await s.profiles.applySkillSignals(s.profile.id, {
+      "ask-creation": { demonstrated: true },
+      "iterate-feedback": { demonstrated: true },
+    });
+    await s.coordinator.send(s.profile.id, "build four games at once");
+    await s.drain();
+    expect(s.bit.prompts.at(-1)).toMatch(/Parallel building is open/i);
+  });
+
+  it("parks an oversized ask on the roadmap and can list it back", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async ({ text, callTool }) => {
+      if (text.includes("Minecraft")) {
+        await callTool("park_ambition", { title: "Minecraft world", note: "place blocks" });
+        return "Let's start with a world you can walk around in!";
+      }
+      const listed = (await callTool("list_roadmap", {})) as { content: Array<{ text: string }> };
+      return listed.content[0]?.text ?? "";
+    };
+
+    await s.coordinator.send(s.profile.id, "build me Minecraft");
+    await s.drain();
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.roadmap).toHaveLength(1);
+    expect(profile.roadmap[0]).toMatchObject({ title: "Minecraft world", status: "parked" });
+
+    await s.coordinator.send(s.profile.id, "what did we save?");
+    await s.drain();
+    expect(s.bit.prompts.length).toBeGreaterThan(0);
+  });
+
+  it("updates roadmap item status when Bit marks a parked idea in progress", async () => {
+    const s = await createCoordinator();
+    const { item } = await s.profiles.addRoadmapItem(s.profile.id, {
+      title: "Minecraft world",
+      note: "place blocks",
+    });
+    s.bit.handler = async ({ callTool }) => {
+      await callTool("update_roadmap", { id: item.id, status: "started" });
+      return "Let's build the first slice.";
+    };
+
+    await s.coordinator.send(s.profile.id, "start the Minecraft idea");
+    await s.drain();
+
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.roadmap[0]).toMatchObject({ id: item.id, status: "started" });
+  });
 });
 
 describe("extractReadyToPlay", () => {

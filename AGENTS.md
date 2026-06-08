@@ -5,7 +5,7 @@
 Hi-Bit is a local-first Electron app that teaches kids (7-12) to build real web apps with an AI tutor called Bit.
 Parents connect Codex as the local LLM provider, and Hi-Bit runs Bit through embedded Pi coding runtimes using OpenAI Codex services.
 Codex is not Hi-Bit's app account system.
-Everything - auth state, factory metadata, kid profiles, chat attachment files, project files, session files, and logbooks - lives on disk under Electron's `userData` dir.
+Everything - auth state, factory metadata, kid profiles, learning progress, parked ideas, chat attachment files, project files, session files, and logbooks - lives on disk under Electron's `userData` dir.
 Hi-Bit has no app cloud backend.
 Production macOS builds display as `Hi Bit` in Finder, the Dock, and the menu bar, but keep the hyphenated `Hi-Bit` bundle name, app bundle path, artifacts, and Homebrew cask paths so existing user data and downloads keep working.
 Packaged release builds may send anonymous, best-effort release telemetry to Kun's self-hosted Umami instance: app-level events only, no kid names, prompts, profile ids, creation ids, file contents, attachment ids, URLs, or paths.
@@ -24,6 +24,7 @@ This file is the canonical architecture and workflow guide for the current app. 
   Codex credentials live in a plaintext `0o600` local file under `auth/codex.json`; legacy keychain-encrypted files from older builds are treated as signed out so the builder reconnects once and future launches avoid keychain prompts.
   `<userData>/.hi-bit/home.json` stores `layoutVersion: 2` plus the active profile id.
   Each kid profile owns its own factory at `<userData>/.hi-bit/factories/<profileId>/` (factory and profile are 1:1), with `factory.json`, `lead.json`, `profile.json`, and one continuous Bit conversation under `conversation/`, including Bit sessions under `conversation/sessions/bit` and builder-attached pictures under `conversation/attachments`.
+  The profile record also stores the learning state: `skillMastery` for the 13-skill agentic-engineering curriculum and `roadmap` for oversized or parallel asks Bit parked for later.
   Each stored attachment gets a stable id that Bit can pass as `referencePictureIds`; blueprints persist those ids plus conversation-relative paths, while bot runtime resolves them to the factory-level files so `generate_image.reference_paths` can condition generated art without copying builder pictures into creation workbenches.
   Pictures a bot or Bit finds with `search_image` or draws with `generate_image` land in the same `conversation/attachments` store, tagged by `source` (builder/searched/generated) in a sidecar `attachments/index.jsonl`, and get the same stable ids - so any of them resolves as a reference from any creation (builder pictures stay transcript-derived; `list_builder_pictures` filters to `source: "builder"` so the kid never sees machine pictures as ones they shared).
   Project folders live under `<userData>/.hi-bit/factories/<profileId>/projects/<projectId>/` and include `main-workbench`, `logbook`, `blueprints`, `jobs`, `workbenches`, `machines`, `assembly-line`, and `save-points` for the local bot pipeline.
@@ -31,16 +32,17 @@ This file is the canonical architecture and workflow guide for the current app. 
   `<userData>/.hi-bit/config.json` stores app config, including `defaultModel`, which defaults to `openai-codex/gpt-5.5`; values may include the `openai-codex/` prefix, which is stripped before the Pi runtime lookup.
   It also stores `thinkingSpeed` (one of `minimal`/`low`/`medium`/`high`/`xhigh`, defaulting to `medium`), the app-wide reasoning effort passed straight through as the Pi runtime `thinkingLevel` for both Bit and the bots; the grown-up menu's speed slider writes it via `hibit:config:*`, and `PiRuntimeService`/`BitRuntimeService` apply a change live by rebuilding idle sessions.
   `<userData>/.hi-bit/models/` holds locally downloaded models, currently the `whisper-large-v3-turbo` voice model fetched once on first voice use.
-- `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer, including preview-safe IPC helpers, `app.getUpdateStatus()` / `app.openReleasePage()` for the Grown-up menu update notice, `config.get()` / `config.setThinkingSpeed(speed)`, `auth.onReconnectRequired()`, `chat.send(profileId, text, image?)`, and `voice.status()` / `voice.ensureModel()` / `voice.onDownloadProgress()` for the one-time voice-model download. Every renderer IPC call goes through here.
+- `src/preload/index.ts` - the `contextBridge` that exposes `window.hibit` to the renderer, including preview-safe IPC helpers, `app.getUpdateStatus()` / `app.openReleasePage()` for the Grown-up menu update notice, `config.get()` / `config.setThinkingSpeed(speed)`, `auth.onReconnectRequired()`, `chat.send(profileId, text, image?)`, `progress.get(profileId)` for the Factory Handbook and grown-up progress window, and `voice.status()` / `voice.ensureModel()` / `voice.onDownloadProgress()` for the one-time voice-model download. Every renderer IPC call goes through here.
 - `src/renderer/` - the React UI. `screens/` holds the Codex connection gate, blocking Codex reconnect overlay, kid profile gate, and profile-level chat workspace with its optional browser split pane; `components/` holds the chat composer with one-picture input (paste, files, camera) and optional voice input - the composer mic button (`VoiceControl`) is itself push-to-talk (press and hold it for at least 500ms to talk and release to send, or quick-click for a hands-free recording the kid ends by tapping the mic again, which turns into a stop control), shown only when the device supports it, with a small live-waveform callout anchored above the button while active (a `role="status"` readout, not a modal - no backdrop) - backed by a `MicRecorder` (continuous AudioWorklet capture with a pre-roll buffer and a runaway cap) and a local Whisper Web Worker; camera capture modal, message list with attached-picture thumbnails, the `BrowserPane` (a tab strip over one sandboxed iframe per tab - creations only, where Play opens a creation tab; mirrors the main-owned browser state and reports each tab's load back), the `SpotlightOverlay` (a pointer-through ring + label Bit points with via `app_highlight`), profile settings menu, the grown-up menu's `ThinkingSpeedControl` (a five-stop Faster-to-Smarter slider writing the app-wide `thinkingSpeed`), activity chip with persistent Play and the Factory view that merges creation picking with bot Logbook steps, showing only active bots as avatars while finished bots collapse into a Logbook pill that opens a right-docked master/detail panel named by each bot's task summary.
-- `src/shared/` - types and schema shared between main, preload, and renderer.
+  The chat workspace also exposes the kid-opened Factory Handbook (`What I can do`) and the Grown-up menu's parent-facing learning progress window, both backed by the shared `progress.get` view.
+- `src/shared/` - types and schema shared between main, preload, and renderer, including `curriculum.ts` (the 13-skill, 4-arc agentic-engineering spine), `learning.ts` (the read-only progress view), and `concepts.ts` (Bit's gated vocabulary ladder).
 - `graph/nodes/` and `graph/dreams/` - hand-authored curriculum content retained in the repo; see `CONTRIBUTING.md` before editing.
 - `prompts/bit.md` and `prompts/bot.md` - Bit and bot system prompts. Product content, not code; edit them like you'd edit docs.
 - `design/` - design tokens and the shared stylesheet the renderer consumes.
 
 Bit's chat style is intentionally emoji-free by default.
 A grown-up can opt a specific builder back into emojis through that profile's parent notes; those notes, along with the builder's stable name, age, and interests, live in Bit's session-level system prompt and are refreshed in place after profile edits without discarding conversation history.
-The per-turn Bit prompt carries only volatile context such as the portfolio, current builds, and the "Words you may use" vocabulary note.
+The per-turn Bit prompt carries only volatile context such as the portfolio, current builds, the "Words you may use" vocabulary note, and the full learning map from `src/shared/curriculum.ts`.
 
 ## Fantasy terminology canon (do not drift)
 
@@ -61,11 +63,11 @@ The locking decisions (recorded in the terminology review): the background worke
 | **bot**           | unlocked word                | a background worker that makes things for the kid                 | `BotRuntime`, `prompts/bot.md`, `bots/`, `bot_job_*`                                       |
 | **factory**       | unlocked word                | the place all the kid's creations live and get built              | the per-kid factory (`factories/<profileId>/`, `ProjectService.list`)                      |
 | **Logbook**       | unlocked word                | every step taken on a creation                                    | per-creation logbook (`logbook/project.jsonl`)                                             |
-| **blueprint**     | unlocked word                | the plan a bot follows to build                                   | `BlueprintRecord`, `blueprints/`, `blueprint_*`                                            |
-| **machines**      | unlocked word                | checks that make sure a build works                               | machine inspections (`machines/`)                                                          |
-| **assembly line** | unlocked word                | how a build moves step to step until ready                        | the install pipeline (`assembly-line/`)                                                    |
-| **save points**   | unlocked word                | saved spots to go back to                                         | `save-points/`                                                                             |
-| **workbench**     | unlocked word                | the private bench where a bot builds                              | isolated git-worktree workbench (`workbenches/`)                                           |
+| **blueprint**     | chrome/code, not Bit chat    | the plan a bot follows to build                                   | `BlueprintRecord`, `blueprints/`, `blueprint_*`                                            |
+| **machines**      | chrome/code, not Bit chat    | checks that make sure a build works                               | machine inspections (`machines/`)                                                          |
+| **assembly line** | chrome/code, not Bit chat    | how a build moves step to step until ready                        | the install pipeline (`assembly-line/`)                                                    |
+| **save points**   | chrome/code, not Bit chat    | saved spots to go back to                                         | `save-points/`                                                                             |
+| **workbench**     | chrome/code, not Bit chat    | the private bench where a bot builds                              | isolated git-worktree workbench (`workbenches/`)                                           |
 
 "creation" vs "project" is an intentional split, not drift: treat `projectId` and "creation id" as the same key, and keep "creation" in everything kid-facing while the types/services stay "project".
 
@@ -84,21 +86,29 @@ Defined in `src/shared/concepts.ts`.
 | 1    | bot                                   | first delegated build finishes           |
 | 2    | factory                               | the kid has a 2nd creation               |
 | 3    | Logbook                               | the kid opens the Logbook                |
-| 4    | blueprint, machines                   | a few builds in (`buildsDelegated >= 3`) |
-| 5    | assembly line, save points, workbench | many builds (`buildsDelegated >= 6`)     |
 
 Rules that must hold:
 
 - Static chrome (UI copy, labels, button text, activity and error strings) always uses the in-world word - never a pre-unlock vs unlocked variant. The ladder does not touch chrome, only Bit's chat.
 - At most one new word is revealed per Bit turn (the pacing guard).
-- Bit may only use inside words the kid has unlocked. `BitCoordinatorService` appends a per-turn "Words you may use" note (gated by `prompts/bit.md`); Bit must describe anything locked in plain kid words instead of naming it.
+- Bit may only use inside words the kid has unlocked. `BitCoordinatorService` appends a per-turn "Words you may use" note (gated by `prompts/bit.md`); Bit must describe anything locked in plain kid words instead of naming it. The deeper mechanism words `blueprint`, `machines`, `assembly line`, `save points`, and `workbench` stay out of Bit chat for now even though they remain the code and chrome canon.
 - Per-profile state lives on the profile record: `unlockedConcepts` (each with `firstSeenAt`) plus an `unlockStats` counter (`buildsDelegated`, `openedActivities`).
+
+## Teaching system
+
+Hi-Bit teaches agentic engineering through the build itself, not through standalone lessons.
+`src/shared/curriculum.ts` defines the 13-skill, 4-arc spine: direct one agent, give Bit context, orchestrate many, and oversee the operation.
+The curriculum map is appended to every Bit turn, but code does not pick a next nudge; Bit sees the whole map and decides whether, which, and when to teach one idea in conversation.
+The deterministic part is the mastery ledger: Bit calls `record_progress` only when the builder actually demonstrates a skill, and `ProfileService.applySkillSignals` advances `skillMastery` monotonically from `unseen` to `grasped` to `fluent`.
+Only `fluent` skills advance the build-tier ramp, and parallel bot work is gated until the builder has grasped directing and iterating on a single build.
+When a request is too large, Bit starts one finishable slice and calls `park_ambition`; parked ideas live in `profile.roadmap`, can be read with `list_roadmap`, and can move to `started` or `done` with `update_roadmap`.
+`src/shared/learning.ts` builds one read-only progress view for both reflection surfaces: the kid's Factory Handbook (`What I can do`) and the grown-up progress window in the Grown-up menu.
 
 ## E2E testing the Electron app via chrome-devtools-axi
 
 Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
 
-Manual E2E testing should exercise the Codex connection gate, stale-token reconnect overlay, kid profile gate, profile-level Pi-backed chat workspace, chat image and voice input, live creation preview flow, and creations-folder action unless the task explicitly narrows scope.
+Manual E2E testing should exercise the Codex connection gate, stale-token reconnect overlay, kid profile gate, profile-level Pi-backed chat workspace, chat image and voice input, live creation preview flow, learning reflection surfaces, and creations-folder action unless the task explicitly narrows scope.
 For Codex reconnect, verify that an expired or rejected refresh token clears the stored credential, shows a blocking reconnect overlay, keeps the current chat workspace mounted underneath, and removes the overlay after Codex is reconnected without clearing the draft, transcript, or open preview.
 For the chat composer, verify that Enter sends the current message, Shift+Enter inserts a newline, Enter does not send while Bit is running, and IME composition is not interrupted.
 For chat image input, verify the composer accepts exactly one picture from paste, file picking, and camera capture; downscales it before send; allows image-only messages; shows the thumbnail in the draft and transcript after reload; stores bytes under `conversation/attachments` with a stable id while transcript and Bit session persistence keep only ids, paths, or scrubbed placeholders; passes the image to Bit when the runtime supports inline images; and lets Bit recall earlier shared pictures through `list_builder_pictures`.
@@ -115,6 +125,7 @@ For unfamiliar-visual requests (the builder names a character, creature, object,
 For flat 2D playable-game requests, verify that the bot reads the `create-2d-game` skill, uses its loop/input/collision boilerplate, saves any high score/level/coins/unlocks with `GameSave` when they change, and combines it with `game-assets` when the game needs generated sprites.
 For 3D playable-game requests (first-person/third-person worlds, blocky build-and-explore, 3D platformers/collectors/blasters), verify that the bot reads the `create-3d-game` skill, copies its `three.min.js` and `engine3d.js` into the creation, saves any high score/level/coins/placed blocks/unlocks with `GameSave` when they change, builds the world from textured primitives (textures from `generate_image`, not sprite sheets), and the live preview renders it in WebGL.
 For live previews, verify that Play is available from a ready message and from the activity bar when there is one creation; when there are multiple creations, verify the activity bar opens The Factory, playable creations can start from it, and creations without previews are listed without Play.
+For learning progress, verify that the `What I can do` button opens the Factory Handbook as a focus-trapped dialog, returns focus when closed, shows the builder's current tier and 13 skills grouped by arc, and refreshes from `progress.get`; also verify that opening the Grown-up menu refreshes the same progress view, shows parent-facing skill names, mastery counts, current tier, and non-done parked ideas without exposing lesson-tracking language to the kid.
 For The Factory, verify that only actively working bots appear as avatars on a creation, finished bots collapse into a centered Logbook pill, and opening that pill or an active bot docks a right-side master/detail Logbook panel that can scroll long histories without horizontal overflow.
 Also verify that Logbook chapters are named from each bot's task summary or instructions when available, while tool-action labels remain in the selected bot's step list.
 Also verify that preview Play opens a sandboxed split-pane iframe only after the kid presses it, focuses the preview page for keyboard controls when it loads and after Reload/rebuild remounts, refetches rebuilt files and subresources instead of replaying Chromium's cached bytes after Reload or rebuild, is idempotent and can restart a persisted preview after an app restart, reuses the creation's remembered loopback port so `localStorage` game saves remain available across plays and app restarts, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.

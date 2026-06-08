@@ -1,9 +1,10 @@
 import mascotBit from "@design/assets/mascot-boo.svg";
 import type { CreationActivity, ToolActivity } from "@shared/chat";
 import type { ProjectSummary } from "@shared/project";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { friendlyStep } from "../activity";
 import { type BotLane, buildFactoryFloor, type CreationFloor } from "../factory";
+import { keepFocusInside } from "./focusTrap";
 
 type FactoryViewProps = {
   creations: ProjectSummary[];
@@ -331,40 +332,4 @@ function screenWash(projectId: string): string {
 
 function swatch(hue: number): string {
   return `hsl(${hue}, 70%, 52%)`;
-}
-
-function keepFocusInside(
-  event: KeyboardEvent<HTMLElement>,
-  dialog: HTMLElement | null,
-  close: () => void,
-): void {
-  if (event.key === "Escape") {
-    close();
-    return;
-  }
-  if (event.key !== "Tab" || !dialog) return;
-  const focusable = getFocusableElements(dialog);
-  if (focusable.length === 0) {
-    event.preventDefault();
-    dialog.focus();
-    return;
-  }
-  const first = focusable[0];
-  const last = focusable.at(-1);
-  if (!first || !last) return;
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
-}
-
-function getFocusableElements(root: HTMLElement): HTMLElement[] {
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((element) => !element.hasAttribute("disabled") && element.tabIndex >= 0);
 }

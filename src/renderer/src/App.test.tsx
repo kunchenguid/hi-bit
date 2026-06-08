@@ -871,6 +871,8 @@ function adaProfile() {
     unlockedConcepts: [],
     pendingConceptReveals: [],
     unlockStats: { buildsDelegated: 0, openedActivities: false },
+    skillMastery: {},
+    roadmap: [],
   };
 }
 
@@ -886,6 +888,8 @@ function samProfile() {
     unlockedConcepts: [],
     pendingConceptReveals: [],
     unlockStats: { buildsDelegated: 0, openedActivities: false },
+    skillMastery: {},
+    roadmap: [],
   };
 }
 
@@ -935,6 +939,8 @@ function createApiMock(): HiBitApi {
         unlockedConcepts: [],
         pendingConceptReveals: [],
         unlockStats: { buildsDelegated: 0, openedActivities: false },
+        skillMastery: {},
+        roadmap: [],
       })),
       update: vi.fn(async (profileId, settings) => ({
         schemaVersion: 1 as const,
@@ -948,6 +954,8 @@ function createApiMock(): HiBitApi {
         unlockedConcepts: [],
         pendingConceptReveals: [],
         unlockStats: { buildsDelegated: 0, openedActivities: false },
+        skillMastery: {},
+        roadmap: [],
       })),
       getActiveId: vi.fn(async () => null),
       setActiveId: vi.fn(async () => {}),
@@ -982,6 +990,16 @@ function createApiMock(): HiBitApi {
       abort: vi.fn(async () => {}),
       markActivitiesOpened: vi.fn(async () => {}),
       onEvent: vi.fn(() => () => {}),
+    },
+    progress: {
+      get: vi.fn(async () => ({
+        reachableTier: 1 as const,
+        tierLabel: "One creation you ask for and steer",
+        arcs: [],
+        skills: [],
+        roadmap: [],
+        counts: { fluent: 0, grasped: 0, met: 0, total: 13 },
+      })),
     },
     // The browser tab model lives in main; here it's a tiny in-memory mirror.
     // Play folds into a creation tab, so `preview.play` also pushes browser state

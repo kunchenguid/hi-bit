@@ -13,15 +13,16 @@
  * unlock concepts and gate Bit's vocabulary. It does not drive chrome labels.
  */
 
-export type ConceptId =
-  | "bot"
-  | "factory"
-  | "logbook"
-  | "blueprint"
-  | "machines"
-  | "assembly-line"
-  | "save-points"
-  | "workbench";
+/**
+ * The canon words Bit may warmly reveal in chat. This is deliberately a small
+ * subset of the factory canon: words that name something the kid directly does
+ * and sees early. The deeper mechanism words (blueprint, machines, assembly
+ * line, save points, workbench) are taught through the curriculum (see
+ * `curriculum.ts`) and shown in chrome, not revealed by this ladder - so they
+ * are not here. `blueprint` is expected to return once the curriculum earns it
+ * back.
+ */
+export type ConceptId = "bot" | "factory" | "logbook";
 
 /** What the kid did that makes a concept real. Declarative so it stays testable. */
 export type ConceptTrigger =
@@ -64,41 +65,6 @@ export const CONCEPT_LADDER: readonly ConceptDef[] = [
     word: "Logbook",
     gloss: "the list of every step we took on a creation",
     trigger: { fact: "openedActivities" },
-  },
-  {
-    id: "blueprint",
-    tier: 4,
-    word: "blueprint",
-    gloss: "the plan a bot follows to build something",
-    trigger: { fact: "buildsDelegated", atLeast: 3 },
-  },
-  {
-    id: "machines",
-    tier: 4,
-    word: "machines",
-    gloss: "little checkers that make sure a build really works",
-    trigger: { fact: "buildsDelegated", atLeast: 3 },
-  },
-  {
-    id: "assembly-line",
-    tier: 5,
-    word: "assembly line",
-    gloss: "how a build moves from step to step until it is ready",
-    trigger: { fact: "buildsDelegated", atLeast: 6 },
-  },
-  {
-    id: "save-points",
-    tier: 5,
-    word: "save points",
-    gloss: "saved spots you can always go back to",
-    trigger: { fact: "buildsDelegated", atLeast: 6 },
-  },
-  {
-    id: "workbench",
-    tier: 5,
-    word: "workbench",
-    gloss: "the private bench where a bot builds without touching your creation until it is ready",
-    trigger: { fact: "buildsDelegated", atLeast: 6 },
   },
 ];
 
