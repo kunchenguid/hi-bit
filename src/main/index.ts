@@ -277,9 +277,13 @@ export function registerIpc(services: Services): void {
 
   ipcMain.handle("hibit:profiles:list", () => services.profiles.list());
   ipcMain.handle("hibit:profiles:create", (_event, input) => services.profiles.create(input));
-  ipcMain.handle("hibit:profiles:update", (_event, profileId: string, settings) =>
-    services.profiles.update(profileId, settings),
-  );
+  ipcMain.handle("hibit:profiles:update", async (_event, profileId: string, settings) => {
+    const updated = await services.profiles.update(profileId, settings);
+    // Push edited identity/notes into any live Bit session in place, so the
+    // change takes effect next turn without tearing the session down.
+    await services.bit.refreshBuilderContext(profileId);
+    return updated;
+  });
   ipcMain.handle("hibit:profiles:get-active-id", () => services.profiles.getActiveId());
   ipcMain.handle("hibit:profiles:set-active-id", async (_event, profileId: string | null) => {
     if (profileId) await services.profiles.get(profileId);

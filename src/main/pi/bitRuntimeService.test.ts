@@ -18,6 +18,8 @@ const piRuntime = vi.hoisted(() => {
     prompt: vi.fn(async () => {}),
     abort: vi.fn(async () => {}),
     dispose: vi.fn(),
+    getActiveToolNames: vi.fn(() => ["read", "write"]),
+    setActiveToolsByName: vi.fn(),
   };
   const authStorage = { setRuntimeApiKey: vi.fn() };
   return { agentSession, authStorage, persistedMessages: [] as unknown[] };
@@ -58,8 +60,14 @@ class FakeBitSession implements BitSession {
     };
   }
 
+  builderContexts: Array<string | null> = [];
+
   setAccessToken(accessToken: string): void {
     this.accessTokens.push(accessToken);
+  }
+
+  setBuilderContext(context: string | null): void {
+    this.builderContexts.push(context);
   }
 
   async prompt(_text: string, options?: BitPromptOptions): Promise<void> {
@@ -180,6 +188,68 @@ describe("BitRuntimeService", () => {
     await service.prompt(baseInput(), "hi", () => {});
 
     expect((captured?.customTools ?? []).map((tool) => tool.name)).not.toContain("view_bit");
+  });
+
+  it("passes the builder context into session creation", async () => {
+    let captured: CreateBitSessionInput | undefined;
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (input: CreateBitSessionInput) => {
+        captured = input;
+        return new FakeBitSession();
+      },
+    });
+
+    await service.prompt(
+      { ...baseInput(), builderContext: "Builder: Ada, age 9. Parent notes: No emojis." },
+      "hi",
+      () => {},
+    );
+
+    expect(captured?.builderContext).toBe("Builder: Ada, age 9. Parent notes: No emojis.");
+  });
+
+  it("updates the builder context on a live session in place", async () => {
+    const session = new FakeBitSession();
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (_input: CreateBitSessionInput) => session,
+    });
+
+    // First prompt creates and caches the session.
+    await service.prompt(baseInput(), "hi", () => {});
+    service.updateBuilderContext("ada", "Builder: Ada, age 10. Parent notes: Bit can use emojis.");
+
+    expect(session.builderContexts).toEqual([
+      "Builder: Ada, age 10. Parent notes: Bit can use emojis.",
+    ]);
+  });
+
+  it("ignores a builder context update for a profile with no live session", () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+      createSession: async (_input: CreateBitSessionInput) => new FakeBitSession(),
+    });
+
+    expect(() => service.updateBuilderContext("nobody", "Builder: Nobody.")).not.toThrow();
+  });
+
+  it("rebuilds the system prompt in place on a real session without tearing it down", async () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+    service.updateBuilderContext("ada", "Builder: Ada, age 9.");
+
+    // setActiveToolsByName(currentTools) is the documented public trigger that
+    // re-reads the loader and rebuilds the system prompt, keeping history.
+    expect(piRuntime.agentSession.setActiveToolsByName).toHaveBeenCalledWith(["read", "write"]);
+    expect(piRuntime.agentSession.dispose).not.toHaveBeenCalled();
   });
 
   it("forwards an attached picture to the session prompt", async () => {
