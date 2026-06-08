@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.6](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.5...hi-bit-v0.0.6) (2026-06-08)
+
+
+### Features
+
+* add curriculum-backed teaching progress ([#86](https://github.com/kunchenguid/hi-bit/issues/86)) ([10bd047](https://github.com/kunchenguid/hi-bit/commit/10bd0474205ca1fa9fa8536e34d2d5d006a5f19d))
+
 ## [0.0.5](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.4...hi-bit-v0.0.5) (2026-06-08)
 
 
