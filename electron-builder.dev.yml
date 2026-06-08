@@ -4,3 +4,6 @@
 extends: ./electron-builder.yml
 appId: com.hibit.app.dev
 productName: Hi-Bit Dev
+mac:
+  extendInfo:
+    CFBundleDisplayName: Hi-Bit Dev
