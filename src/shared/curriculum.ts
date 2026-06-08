@@ -328,6 +328,39 @@ export function nextSkillToCoach(map: MasteryMap, relevant: SkillId[]): SkillId 
   return candidate?.id ?? null;
 }
 
+/**
+ * The frontier of skills worth coaching next: skills not yet fluent whose
+ * prerequisites are met, lowest order first. Bit picks at most one of these to
+ * coach in any turn, and only when a build actually calls for it.
+ */
+export function coachableSkills(map: MasteryMap): SkillDef[] {
+  return SKILLS.filter((skill) => masteryOf(map, skill.id) !== "fluent")
+    .filter((skill) => prerequisitesMet(map, skill.id))
+    .sort((a, b) => a.order - b.order);
+}
+
+/**
+ * The per-turn coaching note appended to Bit's prompt. It tells Bit where the
+ * builder is on the ramp and which skills are next, and asks Bit to record the
+ * builder's progress so mastery advances. It deliberately does not prescribe a
+ * single skill - Bit judges, from the conversation, what the moment calls for.
+ */
+export function buildCoachingNote(map: MasteryMap): string {
+  const frontier = coachableSkills(map).slice(0, 3);
+  const reach = reachableTier(map);
+  const lines = [`Builder's reach: build tier ${reach} of ${BUILD_TIERS.length}.`];
+  if (frontier.length > 0) {
+    const list = frontier.map((skill) => `${skill.id} (${skill.realSkill})`).join("; ");
+    lines.push(`Skills to grow next - coach at most one, only when a build calls for it: ${list}.`);
+  } else {
+    lines.push("This builder is fluent across the whole spine - follow their lead.");
+  }
+  lines.push(
+    "When the builder shows a skill, call record_progress with that skill and whether they did it unprompted. The first time they do something without being asked, name it warmly - tie the play-word to the real engineering idea once.",
+  );
+  return lines.join("\n");
+}
+
 export type SkillProgress = SkillDef & { mastery: MasteryState };
 
 /** Every skill stamped with its current mastery - the basis for both reflection surfaces. */

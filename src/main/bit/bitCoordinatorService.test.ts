@@ -1761,6 +1761,42 @@ describe("BitCoordinatorService (Bit)", () => {
     const profile = await s.profiles.get(s.profile.id);
     expect(profile.unlockedConcepts.map((concept) => concept.id)).toContain("logbook");
   });
+
+  it("appends a curriculum coaching note to every turn prompt", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "Let's build something!";
+
+    await s.coordinator.send(s.profile.id, "hi");
+    await s.drain();
+
+    const prompt = s.bit.prompts.at(-1);
+    expect(prompt).toContain("Builder's reach: build tier 1 of 4");
+    expect(prompt).toContain("Skills to grow next");
+    expect(prompt).toContain("record_progress");
+  });
+
+  it("advances skill mastery when Bit records the builder's progress", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async ({ callTool }) => {
+      await callTool("record_progress", {
+        updates: [
+          { skill: "ask-creation", status: "did_unprompted" },
+          { skill: "give-picture", status: "met" },
+          { skill: "not-a-real-skill", status: "did" },
+        ],
+      });
+      return "Nice work!";
+    };
+
+    await s.coordinator.send(s.profile.id, "make me a maze");
+    await s.drain();
+
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.skillMastery).toEqual({
+      "ask-creation": "fluent",
+      "give-picture": "met",
+    });
+  });
 });
 
 describe("extractReadyToPlay", () => {

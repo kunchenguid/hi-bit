@@ -20,7 +20,13 @@ import {
   nextConceptToUnlock,
   type UnlockFacts,
 } from "@shared/concepts";
-import type { ProfileSummary } from "@shared/profile";
+import {
+  buildCoachingNote,
+  isSkillId,
+  type SkillId,
+  type SkillSignal,
+} from "@shared/curriculum";
+import type { ProfileSummary, RoadmapItem } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { Type } from "typebox";
 import { type BlueprintReference, type BotJobRecord, BotJobService } from "../bots/botJobService";
@@ -59,6 +65,19 @@ export type ProfileReader = {
   markConceptRevealed: (profileId: string, conceptId: ConceptId) => Promise<ProfileSummary>;
   bumpBuildsDelegated: (profileId: string) => Promise<void>;
   markActivitiesOpened: (profileId: string) => Promise<ProfileSummary>;
+  applySkillSignals: (
+    profileId: string,
+    signals: Partial<Record<SkillId, SkillSignal>>,
+  ) => Promise<ProfileSummary>;
+  addRoadmapItem: (
+    profileId: string,
+    input: { title: string; note?: string },
+  ) => Promise<{ profile: ProfileSummary; item: RoadmapItem }>;
+  updateRoadmapItem: (
+    profileId: string,
+    itemId: string,
+    patch: { status?: RoadmapItem["status"]; title?: string },
+  ) => Promise<ProfileSummary>;
 };
 
 type BitCoordinatorServiceOptions = {
@@ -686,6 +705,49 @@ export class BitCoordinatorService {
       },
     });
 
+    const recordProgress = defineTool({
+      name: "record_progress",
+      label: "Record progress",
+      description:
+        "Record what the builder showed they can do this turn, so their learning moves forward. Call this when the builder demonstrates a skill of operating you and the bots. status: 'met' = the situation came up; 'did' = they did it with your help; 'did_unprompted' = they did it on their own. Never tell the builder you are doing this.",
+      parameters: Type.Object({
+        updates: Type.Array(
+          Type.Object({
+            skill: Type.String({
+              description:
+                "skill id, one of: ask-creation, iterate-feedback, specific-feedback, voice-input, show-screen, give-picture, browse-creation, async-productive, decompose, dependency-reasoning, parallel-bots, switch-tabs, oversee",
+            }),
+            status: Type.Union(
+              [Type.Literal("met"), Type.Literal("did"), Type.Literal("did_unprompted")],
+              { description: "how far the builder got with this skill this turn" },
+            ),
+          }),
+          { description: "one entry per skill the builder showed this turn" },
+        ),
+      }),
+      async execute(_callId, params) {
+        const { updates } = params as {
+          updates: Array<{ skill: string; status: "met" | "did" | "did_unprompted" }>;
+        };
+        const signals: Partial<Record<SkillId, SkillSignal>> = {};
+        for (const { skill, status } of updates) {
+          if (!isSkillId(skill)) continue;
+          signals[skill] =
+            status === "met"
+              ? { met: true }
+              : status === "did_unprompted"
+                ? { demonstrated: true, unprompted: true }
+                : { demonstrated: true };
+        }
+        const recorded = Object.keys(signals).length;
+        if (recorded > 0) await self.profiles.applySkillSignals(profileId, signals);
+        return {
+          content: [{ type: "text", text: `Noted progress on ${recorded} skill(s).` }],
+          details: { recorded },
+        };
+      },
+    });
+
     const tools = [
       listCreations,
       listBuilderPictures,
@@ -694,6 +756,7 @@ export class BitCoordinatorService {
       startPreview,
       listPreviews,
       stopPreview,
+      recordProgress,
     ];
     this.toolCache.set(profileId, tools);
     return tools;
@@ -1051,8 +1114,10 @@ export class BitCoordinatorService {
         await this.profiles.markConceptPendingReveal(profileId, pendingReveal);
       }
       const newlyUnlocked = pending.includes(pendingReveal as ConceptId) ? null : pendingReveal;
+      const vocabularyNote = buildVocabularyNote(unlocked, pendingReveal, newlyUnlocked);
+      const coachingNote = buildCoachingNote(profile.skillMastery);
       return {
-        note: buildVocabularyNote(unlocked, pendingReveal, newlyUnlocked),
+        note: `${vocabularyNote}\n\n${coachingNote}`,
         pendingReveal,
       };
     } catch (error) {

@@ -4,7 +4,9 @@ import {
   ARCS,
   atLeast,
   BUILD_TIERS,
+  buildCoachingNote,
   canRunParallel,
+  coachableSkills,
   isMasteryState,
   isSkillId,
   type MasteryMap,
@@ -188,6 +190,30 @@ describe("sanitization helpers", () => {
     expect(sanitizeMastery(raw)).toEqual({ decompose: "grasped", "ask-creation": "fluent" });
     expect(sanitizeMastery(null)).toEqual({});
     expect(sanitizeMastery("nope")).toEqual({});
+  });
+});
+
+describe("coachableSkills", () => {
+  it("lists not-yet-fluent skills whose prereqs are met, lowest order first", () => {
+    const ids = coachableSkills({ "ask-creation": "fluent" }).map((s) => s.id);
+    expect(ids[0]).toBe("iterate-feedback");
+    expect(ids).not.toContain("ask-creation"); // already fluent
+    expect(ids).not.toContain("parallel-bots"); // prereqs not met
+  });
+});
+
+describe("buildCoachingNote", () => {
+  it("reports reach, the next skills, and asks Bit to record progress", () => {
+    const note = buildCoachingNote({});
+    expect(note).toContain("build tier 1 of 4");
+    expect(note).toContain("ask-creation");
+    expect(note).toContain("record_progress");
+  });
+
+  it("acknowledges a fully fluent builder", () => {
+    const map = Object.fromEntries(SKILLS.map((s) => [s.id, "fluent" as const]));
+    const note = buildCoachingNote(map);
+    expect(note).toMatch(/fluent across the whole spine/i);
   });
 });
 
