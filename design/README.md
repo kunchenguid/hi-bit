@@ -73,7 +73,7 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 
 - **No emoji in UI chrome.** Nav, persistent buttons, toasts - all emoji-free.
   The only current exception is the first empty-chat idea sparks, where each temporary starter button may use one emoji cue and disappears after the first message or while Bit is thinking.
-- **Emoji allowed in tutor chat**, sparingly - maximum one per message, always at the end, only on genuine wins. A celebratory note after a creation works, not on every reply.
+- **Bit chat is emoji-free by default.** A grown-up may opt a specific builder back in through that profile's parent notes; if opted in, use emojis sparingly - maximum one per message, always at the end, only on genuine wins.
 - **No exclamation mark stacking.** One `!` max, used deliberately. Most sentences end in `.`
 - **Plain punctuation is best** - keep the mentor cadence without leaning on punctuation tricks.
 - **No ALL CAPS for emphasis** in body copy. (Badges and the logo are the exceptions.)
