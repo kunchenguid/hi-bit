@@ -7,6 +7,7 @@ Parents connect Codex as the local LLM provider, and Hi-Bit runs Bit through emb
 Codex is not Hi-Bit's app account system.
 Everything - auth state, factory metadata, kid profiles, chat attachment files, project files, session files, and logbooks - lives on disk under Electron's `userData` dir.
 Hi-Bit has no app cloud backend.
+Production macOS builds display as `Hi Bit` in Finder, the Dock, and the menu bar, but keep the hyphenated `Hi-Bit` bundle name, app bundle path, artifacts, and Homebrew cask paths so existing user data and downloads keep working.
 Packaged release builds may send anonymous, best-effort release telemetry to Kun's self-hosted Umami instance: app-level events only, no kid names, prompts, profile ids, creation ids, file contents, attachment ids, URLs, or paths.
 Hi-Bit also performs a best-effort GitHub Releases check for newer app versions; it sends only the app's public `User-Agent` to GitHub, does not auto-install anything, and surfaces the Homebrew upgrade command plus release notes inside the Grown-up menu.
 Telemetry in source/dev/test builds is no-op unless a website id is explicitly supplied.
