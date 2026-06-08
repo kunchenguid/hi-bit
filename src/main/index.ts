@@ -8,6 +8,7 @@ import {
   type ThinkingSpeed,
 } from "@shared/config";
 import type { AppConfigView, AppInfo, Platform } from "@shared/ipc";
+import { buildLearningProgress } from "@shared/learning";
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { CodexAuthService } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
@@ -317,6 +318,11 @@ export function registerIpc(services: Services): void {
   ipcMain.handle("hibit:chat:mark-activities-opened", (_event, profileId: string) =>
     services.bit.markActivitiesOpened(profileId),
   );
+
+  ipcMain.handle("hibit:progress:get", async (_event, profileId: string) => {
+    const profile = await services.profiles.get(profileId);
+    return buildLearningProgress(profile.skillMastery, profile.roadmap);
+  });
 
   ipcMain.handle("hibit:preview:play", async (_event, profileId: string, projectId: string) => {
     const info = await services.bit.playPreview(profileId, projectId);

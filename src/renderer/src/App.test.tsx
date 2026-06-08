@@ -991,6 +991,16 @@ function createApiMock(): HiBitApi {
       markActivitiesOpened: vi.fn(async () => {}),
       onEvent: vi.fn(() => () => {}),
     },
+    progress: {
+      get: vi.fn(async () => ({
+        reachableTier: 1 as const,
+        tierLabel: "One creation you ask for and steer",
+        arcs: [],
+        skills: [],
+        roadmap: [],
+        counts: { fluent: 0, grasped: 0, met: 0, total: 13 },
+      })),
+    },
     // The browser tab model lives in main; here it's a tiny in-memory mirror.
     // Play folds into a creation tab, so `preview.play` also pushes browser state
     // through `onState`, exactly as the real main process does via `playInTab`.

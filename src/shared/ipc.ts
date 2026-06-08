@@ -8,6 +8,7 @@ import type {
   SendMessageResult,
 } from "./chat";
 import type { ThinkingSpeed } from "./config";
+import type { LearningProgressView } from "./learning";
 import type { ProfileInput, ProfileSettingsInput, ProfileSummary } from "./profile";
 import type { CreateProjectInput, ProjectSummary } from "./project";
 import type { VoiceDownloadProgress, VoiceStatus } from "./voice";
@@ -100,6 +101,10 @@ export type HiBitApi = {
     /** Records that the kid opened the Logbook, so the word can unlock. */
     markActivitiesOpened: (profileId: string) => Promise<void>;
     onEvent: (listener: (event: ChatEvent) => void) => Unsubscribe;
+  };
+  /** The builder's place in the agentic-engineering curriculum - the Factory Handbook and grown-up progress window read this. */
+  progress: {
+    get: (profileId: string) => Promise<LearningProgressView>;
   };
   preview: {
     play: (profileId: string, projectId: string) => Promise<PreviewInfo>;
