@@ -1,6 +1,6 @@
 {
   "name": "hi-bit",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Local-first Electron app where kids build web projects with Bit and an embedded Pi coding runtime.",
   "license": "MIT",
   "author": "Kun Chen",

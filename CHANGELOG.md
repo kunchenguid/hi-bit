@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.3...hi-bit-v0.0.4) (2026-06-08)
+
+
+### Bug Fixes
+
+* show mac app as Hi Bit ([#81](https://github.com/kunchenguid/hi-bit/issues/81)) ([10d6dbd](https://github.com/kunchenguid/hi-bit/commit/10d6dbdf059c3afc42419d477d43d3c952482cfe))
+
 ## [0.0.3](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.2...hi-bit-v0.0.3) (2026-06-08)
 
 
