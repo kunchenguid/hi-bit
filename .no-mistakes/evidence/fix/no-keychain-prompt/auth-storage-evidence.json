@@ -1,12 +1,12 @@
 {
-  "generatedAuthFile": "/Users/kunchen/github/kunchenguid/hi-bit/.no-mistakes/evidence/fix/no-keychain-prompt/generated/auth/codex.json",
+  "generatedAuthFile": "/Users/kunchen/.no-mistakes/worktrees/9fcac924d900/01KTM1YPDTX0RKC7E4NMYGE9FP/.no-mistakes/evidence/fix/no-keychain-prompt/generated/auth/codex.json",
   "generatedMode": "0600",
   "generatedEncryptedFlag": false,
   "generatedRefreshTokenStoredPlaintext": true,
   "generatedAccessTokenLooksPlaintextJwt": true,
   "generatedAccountId": "acct-evidence",
   "generatedUpdatedAt": "2026-06-08T09:50:00.000Z",
-  "legacyAuthFile": "/Users/kunchen/github/kunchenguid/hi-bit/.no-mistakes/evidence/fix/no-keychain-prompt/legacy/auth/codex.json",
+  "legacyAuthFile": "/Users/kunchen/.no-mistakes/worktrees/9fcac924d900/01KTM1YPDTX0RKC7E4NMYGE9FP/.no-mistakes/evidence/fix/no-keychain-prompt/legacy/auth/codex.json",
   "legacyEncryptedFlag": true,
   "legacyStatusAuthenticated": false
 }
