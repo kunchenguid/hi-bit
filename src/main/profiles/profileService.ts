@@ -3,9 +3,9 @@ import { type ConceptId, isKnownConceptId } from "@shared/concepts";
 import {
   advanceMastery,
   masteryOf,
-  sanitizeMastery,
   type SkillId,
   type SkillSignal,
+  sanitizeMastery,
 } from "@shared/curriculum";
 import {
   EMPTY_UNLOCK_STATS,

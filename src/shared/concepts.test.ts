@@ -31,7 +31,11 @@ describe("eligibleConceptIds", () => {
   });
 
   it("only ever reveals the three early canon words - deeper words are taught, not revealed", () => {
-    const ids = eligibleConceptIds({ buildsDelegated: 99, creationCount: 99, openedActivities: true });
+    const ids = eligibleConceptIds({
+      buildsDelegated: 99,
+      creationCount: 99,
+      openedActivities: true,
+    });
     expect(ids).toEqual(["bot", "factory", "logbook"]);
   });
 });

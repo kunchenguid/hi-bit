@@ -147,11 +147,7 @@ export function ChatWorkspace({
       <header className="hb-workspace-header">
         <h1 className="hb-workspace-greeting">Hi {profile.name} - what should we build?</h1>
         <div className="hb-header-actions">
-          <button
-            className="hb-button hb-button-secondary"
-            type="button"
-            onClick={openHandbook}
-          >
+          <button className="hb-button hb-button-secondary" type="button" onClick={openHandbook}>
             What I can do
           </button>
           <details
@@ -167,14 +163,22 @@ export function ChatWorkspace({
               ) : null}
             </summary>
             <div className="hb-card hb-parent-menu-popover">
-              <ProfileSettingsMenu profile={profile} busy={busy} onUpdateProfile={onUpdateProfile} />
+              <ProfileSettingsMenu
+                profile={profile}
+                busy={busy}
+                onUpdateProfile={onUpdateProfile}
+              />
               <ThinkingSpeedControl
                 value={thinkingSpeed}
                 busy={busy}
                 onChange={onChangeThinkingSpeed}
               />
               <ParentProgressWindow builderName={profile.name} progress={progress} />
-              <button className="hb-button hb-button-secondary" type="button" onClick={onOpenFolder}>
+              <button
+                className="hb-button hb-button-secondary"
+                type="button"
+                onClick={onOpenFolder}
+              >
                 Open creations folder
               </button>
               <button

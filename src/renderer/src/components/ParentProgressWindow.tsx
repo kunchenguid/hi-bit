@@ -38,8 +38,9 @@ export function ParentProgressWindow({ builderName, progress }: ParentProgressWi
       <h3 className="hb-progress-heading">What {builderName} is learning</h3>
       <p className="hb-progress-summary">
         Agentic engineering: directing AI to build real things. {builderName} is{" "}
-        <strong>{progress.counts.fluent}</strong> skills fluent ({learned} of {progress.counts.total}{" "}
-        underway), and can now take on <strong>{progress.tierLabel.toLowerCase()}</strong>.
+        <strong>{progress.counts.fluent}</strong> skills fluent ({learned} of{" "}
+        {progress.counts.total} underway), and can now take on{" "}
+        <strong>{progress.tierLabel.toLowerCase()}</strong>.
       </p>
 
       <div className="hb-progress-arcs">

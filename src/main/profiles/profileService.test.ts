@@ -223,10 +223,16 @@ describe("ProfileService", () => {
       title: "  Minecraft world  ",
       note: "blocks you can place",
     });
-    expect(item).toMatchObject({ title: "Minecraft world", note: "blocks you can place", status: "parked" });
+    expect(item).toMatchObject({
+      title: "Minecraft world",
+      note: "blocks you can place",
+      status: "parked",
+    });
 
     const started = await service.updateRoadmapItem(ada.id, item.id, { status: "started" });
-    expect(started.roadmap).toEqual([{ ...item, status: "started", updatedAt: expect.any(String) }]);
+    expect(started.roadmap).toEqual([
+      { ...item, status: "started", updatedAt: expect.any(String) },
+    ]);
 
     await expect(service.updateRoadmapItem(ada.id, "nope", { status: "done" })).rejects.toThrow(
       /not found/i,

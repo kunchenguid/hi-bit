@@ -37,8 +37,7 @@ export function FactoryHandbook({ builderName, progress, onClose }: FactoryHandb
     onClose();
   };
 
-  const skillsByArc = (arc: ArcId) =>
-    (progress?.skills ?? []).filter((skill) => skill.arc === arc);
+  const skillsByArc = (arc: ArcId) => (progress?.skills ?? []).filter((skill) => skill.arc === arc);
 
   const masteredCount = progress?.counts.fluent ?? 0;
   const totalCount = progress?.counts.total ?? 0;
@@ -63,7 +62,11 @@ export function FactoryHandbook({ builderName, progress, onClose }: FactoryHandb
               You can build: <strong>{progress?.tierLabel ?? "your first creation"}</strong>
             </p>
           </div>
-          <span className="hb-handbook-count" aria-label={`${masteredCount} of ${totalCount} mastered`}>
+          <span
+            className="hb-handbook-count"
+            role="img"
+            aria-label={`${masteredCount} of ${totalCount} mastered`}
+          >
             {masteredCount}/{totalCount}
           </span>
           <button className="hb-button hb-button-secondary" type="button" onClick={close}>

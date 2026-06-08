@@ -20,12 +20,7 @@ import {
   nextConceptToUnlock,
   type UnlockFacts,
 } from "@shared/concepts";
-import {
-  buildCoachingNote,
-  isSkillId,
-  type SkillId,
-  type SkillSignal,
-} from "@shared/curriculum";
+import { buildCoachingNote, isSkillId, type SkillId, type SkillSignal } from "@shared/curriculum";
 import type { ProfileSummary, RoadmapItem } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { Type } from "typebox";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  advanceMastery,
   ARCS,
+  advanceMastery,
   atLeast,
   BUILD_TIERS,
   buildCoachingNote,
@@ -15,10 +15,10 @@ import {
   nextSkillToCoach,
   prerequisitesMet,
   reachableTier,
+  SKILLS,
   sanitizeMastery,
   skillById,
   skillProgress,
-  SKILLS,
 } from "./curriculum";
 
 describe("the spine shape", () => {
@@ -154,9 +154,9 @@ describe("nextSkillToCoach", () => {
 
   it("coaches the lowest-order relevant skill that is not yet fluent", () => {
     expect(nextSkillToCoach({}, ["iterate-feedback", "ask-creation"])).toBe("ask-creation");
-    expect(nextSkillToCoach({ "ask-creation": "fluent" }, ["iterate-feedback", "ask-creation"])).toBe(
-      "iterate-feedback",
-    );
+    expect(
+      nextSkillToCoach({ "ask-creation": "fluent" }, ["iterate-feedback", "ask-creation"]),
+    ).toBe("iterate-feedback");
   });
 
   it("skips a relevant skill whose prerequisites are not met", () => {
