@@ -102,6 +102,7 @@ type TurnVocabulary = {
 
 type CreateDetails = { created: boolean; projectId: string | null; jobId: string | null };
 type ParkDetails = { id: string | null; title: string | null };
+type RoadmapUpdateDetails = { id: string; status: "started" | "done"; updated: boolean };
 type BuildDetails = { jobId: string | null; projectId: string };
 type PreviewToolDetails = { projectId: string; url: string | null };
 
@@ -795,6 +796,39 @@ export class BitCoordinatorService {
       },
     });
 
+    const updateRoadmap = defineTool({
+      name: "update_roadmap",
+      label: "Update parked idea",
+      description:
+        "Mark a parked idea as started when you begin building it, or done when it is finished, so grown-ups see current progress.",
+      parameters: Type.Object({
+        id: Type.String({ description: "roadmap item id from list_roadmap" }),
+        status: Type.Union([Type.Literal("started"), Type.Literal("done")], {
+          description: "new status for the roadmap item",
+        }),
+      }),
+      async execute(_callId, params) {
+        const { id, status } = params as { id: string; status: "started" | "done" };
+        try {
+          await self.profiles.updateRoadmapItem(profileId, id, { status });
+          return {
+            content: [{ type: "text", text: `Marked roadmap idea ${status}.` }],
+            details: { id, status, updated: true } as RoadmapUpdateDetails,
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Could not update that roadmap idea: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            details: { id, status, updated: false } as RoadmapUpdateDetails,
+          };
+        }
+      },
+    });
+
     const tools = [
       listCreations,
       listBuilderPictures,
@@ -806,6 +840,7 @@ export class BitCoordinatorService {
       recordProgress,
       parkAmbition,
       listRoadmap,
+      updateRoadmap,
     ];
     this.toolCache.set(profileId, tools);
     return tools;

@@ -1843,6 +1843,24 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.drain();
     expect(s.bit.prompts.length).toBeGreaterThan(0);
   });
+
+  it("updates roadmap item status when Bit marks a parked idea in progress", async () => {
+    const s = await createCoordinator();
+    const { item } = await s.profiles.addRoadmapItem(s.profile.id, {
+      title: "Minecraft world",
+      note: "place blocks",
+    });
+    s.bit.handler = async ({ callTool }) => {
+      await callTool("update_roadmap", { id: item.id, status: "started" });
+      return "Let's build the first slice.";
+    };
+
+    await s.coordinator.send(s.profile.id, "start the Minecraft idea");
+    await s.drain();
+
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.roadmap[0]).toMatchObject({ id: item.id, status: "started" });
+  });
 });
 
 describe("extractReadyToPlay", () => {
