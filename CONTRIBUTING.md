@@ -4,6 +4,7 @@ Hi-Bit is MIT-licensed and open to outside contributions.
 One rule up front:
 
 **Human-authored pull requests targeting `main` must be raised through [`no-mistakes`](https://github.com/kunchenguid/no-mistakes).**
+We require this to reduce the maintainer's burden of reviewing and merging contributions.
 
 `no-mistakes` puts a local git proxy in front of your real remote.
 Pushing through it runs an AI-driven review, test, lint, and CI pipeline in an isolated worktree, forwards the push upstream only after every check passes, and opens a clean PR automatically.
@@ -27,7 +28,6 @@ See the [no-mistakes quick start](https://kunchenguid.github.io/no-mistakes/star
 ## Repo Conventions
 
 - Use `pnpm` with the pinned version from `packageManager`.
-- Use TDD for bug fixes and new features.
 - Tests are Vitest tests colocated next to the file under test as `*.test.ts` or `*.test.tsx`.
 - Run `pnpm check`, `pnpm typecheck`, `pnpm test`, and `pnpm build` before pushing.
 - Run `pnpm package:mac` when changing packaging, runtime paths, native dependencies, release behavior, or anything that affects the packaged app layout.
