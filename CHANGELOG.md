@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.7](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.6...hi-bit-v0.0.7) (2026-06-11)
+
+
+### Features
+
+* teach any subject through learning creations ([#88](https://github.com/kunchenguid/hi-bit/issues/88)) ([736a240](https://github.com/kunchenguid/hi-bit/commit/736a24068b8916218da1ba688b7e05f1a31a4ebc))
+
 ## [0.0.6](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.5...hi-bit-v0.0.6) (2026-06-08)
 
 
