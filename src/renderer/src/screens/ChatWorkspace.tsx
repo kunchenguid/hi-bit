@@ -118,8 +118,8 @@ export function ChatWorkspace({
   const updateStatus = useUpdateStatus();
   const updateAvailable = updateStatus?.updateAvailable ?? false;
 
-  // The builder's place in the curriculum, fetched fresh each time they open
-  // their Handbook (a kid-chosen action) or a grown-up opens their menu.
+  // The builder's learning progress, fetched fresh each time they open their
+  // Handbook (a kid-chosen action) or a grown-up opens their menu.
   const { progress, refresh: refreshProgress } = useLearningProgress(profile.id);
   const [showHandbook, setShowHandbook] = useState(false);
   const openHandbook = () => {
