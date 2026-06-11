@@ -1946,6 +1946,22 @@ describe("buildCompletionPrompt", () => {
     expect(prompt).toContain("start_preview");
   });
 
+  it("does not invite Play or chain the second lesson when a first learning build is not playable", () => {
+    const prompt = buildCompletionPrompt({
+      ...base,
+      outcome: "completed",
+      projectId: "project_math_world",
+      readyToPlay: false,
+      learning: "first-build",
+    });
+    expect(prompt).toContain("learning/curriculum.json");
+    expect(prompt).toContain("not ready to Play yet");
+    expect(prompt).toContain("Do NOT delegate the second lesson yet");
+    expect(prompt).not.toContain("invite Play");
+    expect(prompt).not.toContain("start_preview");
+    expect(prompt).not.toContain("ready to open and play right now");
+  });
+
   it("forbids chaining another build when a later learning build completes", () => {
     const prompt = buildCompletionPrompt({
       ...base,

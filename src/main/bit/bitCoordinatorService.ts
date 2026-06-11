@@ -1443,7 +1443,9 @@ export function buildCompletionPrompt(input: {
   const base = `"${title}" is ready. What changed: ${summary}`;
   const learningNote =
     learning === "first-build"
-      ? `\n\nThis creation is a learning subject and this was its first build. Read the teach-subject skill and follow its "After a learning build finishes" steps in this same turn: review and trim learning/curriculum.json yourself first, invite Play, then delegate the second lesson's build so it is ready while the builder plays.`
+      ? readyToPlay
+        ? `\n\nThis creation is a learning subject and this was its first build. Read the teach-subject skill and follow its "After a learning build finishes" steps in this same turn: review and trim learning/curriculum.json yourself first, invite Play, then delegate the second lesson's build so it is ready while the builder plays.`
+        : `\n\nThis creation is a learning subject and this was its first build, but it is not ready to Play yet. Review learning/curriculum.json and figure out what is missing or unfinished before inviting the builder to play anything. Do NOT delegate the second lesson yet; delegate it only after the first lesson is actually playable.`
       : learning === "later-build"
         ? `\n\nThis creation is a learning subject (the teach-subject skill's "After a learning build finishes" steps apply). Tell the builder this lesson is waiting, but do NOT delegate another build now, even if earlier turns did: the next lesson starts only from a chat turn where the builder has reached the newest lesson.`
         : "";
