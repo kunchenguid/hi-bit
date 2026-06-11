@@ -66,6 +66,8 @@ export type CreateBitSessionInput = BitPromptInput & {
   modelId: string;
   /** How hard Bit thinks; passed straight through as the Pi `thinkingLevel`. */
   thinkingLevel: ThinkingSpeed;
+  /** Directory of Bit's curated bundled skills (e.g. teach-subject). */
+  skillsDir?: string;
 };
 
 export type BitTurnResult = {
@@ -103,6 +105,13 @@ type BitRuntimeServiceOptions = {
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateBitSessionInput) => Promise<BitSession>;
   onSessionFile?: (profileId: string, sessionFile: string | undefined) => Promise<void> | void;
+  /**
+   * Directory of Bit's curated bundled skills (`skills-bit/`, e.g.
+   * teach-subject). Deliberately separate from the bots' `skills/` so Bit only
+   * ever sees coordinator-shaped doctrine. Omitted in tests, so Bit has no
+   * skills there.
+   */
+  skillsDir?: string;
   /** Path to Bit's mascot SVG, so Bit can `view_bit` to see its own look. */
   mascotAssetPath?: string;
   /**
@@ -334,6 +343,7 @@ export class BitRuntimeService implements BitRuntime {
       agentDir: this.options.agentDir,
       modelId: this.modelId,
       thinkingLevel,
+      skillsDir: this.options.skillsDir,
     });
     const cached = { session, thinkingLevel };
     this.sessions.set(input.profileId, cached);
@@ -474,16 +484,21 @@ async function createRealBitSession(input: CreateBitSessionInput): Promise<BitSe
     enableInstallTelemetry: false,
   });
 
-  const { loader: resourceLoader, setBuilderContext } = createBitResourceLoader();
+  const { loader: resourceLoader, setBuilderContext } = createBitResourceLoader(undefined, {
+    skillsDir: input.skillsDir,
+  });
   setBuilderContext(input.builderContext ?? null);
   await resourceLoader.reload();
 
   // Bit gets the delegation tools plus read/write/edit/explorer tools confined
   // to the kid's profile, so it can make tiny direct fixes and still delegate
   // anything bigger. noTools:"builtin" keeps the unguarded built-in file tools
-  // (and bash) off, so these jailed tools are Bit's only path to disk.
+  // (and bash) off, so these jailed tools are Bit's only path to disk. The
+  // bundled skills dir is a read-only exception: the system prompt tells Bit to
+  // read a skill's SKILL.md by absolute path when its description matches.
   const jailedTools = createProfileTools(input.profileRoot, {
     onMutation: input.onProfileMutation,
+    readOnlyRoots: input.skillsDir ? [input.skillsDir] : [],
   });
 
   const { session } = await createAgentSession({

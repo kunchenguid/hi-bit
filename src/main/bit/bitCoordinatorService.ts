@@ -23,6 +23,7 @@ import {
 import { buildCoachingNote, isSkillId, type SkillId, type SkillSignal } from "@shared/curriculum";
 import type { ProfileSummary, RoadmapItem } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
+import { buildSubjectsNote } from "@shared/subjects";
 import { Type } from "typebox";
 import { type BlueprintReference, type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
@@ -31,6 +32,7 @@ import type { BitPromptImage, BitRuntime } from "../pi/bitRuntimeService";
 import { stripImageData } from "../pi/piMessages";
 import { PreviewService } from "../preview/previewService";
 import type { ProjectService, RuntimeProject } from "../projects/projectService";
+import { applySubjectSkillSignals, listSubjectSnapshots } from "../projects/subjectFiles";
 
 /** Static-server fallback for replaying a creation previewed before its command was persisted. */
 const DEFAULT_PREVIEW_COMMAND = 'python3 -m http.server "$PORT" --bind 127.0.0.1';
@@ -101,6 +103,7 @@ type TurnVocabulary = {
 };
 
 type CreateDetails = { created: boolean; projectId: string | null; jobId: string | null };
+type RecordProgressDetails = { recorded: number; subject?: string };
 type ParkDetails = { id: string | null; title: string | null };
 type RoadmapUpdateDetails = { id: string; status: "started" | "done"; updated: boolean };
 type BuildDetails = { jobId: string | null; projectId: string };
@@ -706,13 +709,13 @@ export class BitCoordinatorService {
       name: "record_progress",
       label: "Record progress",
       description:
-        "Record what the builder actually DID this turn, so their learning moves forward. Only call this when the builder genuinely performs a skill of operating you and the bots - not when a topic merely comes up, and not for things you or a bot did. The learning map describes what each skill means; match the builder's action to it carefully. status: 'did' = they did it with your help; 'did_unprompted' = they did it on their own. Never tell the builder you are doing this.",
+        "Record what the builder actually DID this turn, so their learning moves forward. Only call this when the builder genuinely demonstrates a skill - not when a topic merely comes up, and not for things you or a bot did. Without subject, skills are the builder skills from the learning map. With subject set to a learning creation's id, skills are that subject's skill ids from its learning/curriculum.json (listed in the subject note). status: 'did' = they did it with your help; 'did_unprompted' = they did it on their own. Never tell the builder you are doing this.",
       parameters: Type.Object({
         updates: Type.Array(
           Type.Object({
             skill: Type.String({
               description:
-                "skill id, one of: ask-creation, iterate-feedback, specific-feedback, voice-input, show-screen, give-picture, browse-creation, async-productive, decompose, dependency-reasoning, parallel-bots, switch-tabs, oversee",
+                "skill id. Builder skills: ask-creation, iterate-feedback, specific-feedback, voice-input, show-screen, give-picture, browse-creation, async-productive, decompose, dependency-reasoning, parallel-bots, switch-tabs, oversee. With subject: a skill id from that subject's curriculum.",
             }),
             status: Type.Union([Type.Literal("did"), Type.Literal("did_unprompted")], {
               description: "whether the builder did it with your help (did) or on their own",
@@ -720,11 +723,50 @@ export class BitCoordinatorService {
           }),
           { description: "one entry per skill the builder actually did this turn" },
         ),
+        subject: Type.Optional(
+          Type.String({
+            description:
+              "id of the learning creation these skills belong to, when recording subject progress (e.g. a Math skill) instead of builder skills",
+          }),
+        ),
       }),
       async execute(_callId, params) {
-        const { updates } = params as {
+        const { updates, subject } = params as {
           updates: Array<{ skill: string; status: "did" | "did_unprompted" }>;
+          subject?: string;
         };
+        if (subject) {
+          // Subject skills live in the learning creation's curriculum.json; the
+          // file is the source of truth and this is its one sanctioned mastery
+          // writer (same monotonic machine as the builder-skills ledger).
+          try {
+            const project = await self.projects.get(profileId, subject);
+            const signals: Record<string, SkillSignal> = {};
+            for (const { skill, status } of updates) {
+              signals[skill] =
+                status === "did_unprompted"
+                  ? { demonstrated: true, unprompted: true }
+                  : { demonstrated: true };
+            }
+            const result = await applySubjectSkillSignals(project.mainWorkbenchDir, signals);
+            return {
+              content: [
+                { type: "text", text: `Noted progress on ${result.recorded} subject skill(s).` },
+              ],
+              details: { recorded: result.recorded, subject } as RecordProgressDetails,
+            };
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Could not record that: ${error instanceof Error ? error.message : String(error)}`,
+                },
+              ],
+              details: { recorded: 0, subject } as RecordProgressDetails,
+            };
+          }
+        }
         const signals: Partial<Record<SkillId, SkillSignal>> = {};
         for (const { skill, status } of updates) {
           if (!isSkillId(skill)) continue;
@@ -737,7 +779,7 @@ export class BitCoordinatorService {
         if (recorded > 0) await self.profiles.applySkillSignals(profileId, signals);
         return {
           content: [{ type: "text", text: `Noted progress on ${recorded} skill(s).` }],
-          details: { recorded },
+          details: { recorded } as RecordProgressDetails,
         };
       },
     });
@@ -1185,10 +1227,10 @@ export class BitCoordinatorService {
   private async resolveTurnVocabulary(profileId: string): Promise<TurnVocabulary> {
     try {
       const profile = await this.profiles.get(profileId);
-      const creationCount = (await this.projects.list(profileId)).length;
+      const portfolio = await this.projects.list(profileId);
       const facts: UnlockFacts = {
         buildsDelegated: profile.unlockStats.buildsDelegated,
-        creationCount,
+        creationCount: portfolio.length,
         openedActivities: profile.unlockStats.openedActivities,
       };
       const unlocked = profile.unlockedConcepts.map((concept) => concept.id);
@@ -1200,8 +1242,9 @@ export class BitCoordinatorService {
       const newlyUnlocked = pending.includes(pendingReveal as ConceptId) ? null : pendingReveal;
       const vocabularyNote = buildVocabularyNote(unlocked, pendingReveal, newlyUnlocked);
       const coachingNote = buildCoachingNote(profile.skillMastery);
+      const subjectsNote = await this.resolveSubjectsNote(profileId, portfolio);
       return {
-        note: `${vocabularyNote}\n\n${coachingNote}`,
+        note: [vocabularyNote, coachingNote, subjectsNote].filter(Boolean).join("\n\n"),
         pendingReveal,
       };
     } catch (error) {
@@ -1213,6 +1256,32 @@ export class BitCoordinatorService {
         note: `${buildVocabularyNote([], null)}\n\n${buildCoachingNote({})}`,
         pendingReveal: null,
       };
+    }
+  }
+
+  /**
+   * The per-turn note for the builder's learning subjects (creations with a
+   * `learning/` folder): goal, skill map, and recent learning records per
+   * subject, so Bit resumes teaching exactly where it left off. Null when the
+   * builder has none, and degrades to null on any read hiccup - a broken
+   * curriculum file must never break a chat turn.
+   */
+  private async resolveSubjectsNote(
+    profileId: string,
+    portfolio: ProjectSummary[],
+  ): Promise<string | null> {
+    try {
+      const snapshots = await listSubjectSnapshots(
+        portfolio.map((project) => ({
+          id: project.id,
+          title: project.title,
+          mainWorkbenchDir: this.projects.pathsFor(profileId, project.id).mainWorkbenchDir,
+        })),
+      );
+      return buildSubjectsNote(snapshots);
+    } catch (error) {
+      console.error(`Failed to read learning subjects for profile ${profileId}:`, error);
+      return null;
     }
   }
 

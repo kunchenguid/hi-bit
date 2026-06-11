@@ -43,6 +43,24 @@ const PROGRESS: LearningProgressView = {
     },
   ],
   counts: { fluent: 1, grasped: 1, total: 2 },
+  subjects: [
+    {
+      projectId: "project_math",
+      title: "Math",
+      creationTitle: "Math World",
+      status: "active",
+      goal: "Do the score math in my own games",
+      skills: [
+        {
+          id: "count-up-score",
+          label: "Count a game score up and down",
+          parentLabel: "Addition and subtraction within 100",
+          mastery: "grasped",
+        },
+      ],
+      counts: { fluent: 0, grasped: 1, total: 1 },
+    },
+  ],
 };
 
 describe("ParentProgressWindow", () => {
@@ -72,6 +90,16 @@ describe("ParentProgressWindow", () => {
     // Reach and parked ambition both surface for the parent.
     expect(host.textContent).toContain("a richer creation shaped by specific feedback");
     expect(host.textContent).toContain("A whole Minecraft");
+  });
+
+  it("shows each learning subject with its goal and precise grown-up skill names", () => {
+    act(() => root.render(<ParentProgressWindow builderName="Ada" progress={PROGRESS} />));
+
+    expect(host.textContent).toContain("Subject: Math");
+    expect(host.textContent).toContain("Goal: Do the score math in my own games");
+    // The parent sees the precise name, not the kid phrasing.
+    expect(host.textContent).toContain("Addition and subtraction within 100");
+    expect(host.textContent).toContain("done with help");
   });
 
   it("shows an empty state before any building has happened", () => {

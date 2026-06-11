@@ -38,6 +38,20 @@ const PROGRESS: LearningProgressView = {
   ],
   roadmap: [],
   counts: { fluent: 1, grasped: 1, total: 2 },
+  subjects: [
+    {
+      projectId: "project_math",
+      title: "Math",
+      creationTitle: "Math World",
+      status: "active",
+      goal: "Do the score math in my own games",
+      skills: [
+        { id: "count-up-score", label: "Count a game score up and down", mastery: "grasped" },
+        { id: "add-two-digit", label: "Add two-digit numbers", mastery: "unseen" },
+      ],
+      counts: { fluent: 0, grasped: 1, total: 2 },
+    },
+  ],
 };
 
 describe("FactoryHandbook", () => {
@@ -71,6 +85,18 @@ describe("FactoryHandbook", () => {
 
     const mastered = host.querySelector('[data-mastery="fluent"]');
     expect(mastered?.getAttribute("data-done")).toBe("true");
+  });
+
+  it("shows the builder's learning subjects with their kid-facing skill labels", () => {
+    act(() =>
+      root.render(<FactoryHandbook builderName="Ada" progress={PROGRESS} onClose={vi.fn()} />),
+    );
+
+    expect(host.textContent).toContain("Math");
+    expect(host.textContent).toContain("Count a game score up and down");
+    expect(host.textContent).toContain("Add two-digit numbers");
+    // Subject skills use the same kid mastery words as builder skills.
+    expect(host.textContent).toContain("Not yet");
   });
 
   it("degrades gracefully before progress has loaded", () => {

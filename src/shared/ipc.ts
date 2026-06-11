@@ -102,7 +102,7 @@ export type HiBitApi = {
     markActivitiesOpened: (profileId: string) => Promise<void>;
     onEvent: (listener: (event: ChatEvent) => void) => Unsubscribe;
   };
-  /** The builder's place in the agentic-engineering curriculum - the Factory Handbook and grown-up progress window read this. */
+  /** The builder's learning progress - builder skills, roadmap, and any learning subjects. */
   progress: {
     get: (profileId: string) => Promise<LearningProgressView>;
   };

@@ -21,6 +21,29 @@ describe("buildLearningProgress", () => {
     expect(view.arcs).toHaveLength(4);
     expect(view.counts).toEqual({ fluent: 0, grasped: 0, total: 13 });
     expect(view.roadmap).toEqual([]);
+    expect(view.subjects).toEqual([]);
+  });
+
+  it("carries the builder's learning subjects through to the view", () => {
+    const subjects = [
+      {
+        projectId: "project_math",
+        title: "Math",
+        creationTitle: "Math World",
+        status: "active" as const,
+        goal: "Score math for my games",
+        skills: [
+          {
+            id: "count-up-score",
+            label: "Count a game score up and down",
+            mastery: "grasped" as const,
+          },
+        ],
+        counts: { fluent: 0, grasped: 1, total: 1 },
+      },
+    ];
+    const view = buildLearningProgress({}, [], subjects);
+    expect(view.subjects).toEqual(subjects);
   });
 
   it("reflects mastery, reach, and the roadmap for a growing builder", () => {

@@ -9,12 +9,14 @@ import {
   skillProgress,
 } from "./curriculum";
 import type { RoadmapItem } from "./profile";
+import type { SubjectProgressView } from "./subjects";
 
 /**
  * A read-only snapshot of where a builder is in the agentic-engineering
- * curriculum. It feeds both reflection surfaces: the kid's Factory Handbook
- * (kid labels + mastery, grouped by arc) and the grown-up progress window
- * (real-skill names + mastery + reach + roadmap).
+ * curriculum, plus every learning subject they asked Bit to teach. It feeds
+ * both reflection surfaces: the kid's Factory Handbook (kid labels + mastery,
+ * grouped by arc, plus their subjects) and the grown-up progress window
+ * (real-skill names + mastery + reach + roadmap + subject goals).
  */
 export type LearningProgressView = {
   reachableTier: BuildTier;
@@ -23,11 +25,14 @@ export type LearningProgressView = {
   skills: SkillProgress[];
   roadmap: RoadmapItem[];
   counts: { fluent: number; grasped: number; total: number };
+  /** The builder's learning subjects, read from their learning creations' files. */
+  subjects: SubjectProgressView[];
 };
 
 export function buildLearningProgress(
   skillMastery: MasteryMap,
   roadmap: RoadmapItem[],
+  subjects: SubjectProgressView[] = [],
 ): LearningProgressView {
   const skills = skillProgress(skillMastery);
   const tier = reachableTier(skillMastery);
@@ -37,5 +42,5 @@ export function buildLearningProgress(
     grasped: skills.filter((skill) => skill.mastery === "grasped").length,
     total: skills.length,
   };
-  return { reachableTier: tier, tierLabel, arcs: [...ARCS], skills, roadmap, counts };
+  return { reachableTier: tier, tierLabel, arcs: [...ARCS], skills, roadmap, counts, subjects };
 }

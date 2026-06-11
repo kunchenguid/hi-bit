@@ -61,6 +61,30 @@ export function ParentProgressWindow({ builderName, progress }: ParentProgressWi
         })}
       </div>
 
+      {progress.subjects.length > 0 ? (
+        <div className="hb-progress-arcs">
+          {progress.subjects.map((subject) => (
+            <div key={subject.projectId} className="hb-progress-arc">
+              <h4>
+                Subject: {subject.title}
+                {subject.status !== "active" ? ` (${subject.status})` : ""}
+              </h4>
+              {subject.goal ? <p className="hb-progress-summary">Goal: {subject.goal}</p> : null}
+              <ul>
+                {subject.skills.map((skill) => (
+                  <li key={skill.id} className="hb-progress-skill" data-mastery={skill.mastery}>
+                    <span className="hb-progress-skill-name">
+                      {skill.parentLabel ?? skill.label}
+                    </span>
+                    <span className="hb-progress-skill-state">{MASTERY_WORDS[skill.mastery]}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {parked.length > 0 ? (
         <div className="hb-progress-roadmap">
           <h4>Ideas parked for later</h4>

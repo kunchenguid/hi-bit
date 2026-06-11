@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Teach Anything Subject Evidence</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #657086;
+        --line: #dce3f2;
+        --blue: #3157d5;
+        --green: #138a55;
+        --yellow: #fff4cc;
+        --paper: #fffdf7;
+        --panel: #f7f9ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: linear-gradient(135deg, #eef4ff, #fff9ea);
+      }
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 32px;
+      }
+      header, section {
+        background: rgba(255, 255, 255, 0.86);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: 0 20px 70px rgba(43, 55, 86, 0.12);
+      }
+      header {
+        padding: 32px;
+      }
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { font-size: clamp(32px, 5vw, 56px); letter-spacing: -0.05em; line-height: 0.95; margin-bottom: 14px; }
+      h2 { font-size: 26px; letter-spacing: -0.03em; }
+      h3 { font-size: 18px; margin-bottom: 8px; }
+      p { color: var(--muted); line-height: 1.6; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+        margin-top: 18px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+        padding: 18px;
+        min-width: 0;
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: #e8fff4;
+        color: var(--green);
+        font-weight: 800;
+        font-size: 13px;
+      }
+      .status::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--green);
+      }
+      section { padding: 24px; margin-top: 20px; }
+      .surface {
+        background: var(--paper);
+        border: 2px solid #26324a;
+        border-radius: 22px;
+        padding: 20px;
+        min-height: 260px;
+      }
+      .surface-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        border-bottom: 1px dashed #c6cfdf;
+        padding-bottom: 12px;
+        margin-bottom: 14px;
+      }
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .skill {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #e5ebf6;
+      }
+      .skill:last-child { border-bottom: 0; }
+      .mastery {
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .mastery.grasped { background: #e8fff4; color: var(--green); }
+      .mastery.fluent { background: #e9edff; color: var(--blue); }
+      .mastery.unseen { background: var(--yellow); color: #805900; }
+      pre {
+        overflow: auto;
+        margin: 0;
+        padding: 16px;
+        border-radius: 16px;
+        background: #111827;
+        color: #eef2ff;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      code { white-space: pre-wrap; }
+      .path { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #3f4d66; }
+      @media (max-width: 720px) {
+        main { padding: 18px; }
+        header, section { border-radius: 18px; padding: 18px; }
+        .surface-title, .skill { grid-template-columns: 1fr; display: grid; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="status">Validated</span>
+        <h1>Hi-Bit can teach a subject as a learning creation</h1>
+        <p>
+          Evidence from the targeted validation run for branch <strong>teach-anything-subjects</strong>.
+          The exercised path matches the intended product model: a kid asks for a subject, Bit uses a learning creation with plain files, subject mastery moves through <code>record_progress(subject)</code>, and both kid and grown-up progress surfaces can show the result.
+        </p>
+      </header>
+
+      <section>
+        <h2>End-user surfaces represented by the tested data</h2>
+        <div class="grid">
+          <article class="surface">
+            <div class="surface-title">
+              <h3>Factory Handbook</h3>
+              <span class="pill">kid-facing</span>
+            </div>
+            <p><strong>Math</strong> appears as a subject inside the builder's factory.</p>
+            <p>Goal: Do the score math in my own games</p>
+            <div class="skill"><span>Count a game score up and down</span><span class="mastery grasped">Got it</span></div>
+            <div class="skill"><span>Add two-digit numbers</span><span class="mastery unseen">Not yet</span></div>
+          </article>
+          <article class="surface">
+            <div class="surface-title">
+              <h3>Grown-up Progress</h3>
+              <span class="pill">parent-facing</span>
+            </div>
+            <p><strong>Subject: Math</strong></p>
+            <p>Goal: Do the score math in my own games</p>
+            <div class="skill"><span>Addition and subtraction within 100</span><span class="mastery grasped">done with help</span></div>
+            <div class="skill"><span>Two-digit addition strategy</span><span class="mastery unseen">not started</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Persisted learning-creation state</h2>
+        <p>
+          The tests created a normal project workbench with <span class="path">main-workbench/learning/curriculum.json</span>, <span class="path">goal.md</span>, and <span class="path">learning-records/</span>.
+          A subject is detected by that valid curriculum file, not by a new project record type.
+        </p>
+        <pre><code>{
+  "schemaVersion": 1,
+  "title": "Math",
+  "status": "active",
+  "skills": [
+    { "id": "count-up-score", "label": "Count a game score up and down", "mastery": "grasped" },
+    { "id": "add-two-digit", "label": "Add two-digit numbers", "mastery": "fluent" }
+  ]
+}</code></pre>
+      </section>
+
+      <section>
+        <h2>Lesson resume helper covered by doctrine</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Checkpoint every answer</h3>
+            <p><code>LessonProgress.checkpoint("0001", { round, score })</code> saves mid-lesson state after every meaningful step, not only at completion.</p>
+          </div>
+          <div class="card">
+            <h3>Resume after restart</h3>
+            <p><code>LessonProgress.resume("0001", { round: 1, score: 0 })</code> restores the same question and score when the page opens again.</p>
+          </div>
+          <div class="card">
+            <h3>Finish clears checkpoint</h3>
+            <p><code>LessonProgress.finish("0001", { bestScore })</code> marks the lesson done for the hub and starts a replay fresh.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

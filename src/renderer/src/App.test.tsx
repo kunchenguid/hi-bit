@@ -999,6 +999,7 @@ function createApiMock(): HiBitApi {
         skills: [],
         roadmap: [],
         counts: { fluent: 0, grasped: 0, met: 0, total: 13 },
+        subjects: [],
       })),
     },
     // The browser tab model lives in main; here it's a tiny in-memory mirror.

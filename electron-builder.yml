@@ -21,6 +21,10 @@ files:
 extraResources:
   - from: skills
     to: skills
+  # Bit's own curated skills (teach-subject), kept apart from the bots' skills
+  # so the coordinator and the bots each load only their own doctrine.
+  - from: skills-bit
+    to: skills-bit
   # Bit's brand mascot, so the `view_bit` tool can rasterise it at runtime and let
   # Bit and bots see exactly what Bit looks like. Copied out of the dev-only
   # `design/` tree (which is otherwise not packaged) to `resourcesPath/brand`.

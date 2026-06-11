@@ -91,6 +91,26 @@ export function FactoryHandbook({ builderName, progress, onClose }: FactoryHandb
               </ul>
             </section>
           ))}
+          {/* The subjects the builder asked Bit to teach, each from its own
+              learning creation, rendered with the same proud-collection look. */}
+          {(progress?.subjects ?? []).map((subject) => (
+            <section key={subject.projectId} className="hb-handbook-arc">
+              <h3>{subject.title}</h3>
+              <ul className="hb-handbook-skills">
+                {subject.skills.map((skill) => (
+                  <li
+                    key={skill.id}
+                    className="hb-handbook-skill"
+                    data-mastery={skill.mastery}
+                    data-done={skill.mastery === "fluent" ? "true" : "false"}
+                  >
+                    <span className="hb-handbook-skill-label">{skill.label}</span>
+                    <span className="hb-handbook-skill-state">{MASTERY_WORDS[skill.mastery]}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
         </div>
       </section>
     </div>
