@@ -2158,6 +2158,34 @@ describe("learning subjects (teach-anything)", () => {
     expect(completionPrompts[1]).not.toContain("second lesson");
   });
 
+  it("forbids lesson chaining when a completed job file is unreadable", async () => {
+    const s = await createCoordinator();
+    const { project } = await seedLearningCreation(s);
+    s.bot.completionNote = "Built a lesson. [[READY_TO_PLAY]]";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (!text.includes("Builder says:")) return "Ready!";
+      await callTool("delegate_build", { creationId: project.id, instructions: "a lesson" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "teach me math");
+    await s.drain();
+    const firstInstall = s.pipeline.installed[0];
+    expect(firstInstall).toBeDefined();
+    await writeFile(
+      join(firstInstall.project.botJobsDir, `${firstInstall.job.id}.json`),
+      "{nope",
+      "utf8",
+    );
+    await s.coordinator.send(s.profile.id, "next lesson please");
+    await s.drain();
+
+    const completionPrompts = s.bit.prompts.filter((p) => p.includes("What changed:"));
+    expect(completionPrompts).toHaveLength(2);
+    expect(completionPrompts[1]).toContain("do NOT delegate another build");
+    expect(completionPrompts[1]).not.toContain("second lesson");
+  });
+
   it("keeps ordinary creations' completion turns free of the teach-subject nudge", async () => {
     const s = await createCoordinator();
     const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });

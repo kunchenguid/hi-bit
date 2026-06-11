@@ -1153,9 +1153,7 @@ export class BitCoordinatorService {
     try {
       const names = (await readdir(project.botJobsDir)).filter((name) => name.endsWith(".json"));
       const jobs = await Promise.all(
-        names.map((name) =>
-          readJsonFile<{ status?: string }>(join(project.botJobsDir, name)).catch(() => null),
-        ),
+        names.map((name) => readJsonFile<{ status?: string }>(join(project.botJobsDir, name))),
       );
       return jobs.filter((job) => job?.status === "completed").length;
     } catch {
