@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { defineTool, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type {
@@ -32,7 +33,12 @@ import type { BitPromptImage, BitRuntime } from "../pi/bitRuntimeService";
 import { stripImageData } from "../pi/piMessages";
 import { PreviewService } from "../preview/previewService";
 import type { ProjectService, RuntimeProject } from "../projects/projectService";
-import { applySubjectSkillSignals, listSubjectSnapshots } from "../projects/subjectFiles";
+import {
+  applySubjectSkillSignals,
+  listSubjectSnapshots,
+  readSubjectSnapshot,
+} from "../projects/subjectFiles";
+import { readJsonFile } from "../storage/json";
 
 /** Static-server fallback for replaying a creation previewed before its command was persisted. */
 const DEFAULT_PREVIEW_COMMAND = 'python3 -m http.server "$PORT" --bind 127.0.0.1';
@@ -1109,12 +1115,14 @@ export class BitCoordinatorService {
     summary: string,
     readyToPlay = false,
   ): Promise<void> {
+    const learning = outcome === "completed" ? await this.learningBuildPhase(project) : undefined;
     const text = buildCompletionPrompt({
       outcome,
       projectId: project.id,
       title: project.title,
       summary: kidSafeCompletionSummary(summary),
       readyToPlay,
+      learning,
     });
     const profile = await this.profiles.get(profileId).catch(() => undefined);
     await this.runBitTurn(profileId, text, {
@@ -1122,6 +1130,35 @@ export class BitCoordinatorService {
       projectId: project.id,
       builderContext: profile ? this.buildBuilderProfileContext(profile) : undefined,
     });
+  }
+
+  /**
+   * Whether the build that just completed was a learning creation's first or a
+   * later one, or undefined for an ordinary creation. The distinction is
+   * computed here, not left to Bit's judgment: the completion prompt must
+   * carry an explicit chain-or-stop instruction, because a session that has
+   * already chained lesson builds will otherwise keep following its own
+   * pattern instead of re-reading the teach-subject skill.
+   */
+  private async learningBuildPhase(
+    project: RuntimeProject,
+  ): Promise<"first-build" | "later-build" | undefined> {
+    const snapshot = await readSubjectSnapshot(project).catch(() => null);
+    if (!snapshot) return undefined;
+    return (await this.countCompletedJobs(project)) <= 1 ? "first-build" : "later-build";
+  }
+
+  /** Errors count as "many" so a read hiccup can never unleash a build chain. */
+  private async countCompletedJobs(project: RuntimeProject): Promise<number> {
+    try {
+      const names = (await readdir(project.botJobsDir)).filter((name) => name.endsWith(".json"));
+      const jobs = await Promise.all(
+        names.map((name) => readJsonFile<{ status?: string }>(join(project.botJobsDir, name))),
+      );
+      return jobs.filter((job) => job?.status === "completed").length;
+    } catch {
+      return Number.MAX_SAFE_INTEGER;
+    }
   }
 
   private async appendCompletionFallback(
@@ -1383,7 +1420,10 @@ export function extractReadyToPlay(botText: string): { readyToPlay: boolean; sum
 }
 
 /** Builds the instruction Bit gets when a bot finishes. Only the playable,
- * completed case asks Bit to start a preview. */
+ * completed case asks Bit to start a preview. A completed build on a learning
+ * creation also carries the teach-subject after-build instruction - explicit
+ * and per-phase rather than a bare pointer at the skill, because Bit reads
+ * skills lazily and a session mid-pattern will not re-open one on its own. */
 export function buildCompletionPrompt(input: {
   outcome: "completed" | "cancelled" | "failed";
   projectId: string;
@@ -1391,8 +1431,9 @@ export function buildCompletionPrompt(input: {
   /** Already run through kidSafeCompletionSummary. */
   summary: string;
   readyToPlay: boolean;
+  learning?: "first-build" | "later-build";
 }): string {
-  const { outcome, projectId, title, summary, readyToPlay } = input;
+  const { outcome, projectId, title, summary, readyToPlay, learning } = input;
   if (outcome === "cancelled") {
     return `The build for "${title}" was stopped before finishing. Let the builder know gently in one short sentence.`;
   }
@@ -1400,10 +1441,18 @@ export function buildCompletionPrompt(input: {
     return `"${title}" hit a snag: ${summary}\n\nLet the builder know gently in one short sentence and offer to try again.`;
   }
   const base = `"${title}" is ready. What changed: ${summary}`;
+  const learningNote =
+    learning === "first-build"
+      ? readyToPlay
+        ? `\n\nThis creation is a learning subject and this was its first build. Read the teach-subject skill and follow its "After a learning build finishes" steps in this same turn: review and trim learning/curriculum.json yourself first, invite Play, then delegate the second lesson's build so it is ready while the builder plays.`
+        : `\n\nThis creation is a learning subject and this was its first build, but it is not ready to Play yet. Review learning/curriculum.json and figure out what is missing or unfinished before inviting the builder to play anything. Do NOT delegate the second lesson yet; delegate it only after the first lesson is actually playable.`
+      : learning === "later-build"
+        ? `\n\nThis creation is a learning subject (the teach-subject skill's "After a learning build finishes" steps apply). Tell the builder this lesson is waiting, but do NOT delegate another build now, even if earlier turns did: the next lesson starts only from a chat turn where the builder has reached the newest lesson.`
+        : "";
   if (readyToPlay) {
-    return `${base}\n\nIt is ready to open and play right now. Call start_preview with projectId "${projectId}" and the correct preview command for this creation, so a live preview is running, then warmly invite the builder to press Play, in one or two short sentences.`;
+    return `${base}\n\nIt is ready to open and play right now. Call start_preview with projectId "${projectId}" and the correct preview command for this creation, so a live preview is running, then warmly invite the builder to press Play, in one or two short sentences.${learningNote}`;
   }
-  return `${base}\n\nTell the builder warmly that "${title}" is ready, in one or two short sentences.`;
+  return `${base}\n\nTell the builder warmly that "${title}" is ready, in one or two short sentences.${learningNote}`;
 }
 
 export type { ChatMessage };

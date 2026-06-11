@@ -1930,6 +1930,79 @@ describe("buildCompletionPrompt", () => {
       }),
     ).not.toContain("start_preview");
   });
+
+  it("asks Bit to chain the second lesson only on a learning creation's first build", () => {
+    const prompt = buildCompletionPrompt({
+      ...base,
+      outcome: "completed",
+      projectId: "project_math_world",
+      readyToPlay: true,
+      learning: "first-build",
+    });
+    expect(prompt).toContain("teach-subject");
+    expect(prompt).toContain("After a learning build finishes");
+    expect(prompt).toContain("second lesson");
+    // The preview invitation still rides along.
+    expect(prompt).toContain("start_preview");
+  });
+
+  it("does not invite Play or chain the second lesson when a first learning build is not playable", () => {
+    const prompt = buildCompletionPrompt({
+      ...base,
+      outcome: "completed",
+      projectId: "project_math_world",
+      readyToPlay: false,
+      learning: "first-build",
+    });
+    expect(prompt).toContain("learning/curriculum.json");
+    expect(prompt).toContain("not ready to Play yet");
+    expect(prompt).toContain("Do NOT delegate the second lesson yet");
+    expect(prompt).not.toContain("invite Play");
+    expect(prompt).not.toContain("start_preview");
+    expect(prompt).not.toContain("ready to open and play right now");
+  });
+
+  it("forbids chaining another build when a later learning build completes", () => {
+    const prompt = buildCompletionPrompt({
+      ...base,
+      outcome: "completed",
+      projectId: "project_math_world",
+      readyToPlay: true,
+      learning: "later-build",
+    });
+    expect(prompt).toContain("teach-subject");
+    expect(prompt).toContain("do NOT delegate another build");
+    expect(prompt).not.toContain("second lesson");
+  });
+
+  it("adds no teach-subject nudge for ordinary, failed, or cancelled builds", () => {
+    expect(
+      buildCompletionPrompt({
+        ...base,
+        outcome: "completed",
+        projectId: "project_robot_run",
+        readyToPlay: true,
+      }),
+    ).not.toContain("teach-subject");
+    expect(
+      buildCompletionPrompt({
+        ...base,
+        outcome: "failed",
+        projectId: "project_math_world",
+        readyToPlay: false,
+        learning: "later-build",
+      }),
+    ).not.toContain("teach-subject");
+    expect(
+      buildCompletionPrompt({
+        ...base,
+        outcome: "cancelled",
+        projectId: "project_math_world",
+        readyToPlay: false,
+        learning: "first-build",
+      }),
+    ).not.toContain("teach-subject");
+  });
 });
 
 describe("learning subjects (teach-anything)", () => {
@@ -2054,5 +2127,96 @@ describe("learning subjects (teach-anything)", () => {
 
     const profile = await s.profiles.get(s.profile.id);
     expect(profile.skillMastery).toEqual({ "ask-creation": "grasped" });
+  });
+
+  it("nudges the completion turn back to the teach-subject skill for a learning creation", async () => {
+    const s = await createCoordinator();
+    const { project } = await seedLearningCreation(s);
+    s.bot.completionNote = "Built the first lesson. [[READY_TO_PLAY]]";
+    // The subjects note in the kid-turn prompt also says "is ready", so key
+    // the handler and the assertion off completion-only markers instead of
+    // isCompletion.
+    s.bit.handler = async ({ text, callTool }) => {
+      if (!text.includes("Builder says:")) return "Lesson one is ready!";
+      await callTool("delegate_build", { creationId: project.id, instructions: "first lesson" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "teach me math");
+    await s.drain();
+
+    const completionPrompt = s.bit.prompts.find((p) => p.includes("What changed:"));
+    expect(completionPrompt).toContain("teach-subject");
+    expect(completionPrompt).toContain("After a learning build finishes");
+    expect(completionPrompt).toContain("second lesson");
+    expect(completionPrompt).toContain("start_preview");
+  });
+
+  it("forbids the completion turn from chaining a build after a later lesson lands", async () => {
+    const s = await createCoordinator();
+    const { project } = await seedLearningCreation(s);
+    s.bot.completionNote = "Built a lesson. [[READY_TO_PLAY]]";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (!text.includes("Builder says:")) return "Ready!";
+      await callTool("delegate_build", { creationId: project.id, instructions: "a lesson" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "teach me math");
+    await s.drain();
+    await s.coordinator.send(s.profile.id, "next lesson please");
+    await s.drain();
+
+    const completionPrompts = s.bit.prompts.filter((p) => p.includes("What changed:"));
+    expect(completionPrompts).toHaveLength(2);
+    expect(completionPrompts[0]).toContain("second lesson");
+    expect(completionPrompts[1]).toContain("do NOT delegate another build");
+    expect(completionPrompts[1]).not.toContain("second lesson");
+  });
+
+  it("forbids lesson chaining when a completed job file is unreadable", async () => {
+    const s = await createCoordinator();
+    const { project } = await seedLearningCreation(s);
+    s.bot.completionNote = "Built a lesson. [[READY_TO_PLAY]]";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (!text.includes("Builder says:")) return "Ready!";
+      await callTool("delegate_build", { creationId: project.id, instructions: "a lesson" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "teach me math");
+    await s.drain();
+    const firstInstall = s.pipeline.installed[0];
+    expect(firstInstall).toBeDefined();
+    await writeFile(
+      join(firstInstall.project.botJobsDir, `${firstInstall.job.id}.json`),
+      "{nope",
+      "utf8",
+    );
+    await s.coordinator.send(s.profile.id, "next lesson please");
+    await s.drain();
+
+    const completionPrompts = s.bit.prompts.filter((p) => p.includes("What changed:"));
+    expect(completionPrompts).toHaveLength(2);
+    expect(completionPrompts[1]).toContain("do NOT delegate another build");
+    expect(completionPrompts[1]).not.toContain("second lesson");
+  });
+
+  it("keeps ordinary creations' completion turns free of the teach-subject nudge", async () => {
+    const s = await createCoordinator();
+    const game = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    s.bot.completionNote = "Made the cat jump. [[READY_TO_PLAY]]";
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "All set!";
+      await callTool("delegate_build", { creationId: game.id, instructions: "build it" });
+      return "On it!";
+    };
+
+    await s.coordinator.send(s.profile.id, "build it");
+    await s.drain();
+
+    const completionPrompt = s.bit.prompts.find((p) => p.includes("is ready"));
+    expect(completionPrompt).toBeDefined();
+    expect(completionPrompt).not.toContain("teach-subject");
   });
 });
