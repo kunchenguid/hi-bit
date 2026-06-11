@@ -50,8 +50,38 @@ describe("createBotResourceLoader skills", () => {
     expect(skill?.description).toMatch(/3d|three|world/i);
   });
 
+  it("loads the bundled create-lesson skill from a skillsDir", () => {
+    const loader = createBotResourceLoader(undefined, { skillsDir: resolve("skills") });
+    const { skills } = loader.getSkills();
+    const skill = skills.find((s) => s.name === "create-lesson");
+    expect(skill).toBeDefined();
+    expect(skill?.description).toMatch(/lesson|learning|subject/i);
+  });
+
   it("exposes no skills when no skillsDir is given", () => {
     expect(createBotResourceLoader().getSkills()).toEqual({ skills: [], diagnostics: [] });
+  });
+});
+
+describe("createBitResourceLoader skills", () => {
+  it("loads the bundled teach-subject skill from the curated skills-bit dir", () => {
+    const { loader } = createBitResourceLoader(undefined, { skillsDir: resolve("skills-bit") });
+    const { skills } = loader.getSkills();
+    const skill = skills.find((s) => s.name === "teach-subject");
+    expect(skill).toBeDefined();
+    expect(skill?.description).toMatch(/teach|learn|subject/i);
+  });
+
+  it("never offers Bit the bots' skills (separate curated dir)", () => {
+    const { loader } = createBitResourceLoader(undefined, { skillsDir: resolve("skills-bit") });
+    const names = loader.getSkills().skills.map((s) => s.name);
+    expect(names).not.toContain("game-assets");
+    expect(names).not.toContain("create-2d-game");
+    expect(names).not.toContain("create-3d-game");
+  });
+
+  it("exposes no skills when no skillsDir is given (tests, older callers)", () => {
+    expect(createBitResourceLoader().loader.getSkills()).toEqual({ skills: [], diagnostics: [] });
   });
 });
 
@@ -92,7 +122,11 @@ describe("buildBotSystemPrompt", () => {
     expect(prompt).toContain("isolated Workbench");
     expect(prompt).toContain("small visible changes");
     expect(prompt).toContain("Ask one short question");
-    expect(prompt).not.toMatch(/curriculum|knowledge point|dream|mastery/i);
+    // The bot works with curriculum.json as a job artifact now, but the
+    // builder-skills teaching machinery stays out of its world entirely...
+    expect(prompt).not.toMatch(/knowledge point|dream|skill mastery|learning map/i);
+    // ...and whatever it knows, it never narrates internals at the kid.
+    expect(prompt).toMatch(/Do not mention internal product plans/);
   });
 
   it("forbids code-drawn sprite art and points animated art at the game-assets skill", () => {
@@ -115,6 +149,19 @@ describe("buildBotSystemPrompt", () => {
 
   it("tells the bot to tag a finished playable build with READY_TO_PLAY", () => {
     expect(buildBotSystemPrompt()).toContain("[[READY_TO_PLAY]]");
+  });
+
+  it("points teaching jobs at the create-lesson skill and guards mastery, in both sources", () => {
+    const runtimePrompt = buildBotSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bot.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      expect(prompt).toContain("create-lesson skill");
+      expect(prompt).toMatch(/learning creation|lessons/i);
+      expect(prompt).toContain("curriculum.json");
+      // The one hard data rule: a bot never edits mastery.
+      expect(prompt).toMatch(/never change a mastery/i);
+    }
   });
 
   it("offers the web tools for looking things up while keeping the builder's details private", () => {
@@ -294,6 +341,23 @@ describe("buildBitSystemPrompt", () => {
       expect(prompt).toMatch(/concrete choices/i);
       // Bit speaks of itself in the first person.
       expect(prompt).toMatch(/first person/i);
+    }
+  });
+
+  it("scopes lessons-are-forbidden to builder skills and points subject asks at teach-subject", () => {
+    const runtimePrompt = buildBitSystemPrompt();
+    const mirroredPrompt = readFileSync(resolve("prompts/bit.md"), "utf8");
+
+    for (const prompt of [runtimePrompt, mirroredPrompt]) {
+      // The "no lessons" rule still holds for the builder-skills curriculum...
+      expect(prompt).toMatch(/builder skills only by building/i);
+      // ...but an explicitly requested subject is the sanctioned exception,
+      // and the whole doctrine lives in the lazily-read skill, not here.
+      expect(prompt).toContain("teach-subject");
+      expect(prompt).toMatch(/learning creation/i);
+      expect(prompt).toMatch(/subjects note/i);
+      // record_progress knows about subject-scoped skills.
+      expect(prompt).toMatch(/record_progress[\s\S]{0,400}subject/i);
     }
   });
 });

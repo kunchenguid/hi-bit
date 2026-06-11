@@ -361,3 +361,97 @@ describe("createProfileTools", () => {
     expect(await readFile(target, "utf8")).toBe("other kid's stuff");
   });
 });
+
+describe("readOnlyRoots (Bit's bundled skills)", () => {
+  async function makeProfileWithSkills() {
+    const base = await makeProfile();
+    const skillsDir = join(base.parent, "skills-bit");
+    await mkdir(join(skillsDir, "teach-subject"), { recursive: true });
+    await writeFile(
+      join(skillsDir, "teach-subject", "SKILL.md"),
+      "# Teaching a subject\nthe doctrine\n",
+    );
+    return { ...base, skillsDir };
+  }
+
+  function toolNamed(tools: ReturnType<typeof createProfileTools>, name: string) {
+    const tool = tools.find((t) => t.name === name);
+    if (!tool) throw new Error(`${name} tool missing`);
+    return (params: unknown) =>
+      tool.execute("call-1", params as never, undefined, () => {}, {} as never);
+  }
+
+  function resultText(result: { content?: Array<{ type: string; text?: string }> }): string {
+    return (result.content ?? [])
+      .map((part) => (part.type === "text" ? (part.text ?? "") : ""))
+      .join("");
+  }
+
+  it("lets read reach a SKILL.md in the extra root by absolute path", async () => {
+    const { profileRoot, skillsDir } = await makeProfileWithSkills();
+    const tools = createProfileTools(profileRoot, { readOnlyRoots: [skillsDir] });
+    const result = await toolNamed(
+      tools,
+      "read",
+    )({
+      path: join(skillsDir, "teach-subject", "SKILL.md"),
+    });
+    expect(resultText(result)).toContain("the doctrine");
+  });
+
+  it("still refuses the skills dir without the option (no silent widening)", async () => {
+    const { profileRoot, skillsDir } = await makeProfileWithSkills();
+    const tools = createProfileTools(profileRoot);
+    const outcome = await toolNamed(
+      tools,
+      "read",
+    )({
+      path: join(skillsDir, "teach-subject", "SKILL.md"),
+    }).then(
+      (result) => ({ threw: false, text: resultText(result) }),
+      (error: unknown) => ({ threw: true, text: String(error) }),
+    );
+    expect(outcome.threw || /outside/i.test(outcome.text)).toBe(true);
+    expect(outcome.text).not.toContain("the doctrine");
+  });
+
+  it("keeps the extra root strictly read-only: write into it is refused", async () => {
+    const { profileRoot, skillsDir } = await makeProfileWithSkills();
+    const tools = createProfileTools(profileRoot, { readOnlyRoots: [skillsDir] });
+    const target = join(skillsDir, "teach-subject", "SKILL.md");
+    const outcome = await toolNamed(
+      tools,
+      "write",
+    )({ path: target, content: "hacked" }).then(
+      (result) => ({ threw: false, text: resultText(result) }),
+      () => ({ threw: true, text: "" }),
+    );
+    expect(outcome.threw || /outside/i.test(outcome.text)).toBe(true);
+    expect(await readFile(target, "utf8")).toContain("the doctrine");
+  });
+
+  it("does not widen the jail beyond the extra root itself", async () => {
+    const { profileRoot, skillsDir, authDir } = await makeProfileWithSkills();
+    const tools = createProfileTools(profileRoot, { readOnlyRoots: [skillsDir] });
+    // A sibling of the extra root (the credential file) stays refused...
+    const outcome = await toolNamed(
+      tools,
+      "read",
+    )({ path: join(authDir, "codex.json") }).then(
+      (result) => ({ threw: false, text: resultText(result) }),
+      (error: unknown) => ({ threw: true, text: String(error) }),
+    );
+    expect(outcome.threw || /outside/i.test(outcome.text)).toBe(true);
+    // ...and a string-prefix cousin of the extra root is refused too.
+    const cousin = await toolNamed(
+      tools,
+      "read",
+    )({
+      path: `${skillsDir}-evil/x.md`,
+    }).then(
+      (result) => ({ threw: false, text: resultText(result) }),
+      (error: unknown) => ({ threw: true, text: String(error) }),
+    );
+    expect(cousin.threw || /outside/i.test(cousin.text)).toBe(true);
+  });
+});

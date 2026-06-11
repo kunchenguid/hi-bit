@@ -25,6 +25,13 @@ export type ProfileDirectMutation = {
 
 type ProfileToolsOptions = {
   onMutation?: (mutation: ProfileDirectMutation) => Promise<void> | void;
+  /**
+   * Extra roots the READ-side tools (read/ls/grep/find) may also reach -
+   * e.g. Bit's bundled skills dir, whose SKILL.md paths the system prompt
+   * tells Bit to read. Strictly read-only: `write`/`edit` stay confined to
+   * creation main-workbench directories regardless of this list.
+   */
+  readOnlyRoots?: string[];
 };
 
 /**
@@ -74,6 +81,32 @@ export function resolveWithinProfile(profileRoot: string, requested: string): st
   return abs;
 }
 
+/**
+ * Resolve a path for the READ-side tools: inside the profile as usual, or
+ * inside one of the extra read-only roots (each checked with the same
+ * canonical, symlink-safe boundary test). Relative paths stay anchored to the
+ * profile root, so the extra roots are only reachable by the absolute paths
+ * the system prompt hands the model (a skill's SKILL.md location).
+ */
+function resolveReadablePath(
+  profileRoot: string,
+  readOnlyRoots: string[],
+  requested: string,
+): string {
+  if (isAbsolute(requested)) {
+    for (const root of readOnlyRoots) {
+      const rootAbs = resolve(root);
+      const abs = resolve(requested);
+      const realRoot = canonicalize(rootAbs);
+      const canonical = canonicalize(abs);
+      if (canonical === realRoot || canonical.startsWith(realRoot + sep)) {
+        return abs;
+      }
+    }
+  }
+  return resolveWithinProfile(profileRoot, requested);
+}
+
 function resolveWithinMainWorkbench(profileRoot: string, requested: string): string {
   const abs = resolveWithinProfile(profileRoot, requested);
   const realRoot = canonicalize(resolve(profileRoot));
@@ -101,24 +134,26 @@ function mainWorkbenchMutation(
   return { projectId: parts[1], path: parts.join("/"), tool };
 }
 
-function readOperations(profileRoot: string): ReadOperations {
+type ReadResolver = (requested: string) => string;
+
+function readOperations(resolveRead: ReadResolver): ReadOperations {
   return {
-    readFile: (path) => readFile(resolveWithinProfile(profileRoot, path)),
-    access: (path) => access(resolveWithinProfile(profileRoot, path)).then(() => {}),
+    readFile: (path) => readFile(resolveRead(path)),
+    access: (path) => access(resolveRead(path)).then(() => {}),
     // Detect by extension only, after guarding the path: never an unguarded
     // disk touch, while still letting the tool inline real images it reads
     // through the guarded readFile above.
     detectImageMimeType: async (path) => {
-      resolveWithinProfile(profileRoot, path);
+      resolveRead(path);
       return imageMimeFromExtension(path);
     },
   };
 }
 
-function lsOperations(profileRoot: string): LsOperations {
+function lsOperations(resolveRead: ReadResolver): LsOperations {
   return {
     exists: async (path) => {
-      const abs = resolveWithinProfile(profileRoot, path);
+      const abs = resolveRead(path);
       try {
         await access(abs);
         return true;
@@ -126,16 +161,15 @@ function lsOperations(profileRoot: string): LsOperations {
         return false;
       }
     },
-    stat: (path) => stat(resolveWithinProfile(profileRoot, path)),
-    readdir: (path) => readdir(resolveWithinProfile(profileRoot, path)),
+    stat: (path) => stat(resolveRead(path)),
+    readdir: (path) => readdir(resolveRead(path)),
   };
 }
 
-function grepOperations(profileRoot: string): GrepOperations {
+function grepOperations(resolveRead: ReadResolver): GrepOperations {
   return {
-    isDirectory: async (path) =>
-      (await stat(resolveWithinProfile(profileRoot, path))).isDirectory(),
-    readFile: (path) => readFile(resolveWithinProfile(profileRoot, path), "utf8"),
+    isDirectory: async (path) => (await stat(resolveRead(path))).isDirectory(),
+    readFile: (path) => readFile(resolveRead(path), "utf8"),
   };
 }
 
@@ -163,10 +197,10 @@ function editOperations(profileRoot: string, options: ProfileToolsOptions = {}):
   };
 }
 
-function findOperations(profileRoot: string): FindOperations {
+function findOperations(resolveRead: ReadResolver): FindOperations {
   return {
     exists: async (path) => {
-      const abs = resolveWithinProfile(profileRoot, path);
+      const abs = resolveRead(path);
       try {
         await access(abs);
         return true;
@@ -174,25 +208,30 @@ function findOperations(profileRoot: string): FindOperations {
         return false;
       }
     },
-    glob: (pattern, cwd, options) =>
-      jailedGlob(resolveWithinProfile(profileRoot, cwd), pattern, options),
+    glob: (pattern, cwd, options) => jailedGlob(resolveRead(cwd), pattern, options),
   };
 }
 
 /**
- * Read/grep/find/ls confined to one profile. Pass these as `customTools` on the
- * coordinating session, leaving `noTools: "builtin"` so the unguarded built-in
- * filesystem tools stay off and these are the only way Bit reaches disk.
+ * Read/grep/find/ls confined to one profile (plus any read-only extra roots).
+ * Pass these as `customTools` on the coordinating session, leaving
+ * `noTools: "builtin"` so the unguarded built-in filesystem tools stay off and
+ * these are the only way Bit reaches disk.
  */
-export function createProfileReadTools(profileRoot: string): ToolDefinition[] {
+export function createProfileReadTools(
+  profileRoot: string,
+  options: Pick<ProfileToolsOptions, "readOnlyRoots"> = {},
+): ToolDefinition[] {
+  const resolveRead: ReadResolver = (requested) =>
+    resolveReadablePath(profileRoot, options.readOnlyRoots ?? [], requested);
   // The per-tool factories return definitions parameterized by their own
   // schema; widening to the base ToolDefinition trips TS function-arg variance
   // on `renderCall` (harmless at runtime), so each is cast to the base type.
   return [
-    createReadToolDefinition(profileRoot, { operations: readOperations(profileRoot) }),
-    createLsToolDefinition(profileRoot, { operations: lsOperations(profileRoot) }),
-    createGrepToolDefinition(profileRoot, { operations: grepOperations(profileRoot) }),
-    createFindToolDefinition(profileRoot, { operations: findOperations(profileRoot) }),
+    createReadToolDefinition(profileRoot, { operations: readOperations(resolveRead) }),
+    createLsToolDefinition(profileRoot, { operations: lsOperations(resolveRead) }),
+    createGrepToolDefinition(profileRoot, { operations: grepOperations(resolveRead) }),
+    createFindToolDefinition(profileRoot, { operations: findOperations(resolveRead) }),
   ] as ToolDefinition[];
 }
 
@@ -212,7 +251,7 @@ export function createProfileTools(
   options: ProfileToolsOptions = {},
 ): ToolDefinition[] {
   return [
-    ...createProfileReadTools(profileRoot),
+    ...createProfileReadTools(profileRoot, options),
     createWriteToolDefinition(profileRoot, { operations: writeOperations(profileRoot, options) }),
     createEditToolDefinition(profileRoot, { operations: editOperations(profileRoot, options) }),
   ] as ToolDefinition[];

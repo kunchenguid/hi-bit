@@ -9,6 +9,7 @@ import {
 } from "@shared/config";
 import type { AppConfigView, AppInfo, Platform } from "@shared/ipc";
 import { buildLearningProgress } from "@shared/learning";
+import { type SubjectProgressView, subjectProgressView } from "@shared/subjects";
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { CodexAuthService } from "./auth/codexAuth";
 import { BitCoordinatorService } from "./bit/bitCoordinatorService";
@@ -22,6 +23,7 @@ import { PiRuntimeService } from "./pi/piRuntimeService";
 import { PreviewService } from "./preview/previewService";
 import { ProfileService } from "./profiles/profileService";
 import { ProjectService } from "./projects/projectService";
+import { listSubjectSnapshots } from "./projects/subjectFiles";
 import { readJsonFile, writeJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
 import { seedCodexAuthIfMissing } from "./storage/seedAuth";
@@ -80,6 +82,17 @@ function hiBitRootFor(): string {
  */
 function skillsDirFor(): string {
   return app.isPackaged ? join(process.resourcesPath, "skills") : join(__dirname, "../../skills");
+}
+
+/**
+ * Bit's own curated skills (currently just `teach-subject`), deliberately a
+ * separate directory from the bots' `skills/` so the coordinator never sees
+ * builder-shaped doctrine and vice versa. Same dev/packaged split as above.
+ */
+function bitSkillsDirFor(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, "skills-bit")
+    : join(__dirname, "../../skills-bit");
 }
 
 /**
@@ -195,6 +208,7 @@ async function createServices(layout: HiBitLayout): Promise<Services> {
     modelId,
     thinkingLevel: config.thinkingSpeed,
     getFreshAccessToken: () => auth.getFreshAccessToken(),
+    skillsDir: bitSkillsDirFor(),
     mascotAssetPath: mascotAssetFor(),
     appSurface: appControl.appSurface,
     browserHost: appControl.browserHost,
@@ -321,7 +335,23 @@ export function registerIpc(services: Services): void {
 
   ipcMain.handle("hibit:progress:get", async (_event, profileId: string) => {
     const profile = await services.profiles.get(profileId);
-    return buildLearningProgress(profile.skillMastery, profile.roadmap);
+    // Learning subjects live in each learning creation's files; a broken or
+    // missing file degrades to fewer subjects, never a failed progress view.
+    let subjects: SubjectProgressView[] = [];
+    try {
+      const portfolio = await services.projects.list(profileId);
+      const snapshots = await listSubjectSnapshots(
+        portfolio.map((project) => ({
+          id: project.id,
+          title: project.title,
+          mainWorkbenchDir: services.projects.pathsFor(profileId, project.id).mainWorkbenchDir,
+        })),
+      );
+      subjects = snapshots.map(subjectProgressView);
+    } catch (error) {
+      console.error(`Failed to read learning subjects for profile ${profileId}:`, error);
+    }
+    return buildLearningProgress(profile.skillMastery, profile.roadmap, subjects);
   });
 
   ipcMain.handle("hibit:preview:play", async (_event, profileId: string, projectId: string) => {

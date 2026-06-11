@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChatEvent, ToolContent } from "@shared/chat";
@@ -1929,5 +1929,130 @@ describe("buildCompletionPrompt", () => {
         readyToPlay: true,
       }),
     ).not.toContain("start_preview");
+  });
+});
+
+describe("learning subjects (teach-anything)", () => {
+  const MATH_CURRICULUM = {
+    schemaVersion: 1,
+    title: "Math",
+    status: "active",
+    skills: [
+      { id: "count-up-score", label: "Count a game score up and down", mastery: "unseen" },
+      { id: "add-two-digit", label: "Add two-digit numbers", mastery: "grasped" },
+    ],
+  };
+
+  async function seedLearningCreation(
+    s: Awaited<ReturnType<typeof createCoordinator>>,
+    title = "Math World",
+  ) {
+    const project = await s.projects.create(s.profile.id, { title });
+    const workbench = s.projects.pathsFor(s.profile.id, project.id).mainWorkbenchDir;
+    const learningDir = join(workbench, "learning");
+    await mkdir(join(learningDir, "learning-records"), { recursive: true });
+    await writeFile(
+      join(learningDir, "curriculum.json"),
+      JSON.stringify(MATH_CURRICULUM, null, 2),
+      "utf8",
+    );
+    await writeFile(join(learningDir, "goal.md"), "Do the score math in my own games\n", "utf8");
+    await writeFile(
+      join(learningDir, "learning-records", "0001-knows-counting.md"),
+      "# Knows counting to 100\n\nShowed it while playing.\n",
+      "utf8",
+    );
+    return { project, learningDir };
+  }
+
+  it("appends the subjects note (goal, skill ids, records) to the turn prompt", async () => {
+    const s = await createCoordinator();
+    const { project } = await seedLearningCreation(s);
+    s.bit.handler = async () => "Let's keep going with Math!";
+
+    await s.coordinator.send(s.profile.id, "can we do more math?");
+    await s.drain();
+
+    const prompt = s.bit.prompts.at(-1);
+    expect(prompt).toContain(`Subject "Math" [creation id: ${project.id}] (active)`);
+    expect(prompt).toContain("Goal: Do the score math in my own games");
+    expect(prompt).toContain("[unseen] count-up-score: Count a game score up and down");
+    expect(prompt).toContain("Knows counting to 100");
+    // The learning map still rides along; the subjects note comes after it.
+    expect(prompt).toMatch(/learning map/i);
+  });
+
+  it("adds no subjects note for a builder with only ordinary creations", async () => {
+    const s = await createCoordinator();
+    await s.projects.create(s.profile.id, { title: "Cat Game" });
+    s.bit.handler = async () => "Hi!";
+
+    await s.coordinator.send(s.profile.id, "hi");
+    await s.drain();
+
+    expect(s.bit.prompts.at(-1)).not.toContain("Learning subjects");
+  });
+
+  it("records subject progress into curriculum.json, leaving builder skills untouched", async () => {
+    const s = await createCoordinator();
+    const { project, learningDir } = await seedLearningCreation(s);
+    s.bit.handler = async ({ callTool }) => {
+      await callTool("record_progress", {
+        subject: project.id,
+        updates: [
+          { skill: "count-up-score", status: "did" },
+          { skill: "add-two-digit", status: "did_unprompted" },
+          { skill: "not-a-skill", status: "did" },
+        ],
+      });
+      return "You really get score counting now!";
+    };
+
+    await s.coordinator.send(s.profile.id, "the score goes up by ten each coin!");
+    await s.drain();
+
+    const onDisk = JSON.parse(await readFile(join(learningDir, "curriculum.json"), "utf8")) as {
+      skills: Array<{ id: string; mastery: string }>;
+    };
+    expect(onDisk.skills.map((skill) => skill.mastery)).toEqual(["grasped", "fluent"]);
+    // Subject progress never leaks into the builder-skills ledger.
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.skillMastery).toEqual({});
+  });
+
+  it("tells Bit plainly when the subject creation has no curriculum yet", async () => {
+    const s = await createCoordinator();
+    const project = await s.projects.create(s.profile.id, { title: "Cat Game" });
+    let toolText = "";
+    s.bit.handler = async ({ callTool }) => {
+      const result = (await callTool("record_progress", {
+        subject: project.id,
+        updates: [{ skill: "anything", status: "did" }],
+      })) as { content: Array<{ text: string }> };
+      toolText = result.content[0]?.text ?? "";
+      return "hm";
+    };
+
+    await s.coordinator.send(s.profile.id, "test");
+    await s.drain();
+
+    expect(toolText).toMatch(/no learning curriculum/i);
+  });
+
+  it("keeps recording builder skills when subject is absent (no behavior drift)", async () => {
+    const s = await createCoordinator();
+    await seedLearningCreation(s);
+    s.bit.handler = async ({ callTool }) => {
+      await callTool("record_progress", {
+        updates: [{ skill: "ask-creation", status: "did" }],
+      });
+      return "Nice!";
+    };
+
+    await s.coordinator.send(s.profile.id, "make me a maze");
+    await s.drain();
+
+    const profile = await s.profiles.get(s.profile.id);
+    expect(profile.skillMastery).toEqual({ "ask-creation": "grasped" });
   });
 });
