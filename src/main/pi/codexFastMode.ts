@@ -39,6 +39,11 @@ export function applyCodexFastModeServiceTier(
   return { ...payload, service_tier: CODEX_FAST_MODE_SERVICE_TIER };
 }
 
+/**
+ * Inline Pi extension that requests OpenAI Codex fast mode for supported models.
+ * This stays non-configurable and silently skips unsupported/custom models so
+ * user-selected providers keep working unchanged.
+ */
 function createCodexFastModeExtension(): Extension {
   const sourceInfo = createSyntheticSourceInfo(CODEX_FAST_MODE_EXTENSION_PATH, {
     source: "hi-bit",

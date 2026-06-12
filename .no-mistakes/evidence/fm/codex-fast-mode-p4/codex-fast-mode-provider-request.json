@@ -1,0 +1,38 @@
+{
+  "scenario": "Codex fast mode provider request payload transform",
+  "checks": {
+    "directSupportedGpt55": {
+      "model": "gpt-5.5",
+      "text": {
+        "format": {
+          "type": "text"
+        }
+      },
+      "service_tier": "priority"
+    },
+    "directSupportedGpt54": {
+      "model": "gpt-5.4",
+      "service_tier": "priority"
+    },
+    "directUnsupportedCustom": null,
+    "bitResourceLoaderHook": {
+      "model": "gpt-5.5",
+      "text": {
+        "format": {
+          "type": "text"
+        }
+      },
+      "service_tier": "priority"
+    },
+    "botResourceLoaderHook": {
+      "model": "gpt-5.5",
+      "text": {
+        "format": {
+          "type": "text"
+        }
+      },
+      "service_tier": "priority"
+    }
+  },
+  "interpretation": "Bit and bot resource loaders register before_provider_request hooks that add service_tier=priority for supported openai-codex gpt-5.4/gpt-5.5 models while leaving unsupported/custom models unchanged and preserving text settings."
+}
