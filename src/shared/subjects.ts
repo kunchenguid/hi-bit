@@ -47,6 +47,18 @@ export type SubjectSkill = {
   addedAt?: string;
 };
 
+/** Code-computed state for the lesson pages that already exist in a subject creation. */
+export type SubjectLessonState = {
+  /** Curriculum skill ids with lesson pages detected on disk, in curriculum order. */
+  builtSkillIds: string[];
+  /** The newest contiguous built lesson in curriculum order, null when lesson one is missing. */
+  newestBuiltSkillId: string | null;
+  /** One-based lesson number for `newestBuiltSkillId`, null when there is none. */
+  newestBuiltLessonNumber: number | null;
+  /** The next curriculum skill whose lesson should be built after the newest built one. */
+  nextUnbuiltSkillId: string | null;
+};
+
 /** The shape of `learning/curriculum.json`. */
 export type SubjectCurriculum = {
   schemaVersion: 1;
@@ -70,6 +82,8 @@ export type SubjectSnapshot = {
   goal: string | null;
   /** Titles of the most recent learning records, newest first. */
   recentLearningRecords: string[];
+  /** Lesson pages detected on disk. Missing when there are no usable lesson files. */
+  lessonState?: SubjectLessonState;
 };
 
 /** A subject in the read-only progress view (both reflection surfaces). */
@@ -204,6 +218,7 @@ export function buildSubjectsNote(snapshots: SubjectSnapshot[]): string | null {
     } else {
       lines.push("  Skills: none yet - a research build should write learning/curriculum.json.");
     }
+    appendLessonStateLines(lines, snapshot);
     if (snapshot.recentLearningRecords.length > 0) {
       lines.push("  Recent learning records:");
       for (const title of snapshot.recentLearningRecords) {
@@ -217,4 +232,23 @@ export function buildSubjectsNote(snapshots: SubjectSnapshot[]): string | null {
     );
   }
   return lines.join("\n");
+}
+
+function appendLessonStateLines(lines: string[], snapshot: SubjectSnapshot): void {
+  const state = snapshot.lessonState;
+  if (!state?.newestBuiltSkillId || !state.nextUnbuiltSkillId) return;
+  const newest = snapshot.curriculum.skills.find((skill) => skill.id === state.newestBuiltSkillId);
+  const next = snapshot.curriculum.skills.find((skill) => skill.id === state.nextUnbuiltSkillId);
+  if (!newest || !next) return;
+  lines.push("  Lesson build state:");
+  lines.push(
+    `    Built lesson skills: ${state.builtSkillIds.length > 0 ? state.builtSkillIds.join(", ") : "none detected"}`,
+  );
+  lines.push(
+    `    Newest built lesson: ${newest.id} (lesson ${state.newestBuiltLessonNumber}): ${newest.label}`,
+  );
+  lines.push(`    Next unbuilt lesson: ${next.id}: ${next.label}`);
+  lines.push(
+    "    One-ahead chat trigger: if this turn shows the builder reached, played, or finished the newest built lesson, call delegate_build exactly once now for the next unbuilt lesson. In the build instructions, name that skill, include what the learning records say, and say this is a lesson job that must not edit learning/curriculum.json. If the builder has not reached the newest built lesson, do not delegate just because a next lesson exists. You may re-read teach-subject for the full doctrine.",
+  );
 }

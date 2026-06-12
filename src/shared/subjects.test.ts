@@ -165,6 +165,44 @@ describe("buildSubjectsNote", () => {
     expect(note).toContain("learning/curriculum.json");
   });
 
+  it("adds one-ahead lesson state only when there is a next lesson to build", () => {
+    const note = buildSubjectsNote([
+      snapshot({
+        lessonState: {
+          builtSkillIds: ["count-up-score"],
+          newestBuiltSkillId: "count-up-score",
+          newestBuiltLessonNumber: 1,
+          nextUnbuiltSkillId: "add-two-digit",
+        },
+      }),
+    ]);
+
+    expect(note).toContain("Lesson build state:");
+    expect(note).toContain("Built lesson skills: count-up-score");
+    expect(note).toContain(
+      "Newest built lesson: count-up-score (lesson 1): Count a game score up and down",
+    );
+    expect(note).toContain("Next unbuilt lesson: add-two-digit: Add two-digit numbers");
+    expect(note).toContain("call delegate_build exactly once now");
+    expect(note).toContain("must not edit learning/curriculum.json");
+  });
+
+  it("keeps lesson state quiet when no chat-turn trigger is possible", () => {
+    const note = buildSubjectsNote([
+      snapshot({
+        lessonState: {
+          builtSkillIds: ["count-up-score", "add-two-digit"],
+          newestBuiltSkillId: "add-two-digit",
+          newestBuiltLessonNumber: 2,
+          nextUnbuiltSkillId: null,
+        },
+      }),
+    ]);
+
+    expect(note).not.toContain("Lesson build state:");
+    expect(note).not.toContain("One-ahead chat trigger");
+  });
+
   it("keeps paused subjects to one line", () => {
     const note = buildSubjectsNote([
       snapshot({ curriculum: { ...MATH, status: "paused" } }),

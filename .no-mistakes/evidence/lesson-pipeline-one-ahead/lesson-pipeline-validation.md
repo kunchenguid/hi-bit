@@ -11,6 +11,7 @@ This evidence validates the learning-subject pipeline behavior from the coordina
 5. A later bot completion is marked playable.
 6. Bit's later completion prompt explicitly forbids delegating another build, preventing the runaway lesson chain.
 7. A poisoned-session variant corrupts a completed job file; the completion prompt still forbids another build.
+8. A stale chat-turn variant keeps an old pre-one-ahead `teach-subject` skill read in session history, detects built lesson files from the learning creation, and delegates exactly one next lesson from the per-turn subjects note.
 
 ## Evidence From Tested Prompt Surface
 
@@ -28,10 +29,21 @@ Tell the builder this lesson is waiting, but do NOT delegate another build now, 
 
 The unreadable-job-file guard returns the same later-build stop instruction, so a read hiccup cannot reclassify the completion as the first build and unleash a chain.
 
+The tested stale chat-turn prompt contains the deterministic lesson state and go signal even when the current skill has not been read in that session:
+
+```text
+Built lesson skills: count-up-score, add-two-digit
+Newest built lesson: add-two-digit (lesson 2)
+Next unbuilt lesson: subtract-spending
+One-ahead chat trigger: if this turn shows the builder reached, played, or finished the newest built lesson, call delegate_build exactly once now for the next unbuilt lesson.
+```
+
+The test handler delegates only when that note is present, and the later completion prompt still says `do NOT delegate another build`.
+
 ## Commands Run
 
 ```bash
-pnpm vitest run src/main/bit/bitCoordinatorService.test.ts --testNamePattern "completion|learning subjects|teach-subject|lesson chaining"
+pnpm vitest run src/main/bit/bitCoordinatorService.test.ts --testNamePattern "subjects|lesson state|one-ahead|completion|teach-subject|learning subjects"
 pnpm vitest run src/main/pi/piResources.test.ts src/main/projects/subjectFiles.test.ts src/shared/subjects.test.ts
 ```
 
