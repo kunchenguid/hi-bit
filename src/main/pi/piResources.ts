@@ -1,8 +1,5 @@
-import {
-  createExtensionRuntime,
-  loadSkillsFromDir,
-  type ResourceLoader,
-} from "@earendil-works/pi-coding-agent";
+import { loadSkillsFromDir, type ResourceLoader } from "@earendil-works/pi-coding-agent";
+import { createCodexFastModeExtensionsResult } from "./codexFastMode";
 
 /**
  * The bot's system prompt. Mirrors `prompts/bot.md` (the product-facing source
@@ -127,8 +124,9 @@ export function createResourceLoader(
   systemPrompt: string,
   options: ResourceLoaderOptions = {},
 ): ResourceLoader {
+  const extensionsResult = createCodexFastModeExtensionsResult();
   const loader: ResourceLoader = {
-    getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
+    getExtensions: () => extensionsResult,
     getSkills: () =>
       options.skillsDir
         ? loadSkillsFromDir({ dir: options.skillsDir, source: "user" })

@@ -1,5 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type {
+  BeforeProviderRequestEvent,
+  ExtensionContext,
+  ResourceLoader,
+} from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 import {
   buildBitSystemPrompt,
@@ -14,16 +19,31 @@ describe("createResourceLoader", () => {
     const loader = createResourceLoader("System prompt");
     await loader.reload();
 
+    const extensionsResult = loader.getExtensions();
     expect(loader.getSystemPrompt()).toBe("System prompt");
     expect(loader.getAppendSystemPrompt()).toEqual([]);
-    expect(loader.getExtensions().extensions).toEqual([]);
-    expect(loader.getExtensions().errors).toEqual([]);
+    expect(extensionsResult.errors).toEqual([]);
+    expect(extensionsResult.extensions).toHaveLength(1);
+    expect(extensionsResult.extensions[0].sourceInfo.source).toBe("hi-bit");
+    expect(extensionsResult.extensions[0].handlers.has("before_provider_request")).toBe(true);
     expect(loader.getSkills()).toEqual({ skills: [], diagnostics: [] });
     expect(loader.getPrompts()).toEqual({ prompts: [], diagnostics: [] });
     expect(loader.getThemes()).toEqual({ themes: [], diagnostics: [] });
     expect(loader.getAgentsFiles()).toEqual({ agentsFiles: [] });
   });
 });
+
+async function applyFastModeHook(loader: ResourceLoader) {
+  const extension = loader.getExtensions().extensions[0];
+  const [handler] = extension.handlers.get("before_provider_request") ?? [];
+  return handler(
+    {
+      type: "before_provider_request",
+      payload: { model: "gpt-5.5" },
+    } satisfies BeforeProviderRequestEvent,
+    { model: { provider: "openai-codex", id: "gpt-5.5" } } as ExtensionContext,
+  );
+}
 
 describe("createBotResourceLoader skills", () => {
   it("loads the bundled game-assets skill from a skillsDir", () => {
@@ -61,6 +81,13 @@ describe("createBotResourceLoader skills", () => {
   it("exposes no skills when no skillsDir is given", () => {
     expect(createBotResourceLoader().getSkills()).toEqual({ skills: [], diagnostics: [] });
   });
+
+  it("registers the Codex fast mode request hook for bot sessions", async () => {
+    await expect(applyFastModeHook(createBotResourceLoader())).resolves.toEqual({
+      model: "gpt-5.5",
+      service_tier: "priority",
+    });
+  });
 });
 
 describe("createBitResourceLoader skills", () => {
@@ -82,6 +109,13 @@ describe("createBitResourceLoader skills", () => {
 
   it("exposes no skills when no skillsDir is given (tests, older callers)", () => {
     expect(createBitResourceLoader().loader.getSkills()).toEqual({ skills: [], diagnostics: [] });
+  });
+
+  it("registers the Codex fast mode request hook for Bit sessions", async () => {
+    await expect(applyFastModeHook(createBitResourceLoader().loader)).resolves.toEqual({
+      model: "gpt-5.5",
+      service_tier: "priority",
+    });
   });
 });
 
