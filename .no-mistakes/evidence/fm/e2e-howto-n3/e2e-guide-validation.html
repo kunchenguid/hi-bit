@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hi-Bit E2E Guide Validation</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5d6980;
+      --paper: #fffaf0;
+      --card: #ffffff;
+      --line: #e7dcc8;
+      --ok: #147a4f;
+      --ok-bg: #e7f7ef;
+      --warn: #9a5a00;
+      --code: #263142;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #ffe7b5 0, transparent 34rem), var(--paper);
+      color: var(--ink);
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 40px 20px 56px;
+    }
+
+    h1,
+    h2 {
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 4rem);
+      letter-spacing: -0.05em;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      margin-bottom: 14px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 28px;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #a9e2c3;
+      border-radius: 999px;
+      background: var(--ok-bg);
+      color: var(--ok);
+      font-weight: 700;
+      padding: 10px 14px;
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 20px 60px rgba(63, 43, 18, 0.08);
+      padding: 22px;
+      min-width: 0;
+    }
+
+    .checks {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .checks li {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .tick {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-grid;
+      place-items: center;
+      background: var(--ok-bg);
+      color: var(--ok);
+      font-weight: 900;
+      font-size: 0.9rem;
+    }
+
+    code {
+      border-radius: 6px;
+      background: #f3eadc;
+      color: var(--code);
+      padding: 0.1em 0.35em;
+      overflow-wrap: anywhere;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--code);
+    }
+
+    .excerpt {
+      max-height: 520px;
+      overflow: auto;
+      border-radius: 18px;
+      background: #fff7e8;
+      border: 1px solid var(--line);
+      padding: 18px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 760px) {
+      .hero,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .badge {
+        justify-self: start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div>
+        <h1>E2E Guide Validation</h1>
+        <p class="subtitle">Evidence that <code>AGENTS.md</code> now reads as a practical procedure for agents driving the real Electron app with <code>chrome-devtools-axi</code>, while preserving the operational mechanics requested by the change intent.</p>
+      </div>
+      <div class="badge">Pass - docs behavior demonstrated</div>
+    </section>
+
+    <section class="grid" aria-label="validation checks">
+      <article class="card">
+        <h2>Intent Coverage</h2>
+        <ul class="checks">
+          <li><span class="tick">OK</span><span>Reframes manual E2E as narrow, change-relevant verification instead of a product-wide feature checklist.</span></li>
+          <li><span class="tick">OK</span><span>States repeatable product verification belongs in colocated Vitest tests or focused Electron E2E specs.</span></li>
+          <li><span class="tick">OK</span><span>Preserves remote debugging commands, target selection, <code>CHROME_DEVTOOLS_AXI_BROWSER_URL</code>, and AXI snapshot/click/fill/eval/console usage.</span></li>
+          <li><span class="tick">OK</span><span>Preserves isolated <code>HIBIT_USER_DATA_DIR</code> guidance and Codex auth seeding behavior.</span></li>
+          <li><span class="tick">OK</span><span>Preserves preload sanity checks, renderer console versus main-process log guidance, teardown, and realistic scope limits.</span></li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Regression Checks</h2>
+        <ul class="checks">
+          <li><span class="tick">OK</span><span>Only <code>AGENTS.md</code> changed in the target diff.</span></li>
+          <li><span class="tick">OK</span><span>No generated files or <code>CHANGELOG.md</code> were edited.</span></li>
+          <li><span class="tick">OK</span><span>No em dash characters were found in <code>AGENTS.md</code>.</span></li>
+          <li><span class="tick">OK</span><span>Removed checklist-specific prompts such as <code>For voice input, verify</code> and <code>For subject teaching</code> are absent from the E2E section.</span></li>
+          <li><span class="tick">OK</span><span>The substantially edited Markdown uses short physical lines with one sentence per line for the procedural prose.</span></li>
+        </ul>
+      </article>
+
+      <article class="card full">
+        <h2>Reviewer-Visible Excerpt</h2>
+        <div class="excerpt" role="region" aria-label="AGENTS.md E2E testing excerpt">
+<pre>## E2E testing the Electron app via chrome-devtools-axi
+
+Hi-Bit is a Chromium-based Electron app.
+Agents drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port.
+Use this section as the procedural field guide for clicking around, inspecting the DOM, evaluating JS, and reading console logs.
+
+Manual E2E is for proving the behavior relevant to the current change, investigating a user-visible bug, or checking an integration that cannot be observed in unit tests.
+Before a manual E2E pass, write down the one user-visible behavior you need to prove for the current change and the nearest regression risk.
+Keep the pass narrow unless the task explicitly asks for a broader product sweep.
+Repeatable product verification belongs in automated tests instead of in this file.
+Use colocated Vitest `*.test.ts(x)` files for pure logic, services, IPC adapters, renderer components, and prompt-adjacent deterministic helpers.
+Use a focused Electron E2E spec only when the assertion needs the real main process, preload bridge, Chromium permissions, browser frames, native dialogs, or the on-disk `userData` layout.
+Do not add or move feature-specific checklist items into another permanent manual checklist unless a human explicitly asks for a one-off release checklist.
+
+### Start the app with CDP exposed
+
+Run in background - the dev server stays up for the duration of the test session:
+
+```
+pnpm dev -- --remote-debugging-port=9222
+```
+
+### Fresh state without losing Codex auth (`HIBIT_USER_DATA_DIR`)
+
+```
+HIBIT_USER_DATA_DIR=/tmp/hibit-e2e pnpm dev -- --remote-debugging-port=9222
+```
+
+### Attach chrome-devtools-axi to Electron
+
+```
+chrome-devtools-axi stop
+CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:9222 chrome-devtools-axi start
+```
+
+### Sanity checks
+
+- `eval "typeof window.hibit"` should return `"object"`.
+- `console --type error` surfaces renderer-side errors.
+  Main-process errors only show up in the `pnpm dev` output, not in axi.
+
+### Tearing down
+
+1. Stop the AXI bridge: `chrome-devtools-axi stop`.
+2. Kill the dev server: stop the `pnpm dev` process you started, which is the one running `electron-vite dev`.
+   Otherwise, kill the process holding this run's debugging port with `kill $(lsof -ti :9222)`.
+3. Remove the isolated userData dir if you made one: `rm -rf /tmp/hibit-e2e` or whatever `HIBIT_USER_DATA_DIR` path you used.
+
+### What E2E can and can't cover
+
+- Can: exercise the real renderer, Chromium behavior, focus, accessibility tree, permissions, and iframe rendering for the behavior under test.
+- Can: observe IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
+- Cannot directly: prove hidden main-process internals, token-refresh decisions, Pi runtime turns, or tool-call routing except through their observable side effects.
+- Cannot safely automate Codex OAuth sign-in from a blank machine state.</pre>
+        </div>
+        <p class="meta">Excerpt condensed from <code>AGENTS.md</code> lines 123-254 to make the procedural surface easy to review in PR evidence.</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
