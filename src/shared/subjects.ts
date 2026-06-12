@@ -23,8 +23,9 @@ import { advanceMastery, isMasteryState, type MasteryState, type SkillSignal } f
  * monotonic).
  *
  * This module is pure data + pure functions, consumed by the main process (to
- * read/advance the files and build Bit's per-turn subject note) and by the
- * renderer (the Factory Handbook and the grown-up progress window).
+ * read/advance the files, detect lesson build state, and build Bit's per-turn
+ * subject note) and by the renderer (the Factory Handbook and the grown-up
+ * progress window).
  */
 
 /** Where a subject's files live, relative to the creation's main-workbench. */
@@ -192,10 +193,10 @@ function clip(text: string, max: number): string {
 /**
  * The per-turn subject note appended to Bit's prompt when the builder has
  * learning creations - the same trick as the coaching note: surface the whole
- * map (goal, skills with mastery, recent learning records) and let Bit judge
- * whether this turn is a teaching turn at all. Returns null when there is
- * nothing to say (no active or paused subjects), so quiet profiles pay no
- * prompt tokens for the feature.
+ * map (goal, skills with mastery, detected lesson build state, recent learning
+ * records) and let Bit judge whether this turn is a teaching turn at all.
+ * Returns null when there is nothing to say (no active or paused subjects), so
+ * quiet profiles pay no prompt tokens for the feature.
  */
 export function buildSubjectsNote(snapshots: SubjectSnapshot[]): string | null {
   const active = snapshots.filter((snapshot) => snapshot.curriculum.status === "active");

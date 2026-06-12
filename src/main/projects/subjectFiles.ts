@@ -20,8 +20,8 @@ import { readJsonFile, writeJsonFile } from "../storage/json";
  * `main-workbench/learning/curriculum.json` parses to a valid curriculum -
  * file-presence detection, no project-record flag. Bit and the bots write
  * these files with their ordinary file tools; this module is the main
- * process's defensive read side plus the one guarded write: advancing mastery
- * through `record_progress`.
+ * process's defensive read side, lesson-page state detector, plus the one
+ * guarded write: advancing mastery through `record_progress`.
  */
 
 export type SubjectProjectRef = {
@@ -53,8 +53,8 @@ export function learningPathsFor(mainWorkbenchDir: string): {
 /**
  * Reads one creation's subject snapshot, or null when the creation is not a
  * learning creation (no curriculum file, or a file too broken to sanitize).
- * Every read is defensive: a malformed file a model wrote degrades to less
- * context, never to a thrown turn.
+ * Every read is defensive: a malformed file a model wrote or an unexpected
+ * lesson filename degrades to less context, never to a thrown turn.
  */
 export async function readSubjectSnapshot(
   project: SubjectProjectRef,
