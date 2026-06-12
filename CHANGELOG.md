@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.10](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.9...hi-bit-v0.0.10) (2026-06-12)
+
+
+### Features
+
+* add grown-up conversation reset ([#96](https://github.com/kunchenguid/hi-bit/issues/96)) ([a8d1530](https://github.com/kunchenguid/hi-bit/commit/a8d15305c8d197268be8bbfc773f91620548f039))
+
 ## [0.0.9](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.8...hi-bit-v0.0.9) (2026-06-12)
 
 
