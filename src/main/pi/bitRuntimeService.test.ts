@@ -1,4 +1,9 @@
-import { createAgentSession } from "@earendil-works/pi-coding-agent";
+import {
+  type BeforeProviderRequestEvent,
+  createAgentSession,
+  type ExtensionContext,
+  type ResourceLoader,
+} from "@earendil-works/pi-coding-agent";
 import type { ChatEvent } from "@shared/chat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -102,6 +107,18 @@ class FakeBitSession implements BitSession {
   private emit(event: unknown): void {
     for (const listener of this.listeners) listener(event);
   }
+}
+
+async function applyFastModeHook(loader: ResourceLoader) {
+  const extension = loader.getExtensions().extensions[0];
+  const [handler] = extension.handlers.get("before_provider_request") ?? [];
+  return handler(
+    {
+      type: "before_provider_request",
+      payload: { model: "gpt-5.5" },
+    } satisfies BeforeProviderRequestEvent,
+    { model: { provider: "openai-codex", id: "gpt-5.5" } } as ExtensionContext,
+  );
 }
 
 function baseInput() {
@@ -349,6 +366,21 @@ describe("BitRuntimeService", () => {
     expect(createAgentSession).toHaveBeenCalledWith(
       expect.objectContaining({ thinkingLevel: "high" }),
     );
+  });
+
+  it("passes Bit's production session a resource loader with Codex fast mode enabled", async () => {
+    const service = new BitRuntimeService({
+      agentDir: "/tmp/pi-agent",
+      getFreshAccessToken: async () => "token-1",
+    });
+
+    await service.prompt(baseInput(), "hi", () => {});
+
+    const options = vi.mocked(createAgentSession).mock.calls.at(-1)?.[0];
+    await expect(applyFastModeHook(options?.resourceLoader as ResourceLoader)).resolves.toEqual({
+      model: "gpt-5.5",
+      service_tier: "priority",
+    });
   });
 
   it("defaults to balanced thinking when no level is configured", async () => {
