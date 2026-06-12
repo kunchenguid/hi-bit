@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.8](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.7...hi-bit-v0.0.8) (2026-06-12)
+
+
+### Features
+
+* **bit:** build subject lessons one ahead ([#90](https://github.com/kunchenguid/hi-bit/issues/90)) ([fe8d299](https://github.com/kunchenguid/hi-bit/commit/fe8d2992f0c7ffb5a4a50f10070964aab37af203))
+
 ## [0.0.7](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.6...hi-bit-v0.0.7) (2026-06-11)
 
 
