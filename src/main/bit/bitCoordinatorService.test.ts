@@ -162,7 +162,7 @@ class FakeBitRuntime implements BitRuntime {
       turnId,
       status: "completed",
       assistantText,
-      sessionFile: `/tmp/bit/${input.profileId}.jsonl`,
+      sessionFile: `/tmp/bit/${input.profileId}-${turnId}.jsonl`,
     };
   }
 
@@ -270,6 +270,107 @@ describe("BitCoordinatorService (Bit)", () => {
       { role: "user", text: "hello" },
       { role: "assistant", text: "Hi Ada! What should we build?" },
     ]);
+  });
+
+  it("resets only the profile conversation and starts the next Bit turn with a fresh session", async () => {
+    const s = await createCoordinator();
+    s.bit.handler = async () => "Old hello.";
+    const data = Buffer.from("builder-pixels").toString("base64");
+
+    await s.coordinator.send(s.profile.id, "remember this picture", {
+      mimeType: "image/png",
+      data,
+    });
+    const firstSessionFile = await s.conversation.getBitSessionFile(s.profile.id);
+    const creation = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    await s.projects.rememberPreviewPort(s.profile.id, creation.id, 4321);
+    await s.projects.rememberPreviewCommand(
+      s.profile.id,
+      creation.id,
+      'python3 -m http.server "$PORT" --bind 127.0.0.1',
+    );
+    await s.profiles.markActivitiesOpened(s.profile.id);
+
+    const reset = await s.coordinator.resetConversation(s.profile.id);
+
+    expect(reset.messages).toEqual([]);
+    expect(reset.playableProjectIds).toEqual([creation.id]);
+    expect(await s.conversation.getBitSessionFile(s.profile.id)).toBeUndefined();
+    expect(s.bit.disposedProfiles).toEqual([s.profile.id]);
+    expect(await s.projects.list(s.profile.id)).toMatchObject([{ id: creation.id }]);
+    expect(await s.projects.get(s.profile.id, creation.id)).toMatchObject({
+      previewPort: 4321,
+      lastPreviewCommand: 'python3 -m http.server "$PORT" --bind 127.0.0.1',
+    });
+    expect(await s.profiles.get(s.profile.id)).toMatchObject({
+      unlockStats: { openedActivities: true },
+    });
+    const builderPicture = (
+      await s.conversation.listImages(s.profile.id, { source: "builder" })
+    )[0];
+    expect(builderPicture).toMatchObject({ messageText: "remember this picture" });
+    expect(
+      await s.conversation.resolveImageFile(s.profile.id, builderPicture?.id ?? ""),
+    ).toMatchObject({
+      mimeType: "image/png",
+    });
+
+    s.bit.handler = async () => "Fresh hello.";
+    await s.coordinator.send(s.profile.id, "hello after reset");
+
+    const freshInput = s.bit.inputs.at(-1);
+    expect(freshInput?.sessionFile).toBeUndefined();
+    const secondSessionFile = await s.conversation.getBitSessionFile(s.profile.id);
+    expect(secondSessionFile).toBeTruthy();
+    expect(secondSessionFile).not.toBe(firstSessionFile);
+    await expect(s.conversation.readTranscript(s.profile.id)).resolves.toMatchObject([
+      { role: "user", text: "hello after reset" },
+      { role: "assistant", text: "Fresh hello." },
+    ]);
+  });
+
+  it("blocks conversation reset while Bit is replying", async () => {
+    const s = await createCoordinator();
+    let resetAttempt: Promise<unknown> | undefined;
+    s.bit.afterStart = () => {
+      resetAttempt = s.coordinator.resetConversation(s.profile.id);
+    };
+    s.bit.handler = async () => {
+      await expect(resetAttempt).rejects.toThrow("Wait for Bit to finish before resetting.");
+      return "Still here.";
+    };
+
+    await s.coordinator.send(s.profile.id, "hello");
+  });
+
+  it("blocks conversation reset while a bot build is running", async () => {
+    const s = await createCoordinator();
+    const creation = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let releaseBot: (() => void) | undefined;
+    const botBlocked = new Promise<void>((resolve) => {
+      releaseBot = resolve;
+    });
+    const botStarted = new Promise<void>((resolve) => {
+      s.bot.beforeReturn = async () => {
+        resolve();
+        await botBlocked;
+      };
+    });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done.";
+      await callTool("delegate_build", { creationId: creation.id, instructions: "add stars" });
+      return "A bot is building Cat Jump.";
+    };
+
+    const send = s.coordinator.send(s.profile.id, "start a build");
+    await botStarted;
+    await expect(s.coordinator.resetConversation(s.profile.id)).rejects.toThrow(
+      "Wait for the running build to finish before resetting.",
+    );
+
+    releaseBot?.();
+    await send;
+    await s.drain();
   });
 
   it("sends the builder identity via session context, not duplicated in each turn's prompt", async () => {

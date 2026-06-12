@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import type { ChatImage, ChatMessage, OutgoingImage } from "@shared/chat";
 import { appendJsonl, readJsonFile, readJsonl, writeJsonFile } from "../storage/json";
@@ -20,11 +20,11 @@ const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const BASE64_CHARS = /^[A-Za-z0-9+/]+={0,2}$/;
 
 /**
- * Where a stored picture came from. `builder` is one the kid shared in chat (its
- * metadata is derived from the transcript line); `searched` is one a bot or Bit
- * pulled from the web with `search_image`; `generated` is one a bot drew with
- * `generate_image`. All three live in the same `attachments/` store and are
- * referenceable by id; only `builder` is shown by `list_builder_pictures`.
+ * Where a stored picture came from. `builder` is one the kid shared in chat;
+ * `searched` is one a bot or Bit pulled from the web with `search_image`;
+ * `generated` is one a bot drew with `generate_image`. All three live in the
+ * same `attachments/` store and are referenceable by id; only `builder` is shown
+ * by `list_builder_pictures`.
  */
 export type StoredImageSource = "builder" | "searched" | "generated";
 
@@ -64,13 +64,19 @@ export interface ImageStore {
   ): Promise<{ path: string; mimeType: string } | undefined>;
 }
 
-/** One line in the sidecar index for a non-builder picture (searched or generated). */
+/**
+ * One line in the sidecar index for a stored picture. Builder pictures are also
+ * indexed so their stable ids still resolve after a parent resets the chat
+ * transcript; current transcripts remain the richer source while they exist.
+ */
 type ImageIndexEntry = {
   id: string;
   fileName: string;
   mimeType: string;
-  source: Exclude<StoredImageSource, "builder">;
+  source: StoredImageSource;
   createdAt: string;
+  /** Builder-message text captured before a conversation reset clears the transcript. */
+  messageText?: string;
   meta?: Record<string, unknown>;
 };
 
@@ -178,8 +184,8 @@ export class ConversationService implements ImageStore {
    * Writes an attached picture's bytes to the profile's attachments dir and
    * returns the lean reference (mime type + relative path, no base64) that goes
    * on the persisted message. Keeping the bytes off the transcript line mirrors
-   * the "strip image data from logs" doctrine. Builder attachments stay
-   * transcript-derived, so this does not touch the sidecar index.
+   * the "strip image data from logs" doctrine. The later transcript append adds
+   * the sidecar index line, once the message text and timestamp are known.
    */
   async saveAttachment(profileId: string, image: OutgoingImage): Promise<ChatImage> {
     const { id, path } = await this.writeImageBytes(profileId, image);
@@ -208,15 +214,37 @@ export class ConversationService implements ImageStore {
     return readJsonl<ImageIndexEntry>(this.paths(profileId).attachmentsIndexPath);
   }
 
+  private async appendImageIndexEntry(profileId: string, entry: ImageIndexEntry): Promise<void> {
+    const existing = await this.readImageIndex(profileId);
+    if (existing.some((line) => line.id === entry.id)) return;
+    await appendJsonl(this.paths(profileId).attachmentsIndexPath, entry);
+  }
+
+  private async indexBuilderAttachment(
+    profileId: string,
+    summary: AttachmentSummary,
+  ): Promise<void> {
+    await this.appendImageIndexEntry(profileId, {
+      id: summary.id,
+      fileName: basename(summary.path),
+      mimeType: summary.mimeType,
+      source: "builder",
+      createdAt: summary.sharedAt,
+      messageText: summary.messageText,
+    });
+  }
+
   /** Turns an index line into a summary, using its provenance as the recall text. */
   private indexSummary(entry: ImageIndexEntry): AttachmentSummary {
     const meta = entry.meta ?? {};
     const messageText =
-      typeof meta.query === "string"
-        ? meta.query
-        : typeof meta.prompt === "string"
-          ? meta.prompt
-          : "";
+      typeof entry.messageText === "string"
+        ? entry.messageText
+        : typeof meta.query === "string"
+          ? meta.query
+          : typeof meta.prompt === "string"
+            ? meta.prompt
+            : "";
     return {
       id: entry.id,
       mimeType: entry.mimeType,
@@ -227,19 +255,33 @@ export class ConversationService implements ImageStore {
     };
   }
 
-  /**
-   * The builder's shared pictures, newest first, so Bit can recall one later as
-   * an art-direction reference for a build. Builder-only by design - the kid
-   * should never see machine-found/made pictures as "pictures you shared".
-   */
-  async listAttachments(profileId: string): Promise<AttachmentSummary[]> {
+  private async transcriptAttachmentSummaries(profileId: string): Promise<AttachmentSummary[]> {
     const messages = await this.readStoredMessages(profileId);
     const summaries: AttachmentSummary[] = [];
     for (const message of messages) {
       const summary = attachmentSummary(message);
       if (summary) summaries.push(summary);
     }
-    return summaries.reverse();
+    return summaries;
+  }
+
+  private async indexedImageSummaries(profileId: string): Promise<AttachmentSummary[]> {
+    return (await this.readImageIndex(profileId)).map((entry) => this.indexSummary(entry));
+  }
+
+  /**
+   * The builder's shared pictures, newest first, so Bit can recall one later as
+   * an art-direction reference for a build. Builder-only by design - the kid
+   * should never see machine-found/made pictures as "pictures you shared". The
+   * attachment index is now the durable source, with transcript lines layered on
+   * while they exist so a reset can clear chat history without stranding ids.
+   */
+  async listAttachments(profileId: string): Promise<AttachmentSummary[]> {
+    const transcript = await this.transcriptAttachmentSummaries(profileId);
+    const indexed = (await this.indexedImageSummaries(profileId)).filter(
+      (summary) => summary.source === "builder",
+    );
+    return mergeImageSummaries([...transcript, ...indexed]);
   }
 
   /**
@@ -251,16 +293,16 @@ export class ConversationService implements ImageStore {
     profileId: string,
     options: { source?: StoredImageSource } = {},
   ): Promise<AttachmentSummary[]> {
-    const builder = await this.listAttachments(profileId);
-    const indexed = (await this.readImageIndex(profileId)).map((entry) => this.indexSummary(entry));
-    const all = [...indexed.reverse(), ...builder];
+    const transcript = await this.transcriptAttachmentSummaries(profileId);
+    const indexed = await this.indexedImageSummaries(profileId);
+    const all = mergeImageSummaries([...transcript, ...indexed]);
     return options.source ? all.filter((summary) => summary.source === options.source) : all;
   }
 
   /**
    * Looks up one stored picture by its stable id, across all sources, for
-   * building a build's references. Builder attachments resolve from the
-   * transcript; searched/generated pictures resolve from the sidecar index.
+   * building a build's references. Builder attachments use transcript details
+   * when present and fall back to the sidecar index after a reset.
    */
   async resolveImage(profileId: string, id: string): Promise<AttachmentSummary | undefined> {
     const fromBuilder = (await this.listAttachments(profileId)).find(
@@ -306,6 +348,24 @@ export class ConversationService implements ImageStore {
       type: "chat_message",
       message,
     } satisfies TranscriptEntry);
+    const summary = attachmentSummary(message);
+    if (summary) await this.indexBuilderAttachment(profileId, summary);
+  }
+
+  /**
+   * Clears the profile's chat transcript and Bit session files while preserving
+   * the attachments directory as the durable picture library for builds.
+   */
+  async resetConversation(profileId: string): Promise<void> {
+    for (const summary of await this.transcriptAttachmentSummaries(profileId)) {
+      await this.indexBuilderAttachment(profileId, summary);
+    }
+    const paths = this.paths(profileId);
+    await Promise.all([
+      rm(paths.transcriptPath, { force: true }),
+      rm(paths.bitSessionsDir, { force: true, recursive: true }),
+      rm(paths.conversationStatePath, { force: true }),
+    ]);
   }
 
   async getBitSessionFile(profileId: string): Promise<string | undefined> {
@@ -327,4 +387,12 @@ export class ConversationService implements ImageStore {
 function encodedBase64ByteLength(value: string): number {
   const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
   return (value.length / 4) * 3 - padding;
+}
+
+function mergeImageSummaries(summaries: AttachmentSummary[]): AttachmentSummary[] {
+  const byId = new Map<string, AttachmentSummary>();
+  for (const summary of summaries) {
+    if (!byId.has(summary.id)) byId.set(summary.id, summary);
+  }
+  return [...byId.values()].sort((a, b) => b.sharedAt.localeCompare(a.sharedAt));
 }

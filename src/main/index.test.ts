@@ -154,6 +154,21 @@ describe("registerIpc", () => {
     expect(await set?.({}, "turbo")).toEqual({ thinkingSpeed: "medium" });
   }, 10_000);
 
+  it("routes conversation reset through the Bit coordinator", async () => {
+    const { registerIpc } = await import("./index");
+    const snapshot = { profileId: "profile-ada", messages: [], activity: [], previews: [] };
+    const services = {
+      bit: { resetConversation: vi.fn(async () => snapshot) },
+      layout: { root: "/tmp/hi-bit" },
+    };
+
+    registerIpc(services as never);
+    const reset = electronMock.handlers.get("hibit:chat:reset-conversation");
+
+    await expect(reset?.({}, "profile-ada")).resolves.toBe(snapshot);
+    expect(services.bit.resetConversation).toHaveBeenCalledWith("profile-ada");
+  }, 10_000);
+
   it("refreshes Bit's live builder context after a profile update", async () => {
     const { registerIpc } = await import("./index");
     const updatedProfile = { id: "profile-ada", name: "Ada" };

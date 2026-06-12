@@ -48,6 +48,7 @@ function renderWorkspace(
     playableProjectIds?: string[];
     onPlayPreview?: (projectId: string) => void;
     onShowActivity?: () => void;
+    onResetConversation?: () => Promise<void>;
   } = {},
 ): void {
   const root = createRoot(host);
@@ -80,6 +81,7 @@ function renderWorkspace(
         onOpenFolder={vi.fn()}
         onSwitchProfile={vi.fn()}
         onUpdateProfile={vi.fn(async () => {})}
+        onResetConversation={overrides.onResetConversation ?? vi.fn(async () => {})}
         thinkingSpeed="medium"
         onChangeThinkingSpeed={vi.fn()}
         onShowActivity={overrides.onShowActivity ?? vi.fn()}
@@ -128,10 +130,60 @@ describe("ChatWorkspace header", () => {
     expect(header?.textContent).not.toContain("Tell Bit your idea");
   });
 
+  function findButton(text: string): HTMLButtonElement | undefined {
+    return Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+      button.textContent?.includes(text),
+    );
+  }
+
   it("keeps the grown-up menu free of technical provider plumbing", () => {
     renderWorkspace(host);
     // The kid-facing chrome no longer surfaces "Codex" or an account id anywhere.
     expect(host.textContent).not.toContain("Codex provider connected");
+  });
+
+  it("confirms before resetting the conversation from the grown-up menu", async () => {
+    const onResetConversation = vi.fn(async () => {});
+    renderWorkspace(host, { onResetConversation });
+
+    act(() => findButton("Reset conversation")?.click());
+
+    expect(onResetConversation).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("This cannot be undone");
+    expect(host.textContent).toContain(
+      "Kept: creations, saved game progress, pictures, and learning progress.",
+    );
+
+    await act(async () => {
+      findButton("Yes, reset conversation")?.click();
+    });
+
+    expect(onResetConversation).toHaveBeenCalledOnce();
+  });
+
+  it("blocks conversation reset while a build is running", () => {
+    const onResetConversation = vi.fn(async () => {});
+    renderWorkspace(host, {
+      onResetConversation,
+      activity: [
+        {
+          projectId: "p1",
+          title: "Cat Jump",
+          status: "working",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          steps: [],
+        },
+      ],
+    });
+
+    act(() => findButton("Reset conversation")?.click());
+    const confirm = findButton("Yes, reset conversation");
+
+    expect(host.textContent).toContain(
+      "Wait for the running build to finish before resetting the conversation.",
+    );
+    expect(confirm?.disabled).toBe(true);
+    expect(onResetConversation).not.toHaveBeenCalled();
   });
 });
 

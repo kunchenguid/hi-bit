@@ -447,6 +447,32 @@ export function App() {
     });
   }, [activeProfile]);
 
+  const resetConversation = useCallback(async () => {
+    if (!activeProfile) return;
+    const requestedProfileId = activeProfile.id;
+    setBusy(true);
+    setError(null);
+    try {
+      const snapshot = await window.hibit.chat.resetConversation(requestedProfileId);
+      if (activeProfileIdRef.current !== requestedProfileId) return;
+      setMessages(snapshot.messages);
+      setActivity(snapshot.activity);
+      setShowActivity(false);
+      setAttachedImage(null);
+      setRunning(snapshot.activeTurn?.kind === "bot_result" ? false : snapshot.isRunning);
+      setActiveTurn(snapshot.activeTurn ?? null);
+      setPreviews(snapshot.previews);
+      setPlayableProjectIds(snapshot.playableProjectIds);
+      await refreshProjects();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      if (activeProfileIdRef.current === requestedProfileId) setError(message);
+      throw new Error(message);
+    } finally {
+      setBusy(false);
+    }
+  }, [activeProfile, refreshProjects]);
+
   const playPreview = useCallback(
     async (projectId: string) => {
       const requestedProfileId = activeProfileId;
@@ -544,6 +570,7 @@ export function App() {
         onOpenFolder={openFolder}
         onSwitchProfile={switchProfile}
         onUpdateProfile={updateProfile}
+        onResetConversation={resetConversation}
         thinkingSpeed={thinkingSpeed}
         onChangeThinkingSpeed={changeThinkingSpeed}
         onShowActivity={showActivityView}

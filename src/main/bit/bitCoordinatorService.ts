@@ -317,6 +317,22 @@ export class BitCoordinatorService {
     }
   }
 
+  async resetConversation(profileId: string): Promise<ChatSnapshot> {
+    await this.profiles.get(profileId);
+    if (this.bit.isRunning(profileId) || this.activeTurns.has(profileId)) {
+      throw new Error("Wait for Bit to finish before resetting.");
+    }
+    if (this.listInflight(profileId).length > 0) {
+      throw new Error("Wait for the running build to finish before resetting.");
+    }
+
+    this.bit.dispose(profileId);
+    this.activeTurns.delete(profileId);
+    this.pendingPreviewAttribution.delete(profileId);
+    await this.conversation.resetConversation(profileId);
+    return this.load(profileId);
+  }
+
   /**
    * Idempotently makes a creation playable: ensures its preview server is
    * running (restarting it from the remembered command if the process is gone,
@@ -498,7 +514,7 @@ export class BitCoordinatorService {
       name: "list_builder_pictures",
       label: "List builder pictures",
       description:
-        "List pictures the builder has shared in chat, newest first, with the id you pass to create_creation/delegate_build referencePictureIds to use one as art direction for a build.",
+        "List pictures the builder has shared in chat, newest first, with the id you pass to create_creation/delegate_build referencePictureIds to use one as art direction for a build. Uses the durable picture library, so chat resets do not strand picture ids.",
       parameters: Type.Object({}),
       async execute() {
         const pictures = await self.conversation.listAttachments(profileId);
