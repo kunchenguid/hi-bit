@@ -187,6 +187,25 @@ describe("buildSubjectsNote", () => {
     expect(note).toContain("must not edit learning/curriculum.json");
   });
 
+  it("suppresses the one-ahead trigger when the next lesson is already building", () => {
+    const note = buildSubjectsNote([
+      snapshot({
+        lessonState: {
+          builtSkillIds: ["count-up-score"],
+          newestBuiltSkillId: "count-up-score",
+          newestBuiltLessonNumber: 1,
+          nextUnbuiltSkillId: "add-two-digit",
+          nextUnbuiltLessonInFlight: true,
+        },
+      }),
+    ]);
+
+    expect(note).toContain("Next unbuilt lesson: add-two-digit: Add two-digit numbers");
+    expect(note).toContain("already building");
+    expect(note).toContain("do NOT call delegate_build for it again");
+    expect(note).not.toContain("call delegate_build exactly once now");
+  });
+
   it("keeps lesson state quiet when no chat-turn trigger is possible", () => {
     const note = buildSubjectsNote([
       snapshot({

@@ -57,6 +57,7 @@ export type SubjectLessonState = {
   newestBuiltLessonNumber: number | null;
   /** The next curriculum skill whose lesson should be built after the newest built one. */
   nextUnbuiltSkillId: string | null;
+  nextUnbuiltLessonInFlight?: boolean;
 };
 
 /** The shape of `learning/curriculum.json`. */
@@ -248,6 +249,12 @@ function appendLessonStateLines(lines: string[], snapshot: SubjectSnapshot): voi
     `    Newest built lesson: ${newest.id} (lesson ${state.newestBuiltLessonNumber}): ${newest.label}`,
   );
   lines.push(`    Next unbuilt lesson: ${next.id}: ${next.label}`);
+  if (state.nextUnbuiltLessonInFlight) {
+    lines.push(
+      "    One-ahead chat trigger: the next unbuilt lesson is already building, so do NOT call delegate_build for it again this turn.",
+    );
+    return;
+  }
   lines.push(
     "    One-ahead chat trigger: if this turn shows the builder reached, played, or finished the newest built lesson, call delegate_build exactly once now for the next unbuilt lesson. In the build instructions, name that skill, include what the learning records say, and say this is a lesson job that must not edit learning/curriculum.json. If the builder has not reached the newest built lesson, do not delegate just because a next lesson exists. You may re-read teach-subject for the full doctrine.",
   );

@@ -24,7 +24,7 @@ import {
 import { buildCoachingNote, isSkillId, type SkillId, type SkillSignal } from "@shared/curriculum";
 import type { ProfileSummary, RoadmapItem } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
-import { buildSubjectsNote } from "@shared/subjects";
+import { buildSubjectsNote, type SubjectSnapshot } from "@shared/subjects";
 import { Type } from "typebox";
 import { type BlueprintReference, type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
@@ -1315,11 +1315,35 @@ export class BitCoordinatorService {
           mainWorkbenchDir: this.projects.pathsFor(profileId, project.id).mainWorkbenchDir,
         })),
       );
-      return buildSubjectsNote(snapshots);
+      return buildSubjectsNote(this.markInflightLessonBuilds(profileId, snapshots));
     } catch (error) {
       console.error(`Failed to read learning subjects for profile ${profileId}:`, error);
       return null;
     }
+  }
+
+  private markInflightLessonBuilds(
+    profileId: string,
+    snapshots: SubjectSnapshot[],
+  ): SubjectSnapshot[] {
+    const inflight = this.listInflight(profileId);
+    if (inflight.length === 0) return snapshots;
+    return snapshots.map((snapshot) => {
+      const state = snapshot.lessonState;
+      const nextSkillId = state?.nextUnbuiltSkillId;
+      if (!nextSkillId) return snapshot;
+      const nextSkill = snapshot.curriculum.skills.find((skill) => skill.id === nextSkillId);
+      const isInFlight = inflight.some(
+        (bot) =>
+          bot.projectId === snapshot.projectId &&
+          instructionMatchesLessonSkill(bot.instructions, nextSkillId, nextSkill?.label),
+      );
+      if (!isInFlight) return snapshot;
+      return {
+        ...snapshot,
+        lessonState: { ...state, nextUnbuiltLessonInFlight: true },
+      };
+    });
   }
 
   /**
@@ -1391,6 +1415,26 @@ Job:
 ${input.instructions}${referenceLines}
 
 Do the work in this Workbench only. Bit will run Machines and the Assembly Line after you finish.`;
+}
+
+function instructionMatchesLessonSkill(
+  instructions: string,
+  skillId: string,
+  skillLabel?: string,
+): boolean {
+  const normalizedInstructions = normalizeLessonInstruction(instructions);
+  if (!normalizedInstructions.includes("lesson")) return false;
+  if (normalizedInstructions.includes(normalizeLessonInstruction(skillId))) return true;
+  return skillLabel ? normalizedInstructions.includes(normalizeLessonInstruction(skillLabel)) : false;
+}
+
+function normalizeLessonInstruction(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function assistantRevealedConcept(text: string, conceptId: ConceptId): boolean {

@@ -2058,6 +2058,11 @@ describe("learning subjects (teach-anything)", () => {
   it("wires code-computed one-ahead lesson state into stale chat turns", async () => {
     const s = await createCoordinator();
     const { project } = await seedLearningCreation(s);
+    let releaseBot: (() => void) | undefined;
+    const botBlocked = new Promise<void>((resolve) => {
+      releaseBot = resolve;
+    });
+    s.bot.beforeReturn = async () => botBlocked;
     const paths = s.projects.pathsFor(s.profile.id, project.id);
     await writeFile(
       join(paths.mainWorkbenchDir, "learning", "curriculum.json"),
@@ -2088,7 +2093,7 @@ describe("learning subjects (teach-anything)", () => {
       "utf8",
     );
     s.bit.handler = async ({ text, callTool }) => {
-      if (text.includes("Builder says:") && text.includes("One-ahead chat trigger")) {
+      if (text.includes("Builder says:") && text.includes("call delegate_build exactly once now")) {
         await callTool("delegate_build", {
           creationId: project.id,
           instructions:
@@ -2100,6 +2105,8 @@ describe("learning subjects (teach-anything)", () => {
     };
 
     await s.coordinator.send(s.profile.id, "I finished lesson 2.");
+    await s.coordinator.send(s.profile.id, "Can we keep going?");
+    releaseBot?.();
     await s.drain();
 
     const prompt = s.bit.prompts.find((entry) => entry.includes("Builder says: I finished"));
@@ -2107,6 +2114,10 @@ describe("learning subjects (teach-anything)", () => {
     expect(prompt).toContain("Newest built lesson: add-two-digit (lesson 2)");
     expect(prompt).toContain("Next unbuilt lesson: subtract-spending");
     expect(prompt).toContain("call delegate_build exactly once now");
+    const repeatedPrompt = s.bit.prompts.find((entry) => entry.includes("Builder says: Can we"));
+    expect(repeatedPrompt).toContain("Next unbuilt lesson: subtract-spending");
+    expect(repeatedPrompt).toContain("already building");
+    expect(repeatedPrompt).not.toContain("call delegate_build exactly once now");
     const lessonBuilds = s.bot.prompts.filter((entry) => entry.text.includes("subtract-spending"));
     expect(lessonBuilds).toHaveLength(1);
     const completionPrompt = s.bit.prompts.find((entry) => entry.includes("What changed:"));

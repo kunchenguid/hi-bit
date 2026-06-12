@@ -156,15 +156,14 @@ async function readLessonState(
   const skillSlugs = curriculum.skills.map((skill) => normalizeLessonSlug(skill.id));
   for (const name of names) {
     const slug = normalizeLessonSlug(name.replace(/\.[^.]+$/, ""));
-    const skillIndex = skillSlugs.findIndex((skillSlug) => slugContainsSkill(slug, skillSlug));
-    if (skillIndex >= 0) {
-      builtIndexes.add(skillIndex);
+    const lessonNumber = lessonNumberFromSlug(slug);
+    if (lessonNumber) {
+      const index = lessonNumber - 1;
+      if (index >= 0 && index < curriculum.skills.length) builtIndexes.add(index);
       continue;
     }
-    const lessonNumber = lessonNumberFromSlug(slug);
-    if (!lessonNumber) continue;
-    const index = lessonNumber - 1;
-    if (index >= 0 && index < curriculum.skills.length) builtIndexes.add(index);
+    const skillIndex = bestSkillSlugMatch(slug, skillSlugs);
+    if (skillIndex >= 0) builtIndexes.add(skillIndex);
   }
   if (builtIndexes.size === 0) return undefined;
   const orderedBuiltIndexes = [...builtIndexes].sort((a, b) => a - b);
@@ -194,6 +193,19 @@ function normalizeLessonSlug(value: string): string {
     .replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function bestSkillSlugMatch(slug: string, skillSlugs: string[]): number {
+  let bestIndex = -1;
+  let bestLength = -1;
+  for (const [index, skillSlug] of skillSlugs.entries()) {
+    if (!slugContainsSkill(slug, skillSlug)) continue;
+    if (skillSlug.length > bestLength) {
+      bestIndex = index;
+      bestLength = skillSlug.length;
+    }
+  }
+  return bestIndex;
 }
 
 function slugContainsSkill(slug: string, skillSlug: string): boolean {
