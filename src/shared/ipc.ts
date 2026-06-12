@@ -98,7 +98,7 @@ export type HiBitApi = {
     load: (profileId: string) => Promise<ChatSnapshot>;
     send: (profileId: string, text: string, image?: OutgoingImage) => Promise<SendMessageResult>;
     abort: (profileId: string) => Promise<void>;
-    /** Clears the profile's Bit chat history and session while keeping creations and progress. */
+    /** Clears the profile's Bit chat history/session while keeping creations, pictures, and progress. */
     resetConversation: (profileId: string) => Promise<ChatSnapshot>;
     /** Records that the kid opened the Logbook, so the word can unlock. */
     markActivitiesOpened: (profileId: string) => Promise<void>;
