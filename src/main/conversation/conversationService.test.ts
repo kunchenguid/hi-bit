@@ -379,7 +379,7 @@ describe("ConversationService", () => {
     expect(await service.resolveImage("ada", builder.id as string)).toMatchObject({
       id: builder.id,
       source: "builder",
-      messageText: "use this cat later",
+      messageText: "",
     });
     expect(await service.resolveImage("ada", searched.id)).toMatchObject({ source: "searched" });
     expect((await service.listImages("ada", { source: "builder" })).map((s) => s.id)).toEqual([

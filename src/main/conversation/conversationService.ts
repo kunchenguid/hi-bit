@@ -75,7 +75,6 @@ type ImageIndexEntry = {
   mimeType: string;
   source: StoredImageSource;
   createdAt: string;
-  /** Builder-message text captured before a conversation reset clears the transcript. */
   messageText?: string;
   meta?: Record<string, unknown>;
 };
@@ -230,7 +229,6 @@ export class ConversationService implements ImageStore {
       mimeType: summary.mimeType,
       source: "builder",
       createdAt: summary.sharedAt,
-      messageText: summary.messageText,
     });
   }
 
@@ -238,13 +236,15 @@ export class ConversationService implements ImageStore {
   private indexSummary(entry: ImageIndexEntry): AttachmentSummary {
     const meta = entry.meta ?? {};
     const messageText =
-      typeof entry.messageText === "string"
-        ? entry.messageText
-        : typeof meta.query === "string"
-          ? meta.query
-          : typeof meta.prompt === "string"
-            ? meta.prompt
-            : "";
+      entry.source === "builder"
+        ? ""
+        : typeof entry.messageText === "string"
+          ? entry.messageText
+          : typeof meta.query === "string"
+            ? meta.query
+            : typeof meta.prompt === "string"
+              ? meta.prompt
+              : "";
     return {
       id: entry.id,
       mimeType: entry.mimeType,
@@ -253,6 +253,30 @@ export class ConversationService implements ImageStore {
       messageText,
       source: entry.source,
     };
+  }
+
+  private async scrubBuilderMessageTextFromIndex(profileId: string): Promise<void> {
+    const entries = await this.readImageIndex(profileId);
+    if (!entries.some((entry) => entry.source === "builder" && entry.messageText !== undefined)) {
+      return;
+    }
+    const scrubbed = entries.map((entry) =>
+      entry.source === "builder"
+        ? {
+            id: entry.id,
+            fileName: entry.fileName,
+            mimeType: entry.mimeType,
+            source: entry.source,
+            createdAt: entry.createdAt,
+            meta: entry.meta,
+          }
+        : entry,
+    );
+    await writeFile(
+      this.paths(profileId).attachmentsIndexPath,
+      `${scrubbed.map((entry) => JSON.stringify(entry)).join("\n")}\n`,
+      "utf8",
+    );
   }
 
   private async transcriptAttachmentSummaries(profileId: string): Promise<AttachmentSummary[]> {
@@ -360,6 +384,7 @@ export class ConversationService implements ImageStore {
     for (const summary of await this.transcriptAttachmentSummaries(profileId)) {
       await this.indexBuilderAttachment(profileId, summary);
     }
+    await this.scrubBuilderMessageTextFromIndex(profileId);
     const paths = this.paths(profileId);
     await Promise.all([
       rm(paths.transcriptPath, { force: true }),

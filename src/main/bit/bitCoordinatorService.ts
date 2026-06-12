@@ -138,6 +138,7 @@ export class BitCoordinatorService {
   private readonly toolCache = new Map<string, ToolDefinition[]>();
   private readonly inflight = new Map<string, Map<string, InflightBot>>();
   private readonly bitLocks = new Map<string, Promise<unknown>>();
+  private readonly bitLockHeld = new Set<string>();
   private readonly activeTurns = new Map<string, { id: string; kind: TurnKind }>();
   /** Serializes logbook appends per creation so persisted steps keep their order. */
   private readonly activityWrites = new Map<string, Promise<unknown>>();
@@ -257,56 +258,58 @@ export class BitCoordinatorService {
       return { ok: false, error: "Type a message for Bit first." };
     }
 
-    try {
-      const profile = await this.profiles.get(profileId);
-      // Persist the picture as a lean on-disk reference (mime + path, no base64);
-      // the transcript reader rehydrates the bytes for the renderer.
-      const storedImage = image
-        ? await this.conversation.saveAttachment(profileId, image)
-        : undefined;
-      await this.conversation.appendMessage(profileId, {
-        id: `user-${randomUUID()}`,
-        role: "user",
-        text: prompt,
-        createdAt: this.now().toISOString(),
-        image: storedImage,
-      });
+    return this.withBitLock(profileId, async () => {
+      try {
+        const profile = await this.profiles.get(profileId);
+        // Persist the picture as a lean on-disk reference (mime + path, no base64);
+        // the transcript reader rehydrates the bytes for the renderer.
+        const storedImage = image
+          ? await this.conversation.saveAttachment(profileId, image)
+          : undefined;
+        await this.conversation.appendMessage(profileId, {
+          id: `user-${randomUUID()}`,
+          role: "user",
+          text: prompt,
+          createdAt: this.now().toISOString(),
+          image: storedImage,
+        });
 
-      const portfolio = await this.projects.list(profileId);
-      // Image-only messages still need words for Bit, so it knows a picture came in.
-      const builderSays = prompt || "(the builder shared a picture without words)";
-      // Tell Bit the picture's reference id so it can hand it to a build as art
-      // direction (now, or later via list_builder_pictures).
-      const pictureNote = storedImage?.id
-        ? `\n(The builder attached a picture - reference id: ${storedImage.id}. To build something whose look matches it, pass this id to create_creation or delegate_build as referencePictureIds.)`
-        : "";
-      const requestText = `${this.buildVolatileContext(portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}${pictureNote}`;
-      const paths = this.conversation.paths(profileId);
-      const imageData = storedImage
-        ? await this.conversation.readAttachmentData(profileId, storedImage)
-        : undefined;
-      const result = await this.runBitTurn(profileId, requestText, {
-        kind: "reply",
-        builderContext: this.buildBuilderProfileContext(profile),
-        images: storedImage?.path
-          ? [
-              {
-                type: "image",
-                path: join(paths.conversationDir, storedImage.path),
-                mimeType: storedImage.mimeType,
-                data: imageData,
-              },
-            ]
-          : undefined,
-      });
+        const portfolio = await this.projects.list(profileId);
+        // Image-only messages still need words for Bit, so it knows a picture came in.
+        const builderSays = prompt || "(the builder shared a picture without words)";
+        // Tell Bit the picture's reference id so it can hand it to a build as art
+        // direction (now, or later via list_builder_pictures).
+        const pictureNote = storedImage?.id
+          ? `\n(The builder attached a picture - reference id: ${storedImage.id}. To build something whose look matches it, pass this id to create_creation or delegate_build as referencePictureIds.)`
+          : "";
+        const requestText = `${this.buildVolatileContext(portfolio, this.listInflight(profileId))}\n\nBuilder says: ${builderSays}${pictureNote}`;
+        const paths = this.conversation.paths(profileId);
+        const imageData = storedImage
+          ? await this.conversation.readAttachmentData(profileId, storedImage)
+          : undefined;
+        const result = await this.runBitTurnUnlocked(profileId, requestText, {
+          kind: "reply",
+          builderContext: this.buildBuilderProfileContext(profile),
+          images: storedImage?.path
+            ? [
+                {
+                  type: "image",
+                  path: join(paths.conversationDir, storedImage.path),
+                  mimeType: storedImage.mimeType,
+                  data: imageData,
+                },
+              ]
+            : undefined,
+        });
 
-      if (result.status === "failed") {
-        return { ok: false, turnId: result.turnId, error: result.error ?? "Bit hit a problem." };
+        if (result.status === "failed") {
+          return { ok: false, turnId: result.turnId, error: result.error ?? "Bit hit a problem." };
+        }
+        return { ok: true, turnId: result.turnId, status: result.status };
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) };
       }
-      return { ok: true, turnId: result.turnId, status: result.status };
-    } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
-    }
+    });
   }
 
   async abort(profileId: string): Promise<void> {
@@ -319,18 +322,31 @@ export class BitCoordinatorService {
 
   async resetConversation(profileId: string): Promise<ChatSnapshot> {
     await this.profiles.get(profileId);
-    if (this.bit.isRunning(profileId) || this.activeTurns.has(profileId)) {
-      throw new Error("Wait for Bit to finish before resetting.");
-    }
     if (this.listInflight(profileId).length > 0) {
       throw new Error("Wait for the running build to finish before resetting.");
     }
+    if (
+      this.bitLockHeld.has(profileId) ||
+      this.bit.isRunning(profileId) ||
+      this.activeTurns.has(profileId)
+    ) {
+      throw new Error("Wait for Bit to finish before resetting.");
+    }
 
-    this.bit.dispose(profileId);
-    this.activeTurns.delete(profileId);
-    this.pendingPreviewAttribution.delete(profileId);
-    await this.conversation.resetConversation(profileId);
-    return this.load(profileId);
+    return this.withBitLock(profileId, async () => {
+      if (this.listInflight(profileId).length > 0) {
+        throw new Error("Wait for the running build to finish before resetting.");
+      }
+      if (this.bit.isRunning(profileId) || this.activeTurns.has(profileId)) {
+        throw new Error("Wait for Bit to finish before resetting.");
+      }
+
+      this.bit.dispose(profileId);
+      this.activeTurns.delete(profileId);
+      this.pendingPreviewAttribution.delete(profileId);
+      await this.conversation.resetConversation(profileId);
+      return this.load(profileId);
+    });
   }
 
   /**
@@ -387,88 +403,106 @@ export class BitCoordinatorService {
     },
   ) {
     return this.withBitLock(profileId, async () => {
-      // Fresh attribution per turn: start_preview sets it mid-turn (below).
-      this.pendingPreviewAttribution.delete(profileId);
-      // Gate Bit's vocabulary to this kid's unlocked inside words, unlocking at
-      // most one new word this turn and asking Bit to reveal it warmly.
-      const vocabulary = await this.resolveTurnVocabulary(profileId);
-      const promptText = `${text}\n\n${vocabulary.note}`;
-      const sessionFile = await this.conversation.getBitSessionFile(profileId);
-      const paths = this.conversation.paths(profileId);
-      // Tag the turn's lifecycle so the renderer can word the "thinking" bubble
-      // (a bot-result turn reads differently than Bit answering the kid), and
-      // stamp the streamed reply with the creation it previewed, so the live
-      // bubble (built from deltas) can show Play without waiting for a reload.
-      const decorate = (event: ChatEvent): ChatEvent => {
-        if (event.type === "turn_start" || event.type === "turn_end") {
-          if (event.type === "turn_start") {
-            this.activeTurns.set(profileId, { id: event.turnId, kind });
-          } else if (this.activeTurns.get(profileId)?.id === event.turnId) {
-            this.activeTurns.delete(profileId);
-          }
-          return { ...event, kind };
-        }
-        if (event.type !== "assistant_delta") return event;
-        const attributed = projectId ?? this.pendingPreviewAttribution.get(profileId);
-        return attributed ? { ...event, projectId: attributed } : event;
-      };
-      const onEvent = (event: ChatEvent) => this.emit(decorate(event));
-
-      const result = await this.bit.prompt(
-        {
-          profileId,
-          profileRoot: paths.profileRoot,
-          conversationDir: paths.conversationDir,
-          bitSessionsDir: paths.bitSessionsDir,
-          sessionFile,
-          customTools: this.toolsFor(profileId),
-          builderContext,
-          onProfileMutation: async (mutation) => {
-            await this.projects.touch(profileId, mutation.projectId);
-            await this.projects.appendActivity(profileId, mutation.projectId, {
-              type: "direct_edit",
-              projectId: mutation.projectId,
-              tool: mutation.tool,
-              path: mutation.path,
-            });
-          },
-        },
-        promptText,
-        onEvent,
-        images ? { images } : undefined,
-      );
-
-      if (result.sessionFile) {
-        await this.conversation.setBitSessionFile(profileId, result.sessionFile);
-      }
-      if (result.assistantText.trim()) {
-        await this.conversation.appendMessage(profileId, {
-          id: `assistant-${result.turnId}`,
-          role: "assistant",
-          text: result.assistantText,
-          createdAt: this.now().toISOString(),
-          // Explicit (completion turns) wins; otherwise attribute to a preview
-          // this turn started, so the "ready" reply can show a Play button.
-          projectId: projectId ?? this.pendingPreviewAttribution.get(profileId),
-        });
-        if (
-          vocabulary.pendingReveal &&
-          assistantRevealedConcept(result.assistantText, vocabulary.pendingReveal)
-        ) {
-          await this.profiles
-            .markConceptRevealed(profileId, vocabulary.pendingReveal)
-            .then(() => this.emit({ type: "profile_updated", profileId, turnId: result.turnId }))
-            .catch((error) => {
-              console.error(
-                `Failed to persist revealed concept ${vocabulary.pendingReveal} for profile ${profileId}:`,
-                error,
-              );
-            });
-        }
-      }
-      this.pendingPreviewAttribution.delete(profileId);
-      return result;
+      return this.runBitTurnUnlocked(profileId, text, { kind, projectId, images, builderContext });
     });
+  }
+
+  private async runBitTurnUnlocked(
+    profileId: string,
+    text: string,
+    {
+      kind,
+      projectId,
+      images,
+      builderContext,
+    }: {
+      kind: TurnKind;
+      projectId?: string;
+      images?: BitPromptImage[];
+      builderContext?: string;
+    },
+  ) {
+    // Fresh attribution per turn: start_preview sets it mid-turn (below).
+    this.pendingPreviewAttribution.delete(profileId);
+    // Gate Bit's vocabulary to this kid's unlocked inside words, unlocking at
+    // most one new word this turn and asking Bit to reveal it warmly.
+    const vocabulary = await this.resolveTurnVocabulary(profileId);
+    const promptText = `${text}\n\n${vocabulary.note}`;
+    const sessionFile = await this.conversation.getBitSessionFile(profileId);
+    const paths = this.conversation.paths(profileId);
+    // Tag the turn's lifecycle so the renderer can word the "thinking" bubble
+    // (a bot-result turn reads differently than Bit answering the kid), and
+    // stamp the streamed reply with the creation it previewed, so the live
+    // bubble (built from deltas) can show Play without waiting for a reload.
+    const decorate = (event: ChatEvent): ChatEvent => {
+      if (event.type === "turn_start" || event.type === "turn_end") {
+        if (event.type === "turn_start") {
+          this.activeTurns.set(profileId, { id: event.turnId, kind });
+        } else if (this.activeTurns.get(profileId)?.id === event.turnId) {
+          this.activeTurns.delete(profileId);
+        }
+        return { ...event, kind };
+      }
+      if (event.type !== "assistant_delta") return event;
+      const attributed = projectId ?? this.pendingPreviewAttribution.get(profileId);
+      return attributed ? { ...event, projectId: attributed } : event;
+    };
+    const onEvent = (event: ChatEvent) => this.emit(decorate(event));
+
+    const result = await this.bit.prompt(
+      {
+        profileId,
+        profileRoot: paths.profileRoot,
+        conversationDir: paths.conversationDir,
+        bitSessionsDir: paths.bitSessionsDir,
+        sessionFile,
+        customTools: this.toolsFor(profileId),
+        builderContext,
+        onProfileMutation: async (mutation) => {
+          await this.projects.touch(profileId, mutation.projectId);
+          await this.projects.appendActivity(profileId, mutation.projectId, {
+            type: "direct_edit",
+            projectId: mutation.projectId,
+            tool: mutation.tool,
+            path: mutation.path,
+          });
+        },
+      },
+      promptText,
+      onEvent,
+      images ? { images } : undefined,
+    );
+
+    if (result.sessionFile) {
+      await this.conversation.setBitSessionFile(profileId, result.sessionFile);
+    }
+    if (result.assistantText.trim()) {
+      await this.conversation.appendMessage(profileId, {
+        id: `assistant-${result.turnId}`,
+        role: "assistant",
+        text: result.assistantText,
+        createdAt: this.now().toISOString(),
+        // Explicit (completion turns) wins; otherwise attribute to a preview
+        // this turn started, so the "ready" reply can show a Play button.
+        projectId: projectId ?? this.pendingPreviewAttribution.get(profileId),
+      });
+      if (
+        vocabulary.pendingReveal &&
+        assistantRevealedConcept(result.assistantText, vocabulary.pendingReveal)
+      ) {
+        await this.profiles
+          .markConceptRevealed(profileId, vocabulary.pendingReveal)
+          .then(() => this.emit({ type: "profile_updated", profileId, turnId: result.turnId }))
+          .catch((error) => {
+            console.error(
+              `Failed to persist revealed concept ${vocabulary.pendingReveal} for profile ${profileId}:`,
+              error,
+            );
+          });
+      }
+    }
+    this.pendingPreviewAttribution.delete(profileId);
+    return result;
   }
 
   private async withBitLock<T>(profileId: string, fn: () => Promise<T>): Promise<T> {
@@ -482,9 +516,11 @@ export class BitCoordinatorService {
       previous.then(() => gate),
     );
     await previous.catch(() => {});
+    this.bitLockHeld.add(profileId);
     try {
       return await fn();
     } finally {
+      this.bitLockHeld.delete(profileId);
       release();
     }
   }

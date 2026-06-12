@@ -308,7 +308,7 @@ describe("BitCoordinatorService (Bit)", () => {
     const builderPicture = (
       await s.conversation.listImages(s.profile.id, { source: "builder" })
     )[0];
-    expect(builderPicture).toMatchObject({ messageText: "remember this picture" });
+    expect(builderPicture).toMatchObject({ messageText: "" });
     expect(
       await s.conversation.resolveImageFile(s.profile.id, builderPicture?.id ?? ""),
     ).toMatchObject({
