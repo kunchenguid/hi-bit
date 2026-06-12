@@ -18,6 +18,7 @@ import { FactoryView } from "../components/FactoryView";
 import { MessageList } from "../components/MessageList";
 import { ParentProgressWindow } from "../components/ParentProgressWindow";
 import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
+import { ResetConversationControl } from "../components/ResetConversationControl";
 import { ThinkingSpeedControl } from "../components/ThinkingSpeedControl";
 import { UpdateNotice } from "../components/UpdateNotice";
 import { useLearningProgress } from "../components/useLearningProgress";
@@ -50,6 +51,7 @@ type ChatWorkspaceProps = {
   onOpenFolder: () => void;
   onSwitchProfile: () => void;
   onUpdateProfile: (settings: ProfileSettingsInput) => Promise<void>;
+  onResetConversation: () => Promise<void>;
   thinkingSpeed: ThinkingSpeed;
   onChangeThinkingSpeed: (speed: ThinkingSpeed) => void;
   onShowActivity: () => void;
@@ -89,6 +91,7 @@ export function ChatWorkspace({
   onOpenFolder,
   onSwitchProfile,
   onUpdateProfile,
+  onResetConversation,
   thinkingSpeed,
   onChangeThinkingSpeed,
   onShowActivity,
@@ -117,6 +120,12 @@ export function ChatWorkspace({
   // the Grown-up menu; the dot on the menu summary is the only hint the kid sees.
   const updateStatus = useUpdateStatus();
   const updateAvailable = updateStatus?.updateAvailable ?? false;
+  const resetBlockedReason =
+    running || activeTurn
+      ? "Wait for Bit to finish before resetting the conversation."
+      : activity.some((item) => item.status === "working")
+        ? "Wait for the running build to finish before resetting the conversation."
+        : null;
 
   // The builder's learning progress, fetched fresh each time they open their
   // Handbook (a kid-chosen action) or a grown-up opens their menu.
@@ -174,6 +183,12 @@ export function ChatWorkspace({
                 onChange={onChangeThinkingSpeed}
               />
               <ParentProgressWindow builderName={profile.name} progress={progress} />
+              <ResetConversationControl
+                builderName={profile.name}
+                busy={busy}
+                blockedReason={resetBlockedReason}
+                onReset={onResetConversation}
+              />
               <button
                 className="hb-button hb-button-secondary"
                 type="button"

@@ -188,6 +188,51 @@ describe("App", () => {
     expect(host.textContent).toContain("Ask Bit to build");
   });
 
+  it("resets the active profile conversation from the grown-up menu", async () => {
+    api.auth.status = vi.fn(async () => ({
+      authenticated: true,
+      storage: { path: "/tmp/codex.json", encrypted: true },
+    }));
+    api.profiles.getActiveId = vi.fn(async () => "ada");
+    api.profiles.list = vi.fn(async () => [adaProfile()]);
+    api.chat.load = vi.fn(async (profileId) => ({
+      profileId,
+      messages: [
+        {
+          id: "m1",
+          role: "assistant" as const,
+          text: "Old chat history.",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      activity: [],
+      isRunning: false,
+      previews: [],
+      playableProjectIds: [],
+    }));
+    api.chat.resetConversation = vi.fn(async (profileId) => ({
+      profileId,
+      messages: [],
+      activity: [],
+      isRunning: false,
+      previews: [],
+      playableProjectIds: [],
+    }));
+
+    await renderApp(root);
+    expect(host.textContent).toContain("Old chat history.");
+
+    await clickButton(host, "Reset conversation");
+    expect(api.chat.resetConversation).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("This cannot be undone");
+
+    await clickButton(host, "Yes, reset conversation");
+
+    expect(api.chat.resetConversation).toHaveBeenCalledWith("ada");
+    expect(host.textContent).not.toContain("Old chat history.");
+    expect(host.textContent).toContain("Ask Bit to build");
+  });
+
   it("surfaces a load failure instead of silently blanking the chat", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
@@ -988,6 +1033,14 @@ function createApiMock(): HiBitApi {
         status: "completed" as const,
       })),
       abort: vi.fn(async () => {}),
+      resetConversation: vi.fn(async (profileId) => ({
+        profileId,
+        messages: [],
+        activity: [],
+        isRunning: false,
+        previews: [],
+        playableProjectIds: [],
+      })),
       markActivitiesOpened: vi.fn(async () => {}),
       onEvent: vi.fn(() => () => {}),
     },

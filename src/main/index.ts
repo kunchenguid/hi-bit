@@ -27,7 +27,7 @@ import { listSubjectSnapshots } from "./projects/subjectFiles";
 import { readJsonFile, writeJsonFile } from "./storage/json";
 import { bootstrapLayout, type HiBitLayout } from "./storage/layout";
 import { seedCodexAuthIfMissing } from "./storage/seedAuth";
-import { startAppTelemetry } from "./telemetry";
+import { getDefaultTelemetry, startAppTelemetry } from "./telemetry";
 import { createUpdateChecker, type UpdateChecker } from "./updateChecker";
 import { VoiceModelService } from "./voice/voiceModelService";
 import { handleVoiceModelProtocol, registerVoiceModelScheme } from "./voice/voiceProtocol";
@@ -329,6 +329,23 @@ export function registerIpc(services: Services): void {
       services.bit.send(profileId, text, image),
   );
   ipcMain.handle("hibit:chat:abort", (_event, profileId: string) => services.bit.abort(profileId));
+  ipcMain.handle("hibit:chat:reset-conversation", async (_event, profileId: string) => {
+    try {
+      const snapshot = await services.bit.resetConversation(profileId);
+      getDefaultTelemetry().track("conversation_reset", {
+        source: "grown_up_menu",
+        status: "completed",
+      });
+      return snapshot;
+    } catch (error) {
+      getDefaultTelemetry().track("conversation_reset", {
+        source: "grown_up_menu",
+        status:
+          error instanceof Error && error.message.startsWith("Wait for") ? "blocked" : "failed",
+      });
+      throw error;
+    }
+  });
   ipcMain.handle("hibit:chat:mark-activities-opened", (_event, profileId: string) =>
     services.bit.markActivitiesOpened(profileId),
   );

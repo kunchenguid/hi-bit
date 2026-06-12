@@ -18,7 +18,7 @@ The aesthetic is **retro arcade / 8-bit**, but never harsh. Think: a 90s home co
 ### Sources used to build this system
 
 - **Brand:** greenfield - no prior marks. This design system *is* the brand spec. Iterate it here, then implement.
-- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection and reconnect overlay, kid profiles, a profile-level Pi-backed Bit chat workspace with one-picture messages and optional local voice input, a browser split pane for live creation previews, and creations managed through chat.
+- **Referenced repo:** `kunchenguid/hi-bit` Electron app with a Codex provider connection and reconnect overlay, kid profiles, a profile-level Pi-backed Bit chat workspace with one-picture messages and optional local voice input, a browser split pane for live creation previews, a grown-up reset for chat history, and creations managed through chat.
 - **User brief:** desktop Electron AI tutor, kids 7-12, aesthetic that parents trust and kids find friendly.
 
 ---
@@ -114,6 +114,12 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 > **Voice input transcribing:** Working out what you said...
 >
 > **Grown-up menu:** Grown-up menu.
+>
+> **Reset conversation button:** Reset conversation.
+>
+> **Reset conversation confirmation:** This cannot be undone. It clears Maya's chat history and starts Bit fresh.
+>
+> **Reset conversation kept note:** Kept: creations, saved game progress, pictures, and learning progress.
 >
 > **Factory Handbook button:** What I can do.
 >

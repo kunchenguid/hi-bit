@@ -140,9 +140,9 @@ export type ProfileConversationPaths = {
   /** Where builder-attached pictures are written, kept out of the transcript jsonl. */
   attachmentsDir: string;
   /**
-   * Sidecar index for pictures that have no chat message of their own - those a
-   * bot or Bit found (`search_image`) or made (`generate_image`) - so they can be
-   * recalled by id alongside builder attachments (which stay transcript-derived).
+   * Sidecar index for the durable picture library. It includes pictures a bot or
+   * Bit found (`search_image`) or made (`generate_image`), plus builder pictures
+   * so reset chat history can still preserve stable picture ids.
    */
   attachmentsIndexPath: string;
 };

@@ -60,6 +60,8 @@ const api: HiBitApi = {
     send: (profileId: string, text: string, image?: OutgoingImage): Promise<SendMessageResult> =>
       ipcRenderer.invoke("hibit:chat:send", profileId, text, image),
     abort: (profileId: string): Promise<void> => ipcRenderer.invoke("hibit:chat:abort", profileId),
+    resetConversation: (profileId: string): Promise<ChatSnapshot> =>
+      ipcRenderer.invoke("hibit:chat:reset-conversation", profileId),
     markActivitiesOpened: (profileId: string): Promise<void> =>
       ipcRenderer.invoke("hibit:chat:mark-activities-opened", profileId),
     onEvent: (listener: (event: ChatEvent) => void): (() => void) => {

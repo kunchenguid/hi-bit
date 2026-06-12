@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -341,9 +341,55 @@ describe("ConversationService", () => {
     });
   });
 
+  it("resets the chat history and Bit sessions while preserving the attachment library", async () => {
+    const { service, layout } = await createService();
+    const paths = profileConversationPaths(layout, "ada");
+    const data = Buffer.from("builder-pixels").toString("base64");
+    const builder = await service.saveAttachment("ada", { mimeType: "image/png", data });
+    await service.appendMessage("ada", {
+      id: "u1",
+      role: "user",
+      text: "use this cat later",
+      createdAt: "2026-01-02T03:04:10.000Z",
+      image: builder,
+    });
+    const searched = await service.saveImage("ada", {
+      data: Buffer.from("searched").toString("base64"),
+      mimeType: "image/jpeg",
+      source: "searched",
+      meta: { query: "robot cat" },
+    });
+    await mkdir(paths.bitSessionsDir, { recursive: true });
+    const sessionFile = join(paths.bitSessionsDir, "old-session.jsonl");
+    await writeFile(sessionFile, "old session", "utf8");
+    await service.setBitSessionFile("ada", sessionFile);
+
+    await service.resetConversation("ada");
+
+    await expect(service.readTranscript("ada")).resolves.toEqual([]);
+    await expect(service.getBitSessionFile("ada")).resolves.toBeUndefined();
+    await expect(readFile(paths.transcriptPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await expect(readdir(paths.bitSessionsDir)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      readFile(join(paths.attachmentsDir, builder.path?.split("/").pop() ?? "")),
+    ).resolves.toBeTruthy();
+
+    expect(await service.resolveImage("ada", builder.id as string)).toMatchObject({
+      id: builder.id,
+      source: "builder",
+      messageText: "",
+    });
+    expect(await service.resolveImage("ada", searched.id)).toMatchObject({ source: "searched" });
+    expect((await service.listImages("ada", { source: "builder" })).map((s) => s.id)).toEqual([
+      builder.id,
+    ]);
+  });
+
   it("resolves builder, searched, and generated ids and excludes machine pictures from list_builder_pictures", async () => {
     const { service } = await createService();
-    // A builder picture (transcript-derived).
+    // A builder picture (attachment-index backed, with transcript details while the chat exists).
     const builder = await service.saveAttachment("ada", {
       mimeType: "image/png",
       data: Buffer.from("builder").toString("base64"),
