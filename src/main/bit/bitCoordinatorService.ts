@@ -101,6 +101,7 @@ type InflightBot = {
   title: string;
   instructions: string;
   startedAt: string;
+  lessonSkillId?: string;
 };
 
 type TurnVocabulary = {
@@ -922,6 +923,7 @@ export class BitCoordinatorService {
     let job = await this.botJobs.createJob(project, blueprint);
     const workbench = await this.pipeline.prepareBotWorkbench(project, job);
     job = await this.botJobs.markRunning(project, job, workbench);
+    const lessonSkillId = await this.resolveInflightLessonSkillId(project);
 
     this.addInflight(profileId, {
       jobId: job.id,
@@ -929,6 +931,7 @@ export class BitCoordinatorService {
       title: project.title,
       instructions,
       startedAt: this.now().toISOString(),
+      ...(lessonSkillId ? { lessonSkillId } : {}),
     });
 
     const run = this.runBotPipeline(
@@ -1247,6 +1250,11 @@ export class BitCoordinatorService {
     return this.listInflight(profileId).some((bot) => bot.projectId === projectId);
   }
 
+  private async resolveInflightLessonSkillId(project: RuntimeProject): Promise<string | undefined> {
+    const snapshot = await readSubjectSnapshot(project).catch(() => null);
+    return snapshot?.lessonState?.nextUnbuiltSkillId ?? undefined;
+  }
+
   /**
    * Records that the kid opened the Logbook, so the word can unlock and be
    * revealed by Bit on the next turn.
@@ -1332,11 +1340,8 @@ export class BitCoordinatorService {
       const state = snapshot.lessonState;
       const nextSkillId = state?.nextUnbuiltSkillId;
       if (!nextSkillId) return snapshot;
-      const nextSkill = snapshot.curriculum.skills.find((skill) => skill.id === nextSkillId);
       const isInFlight = inflight.some(
-        (bot) =>
-          bot.projectId === snapshot.projectId &&
-          instructionMatchesLessonSkill(bot.instructions, nextSkillId, nextSkill?.label),
+        (bot) => bot.projectId === snapshot.projectId && bot.lessonSkillId === nextSkillId,
       );
       if (!isInFlight) return snapshot;
       return {
@@ -1415,26 +1420,6 @@ Job:
 ${input.instructions}${referenceLines}
 
 Do the work in this Workbench only. Bit will run Machines and the Assembly Line after you finish.`;
-}
-
-function instructionMatchesLessonSkill(
-  instructions: string,
-  skillId: string,
-  skillLabel?: string,
-): boolean {
-  const normalizedInstructions = normalizeLessonInstruction(instructions);
-  if (!normalizedInstructions.includes("lesson")) return false;
-  if (normalizedInstructions.includes(normalizeLessonInstruction(skillId))) return true;
-  return skillLabel ? normalizedInstructions.includes(normalizeLessonInstruction(skillLabel)) : false;
-}
-
-function normalizeLessonInstruction(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 function assistantRevealedConcept(text: string, conceptId: ConceptId): boolean {

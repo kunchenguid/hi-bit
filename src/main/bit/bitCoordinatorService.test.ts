@@ -2097,7 +2097,7 @@ describe("learning subjects (teach-anything)", () => {
         await callTool("delegate_build", {
           creationId: project.id,
           instructions:
-            "Build the subtract-spending lesson. This is a lesson job and must not edit learning/curriculum.json.",
+            "Build the next lesson. This is a lesson job and must not edit learning/curriculum.json.",
         });
         return "I am building the next lesson.";
       }
@@ -2118,7 +2118,7 @@ describe("learning subjects (teach-anything)", () => {
     expect(repeatedPrompt).toContain("Next unbuilt lesson: subtract-spending");
     expect(repeatedPrompt).toContain("already building");
     expect(repeatedPrompt).not.toContain("call delegate_build exactly once now");
-    const lessonBuilds = s.bot.prompts.filter((entry) => entry.text.includes("subtract-spending"));
+    const lessonBuilds = s.bot.prompts.filter((entry) => entry.text.includes("Build the next lesson"));
     expect(lessonBuilds).toHaveLength(1);
     const completionPrompt = s.bit.prompts.find((entry) => entry.includes("What changed:"));
     expect(completionPrompt).toContain("do NOT delegate another build");
