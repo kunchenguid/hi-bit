@@ -23,8 +23,9 @@ import { advanceMastery, isMasteryState, type MasteryState, type SkillSignal } f
  * monotonic).
  *
  * This module is pure data + pure functions, consumed by the main process (to
- * read/advance the files and build Bit's per-turn subject note) and by the
- * renderer (the Factory Handbook and the grown-up progress window).
+ * read/advance the files, detect lesson build state, and build Bit's per-turn
+ * subject note) and by the renderer (the Factory Handbook and the grown-up
+ * progress window).
  */
 
 /** Where a subject's files live, relative to the creation's main-workbench. */
@@ -45,6 +46,19 @@ export type SubjectSkill = {
   /** Same monotonic gradient as the builder-skills curriculum. */
   mastery: MasteryState;
   addedAt?: string;
+};
+
+/** Code-computed state for the lesson pages that already exist in a subject creation. */
+export type SubjectLessonState = {
+  /** Curriculum skill ids with lesson pages detected on disk, in curriculum order. */
+  builtSkillIds: string[];
+  /** The newest contiguous built lesson in curriculum order, null when lesson one is missing. */
+  newestBuiltSkillId: string | null;
+  /** One-based lesson number for `newestBuiltSkillId`, null when there is none. */
+  newestBuiltLessonNumber: number | null;
+  /** The next curriculum skill whose lesson should be built after the newest built one. */
+  nextUnbuiltSkillId: string | null;
+  nextUnbuiltLessonInFlight?: boolean;
 };
 
 /** The shape of `learning/curriculum.json`. */
@@ -70,6 +84,8 @@ export type SubjectSnapshot = {
   goal: string | null;
   /** Titles of the most recent learning records, newest first. */
   recentLearningRecords: string[];
+  /** Lesson pages detected on disk. Missing when there are no usable lesson files. */
+  lessonState?: SubjectLessonState;
 };
 
 /** A subject in the read-only progress view (both reflection surfaces). */
@@ -177,10 +193,10 @@ function clip(text: string, max: number): string {
 /**
  * The per-turn subject note appended to Bit's prompt when the builder has
  * learning creations - the same trick as the coaching note: surface the whole
- * map (goal, skills with mastery, recent learning records) and let Bit judge
- * whether this turn is a teaching turn at all. Returns null when there is
- * nothing to say (no active or paused subjects), so quiet profiles pay no
- * prompt tokens for the feature.
+ * map (goal, skills with mastery, detected lesson build state, recent learning
+ * records) and let Bit judge whether this turn is a teaching turn at all.
+ * Returns null when there is nothing to say (no active or paused subjects), so
+ * quiet profiles pay no prompt tokens for the feature.
  */
 export function buildSubjectsNote(snapshots: SubjectSnapshot[]): string | null {
   const active = snapshots.filter((snapshot) => snapshot.curriculum.status === "active");
@@ -204,6 +220,7 @@ export function buildSubjectsNote(snapshots: SubjectSnapshot[]): string | null {
     } else {
       lines.push("  Skills: none yet - a research build should write learning/curriculum.json.");
     }
+    appendLessonStateLines(lines, snapshot);
     if (snapshot.recentLearningRecords.length > 0) {
       lines.push("  Recent learning records:");
       for (const title of snapshot.recentLearningRecords) {
@@ -217,4 +234,29 @@ export function buildSubjectsNote(snapshots: SubjectSnapshot[]): string | null {
     );
   }
   return lines.join("\n");
+}
+
+function appendLessonStateLines(lines: string[], snapshot: SubjectSnapshot): void {
+  const state = snapshot.lessonState;
+  if (!state?.newestBuiltSkillId || !state.nextUnbuiltSkillId) return;
+  const newest = snapshot.curriculum.skills.find((skill) => skill.id === state.newestBuiltSkillId);
+  const next = snapshot.curriculum.skills.find((skill) => skill.id === state.nextUnbuiltSkillId);
+  if (!newest || !next) return;
+  lines.push("  Lesson build state:");
+  lines.push(
+    `    Built lesson skills: ${state.builtSkillIds.length > 0 ? state.builtSkillIds.join(", ") : "none detected"}`,
+  );
+  lines.push(
+    `    Newest built lesson: ${newest.id} (lesson ${state.newestBuiltLessonNumber}): ${newest.label}`,
+  );
+  lines.push(`    Next unbuilt lesson: ${next.id}: ${next.label}`);
+  if (state.nextUnbuiltLessonInFlight) {
+    lines.push(
+      "    One-ahead chat trigger: the next unbuilt lesson is already building, so do NOT call delegate_build for it again this turn.",
+    );
+    return;
+  }
+  lines.push(
+    "    One-ahead chat trigger: if this turn shows the builder reached, played, or finished the newest built lesson, call delegate_build exactly once now for the next unbuilt lesson. In the build instructions, name that skill, include what the learning records say, and say this is a lesson job that must not edit learning/curriculum.json. If the builder has not reached the newest built lesson, do not delegate just because a next lesson exists. You may re-read teach-subject for the full doctrine.",
+  );
 }

@@ -24,7 +24,7 @@ import {
 import { buildCoachingNote, isSkillId, type SkillId, type SkillSignal } from "@shared/curriculum";
 import type { ProfileSummary, RoadmapItem } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
-import { buildSubjectsNote } from "@shared/subjects";
+import { buildSubjectsNote, type SubjectSnapshot } from "@shared/subjects";
 import { Type } from "typebox";
 import { type BlueprintReference, type BotJobRecord, BotJobService } from "../bots/botJobService";
 import { type BotPipeline, LocalBotPipeline } from "../bots/botPipeline";
@@ -101,6 +101,7 @@ type InflightBot = {
   title: string;
   instructions: string;
   startedAt: string;
+  lessonSkillId?: string;
 };
 
 type TurnVocabulary = {
@@ -922,6 +923,7 @@ export class BitCoordinatorService {
     let job = await this.botJobs.createJob(project, blueprint);
     const workbench = await this.pipeline.prepareBotWorkbench(project, job);
     job = await this.botJobs.markRunning(project, job, workbench);
+    const lessonSkillId = await this.resolveInflightLessonSkillId(project);
 
     this.addInflight(profileId, {
       jobId: job.id,
@@ -929,6 +931,7 @@ export class BitCoordinatorService {
       title: project.title,
       instructions,
       startedAt: this.now().toISOString(),
+      ...(lessonSkillId ? { lessonSkillId } : {}),
     });
 
     const run = this.runBotPipeline(
@@ -1247,6 +1250,11 @@ export class BitCoordinatorService {
     return this.listInflight(profileId).some((bot) => bot.projectId === projectId);
   }
 
+  private async resolveInflightLessonSkillId(project: RuntimeProject): Promise<string | undefined> {
+    const snapshot = await readSubjectSnapshot(project).catch(() => null);
+    return snapshot?.lessonState?.nextUnbuiltSkillId ?? undefined;
+  }
+
   /**
    * Records that the kid opened the Logbook, so the word can unlock and be
    * revealed by Bit on the next turn.
@@ -1315,11 +1323,32 @@ export class BitCoordinatorService {
           mainWorkbenchDir: this.projects.pathsFor(profileId, project.id).mainWorkbenchDir,
         })),
       );
-      return buildSubjectsNote(snapshots);
+      return buildSubjectsNote(this.markInflightLessonBuilds(profileId, snapshots));
     } catch (error) {
       console.error(`Failed to read learning subjects for profile ${profileId}:`, error);
       return null;
     }
+  }
+
+  private markInflightLessonBuilds(
+    profileId: string,
+    snapshots: SubjectSnapshot[],
+  ): SubjectSnapshot[] {
+    const inflight = this.listInflight(profileId);
+    if (inflight.length === 0) return snapshots;
+    return snapshots.map((snapshot) => {
+      const state = snapshot.lessonState;
+      const nextSkillId = state?.nextUnbuiltSkillId;
+      if (!nextSkillId) return snapshot;
+      const isInFlight = inflight.some(
+        (bot) => bot.projectId === snapshot.projectId && bot.lessonSkillId === nextSkillId,
+      );
+      if (!isInFlight) return snapshot;
+      return {
+        ...snapshot,
+        lessonState: { ...state, nextUnbuiltLessonInFlight: true },
+      };
+    });
   }
 
   /**

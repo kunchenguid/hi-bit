@@ -2055,6 +2055,77 @@ describe("learning subjects (teach-anything)", () => {
     expect(prompt).toMatch(/learning map/i);
   });
 
+  it("wires code-computed one-ahead lesson state into stale chat turns", async () => {
+    const s = await createCoordinator();
+    const { project } = await seedLearningCreation(s);
+    let releaseBot: (() => void) | undefined;
+    const botBlocked = new Promise<void>((resolve) => {
+      releaseBot = resolve;
+    });
+    s.bot.beforeReturn = async () => botBlocked;
+    const paths = s.projects.pathsFor(s.profile.id, project.id);
+    await writeFile(
+      join(paths.mainWorkbenchDir, "learning", "curriculum.json"),
+      JSON.stringify(
+        {
+          ...MATH_CURRICULUM,
+          skills: [
+            ...MATH_CURRICULUM.skills,
+            { id: "subtract-spending", label: "Subtract coins after buying", mastery: "unseen" },
+          ],
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    await mkdir(join(paths.mainWorkbenchDir, "lessons"), { recursive: true });
+    await writeFile(join(paths.mainWorkbenchDir, "lessons", "0001-count-up-score.html"), "one");
+    await writeFile(join(paths.mainWorkbenchDir, "lessons", "0002-add-two-digit.html"), "two");
+    await writeFile(
+      join(paths.botJobsDir, "bot_job_old_1.json"),
+      JSON.stringify({ status: "completed" }),
+      "utf8",
+    );
+    await writeFile(
+      join(paths.botJobsDir, "bot_job_old_2.json"),
+      JSON.stringify({ status: "completed" }),
+      "utf8",
+    );
+    s.bit.handler = async ({ text, callTool }) => {
+      if (text.includes("Builder says:") && text.includes("call delegate_build exactly once now")) {
+        await callTool("delegate_build", {
+          creationId: project.id,
+          instructions:
+            "Build the next lesson. This is a lesson job and must not edit learning/curriculum.json.",
+        });
+        return "I am building the next lesson.";
+      }
+      return "Ready.";
+    };
+
+    await s.coordinator.send(s.profile.id, "I finished lesson 2.");
+    await s.coordinator.send(s.profile.id, "Can we keep going?");
+    releaseBot?.();
+    await s.drain();
+
+    const prompt = s.bit.prompts.find((entry) => entry.includes("Builder says: I finished"));
+    expect(prompt).toContain("Built lesson skills: count-up-score, add-two-digit");
+    expect(prompt).toContain("Newest built lesson: add-two-digit (lesson 2)");
+    expect(prompt).toContain("Next unbuilt lesson: subtract-spending");
+    expect(prompt).toContain("call delegate_build exactly once now");
+    const repeatedPrompt = s.bit.prompts.find((entry) => entry.includes("Builder says: Can we"));
+    expect(repeatedPrompt).toContain("Next unbuilt lesson: subtract-spending");
+    expect(repeatedPrompt).toContain("already building");
+    expect(repeatedPrompt).not.toContain("call delegate_build exactly once now");
+    const lessonBuilds = s.bot.prompts.filter((entry) =>
+      entry.text.includes("Build the next lesson"),
+    );
+    expect(lessonBuilds).toHaveLength(1);
+    const completionPrompt = s.bit.prompts.find((entry) => entry.includes("What changed:"));
+    expect(completionPrompt).toContain("do NOT delegate another build");
+  });
+
   it("adds no subjects note for a builder with only ordinary creations", async () => {
     const s = await createCoordinator();
     await s.projects.create(s.profile.id, { title: "Cat Game" });

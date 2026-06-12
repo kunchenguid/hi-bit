@@ -107,6 +107,130 @@ describe("readSubjectSnapshot", () => {
       skills: [{ id: "a", label: "A", mastery: "unseen" }],
     });
   });
+
+  it("detects built lesson pages by skill slug and exposes the next unbuilt lesson", async () => {
+    const dir = await makeWorkbench();
+    await seedSubject(dir, {
+      ...MATH,
+      skills: [
+        ...MATH.skills,
+        { id: "subtract-spending", label: "Subtract coins after buying", mastery: "unseen" },
+      ],
+    });
+    await mkdir(join(dir, "lessons"), { recursive: true });
+    await writeFile(join(dir, "lessons", "0001-count-up-score.html"), "one", "utf8");
+    await writeFile(join(dir, "lessons", "0002-add-two-digit.html"), "two", "utf8");
+
+    const snapshot = await readSubjectSnapshot({
+      id: "p1",
+      title: "Math World",
+      mainWorkbenchDir: dir,
+    });
+
+    expect(snapshot?.lessonState).toEqual({
+      builtSkillIds: ["count-up-score", "add-two-digit"],
+      newestBuiltSkillId: "add-two-digit",
+      newestBuiltLessonNumber: 2,
+      nextUnbuiltSkillId: "subtract-spending",
+    });
+  });
+
+  it("falls back to lesson numbers and keeps one-ahead state on the contiguous path", async () => {
+    const dir = await makeWorkbench();
+    await seedSubject(dir, {
+      ...MATH,
+      skills: [
+        ...MATH.skills,
+        { id: "subtract-spending", label: "Subtract coins after buying", mastery: "unseen" },
+      ],
+    });
+    await mkdir(join(dir, "lessons"), { recursive: true });
+    await writeFile(join(dir, "lessons", "0001.html"), "one", "utf8");
+    await writeFile(join(dir, "lessons", "0003-subtract-spending.html"), "three", "utf8");
+
+    const snapshot = await readSubjectSnapshot({
+      id: "p1",
+      title: "Math World",
+      mainWorkbenchDir: dir,
+    });
+
+    expect(snapshot?.lessonState).toEqual({
+      builtSkillIds: ["count-up-score", "subtract-spending"],
+      newestBuiltSkillId: "count-up-score",
+      newestBuiltLessonNumber: 1,
+      nextUnbuiltSkillId: "add-two-digit",
+    });
+  });
+
+  it("uses the numeric lesson prefix before overlapping skill slugs", async () => {
+    const dir = await makeWorkbench();
+    await seedSubject(dir, {
+      ...MATH,
+      skills: [
+        { id: "add", label: "Add numbers", mastery: "unseen" },
+        { id: "add-two-digit", label: "Add two-digit numbers", mastery: "unseen" },
+        { id: "subtract-spending", label: "Subtract coins after buying", mastery: "unseen" },
+      ],
+    });
+    await mkdir(join(dir, "lessons"), { recursive: true });
+    await writeFile(join(dir, "lessons", "0001-add.html"), "one", "utf8");
+    await writeFile(join(dir, "lessons", "0002-add-two-digit.html"), "two", "utf8");
+
+    const snapshot = await readSubjectSnapshot({
+      id: "p1",
+      title: "Math World",
+      mainWorkbenchDir: dir,
+    });
+
+    expect(snapshot?.lessonState).toEqual({
+      builtSkillIds: ["add", "add-two-digit"],
+      newestBuiltSkillId: "add-two-digit",
+      newestBuiltLessonNumber: 2,
+      nextUnbuiltSkillId: "subtract-spending",
+    });
+  });
+
+  it("prefers the longest slug match when filenames have no lesson number", async () => {
+    const dir = await makeWorkbench();
+    await seedSubject(dir, {
+      ...MATH,
+      skills: [
+        { id: "add", label: "Add numbers", mastery: "unseen" },
+        { id: "add-two-digit", label: "Add two-digit numbers", mastery: "unseen" },
+      ],
+    });
+    await mkdir(join(dir, "lessons"), { recursive: true });
+    await writeFile(join(dir, "lessons", "add.html"), "one", "utf8");
+    await writeFile(join(dir, "lessons", "practice-add-two-digit.html"), "two", "utf8");
+
+    const snapshot = await readSubjectSnapshot({
+      id: "p1",
+      title: "Math World",
+      mainWorkbenchDir: dir,
+    });
+
+    expect(snapshot?.lessonState).toEqual({
+      builtSkillIds: ["add", "add-two-digit"],
+      newestBuiltSkillId: "add-two-digit",
+      newestBuiltLessonNumber: 2,
+      nextUnbuiltSkillId: null,
+    });
+  });
+
+  it("omits lesson state when lesson files are missing or unusable", async () => {
+    const dir = await makeWorkbench();
+    await seedSubject(dir);
+    await mkdir(join(dir, "lessons"), { recursive: true });
+    await writeFile(join(dir, "lessons", "notes.txt"), "not a page", "utf8");
+
+    const snapshot = await readSubjectSnapshot({
+      id: "p1",
+      title: "Math World",
+      mainWorkbenchDir: dir,
+    });
+
+    expect(snapshot?.lessonState).toBeUndefined();
+  });
 });
 
 describe("listSubjectSnapshots", () => {
