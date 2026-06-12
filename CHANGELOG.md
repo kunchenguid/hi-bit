@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.9](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.8...hi-bit-v0.0.9) (2026-06-12)
+
+
+### Features
+
+* **pi:** request Codex priority tier for Pi sessions ([#95](https://github.com/kunchenguid/hi-bit/issues/95)) ([b7333be](https://github.com/kunchenguid/hi-bit/commit/b7333be07841f6a0f2ec4c46d76573e8eaa83c66))
+
+
+### Bug Fixes
+
+* **bit:** keep learning subjects one lesson ahead ([#93](https://github.com/kunchenguid/hi-bit/issues/93)) ([297040f](https://github.com/kunchenguid/hi-bit/commit/297040fa1f8aa8f7e7320357f962ab2ea04bb57b))
+
 ## [0.0.8](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.7...hi-bit-v0.0.8) (2026-06-12)
 
 
