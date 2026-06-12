@@ -137,6 +137,7 @@ export class BitCoordinatorService {
   private readonly listeners = new Set<(event: ChatEvent) => void>();
   private readonly toolCache = new Map<string, ToolDefinition[]>();
   private readonly inflight = new Map<string, Map<string, InflightBot>>();
+  private readonly pendingCompletions = new Map<string, Set<string>>();
   private readonly bitLocks = new Map<string, Promise<unknown>>();
   private readonly bitLockHeld = new Set<string>();
   private readonly activeTurns = new Map<string, { id: string; kind: TurnKind }>();
@@ -321,8 +322,7 @@ export class BitCoordinatorService {
   }
 
   async resetConversation(profileId: string): Promise<ChatSnapshot> {
-    await this.profiles.get(profileId);
-    if (this.listInflight(profileId).length > 0) {
+    if (this.hasResetBlockingBuild(profileId)) {
       throw new Error("Wait for the running build to finish before resetting.");
     }
     if (
@@ -332,9 +332,10 @@ export class BitCoordinatorService {
     ) {
       throw new Error("Wait for Bit to finish before resetting.");
     }
+    await this.profiles.get(profileId);
 
     return this.withBitLock(profileId, async () => {
-      if (this.listInflight(profileId).length > 0) {
+      if (this.hasResetBlockingBuild(profileId)) {
         throw new Error("Wait for the running build to finish before resetting.");
       }
       if (this.bit.isRunning(profileId) || this.activeTurns.has(profileId)) {
@@ -1134,6 +1135,7 @@ export class BitCoordinatorService {
       summary = error instanceof Error ? error.message : String(error);
     } finally {
       this.bot.disposeProject?.(job.id);
+      this.addPendingCompletion(profileId, job.id);
       this.removeInflight(profileId, job.id);
       const closedSteps = await this.closeRunningActivity(profileId, project.id, job.id, outcome);
       for (const step of closedSteps) {
@@ -1155,12 +1157,16 @@ export class BitCoordinatorService {
       }
     }
 
-    await this.profiles.bumpBuildsDelegated(profileId).catch(() => {});
-    await this.runCompletionTurn(profileId, project, outcome, summary, readyToPlay).catch(
-      async () => {
-        await this.appendCompletionFallback(profileId, project, outcome);
-      },
-    );
+    try {
+      await this.profiles.bumpBuildsDelegated(profileId).catch(() => {});
+      await this.runCompletionTurn(profileId, project, outcome, summary, readyToPlay).catch(
+        async () => {
+          await this.appendCompletionFallback(profileId, project, outcome);
+        },
+      );
+    } finally {
+      this.removePendingCompletion(profileId, job.id);
+    }
   }
 
   private async runCompletionTurn(
@@ -1296,6 +1302,25 @@ export class BitCoordinatorService {
 
   private listInflight(profileId: string): InflightBot[] {
     return [...(this.inflight.get(profileId)?.values() ?? [])];
+  }
+
+  private addPendingCompletion(profileId: string, jobId: string): void {
+    const set = this.pendingCompletions.get(profileId) ?? new Set<string>();
+    set.add(jobId);
+    this.pendingCompletions.set(profileId, set);
+  }
+
+  private removePendingCompletion(profileId: string, jobId: string): void {
+    const set = this.pendingCompletions.get(profileId);
+    set?.delete(jobId);
+    if (set?.size === 0) this.pendingCompletions.delete(profileId);
+  }
+
+  private hasResetBlockingBuild(profileId: string): boolean {
+    return (
+      this.listInflight(profileId).length > 0 ||
+      (this.pendingCompletions.get(profileId)?.size ?? 0) > 0
+    );
   }
 
   private hasInflightForProject(profileId: string, projectId: string): boolean {

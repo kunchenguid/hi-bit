@@ -373,6 +373,33 @@ describe("BitCoordinatorService (Bit)", () => {
     await s.drain();
   });
 
+  it("blocks conversation reset while Bit is preparing the build completion reply", async () => {
+    const s = await createCoordinator();
+    const creation = await s.projects.create(s.profile.id, { title: "Cat Jump" });
+    let resetAttempt: Promise<unknown> | undefined;
+    s.coordinator.subscribe((event) => {
+      if (event.type === "build_end") {
+        resetAttempt = s.coordinator.resetConversation(s.profile.id).then(
+          () => null,
+          (error) => error,
+        );
+      }
+    });
+    s.bit.handler = async ({ text, callTool }) => {
+      if (isCompletion(text)) return "Done.";
+      await callTool("delegate_build", { creationId: creation.id, instructions: "add stars" });
+      return "A bot is building Cat Jump.";
+    };
+
+    await s.coordinator.send(s.profile.id, "start a build");
+    await s.drain();
+
+    expect(resetAttempt).toBeDefined();
+    await expect(resetAttempt).resolves.toMatchObject({
+      message: "Wait for the running build to finish before resetting.",
+    });
+  });
+
   it("sends the builder identity via session context, not duplicated in each turn's prompt", async () => {
     const s = await createCoordinator();
     s.bit.handler = async () => "Hi!";
