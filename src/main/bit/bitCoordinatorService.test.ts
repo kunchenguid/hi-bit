@@ -2118,7 +2118,9 @@ describe("learning subjects (teach-anything)", () => {
     expect(repeatedPrompt).toContain("Next unbuilt lesson: subtract-spending");
     expect(repeatedPrompt).toContain("already building");
     expect(repeatedPrompt).not.toContain("call delegate_build exactly once now");
-    const lessonBuilds = s.bot.prompts.filter((entry) => entry.text.includes("Build the next lesson"));
+    const lessonBuilds = s.bot.prompts.filter((entry) =>
+      entry.text.includes("Build the next lesson"),
+    );
     expect(lessonBuilds).toHaveLength(1);
     const completionPrompt = s.bit.prompts.find((entry) => entry.includes("What changed:"));
     expect(completionPrompt).toContain("do NOT delegate another build");
