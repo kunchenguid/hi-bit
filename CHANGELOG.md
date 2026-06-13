@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.11](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.10...hi-bit-v0.0.11) (2026-06-13)
+
+
+### Features
+
+* **renderer:** add full-screen Settings page ([#99](https://github.com/kunchenguid/hi-bit/issues/99)) ([67d7692](https://github.com/kunchenguid/hi-bit/commit/67d7692b9cccc9d9e24b2749ad7a97901a38e674))
+
+
+### Bug Fixes
+
+* **bit:** calibrate subject lesson starting points ([#101](https://github.com/kunchenguid/hi-bit/issues/101)) ([ac5af7b](https://github.com/kunchenguid/hi-bit/commit/ac5af7b1436a1f9999e08be3803e217c80f17351))
+
 ## [0.0.10](https://github.com/kunchenguid/hi-bit/compare/hi-bit-v0.0.9...hi-bit-v0.0.10) (2026-06-12)
 
 
