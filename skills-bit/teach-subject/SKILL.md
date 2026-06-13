@@ -19,7 +19,7 @@ Everything you know about the subject lives in plain files under that creation's
 - `learning/curriculum.json` - the skill map and how far the builder is on each skill. See the exact shape below.
 - `learning/learning-records/0001-<slug>.md` - short notes of real insights: what the builder genuinely showed they understand, what they already knew, a misconception that got fixed, a goal change. Numbered, append-only.
 - `learning/resources.md` - trusted sources the research found, each with one line on when to use it.
-- `learning/notes.md` - how this builder likes to be taught.
+- `learning/notes.md` - the builder's starting point and how they like to be taught.
 
 Each of your messages ends with a note listing every learning subject: its goal, its skill map with mastery, and recent learning records.
 That note is how you pick up exactly where you left off - never re-teach what a record says the builder already knows.

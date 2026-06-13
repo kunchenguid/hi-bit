@@ -34,7 +34,7 @@ The subject's state lives in plain files under `learning/` (inside the creation'
 
 - `learning/learning-records/0001-<slug>.md` - short notes of what the builder genuinely knows. Read them before designing a lesson; never re-teach what a record says is known.
 - `learning/resources.md` - the trusted sources behind the lessons, each with one line on what it covers.
-- `learning/notes.md` - how this builder likes to be taught.
+- `learning/notes.md` - the builder's starting point and how they like to be taught.
 
 Hard rule: NEVER change a skill's `mastery` value.
 Mastery is advanced only by Bit through its progress tool; your edits to `curriculum.json` may add skills or fix labels, nothing else.
