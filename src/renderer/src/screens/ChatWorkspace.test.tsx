@@ -2,7 +2,7 @@
 /// <reference types="node" />
 
 import type { CreationActivity } from "@shared/chat";
-import type { ProfileSummary } from "@shared/profile";
+import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import type { ProjectSummary } from "@shared/project";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -48,6 +48,9 @@ function renderWorkspace(
     playableProjectIds?: string[];
     onPlayPreview?: (projectId: string) => void;
     onShowActivity?: () => void;
+    onOpenFolder?: () => void;
+    onSwitchProfile?: () => void;
+    onUpdateProfile?: (settings: ProfileSettingsInput) => Promise<void>;
     onResetConversation?: () => Promise<void>;
   } = {},
 ): void {
@@ -78,9 +81,9 @@ function renderWorkspace(
         onVoiceText={vi.fn()}
         onSend={vi.fn()}
         onAbort={vi.fn()}
-        onOpenFolder={vi.fn()}
-        onSwitchProfile={vi.fn()}
-        onUpdateProfile={vi.fn(async () => {})}
+        onOpenFolder={overrides.onOpenFolder ?? vi.fn()}
+        onSwitchProfile={overrides.onSwitchProfile ?? vi.fn()}
+        onUpdateProfile={overrides.onUpdateProfile ?? vi.fn(async () => {})}
         onResetConversation={overrides.onResetConversation ?? vi.fn(async () => {})}
         thinkingSpeed="medium"
         onChangeThinkingSpeed={vi.fn()}
@@ -98,6 +101,47 @@ function renderWorkspace(
   (host as unknown as { __root?: Root }).__root = root;
 }
 
+async function flushAsyncWork(): Promise<void> {
+  await act(async () => {
+    for (let i = 0; i < 6; i += 1) {
+      await Promise.resolve();
+    }
+  });
+}
+
+function installWindowApi({
+  updateAvailable = false,
+  progressGet = vi.fn(async () => null),
+}: {
+  updateAvailable?: boolean;
+  progressGet?: ReturnType<typeof vi.fn>;
+} = {}) {
+  Object.defineProperty(window, "hibit", {
+    configurable: true,
+    value: {
+      app: {
+        info: vi.fn(async () => ({
+          version: "0.0.2",
+          platform: "darwin",
+          userDataDir: "/tmp/userData",
+          hiBitDir: "/tmp/userData/.hi-bit",
+        })),
+        getUpdateStatus: vi.fn(async () => ({
+          currentVersion: "0.0.2",
+          latestVersion: updateAvailable ? "0.0.3" : null,
+          updateAvailable,
+          releaseUrl: updateAvailable
+            ? "https://github.com/kunchenguid/hi-bit/releases/tag/v0.0.3"
+            : null,
+        })),
+        openReleasePage: vi.fn(async () => {}),
+      },
+      progress: { get: progressGet },
+    },
+  });
+  return { progressGet };
+}
+
 describe("ChatWorkspace header", () => {
   let host: HTMLDivElement;
 
@@ -111,6 +155,7 @@ describe("ChatWorkspace header", () => {
     const root = (host as unknown as { __root?: Root }).__root;
     if (root) act(() => root.unmount());
     host.remove();
+    (window as unknown as { hibit?: unknown }).hibit = undefined;
     vi.restoreAllMocks();
   });
 
@@ -136,16 +181,106 @@ describe("ChatWorkspace header", () => {
     );
   }
 
-  it("keeps the grown-up menu free of technical provider plumbing", () => {
+  it("keeps Settings free of technical provider plumbing", () => {
     renderWorkspace(host);
     // The kid-facing chrome no longer surfaces "Codex" or an account id anywhere.
     expect(host.textContent).not.toContain("Codex provider connected");
   });
 
-  it("confirms before resetting the conversation from the grown-up menu", async () => {
+  it("opens Settings as a tabbed overlay with a scrolling content panel", () => {
+    renderWorkspace(host);
+
+    expect(host.querySelector(".hb-parent-menu")).toBeNull();
+    act(() => findButton("Settings")?.click());
+
+    expect(host.querySelector('.hb-settings[role="dialog"]')).not.toBeNull();
+    expect(host.textContent).toContain("Back to building");
+    expect(host.textContent).toContain("Details");
+    expect(host.textContent).toContain("This account");
+    expect(host.querySelector(".hb-settings-content")?.getAttribute("data-scroll-container")).toBe(
+      "settings-content",
+    );
+
+    act(() => findButton("How Bit works")?.click());
+    expect(host.querySelector("#hb-speed-slider")).not.toBeNull();
+
+    act(() => findButton("About & updates")?.click());
+    expect(host.textContent).toContain("Version");
+  });
+
+  it("shows update dots on the Settings button and About tab", async () => {
+    installWindowApi({ updateAvailable: true });
+    renderWorkspace(host);
+    await flushAsyncWork();
+
+    expect(findButton("Settings")?.querySelector(".hb-update-dot")).not.toBeNull();
+
+    act(() => findButton("Settings")?.click());
+    const aboutTab = findButton("About & updates");
+    expect(aboutTab?.querySelector(".hb-settings-tab-dot")).not.toBeNull();
+
+    act(() => aboutTab?.click());
+    expect(host.textContent).toContain("Update available");
+    expect(host.textContent).toContain("v0.0.3");
+  });
+
+  it("saves profile details from the inline Settings form", async () => {
+    const onUpdateProfile = vi.fn(async () => {});
+    renderWorkspace(host, { onUpdateProfile });
+
+    act(() => findButton("Settings")?.click());
+    const nameInput = host.querySelector<HTMLInputElement>('[name="profileName"]');
+    expect(nameInput).not.toBeNull();
+    act(() => {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(nameInput, "Test Builder");
+      nameInput?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      findButton("Save profile")?.click();
+    });
+
+    expect(onUpdateProfile).toHaveBeenCalledWith({
+      name: "Test Builder",
+      age: 9,
+      interests: [],
+      notes: null,
+    });
+  });
+
+  it("keeps the Profile account action rows wired", () => {
+    const onOpenFolder = vi.fn();
+    const onSwitchProfile = vi.fn();
+    renderWorkspace(host, { onOpenFolder, onSwitchProfile });
+
+    act(() => findButton("Settings")?.click());
+    act(() => findButton("Open creations folder")?.click());
+    act(() => findButton("Switch profile")?.click());
+
+    expect(onOpenFolder).toHaveBeenCalledOnce();
+    expect(onSwitchProfile).toHaveBeenCalledOnce();
+  });
+
+  it("opens My progress as its own overlay and refreshes progress on open", async () => {
+    const progressGet = vi.fn(async () => null);
+    installWindowApi({ progressGet });
+    renderWorkspace(host);
+    await flushAsyncWork();
+    const initialCalls = progressGet.mock.calls.length;
+
+    act(() => findButton("My progress")?.click());
+    await flushAsyncWork();
+
+    expect(host.querySelector('.hb-progress-overlay[role="dialog"]')).not.toBeNull();
+    expect(host.textContent).toContain("My progress");
+    expect(progressGet.mock.calls.length).toBeGreaterThan(initialCalls);
+  });
+
+  it("confirms before resetting the conversation from Settings", async () => {
     const onResetConversation = vi.fn(async () => {});
     renderWorkspace(host, { onResetConversation });
 
+    act(() => findButton("Settings")?.click());
     act(() => findButton("Reset conversation")?.click());
 
     expect(onResetConversation).not.toHaveBeenCalled();
@@ -176,6 +311,7 @@ describe("ChatWorkspace header", () => {
       ],
     });
 
+    act(() => findButton("Settings")?.click());
     act(() => findButton("Reset conversation")?.click());
     const confirm = findButton("Yes, reset conversation");
 
@@ -200,6 +336,7 @@ describe("ChatWorkspace factory floor", () => {
     const root = (host as unknown as { __root?: Root }).__root;
     if (root) act(() => root.unmount());
     host.remove();
+    (window as unknown as { hibit?: unknown }).hibit = undefined;
     vi.restoreAllMocks();
   });
 

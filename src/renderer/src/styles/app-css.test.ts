@@ -26,16 +26,29 @@ describe("app.css", () => {
     expect(ruleBlock(css, ".hb-message-list")).toMatch(/overflow:\s*auto;/);
   });
 
-  it("keeps the profile settings popover within the mobile viewport", () => {
+  it("bounds Settings and scrolls only the content panel", () => {
     const css = readFileSync(new URL("./app.css", import.meta.url), "utf8");
-    const mobileRules = css.match(/@media \(max-width: 920px\) \{[\s\S]*\n\}/)?.[0] ?? "";
 
-    expect(mobileRules).toMatch(/\.hb-profile-settings-popover\s*\{/);
-    expect(mobileRules).toMatch(/\.hb-header-actions\s*\{[^}]*width:\s*100%;/);
-    expect(mobileRules).toMatch(/\.hb-profile-settings-menu\s*\{[^}]*width:\s*100%;/);
-    expect(mobileRules).toMatch(/left:\s*0;/);
-    expect(mobileRules).toMatch(/right:\s*auto;/);
-    expect(mobileRules).toMatch(/\.hb-profile-settings-popover\s*\{[^}]*width:\s*100%;/);
+    const settings = ruleBlock(css, ".hb-settings");
+    expect(settings).toMatch(/grid-template-rows:\s*auto minmax\(0,\s*1fr\);/);
+    expect(settings).toMatch(/overflow:\s*hidden;/);
+    expect(settings).toMatch(/max-height:\s*calc\(100vh - var\(--s-6\)\);/);
+
+    const layout = ruleBlock(css, ".hb-settings-layout");
+    expect(layout).toMatch(/grid-template-columns:\s*230px minmax\(0,\s*1fr\);/);
+    expect(layout).toMatch(/min-height:\s*0;/);
+    expect(layout).toMatch(/overflow:\s*hidden;/);
+
+    const content = ruleBlock(css, ".hb-settings-content");
+    expect(content).toMatch(/min-height:\s*0;/);
+    expect(content).toMatch(/overflow-y:\s*auto;/);
+
+    const mobileRuleIndex = css.indexOf("@media (max-width: 680px)");
+    const mobileRules = css.slice(mobileRuleIndex);
+    expect(mobileRules).toMatch(/\.hb-settings-layout\s*\{[^}]*grid-template-columns:\s*1fr;/);
+    expect(mobileRules).toMatch(/\.hb-settings-sidebar\s*\{[^}]*flex-direction:\s*row;/);
+    expect(mobileRules).toMatch(/\.hb-settings-sidebar\s*\{[^}]*overflow-x:\s*auto;/);
+    expect(mobileRules).toMatch(/\.hb-settings-content\s*\{[^}]*padding:\s*var\(--s-2\);/);
   });
 
   it("keeps the voice callout inside the mobile viewport", () => {
