@@ -99,6 +99,17 @@ describe("createBitResourceLoader skills", () => {
     expect(skill?.description).toMatch(/teach|learn|subject/i);
   });
 
+  it("teaches Bit to calibrate a new subject's starting point before creating it", () => {
+    const skill = readFileSync(resolve("skills-bit/teach-subject/SKILL.md"), "utf8");
+
+    expect(skill).toMatch(/starting point/i);
+    expect(skill).toMatch(/already know|already knows|already told/i);
+    expect(skill).toMatch(/at most one playful calibration question/i);
+    expect(skill).toMatch(/challenge lane/i);
+    expect(skill).toMatch(/do not ask again/i);
+    expect(skill).toMatch(/starting level/i);
+  });
+
   it("never offers Bit the bots' skills (separate curated dir)", () => {
     const { loader } = createBitResourceLoader(undefined, { skillsDir: resolve("skills-bit") });
     const names = loader.getSkills().skills.map((s) => s.name);
@@ -196,6 +207,16 @@ describe("buildBotSystemPrompt", () => {
       // The one hard data rule: a bot never edits mastery.
       expect(prompt).toMatch(/never change a mastery/i);
     }
+  });
+
+  it("teaches lesson bots to honor Bit's starting point instead of defaulting to basics", () => {
+    const skill = readFileSync(resolve("skills/create-lesson/SKILL.md"), "utf8");
+
+    expect(skill).toMatch(/Use the starting point Bit gives you/i);
+    expect(skill).toMatch(/Do not automatically begin at the earliest prerequisite/i);
+    expect(skill).toMatch(/basics are easy/i);
+    expect(skill).toMatch(/harder branch/i);
+    expect(skill).toMatch(/never re-teach a skill/i);
   });
 
   it("offers the web tools for looking things up while keeping the builder's details private", () => {
@@ -390,6 +411,8 @@ describe("buildBitSystemPrompt", () => {
       expect(prompt).toContain("teach-subject");
       expect(prompt).toMatch(/learning creation/i);
       expect(prompt).toMatch(/subjects note/i);
+      expect(prompt).toMatch(/brand-new subject/i);
+      expect(prompt).toMatch(/what already feels easy or hard/i);
       // record_progress knows about subject-scoped skills.
       expect(prompt).toMatch(/record_progress[\s\S]{0,400}subject/i);
     }

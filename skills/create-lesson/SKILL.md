@@ -43,21 +43,27 @@ Mastery is advanced only by Bit through its progress tool; your edits to `curric
 
 When the job asks you to research the subject and set the creation up:
 
-1. Ground yourself in real sources first.
-   Use `web_search` (and `fetch_content` on the good hits) to find how this subject is actually taught to kids of this age - the natural order, the common stumbling blocks, the sizes of step that work.
+1. Use the starting point Bit gives you.
+   Do not automatically begin at the earliest prerequisite just because it is first in a standard curriculum.
+   If the builder says basics are easy, start the curriculum at the first skill that stretches them, and keep prerequisite basics as quick checks or reference cards instead of full lessons.
+   If Bit gives no starting point, use the builder's age and goal to choose a warm starter, but include a tiny warm-up that can reveal if the lesson should jump harder.
+2. Ground yourself in real sources first.
+   Use `web_search` (and `fetch_content` on the good hits) to find how this subject is actually taught to kids of this age, goal, and starting point - the natural order, the common stumbling blocks, and the sizes of step that work.
    Never design a curriculum from memory alone, and never teach a fact you have not checked.
    The builder is waiting for this build, so keep the research tight: a few searches and the best one or two pages, enough to trust the skill order - not a survey of everything.
    Keep the builder's name and personal details out of every query.
-2. Write `learning/goal.md` from the goal in the job (if Bit has not already), `learning/resources.md` from what you found, and `learning/curriculum.json` with 5 to 8 small skills, smallest first, every `mastery` set to `"unseen"`.
+3. Write `learning/goal.md` from the goal in the job (if Bit has not already), `learning/resources.md` from what you found, `learning/notes.md` with the starting point Bit gave you, and `learning/curriculum.json` with 5 to 8 small skills, every `mastery` set to `"unseen"`.
    Each skill should be demonstrable in minutes and `label`ed in plain kid words; use `parentLabel` for the precise grown-up name.
-   Tie the skill order to the goal: the builder should touch their actual wish ("score math for my games") by skill two or three, not after a semester of basics.
-3. Build the lesson hub (`index.html`) and the FIRST lesson only, per the lesson rules below.
+   Tie the skill order to the goal and starting level: the builder should touch their actual wish ("score math for my games") by skill two or three, not after a semester of basics they already know.
+4. Build the lesson hub (`index.html`) and the FIRST lesson only, per the lesson rules below.
    The first lesson teaches only the first skill in the curriculum - one skill slice, like every lesson.
+   It should start just above what already feels easy, with a quick success path and a harder branch if the warm-up is too easy.
    Never build later lesson pages in a research job, no matter how clear the road ahead looks: the builder starts playing the moment this build lands, and each next lesson arrives as its own later build, shaped by what the builder shows along the way.
 
 ## Lesson jobs (every later build)
 
 The job names the skill to teach and what the builder already knows.
+Respect that starting point: never re-teach a skill that a learning record or Bit's instructions say is already easy, unless the lesson uses it as a quick check before moving into the new challenge.
 One lesson teaches one skill slice - a single tangible win the builder can reach in a few minutes.
 
 - The hub (`index.html`) is the creation's front page: the subject's name, the lessons in order, which are done (from the save), and a friendly nudge to the next one.
