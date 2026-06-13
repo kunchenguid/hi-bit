@@ -122,38 +122,30 @@ Parents get visibility, not an approval gate: subjects appear in the grown-up pr
 
 ## E2E testing the Electron app via chrome-devtools-axi
 
-Hi-Bit is a Chromium-based Electron app. You can drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port. This is the supported way for an agent to click around, inspect the DOM, eval JS, read console logs, etc.
+Hi-Bit is a Chromium-based Electron app.
+Agents drive the real running renderer from the terminal by attaching `chrome-devtools-axi` to Electron's remote debugging port.
+Use this section as the procedural field guide for clicking around, inspecting the DOM, evaluating JS, and reading console logs.
 
-Manual E2E testing should exercise the Codex connection gate, stale-token reconnect overlay, kid profile gate, profile-level Pi-backed chat workspace, chat image and voice input, live creation preview flow, learning reflection surfaces, and creations-folder action unless the task explicitly narrows scope.
-For Codex reconnect, verify that an expired or rejected refresh token clears the stored credential, shows a blocking reconnect overlay, keeps the current chat workspace mounted underneath, and removes the overlay after Codex is reconnected without clearing the draft, transcript, or open preview.
-For the chat composer, verify that Enter sends the current message, Shift+Enter inserts a newline, Enter does not send while Bit is running, and IME composition is not interrupted.
-For chat image input, verify the composer accepts exactly one picture from paste, file picking, and camera capture; downscales it before send; allows image-only messages; shows the thumbnail in the draft and transcript after reload; stores bytes under `conversation/attachments` with a stable id while transcript and Bit session persistence keep only ids, paths, or scrubbed placeholders; indexes builder pictures as `source: "builder"` in `attachments/index.jsonl` so ids survive chat reset; passes the image to Bit when the runtime supports inline images; and lets Bit recall earlier shared pictures through `list_builder_pictures`.
-For voice input, verify that the mic appears in the composer only on WebGPU-capable devices (the feature is hidden, not disabled, when `navigator.gpu` has no usable adapter); that the first use downloads `whisper-large-v3-turbo` to `<userData>/.hi-bit/models/` with a visible, monotonic progress state and skips the download on later uses; that the model loads in the renderer worker over `hibit-model://` (served by the main process, never the network); that recording starts as soon as the model file is present instead of waiting for Whisper warm-up, and that the background warm-up primes the WebGPU pipeline only once per worker session; that recording is push-to-talk only after a 500ms hold (hold the button past the threshold to talk and release to send; quick-tap toggles a hands-free recording the kid ends by tapping the mic again, which becomes a stop control, even if the mic opens while the pointer is still down); that while active the feedback is a `role="status"` callout anchored above the mic (no backdrop, no `dialog` role), captured as 16kHz mono PCM via Web Audio with a pre-roll buffer; that on-device transcription fills the composer draft for the kid to review and Send rather than auto-sending, with one trailing space after each inserted transcript so the kid can keep typing or dictate again; that accidental sub-second or silent clips and stock Whisper hallucinations are dropped instead of filling the draft; and that the mic track stops when the callout closes. Speech longer than Whisper's 30s window is handled by chunked transcription (`chunk_length_s`/`stride_length_s`), not truncated.
-Note that the renderer CSP must keep `'wasm-unsafe-eval'` (ORT WebAssembly) and `hibit-model:` in `connect-src`, and the scheme must stay `corsEnabled` or the cross-origin model fetch fails.
-The CSP `frame-src` is restricted to the loopback origins (no `https:`), so the in-app browser can only ever frame a creation's own preview; the loopback-only gate in `AppControlService` (`navigation.ts`) is the real gate, and external websites are never opened.
-For real-art requests, verify that a bot calls `generate_image`, saves the generated image under the creation, wires it into the app, and shows it in the preview, and that the same picture is mirrored into the profile image store with a reusable reference id (a `source: "generated"` line in `attachments/index.jsonl`) so a later `generate_image` can reference it by id; when the builder wants art based on a shared picture, verify Bit passes the attachment id in `referencePictureIds`, the blueprint stores the reference without copying the file into the workbench, and the bot passes that id to `generate_image.reference_paths`; for Bit or Bit-branded art, also verify that Bit or the bot calls `view_bit` before drawing and that its base64 image is scrubbed from the on-disk logbook and renderer-bound tool events; for moving or transparent game art, also verify that the bot reads the `game-assets` skill and runs `process_sprite_sheet`.
-For visual app or creation questions that should use Bit's screen view, verify that Bit calls `app_screenshot`, the captured image includes chat chrome plus cross-origin browser-tab iframe pixels, the shorter screenshot edge is capped at 1024 pixels, and screenshot base64 is absent from on-disk Bit session files, project logbooks, and renderer-bound events.
-For the in-app browser, verify that Bit can `browser_open_tab`/`browser_navigate` to a creation's loopback preview (and that any external website is refused with the kid-facing message), that the tab renders in the `BrowserPane` and `browser_snapshot`/`browser_click`/`browser_fill` operate it, that Play opens (or focuses) a creation tab, and that bots get only the headless `browser_*` tools (never the `app_*` tools or the kid's screen).
-For bot headless browser coverage, also verify that `browser_open_tab` to a preview returns instead of hanging when the preview load stalls, that the CDP controller attaches only after a real page has loaded, and that a blank tab reports a clear no-page error until `browser_navigate` loads a creation preview.
-For the spotlight, verify that `app_snapshot` finds an app control and `app_highlight` draws the pointer-through `SpotlightOverlay` ring without Bit ever clicking the app chrome itself.
-For web-lookup requests, verify that Bit or a bot uses `web_search` for search with cached access by default, `fetch_content` for a known public URL, and `get_search_content` when a long fetched page is parked; do not send kid personal details in the test prompt.
-For unfamiliar-visual requests (the builder names a character, creature, object, or art style Bit does not already recognize, e.g. "pusheen cat"), verify that Bit or a bot uses `search_image` to pull a real picture it can see before scoping or drawing, that the found picture is persisted to the image store with a reusable reference id (a `source: "searched"` line in `attachments/index.jsonl`) the model can pass to `generate_image.reference_paths` or `referencePictureIds`, and that the downloaded base64 never reaches the on-disk logbook or renderer-bound tool events; do not send kid personal details in the test prompt.
-For flat 2D playable-game requests, verify that the bot reads the `create-2d-game` skill, uses its loop/input/collision boilerplate, saves any high score/level/coins/unlocks with `GameSave` when they change, and combines it with `game-assets` when the game needs generated sprites.
-For 3D playable-game requests (first-person/third-person worlds, blocky build-and-explore, 3D platformers/collectors/blasters), verify that the bot reads the `create-3d-game` skill, copies its `three.min.js` and `engine3d.js` into the creation, saves any high score/level/coins/placed blocks/unlocks with `GameSave` when they change, builds the world from textured primitives (textures from `generate_image`, not sprite sheets), and the live preview renders it in WebGL.
-For live previews, verify that Play is available from a ready message and from the activity bar when there is one creation; when there are multiple creations, verify the activity bar opens The Factory, playable creations can start from it, and creations without previews are listed without Play.
-For learning progress, verify that the `What I can do` button opens the Factory Handbook as a focus-trapped dialog, returns focus when closed, shows the builder's current tier and 13 skills grouped by arc, and refreshes from `progress.get`; also verify that opening the Grown-up menu refreshes the same progress view, shows parent-facing skill names, mastery counts, current tier, and non-done parked ideas without exposing lesson-tracking language to the kid.
-For reset conversation, verify the Grown-up menu confirmation clearly says the action cannot be undone, chat history is lost, and creations, saved game progress, pictures, and learning progress are kept; verify reset is disabled or rejected while Bit is mid-turn or a bot build is running; verify a completed reset clears the visible transcript and Bit session state only for the active profile while preserving projects, preview history and remembered ports, localStorage saves, learning files and mastery, profile records, roadmap/unlocks/parent notes, and `conversation/attachments` including builder/searched/generated picture ids; verify `list_builder_pictures` and reference resolution still work after reset; and verify telemetry records only an app-level `conversation_reset` event with no kid data.
-For subject teaching ("can you teach me math?"), verify that Bit reads the `teach-subject` skill and asks why (one or two playful questions, never an interrogation) before confirming; that on yes it creates the learning creation, writes `learning/goal.md`, and delegates a research build whose bot reads the `create-lesson` skill, grounds the curriculum in real sources via `web_search`, and writes a valid `learning/curriculum.json` (5-8 skills, all `unseen`) plus `learning/resources.md`, the lesson hub, and the first interactive lesson; that lessons contain no external links and persist progress via `GameSave`/`LessonProgress` - including MID-LESSON state (current question and score resume after Reload and app restart, checkpointed on every answer), not just completion checkmarks; that after the kid demonstrates understanding in chat Bit calls `record_progress` with `subject` and the matching skill id and the file's `mastery` advances monotonically (never regressing, never edited directly); that the subject appears in the Factory Handbook (kid labels) and the grown-up progress window (goal + `parentLabel` names); that a later or stale session resumes from the subjects note (goal, skill map, detected lesson build state, recent learning records) without re-teaching recorded knowledge; that when the builder reaches the newest built lesson the chat-turn trigger delegates exactly one next lesson build and marks it as already building on the following turn; and that a malformed `curriculum.json` degrades that creation to an ordinary one without breaking chat, progress, or other subjects.
-For The Factory, verify that only actively working bots appear as avatars on a creation, finished bots collapse into a centered Logbook pill, and opening that pill or an active bot docks a right-side master/detail Logbook panel that can scroll long histories without horizontal overflow.
-Also verify that Logbook chapters are named from each bot's task summary or instructions when available, while tool-action labels remain in the selected bot's step list.
-Also verify that preview Play opens a sandboxed split-pane iframe only after the kid presses it, focuses the preview page for keyboard controls when it loads and after Reload/rebuild remounts, refetches rebuilt files and subresources instead of replaying Chromium's cached bytes after Reload or rebuild, is idempotent and can restart a persisted preview after an app restart, reuses the creation's remembered loopback port so `localStorage` game saves remain available across plays and app restarts, opens only loopback URLs in the system browser, and cleans up preview processes when the app quits or Bit stops the preview.
-Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`; use the app's Codex connection flow or a clean `userData` state appropriate for the test.
+Manual E2E is for proving the behavior relevant to the current change, investigating a user-visible bug, or checking an integration that cannot be observed in unit tests.
+Before a manual E2E pass, write down the one user-visible behavior you need to prove for the current change and the nearest regression risk.
+Keep the pass narrow unless the task explicitly asks for a broader product sweep.
+Repeatable product verification belongs in automated tests instead of in this file.
+Use colocated Vitest `*.test.ts(x)` files for pure logic, services, IPC adapters, renderer components, and prompt-adjacent deterministic helpers.
+Use a focused Electron E2E spec only when the assertion needs the real main process, preload bridge, Chromium permissions, browser frames, native dialogs, or the on-disk `userData` layout.
+Do not add or move feature-specific checklist items into another permanent manual checklist unless a human explicitly asks for a one-off release checklist.
+
+Codex credentials are stored under `<userData>/.hi-bit/auth/codex.json`.
+Use the app's Codex connection flow or an isolated `userData` state appropriate for the current test.
+Avoid kid personal details in prompts, screenshots, logs, and scratch files.
 
 ### One-time understanding
 
 - `pnpm dev` runs `electron-vite dev`, which builds main + preload into `out/`, starts a Vite dev server on `http://localhost:5173` for the renderer, and launches Electron pointing at it.
-- `electron-vite dev` passes trailing args through to the Electron binary. Chromium honors `--remote-debugging-port=<N>`, so the Electron renderer exposes CDP on that port.
-- `electron-vite dev` does NOT rebuild or restart the running Electron app when `src/main/` (or prompt/skill-adjacent main code) changes - the app keeps running the code it started with. After editing main-process code mid-E2E, kill the dev server and start it again, or the test exercises the old build.
+- `electron-vite dev` passes trailing args through to the Electron binary.
+  Chromium honors `--remote-debugging-port=<N>`, so the Electron renderer exposes CDP on that port.
+- `electron-vite dev` does NOT rebuild or restart the running Electron app when `src/main/` or prompt-adjacent main code changes.
+  The app keeps running the code it started with.
+  After editing main-process code mid-E2E, kill the dev server and start it again, or the test exercises the old build.
 - `chrome-devtools-axi` can attach to any CDP endpoint via the `CHROME_DEVTOOLS_AXI_BROWSER_URL` env var instead of launching its own Chrome.
 
 ### Start the app with CDP exposed
@@ -171,7 +163,8 @@ until curl -s -o /dev/null http://127.0.0.1:9222/json/version; do sleep 2; done
 curl -s http://127.0.0.1:9222/json/version   # sanity-check: should report Electron/<version>
 ```
 
-`http://127.0.0.1:9222/json` lists page targets. The renderer you want is the one with `"url": "http://localhost:5173/"` and `"title": "Hi-Bit"`.
+`http://127.0.0.1:9222/json` lists page targets.
+The renderer you want is the one with `"url": "http://localhost:5173/"` and `"title": "Hi-Bit"`.
 
 ### Fresh state without losing Codex auth (`HIBIT_USER_DATA_DIR`)
 
@@ -194,7 +187,8 @@ This never touches the real userData, so it is the safe default for destructive 
 
 ### Attach chrome-devtools-axi to Electron
 
-The axi bridge caches its target. If it was previously connected to a different Chrome, you MUST stop it first or it will keep reporting that other session's pages:
+The axi bridge caches its target.
+If it was previously connected to a different Chrome, you MUST stop it first or it will keep reporting that other session's pages:
 
 ```
 chrome-devtools-axi stop
@@ -214,33 +208,50 @@ CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:9222 chrome-devtools-axi consol
 
 Tip: `export CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:9222` for the session if you are running many commands.
 
-`snapshot` returns an accessibility tree with `uid` refs you pass to `click`, `fill`, `hover`, etc. Prefer `snapshot` + refs over CSS selectors - it matches how the app is actually exposed to users.
+`snapshot` returns an accessibility tree with `uid` refs you pass to `click`, `fill`, `hover`, etc.
+Prefer `snapshot` + refs over CSS selectors because it matches how the app is actually exposed to users.
 
 ### Sanity checks
 
-- `eval "typeof window.hibit"` should return `"object"`. If it returns `"undefined"`, the preload bridge did not load - the renderer will show the error boundary ("Something went sideways.") and every IPC-driven feature will be broken. Fix the preload wiring before continuing, don't try to work around it.
-- `console --type error` surfaces renderer-side errors. Main-process errors only show up in the `pnpm dev` output, not in axi.
+- `eval "typeof window.hibit"` should return `"object"`.
+  If it returns `"undefined"`, the preload bridge did not load.
+  The renderer will show the error boundary ("Something went sideways.") and every IPC-driven feature will be broken.
+  Fix the preload wiring before continuing, and do not try to work around it.
+- `console --type error` surfaces renderer-side errors.
+  Main-process errors only show up in the `pnpm dev` output, not in axi.
 
 ### Tearing down
 
-When you finish e2e testing - whether it passed, failed, or you are abandoning it - you MUST clean up after yourself.
+When you finish E2E testing, whether it passed, failed, or you are abandoning it, you MUST clean up after yourself.
 Leaving a dev server, CDP endpoint, AXI bridge, or scratch files behind is a defect, not a convenience for the next run.
 Do every step below, even if the test failed partway through.
 
 1. Stop the AXI bridge: `chrome-devtools-axi stop`.
-2. Kill the dev server: stop the `pnpm dev` process you started (the one running `electron-vite dev`). Quitting the Electron window also ends it because the dev server is tied to Electron's lifecycle, but do not rely on a window quit alone - confirm the process is gone. If you launched it in the background, kill that background task by id; otherwise kill the process holding this run's debugging port (`kill $(lsof -ti :9222)`). The old documented pattern `pkill -f "electron-vite dev"` never worked because the actual process is `node .../electron-vite.js dev`, so the quoted pattern matches nothing and silently leaves the app running. Then verify nothing still holds the debugging port (`lsof -i :9222` should be empty).
-3. Remove the isolated userData dir if you made one: `rm -rf /tmp/hibit-e2e` (or whatever `HIBIT_USER_DATA_DIR` path you used). Never delete the real userData dir.
-4. Delete any other scratch artifacts you created for the test: dumped logs, temp HTML, sample files written into a project, etc. Do not commit them and do not leave them in the working tree or `/tmp`.
+2. Kill the dev server: stop the `pnpm dev` process you started, which is the one running `electron-vite dev`.
+   Quitting the Electron window also ends it because the dev server is tied to Electron's lifecycle, but do not rely on a window quit alone.
+   Confirm the process is gone.
+   If you launched it in the background, kill that background task by id.
+   Otherwise, kill the process holding this run's debugging port with `kill $(lsof -ti :9222)`.
+   The old documented pattern `pkill -f "electron-vite dev"` never worked because the actual process is `node .../electron-vite.js dev`, so the quoted pattern matches nothing and silently leaves the app running.
+   Then verify nothing still holds the debugging port with `lsof -i :9222`.
+3. Remove the isolated userData dir if you made one: `rm -rf /tmp/hibit-e2e` or whatever `HIBIT_USER_DATA_DIR` path you used.
+   Never delete the real userData dir.
+4. Delete any other scratch artifacts you created for the test: dumped logs, temp HTML, sample files written into a project, etc.
+   Do not commit them and do not leave them in the working tree or `/tmp`.
 
 After teardown, run a quick check that the tree and processes are clean: `git status` should show only the changes you intend to keep, and no `electron-vite dev` / `chrome-devtools-axi` processes should remain.
 Do not leave background dev apps, CDP endpoints, AXI bridge processes, isolated userData dirs, or scratch files behind after validation.
 
 ### What E2E can and can't cover
 
-- Can: full renderer flow for Codex connection state, profile creation/selection/editing/switching, profile-level chat, Bit-delegated creation work, live preview Play controls, The Factory surface, abort, and opening the creations folder.
-- Can: IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
-- Cannot directly: main-process internals such as token refresh, project file writes, or Pi runtime turns except by observing their side effects in the renderer or on disk under `<userData>/.hi-bit/`.
-- Note: `pnpm dev` uses the real userData dir, so E2E runs will create/modify auth and project data there. For a clean slate that still starts signed in, prefer an isolated dir via `HIBIT_USER_DATA_DIR` (see "Fresh state without losing Codex auth" above) rather than deleting `<userData>/.hi-bit/` - a delete also wipes `auth/codex.json` and strands you on the Codex sign-in gate.
+- Can: exercise the real renderer, Chromium behavior, focus, accessibility tree, permissions, and iframe rendering for the behavior under test.
+- Can: observe IPC round-trips through the preload bridge, since those run in the real main process against the real Hi-Bit layout under Electron's `userData` dir.
+- Can: inspect visible side effects in the renderer, main-process logs, and files under the active `<userData>/.hi-bit/` tree.
+- Cannot directly: prove hidden main-process internals, token-refresh decisions, Pi runtime turns, or tool-call routing except through their observable side effects.
+- Cannot safely automate Codex OAuth sign-in from a blank machine state.
+- Note: `pnpm dev` uses the real userData dir, so E2E runs will create or modify auth and project data there.
+  For a clean slate that still starts signed in, prefer an isolated dir via `HIBIT_USER_DATA_DIR` rather than deleting `<userData>/.hi-bit/`.
+  Deleting `<userData>/.hi-bit/` also wipes `auth/codex.json` and strands you on the Codex sign-in gate.
 
 ## Project conventions
 
