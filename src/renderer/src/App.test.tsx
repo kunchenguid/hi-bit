@@ -119,10 +119,11 @@ describe("App", () => {
     expect(host.textContent).not.toContain("New project");
     expect(host.textContent).not.toContain("Log out");
 
-    const editProfile = Array.from(host.querySelectorAll("summary")).find((summary) =>
-      summary.textContent?.includes("Edit profile"),
+    const settings = Array.from(host.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Settings"),
     );
-    expect(editProfile?.classList.contains("hb-button")).toBe(true);
+    expect(settings?.classList.contains("hb-button")).toBe(true);
+    expect(host.querySelector(".hb-parent-menu")).toBeNull();
   });
 
   it("rejects fractional ages before updating a kid profile", async () => {
@@ -135,6 +136,7 @@ describe("App", () => {
     api.profiles.list = vi.fn(async () => [adaProfile()]);
 
     await renderApp(root);
+    await clickButton(host, "Settings");
     await fillInput(host, "profileAge", "9.5");
     await clickButton(host, "Save profile");
 
@@ -188,7 +190,7 @@ describe("App", () => {
     expect(host.textContent).toContain("Ask Bit to build");
   });
 
-  it("resets the active profile conversation from the grown-up menu", async () => {
+  it("resets the active profile conversation from Settings", async () => {
     api.auth.status = vi.fn(async () => ({
       authenticated: true,
       storage: { path: "/tmp/codex.json", encrypted: true },
@@ -222,6 +224,7 @@ describe("App", () => {
     await renderApp(root);
     expect(host.textContent).toContain("Old chat history.");
 
+    await clickButton(host, "Settings");
     await clickButton(host, "Reset conversation");
     expect(api.chat.resetConversation).not.toHaveBeenCalled();
     expect(host.textContent).toContain("This cannot be undone");
@@ -647,6 +650,7 @@ describe("App", () => {
 
     await renderApp(root);
     await clickButton(host, "Play");
+    await clickButton(host, "Settings");
     await clickButton(host, "Switch profile");
     await clickButton(host, "Sam");
 
@@ -690,6 +694,7 @@ describe("App", () => {
       "ATTACHED_BYTES",
     );
 
+    await clickButton(host, "Settings");
     await clickButton(host, "Switch profile");
     await clickButton(host, "Sam");
     await fillInput(host, "hibit-composer", "what should we build?");
@@ -707,6 +712,7 @@ describe("App", () => {
     api.profiles.list = vi.fn(async () => [adaProfile(), samProfile()]);
 
     await renderApp(root);
+    await clickButton(host, "Settings");
     await clickButton(host, "Switch profile");
 
     expect(api.profiles.setActiveId).toHaveBeenCalledWith(null);
@@ -789,6 +795,8 @@ describe("App", () => {
     });
 
     await renderApp(root);
+    await clickButton(host, "Settings");
+    await clickButton(host, "How Bit works");
     await setThinkingSpeedSlider(host, 1);
     await setThinkingSpeedSlider(host, 4);
 
@@ -811,6 +819,8 @@ describe("App", () => {
     api.config.get = vi.fn(() => initialConfig.promise);
 
     await renderApp(root);
+    await clickButton(host, "Settings");
+    await clickButton(host, "How Bit works");
     await setThinkingSpeedSlider(host, 4);
 
     initialConfig.resolve({ thinkingSpeed: "low" });

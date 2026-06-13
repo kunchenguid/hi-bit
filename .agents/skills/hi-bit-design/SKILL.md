@@ -34,7 +34,7 @@ All design sources are under `/design/` (relative to the repo root). From this s
    - `logo-mark.svg` - Bit's monitor head, used for tutor avatar + favicon
    - `logo-wordmark.svg` - "HI BIT" pixel wordmark
    - `sticker-{html,css,js,art,math}.svg` - subject stickers
-   - `icons.svg` - 14-icon pixel sprite sheet (use via `<use href="icons.svg#i-home" />`)
+   - `icons.svg` - 19-icon pixel sprite sheet (use via `<use href="icons.svg#i-home" />`; production renderer mirrors it in `PixelIconSprite`)
    - `crt-overlay.svg`, `paper-texture.svg` - background textures
 
 ## What to output

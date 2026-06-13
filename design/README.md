@@ -113,7 +113,11 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Voice input transcribing:** Working out what you said...
 >
-> **Grown-up menu:** Grown-up menu.
+> **Settings button:** Settings.
+>
+> **Settings title:** Settings.
+>
+> **Settings tabs:** Profile. How Bit works. About & updates.
 >
 > **Reset conversation button:** Reset conversation.
 >
@@ -127,9 +131,11 @@ The rule of thumb: *would a calm, excellent 5th-grade teacher say this to a kid 
 >
 > **Factory Handbook reach:** You can build: A richer creation shaped by specific feedback.
 >
-> **Grown-up progress heading:** What Maya is learning.
+> **My progress button:** My progress.
 >
-> **Grown-up progress summary:** Agentic engineering: directing AI to build real things.
+> **My progress heading:** What Maya is learning.
+>
+> **My progress summary:** Agentic engineering: directing AI to build real things.
 >
 > **Thinking speed label:** How hard Bit thinks.
 >
@@ -293,7 +299,7 @@ The canonical Hi-Bit creation card:
 
 ## Iconography
 
-**Approach:** custom **pixel-art sprite sheet** shipped in `assets/icons.svg` (sprite symbols, usable via `<use>`). 16×16 and 32×32 variants, rendered crisp via `image-rendering: pixelated`. Colors inherit via `currentColor` so they can be tinted per subject.
+**Approach:** custom **pixel-art sprite sheet** shipped in `assets/icons.svg` and mirrored in the renderer's `PixelIconSprite` (sprite symbols, usable via `<use>`). 16×16 and 32×32 variants, rendered crisp via `image-rendering: pixelated`. Colors inherit via `currentColor` so they can be tinted per subject.
 
 **Why pixel and not a standard icon lib?** The arcade identity requires it - Lucide/Heroicons would flatten the brand. However:
 

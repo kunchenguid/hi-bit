@@ -147,67 +147,24 @@ pre {
   padding: var(--s-3);
 }
 
-.hb-profile-settings-menu {
-  position: relative;
-}
-
-.hb-profile-settings-menu summary.hb-button {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  list-style: none;
-}
-
-.hb-profile-settings-menu summary::-webkit-details-marker {
-  display: none;
-}
-
-.hb-profile-settings-popover {
+.hb-icon-sprite {
   position: absolute;
-  top: calc(100% + var(--s-1));
-  right: 0;
-  z-index: 2;
-  width: min(420px, calc(100vw - var(--s-4)));
-  padding: var(--s-3);
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }
 
-.hb-parent-menu {
-  position: relative;
+.hb-icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  fill: currentColor;
+  image-rendering: pixelated;
+  vertical-align: -0.125em;
 }
 
-.hb-parent-menu summary.hb-button {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  list-style: none;
-}
-
-.hb-parent-menu summary::-webkit-details-marker {
-  display: none;
-}
-
-.hb-parent-menu-popover {
-  position: absolute;
-  top: calc(100% + var(--s-1));
-  right: 0;
-  z-index: 3;
-  display: grid;
-  gap: var(--s-1);
-  width: min(440px, calc(100vw - var(--s-4)));
-  padding: var(--s-3);
-}
-
-.hb-parent-menu-popover .hb-profile-settings-menu {
-  width: 100%;
-}
-
-.hb-parent-menu-popover .hb-profile-settings-menu summary.hb-button {
-  width: 100%;
-  justify-content: center;
-}
-
-/* A quiet "there's an update" dot on the Grown-up menu summary - the only hint
-   the kid sees; the upgrade details live inside the popover. */
+/* A quiet "there's an update" dot on the Settings button - the only hint
+   the kid sees; the upgrade details live inside Settings. */
 .hb-update-dot {
   width: 8px;
   height: 8px;
@@ -217,7 +174,7 @@ pre {
   box-shadow: var(--shadow-glow-brand);
 }
 
-/* The grown-up-only update block inside the menu popover. */
+/* The grown-up-only update block inside Settings. */
 .hb-update-notice {
   display: grid;
   gap: var(--s-1);
@@ -229,8 +186,15 @@ pre {
 }
 
 .hb-update-notice-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-0\.5);
   font-weight: 700;
   color: var(--ink);
+}
+
+.hb-update-notice-title .hb-icon {
+  color: var(--success);
 }
 
 .hb-update-notice-sub {
@@ -378,6 +342,10 @@ pre {
 
 .hb-button {
   min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-0\.5);
   border: 2px solid var(--ink);
   border-radius: var(--r-lg);
   padding: 0 var(--s-2);
@@ -545,6 +513,7 @@ pre {
 
 .hb-header-actions {
   display: flex;
+  align-items: center;
   gap: var(--s-1);
 }
 
@@ -2051,19 +2020,9 @@ pre {
     flex-wrap: wrap;
     width: 100%;
   }
-
-  .hb-profile-settings-menu {
-    width: 100%;
-  }
-
-  .hb-profile-settings-popover {
-    left: 0;
-    right: auto;
-    width: 100%;
-  }
 }
 
-/* --- Factory Handbook (kid) + grown-up progress window ------------------- */
+/* --- Full-screen overlays ------------------------------------------------ */
 
 .hb-handbook-backdrop {
   position: fixed;
@@ -2163,7 +2122,250 @@ pre {
   font-weight: 600;
 }
 
-/* Parent window: dense, plain, lives inside the grown-up menu popover. */
+/* --- Settings overlay ---------------------------------------------------- */
+
+.hb-settings {
+  width: min(1040px, 100%);
+  height: min(760px, calc(100vh - var(--s-6)));
+  max-height: calc(100vh - var(--s-6));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+}
+
+.hb-settings-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: var(--border-hairline);
+  background: var(--paper-2);
+}
+
+.hb-settings-back .hb-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.hb-settings-title-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.hb-settings-title-wrap p {
+  margin: 0 0 0 auto;
+  color: var(--ink-64);
+  font-size: var(--t-small-size);
+}
+
+.hb-settings-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin: 0;
+  font-size: var(--t-h2-size);
+}
+
+.hb-settings-title .hb-icon {
+  color: var(--brand);
+}
+
+.hb-settings-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.hb-settings-sidebar {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-0\.5);
+  padding: var(--s-2);
+  border-right: var(--border-hairline);
+  background: var(--paper-2);
+  overflow-y: auto;
+}
+
+.hb-settings-tab {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  width: 100%;
+  padding: 0 var(--s-1\.5);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.hb-settings-tab .hb-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.hb-settings-tab:hover {
+  background: var(--ink-06);
+}
+
+.hb-settings-tab[aria-selected="true"] {
+  background: var(--brand);
+  color: var(--paper-3);
+  box-shadow: var(--shadow-pixel);
+}
+
+.hb-settings-tab-dot {
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-radius: var(--r-pill);
+  background: var(--success);
+  box-shadow: var(--shadow-glow-brand);
+}
+
+.hb-settings-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-3);
+}
+
+.hb-settings-panel {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.hb-settings-panel-intro {
+  display: grid;
+  gap: var(--s-0\.5);
+}
+
+.hb-settings-panel-intro h3 {
+  margin: 0;
+  font-size: var(--t-h2-size);
+}
+
+.hb-settings-panel-intro p {
+  max-width: 64ch;
+  margin: 0;
+  color: var(--ink-64);
+  font-size: var(--t-small-size);
+}
+
+.hb-settings-subhead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-0\.5);
+  margin: var(--s-1) 0 0;
+  color: var(--ink-64);
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hb-settings-subhead .hb-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.hb-settings-profile-form {
+  padding: var(--s-2);
+  border: var(--border-hairline);
+  border-radius: var(--r-lg);
+  background: var(--paper-3);
+}
+
+.hb-settings-action-list {
+  display: grid;
+  gap: var(--s-1\.5);
+}
+
+.hb-settings-action-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-1\.5);
+  padding: var(--s-1\.5) var(--s-2);
+  border: var(--border-hairline);
+  border-radius: var(--r-lg);
+  background: var(--paper-3);
+}
+
+.hb-settings-action-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--brand);
+}
+
+.hb-settings-action-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.hb-settings-action-copy strong {
+  font-size: var(--t-body-size);
+}
+
+.hb-settings-action-copy span {
+  color: var(--ink-64);
+  font-size: var(--t-small-size);
+}
+
+.hb-settings-action-control {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hb-settings-reset-row {
+  align-items: start;
+}
+
+.hb-settings-reset-row .hb-reset-conversation {
+  min-width: min(300px, 100%);
+}
+
+.hb-progress-overlay {
+  width: min(760px, 100%);
+  max-height: calc(100vh - var(--s-6));
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  overflow: auto;
+}
+
+.hb-progress-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.hb-progress-overlay-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.hb-progress-overlay-title h2 {
+  margin: 0;
+}
+
+.hb-progress-overlay-title .hb-icon {
+  color: var(--brand);
+}
+
+/* Parent progress: dense and plain, used inside the My progress overlay. */
 .hb-progress-window {
   display: grid;
   gap: var(--s-1);
@@ -2228,4 +2430,86 @@ pre {
 .hb-progress-roadmap li {
   font-size: var(--t-small-size);
   color: var(--ink-2);
+}
+
+@media (max-width: 760px) {
+  .hb-settings-action-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hb-settings-action-control {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .hb-settings-action-control .hb-button,
+  .hb-settings-action-control .hb-reset-conversation {
+    width: 100%;
+  }
+}
+
+@media (max-width: 680px) {
+  .hb-handbook-backdrop {
+    padding: var(--s-1);
+  }
+
+  .hb-settings {
+    width: 100%;
+    height: calc(100vh - var(--s-2));
+    max-height: calc(100vh - var(--s-2));
+  }
+
+  .hb-settings-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: var(--s-1\.5) var(--s-2);
+  }
+
+  .hb-settings-title-wrap {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: var(--s-0\.5) var(--s-1);
+  }
+
+  .hb-settings-title-wrap p {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .hb-settings-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .hb-settings-sidebar {
+    min-width: 0;
+    flex-direction: row;
+    border-right: 0;
+    border-bottom: var(--border-hairline);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .hb-settings-tab {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .hb-settings-content {
+    padding: var(--s-2);
+  }
+
+  .hb-profile-form {
+    grid-template-columns: 1fr;
+  }
+
+  .hb-progress-overlay {
+    width: 100%;
+    max-height: calc(100vh - var(--s-2));
+  }
+
+  .hb-progress-overlay-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

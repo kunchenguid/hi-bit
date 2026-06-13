@@ -15,12 +15,11 @@ import { BrowserPane } from "../components/BrowserPane";
 import { Composer } from "../components/Composer";
 import { FactoryHandbook } from "../components/FactoryHandbook";
 import { FactoryView } from "../components/FactoryView";
+import { Icon } from "../components/Icon";
 import { MessageList } from "../components/MessageList";
-import { ParentProgressWindow } from "../components/ParentProgressWindow";
-import { ProfileSettingsMenu } from "../components/ProfileSettingsMenu";
-import { ResetConversationControl } from "../components/ResetConversationControl";
-import { ThinkingSpeedControl } from "../components/ThinkingSpeedControl";
-import { UpdateNotice } from "../components/UpdateNotice";
+import { ProgressOverlay } from "../components/ProgressOverlay";
+import { SettingsOverlay } from "../components/SettingsOverlay";
+import { useAppVersion } from "../components/useAppVersion";
 import { useLearningProgress } from "../components/useLearningProgress";
 import { useUpdateStatus } from "../components/useUpdateStatus";
 
@@ -116,9 +115,10 @@ export function ChatWorkspace({
   // bot just built, anything else is Bit replying to the builder.
   const thinkingReason: TurnKind = activeTurn?.kind === "bot_result" ? "bot_result" : "reply";
 
-  // Whether a newer Hi-Bit is out. Updating is a grown-up task, so it lives in
-  // the Grown-up menu; the dot on the menu summary is the only hint the kid sees.
+  // Whether a newer Hi-Bit is out. Updating is a settings task, so the dot on
+  // the Settings button is the only hint the kid sees in the main header.
   const updateStatus = useUpdateStatus();
+  const appVersion = useAppVersion();
   const updateAvailable = updateStatus?.updateAvailable ?? false;
   const resetBlockedReason =
     running || activeTurn
@@ -128,12 +128,18 @@ export function ChatWorkspace({
         : null;
 
   // The builder's learning progress, fetched fresh each time they open their
-  // Handbook (a kid-chosen action) or a grown-up opens their menu.
+  // Handbook or My progress.
   const { progress, refresh: refreshProgress } = useLearningProgress(profile.id);
   const [showHandbook, setShowHandbook] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const openHandbook = () => {
     refreshProgress();
     setShowHandbook(true);
+  };
+  const openProgress = () => {
+    refreshProgress();
+    setShowProgress(true);
   };
 
   // A creation is playable if it has a remembered preview (running or
@@ -157,55 +163,24 @@ export function ChatWorkspace({
         <h1 className="hb-workspace-greeting">Hi {profile.name} - what should we build?</h1>
         <div className="hb-header-actions">
           <button className="hb-button hb-button-secondary" type="button" onClick={openHandbook}>
+            <Icon name="i-hint" />
             What I can do
           </button>
-          <details
-            className="hb-parent-menu"
-            onToggle={(event) => {
-              if (event.currentTarget.open) refreshProgress();
-            }}
+          <button className="hb-button hb-button-secondary" type="button" onClick={openProgress}>
+            <Icon name="i-trophy" />
+            My progress
+          </button>
+          <button
+            className="hb-button hb-button-secondary"
+            type="button"
+            onClick={() => setShowSettings(true)}
           >
-            <summary className="hb-button hb-button-secondary">
-              Grown-up menu
-              {updateAvailable ? (
-                <span className="hb-update-dot" role="img" aria-label="update available" />
-              ) : null}
-            </summary>
-            <div className="hb-card hb-parent-menu-popover">
-              <ProfileSettingsMenu
-                profile={profile}
-                busy={busy}
-                onUpdateProfile={onUpdateProfile}
-              />
-              <ThinkingSpeedControl
-                value={thinkingSpeed}
-                busy={busy}
-                onChange={onChangeThinkingSpeed}
-              />
-              <ParentProgressWindow builderName={profile.name} progress={progress} />
-              <ResetConversationControl
-                builderName={profile.name}
-                busy={busy}
-                blockedReason={resetBlockedReason}
-                onReset={onResetConversation}
-              />
-              <button
-                className="hb-button hb-button-secondary"
-                type="button"
-                onClick={onOpenFolder}
-              >
-                Open creations folder
-              </button>
-              <button
-                className="hb-button hb-button-secondary"
-                type="button"
-                onClick={onSwitchProfile}
-              >
-                Switch profile
-              </button>
-              {updateStatus ? <UpdateNotice status={updateStatus} /> : null}
-            </div>
-          </details>
+            <Icon name="i-settings" />
+            Settings
+            {updateAvailable ? (
+              <span className="hb-update-dot" role="img" aria-label="update available" />
+            ) : null}
+          </button>
         </div>
       </header>
 
@@ -279,6 +254,31 @@ export function ChatWorkspace({
           builderName={profile.name}
           progress={progress}
           onClose={() => setShowHandbook(false)}
+        />
+      ) : null}
+
+      {showProgress ? (
+        <ProgressOverlay
+          builderName={profile.name}
+          progress={progress}
+          onClose={() => setShowProgress(false)}
+        />
+      ) : null}
+
+      {showSettings ? (
+        <SettingsOverlay
+          profile={profile}
+          busy={busy}
+          thinkingSpeed={thinkingSpeed}
+          updateStatus={updateStatus}
+          appVersion={updateStatus?.currentVersion ?? appVersion}
+          resetBlockedReason={resetBlockedReason}
+          onClose={() => setShowSettings(false)}
+          onOpenFolder={onOpenFolder}
+          onSwitchProfile={onSwitchProfile}
+          onUpdateProfile={onUpdateProfile}
+          onResetConversation={onResetConversation}
+          onChangeThinkingSpeed={onChangeThinkingSpeed}
         />
       ) : null}
     </main>

@@ -1,5 +1,6 @@
 import type { UpdateStatus } from "@shared/ipc";
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "./Icon";
 
 // Hi-Bit is delivered through the Homebrew cask in kunchenguid/homebrew-tap (see
 // .github/workflows/release-please.yml), so this is the upgrade command we hand
@@ -12,7 +13,7 @@ type UpdateNoticeProps = {
 };
 
 /**
- * The "a newer Hi-Bit is out" block shown inside the Grown-up menu. Updating is a
+ * The "a newer Hi-Bit is out" block shown inside Settings. Updating is a
  * parent task (it runs a terminal command), so this lives out of the kid's way
  * rather than in the chat chrome. Renders nothing unless an update is available.
  */
@@ -45,7 +46,8 @@ export function UpdateNotice({ status }: UpdateNoticeProps) {
   return (
     <section className="hb-update-notice" aria-label="update available">
       <p className="hb-update-notice-title">
-        <span aria-hidden="true">⬆</span> Update available
+        <Icon name="i-download" />
+        Update available
         {status.latestVersion ? ` - v${status.latestVersion}` : null}
       </p>
       <p className="hb-update-notice-sub t-small">

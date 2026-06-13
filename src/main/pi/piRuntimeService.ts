@@ -54,7 +54,7 @@ export type SendPromptResult = {
 type PiRuntimeServiceOptions = {
   agentDir: string;
   modelId?: string;
-  /** Initial bot thinking effort; the grown-up menu can change it live. Defaults to balanced. */
+  /** Initial bot thinking effort; Settings can change it live. Defaults to balanced. */
   thinkingLevel?: ThinkingSpeed;
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateRuntimeSessionInput) => Promise<RuntimePiSession>;

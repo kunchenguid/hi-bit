@@ -1,5 +1,6 @@
 import type { ProfileSettingsInput, ProfileSummary } from "@shared/profile";
 import { type FormEvent, useEffect, useState } from "react";
+import { Icon } from "./Icon";
 
 type ProfileSettingsMenuProps = {
   profile: ProfileSummary;
@@ -41,50 +42,44 @@ export function ProfileSettingsMenu({ profile, busy, onUpdateProfile }: ProfileS
   }
 
   return (
-    <details className="hb-profile-settings-menu">
-      <summary className="hb-button hb-button-secondary">Edit profile</summary>
-      <form
-        className="hb-card hb-profile-settings-popover hb-profile-form"
-        onSubmit={handleSubmit}
-        noValidate
-      >
-        <label htmlFor="profile-settings-name">Kid name</label>
-        <input
-          id="profile-settings-name"
-          name="profileName"
-          value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
-        />
-        <label htmlFor="profile-settings-age">Age</label>
-        <input
-          id="profile-settings-age"
-          name="profileAge"
-          value={age}
-          onChange={(event) => setAge(event.currentTarget.value)}
-          type="number"
-          min={3}
-          max={18}
-        />
-        <label htmlFor="profile-settings-interests">Interests</label>
-        <input
-          id="profile-settings-interests"
-          name="profileInterests"
-          value={interests}
-          onChange={(event) => setInterests(event.currentTarget.value)}
-        />
-        <label htmlFor="profile-settings-notes">Notes for Bit</label>
-        <textarea
-          id="profile-settings-notes"
-          name="profileNotes"
-          value={notes}
-          onChange={(event) => setNotes(event.currentTarget.value)}
-          rows={3}
-        />
-        {formError ? <p className="hb-error">{formError}</p> : null}
-        <button className="hb-button hb-button-secondary" type="submit" disabled={busy}>
-          Save profile
-        </button>
-      </form>
-    </details>
+    <form className="hb-profile-form hb-settings-profile-form" onSubmit={handleSubmit} noValidate>
+      <label htmlFor="profile-settings-name">Kid name</label>
+      <input
+        id="profile-settings-name"
+        name="profileName"
+        value={name}
+        onChange={(event) => setName(event.currentTarget.value)}
+      />
+      <label htmlFor="profile-settings-age">Age</label>
+      <input
+        id="profile-settings-age"
+        name="profileAge"
+        value={age}
+        onChange={(event) => setAge(event.currentTarget.value)}
+        type="number"
+        min={3}
+        max={18}
+      />
+      <label htmlFor="profile-settings-interests">Interests</label>
+      <input
+        id="profile-settings-interests"
+        name="profileInterests"
+        value={interests}
+        onChange={(event) => setInterests(event.currentTarget.value)}
+      />
+      <label htmlFor="profile-settings-notes">Notes for Bit</label>
+      <textarea
+        id="profile-settings-notes"
+        name="profileNotes"
+        value={notes}
+        onChange={(event) => setNotes(event.currentTarget.value)}
+        rows={3}
+      />
+      {formError ? <p className="hb-error">{formError}</p> : null}
+      <button className="hb-button hb-button-primary" type="submit" disabled={busy}>
+        <Icon name="i-check" />
+        Save profile
+      </button>
+    </form>
   );
 }

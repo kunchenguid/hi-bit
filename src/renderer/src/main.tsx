@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { PixelIconSprite } from "./components/Icon";
 import "@design/tokens/colors_and_type.css";
 import "./styles/app.css";
 
@@ -11,6 +12,7 @@ if (!rootEl) {
 
 createRoot(rootEl).render(
   <StrictMode>
+    <PixelIconSprite />
     <App />
   </StrictMode>,
 );
