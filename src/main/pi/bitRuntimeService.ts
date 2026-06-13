@@ -100,7 +100,7 @@ export type BitRuntime = {
 type BitRuntimeServiceOptions = {
   agentDir: string;
   modelId?: string;
-  /** Initial Bit thinking effort; the grown-up menu can change it live. Defaults to balanced. */
+  /** Initial Bit thinking effort; Settings can change it live. Defaults to balanced. */
   thinkingLevel?: ThinkingSpeed;
   getFreshAccessToken: () => Promise<string>;
   createSession?: (input: CreateBitSessionInput) => Promise<BitSession>;

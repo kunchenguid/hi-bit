@@ -53,7 +53,7 @@ Merging the release-please PR creates the version tag and GitHub Release.
 The release-please workflow then builds and uploads the macOS DMG, then updates `kunchenguid/homebrew-tap` with the release SHA.
 The generated Homebrew Cask quits Hi-Bit during upgrade and relaunches it after installation only when the app was already running before uninstall started.
 Packaged Hi-Bit checks the public `kunchenguid/hi-bit` GitHub Releases API at most every 4 hours to detect a newer version.
-It does not auto-install updates; the Grown-up menu shows a quiet dot, the `brew update && brew upgrade --cask hi-bit` command, and a release-notes link when a newer release exists.
+It does not auto-install updates; Settings shows a quiet dot, the `brew update && brew upgrade --cask hi-bit` command, and a release-notes link when a newer release exists.
 Maintainers must keep `HOMEBREW_TAP_TOKEN` configured with write access to `kunchenguid/homebrew-tap` for that update step.
 Maintainers must keep `HIBIT_UMAMI_WEBSITE_ID` configured as a GitHub Actions repository variable for packaged-release telemetry.
 It is intentionally a variable rather than a secret because the id is baked into the app and sent in Umami payloads.

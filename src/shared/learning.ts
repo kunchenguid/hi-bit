@@ -15,7 +15,7 @@ import type { SubjectProgressView } from "./subjects";
  * A read-only snapshot of where a builder is in the agentic-engineering
  * curriculum, plus every learning subject they asked Bit to teach. It feeds
  * both reflection surfaces: the kid's Factory Handbook (kid labels + mastery,
- * grouped by arc, plus their subjects) and the grown-up progress window
+ * grouped by arc, plus their subjects) and My progress
  * (real-skill names + mastery + reach + roadmap + subject goals).
  */
 export type LearningProgressView = {

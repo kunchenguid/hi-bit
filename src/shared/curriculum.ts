@@ -10,7 +10,7 @@
  * Bit and the bots productively, each tied to a real Hi-Bit feature and to the
  * agentic-engineering skill underneath. It is pure data + pure functions, consumed
  * by the main process (to coach and to gate) and surfaced to the renderer (the
- * kid's Factory Handbook and the grown-up progress window). It does not drive
+ * kid's Factory Handbook and My progress). It does not drive
  * chrome labels and it does not gate Bit's vocabulary - the canon words live in
  * `concepts.ts`.
  *

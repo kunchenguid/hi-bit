@@ -50,7 +50,7 @@ export type UpdateStatus = {
 export type Unsubscribe = () => void;
 
 /**
- * The kid-data-free slice of app config the renderer's grown-up menu reads and
+ * The kid-data-free slice of app config the renderer's Settings overlay reads and
  * writes. Deliberately narrow: only the grown-up-tunable settings, never the
  * Codex provider plumbing.
  */
